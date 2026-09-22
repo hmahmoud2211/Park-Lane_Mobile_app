@@ -49,6 +49,30 @@ export const typography = {
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  /** Supporting line under a heading, links and small labels. */
+  bodySmall: {
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  /** Sentence-case button label, e.g. the login screen's "Sign in". */
+  buttonSoft: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  /** Caption inside a form field, e.g. "Email or Username". */
+  inputLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 9.5,
+    lineHeight: 13,
+  },
+  /** The typed value inside a form field. */
+  inputValue: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
   /** "GET STARTED". */
   button: {
     fontFamily: fontFamily.bold,

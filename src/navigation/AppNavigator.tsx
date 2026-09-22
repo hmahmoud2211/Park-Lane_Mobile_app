@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { useAppTheme } from '../hooks/useAppTheme';
 import { FirstScreen } from '../screens/FirstScreen';
+import { LoginScreen } from '../screens/LoginScreen';
 import type { RootStackParamList } from '../types/navigation.types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,6 +44,7 @@ export function AppNavigator() {
         }}
       >
         <Stack.Screen name="FirstScreen" component={FirstScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
         {/* Register later screens here as their designs land. */}
       </Stack.Navigator>
     </NavigationContainer>

@@ -55,6 +55,17 @@ export const colors = {
   scrimTop: 'rgba(7, 27, 68, 0.45)',
   scrimBottom: 'rgba(7, 27, 68, 0.88)',
 
+  /**
+   * Form surfaces, taken from the login screen. The field fill is the same
+   * glass treatment as the CTA, so only the muted text roles are new.
+   */
+  placeholder: 'rgba(255, 255, 255, 0.55)',
+  /** Derived from the login screenshot: the soft blue supporting line. */
+  textAccentSoft: '#A9C8FF',
+  inputLabel: 'rgba(255, 255, 255, 0.75)',
+  link: 'rgba(255, 255, 255, 0.50)',
+  divider: 'rgba(255, 255, 255, 0.22)',
+
   /** Decorative corner glow (see components/ui/GlowArc). */
   glowInner: 'rgba(25, 215, 255, 0.55)',
   glowOuter: 'rgba(43, 140, 255, 0.00)',

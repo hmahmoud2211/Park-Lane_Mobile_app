@@ -1,5 +1,3 @@
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -12,8 +10,10 @@ import {
 } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from './AppText';
+import { GlassSurface } from './GlassSurface';
 
 export type AppButtonVariant = 'primary' | 'secondary';
 
@@ -22,8 +22,12 @@ export interface AppButtonProps extends Omit<PressableProps, 'style' | 'children
   variant?: AppButtonVariant;
   /** Rendered in a circular frame inset at the leading edge. */
   leadingIcon?: ReactNode;
+  /** Rendered bare at the trailing edge, as on the login screen's Sign in. */
+  trailingIcon?: ReactNode;
   loading?: boolean;
   height?: number;
+  /** Overrides the label style; defaults to the `button` typography variant. */
+  labelVariant?: TypographyVariant;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -31,9 +35,11 @@ export function AppButton({
   title,
   variant = 'primary',
   leadingIcon,
+  trailingIcon,
   loading = false,
   disabled = false,
   height = 56,
+  labelVariant = 'button',
   style,
   ...rest
 }: AppButtonProps) {
@@ -49,6 +55,8 @@ export function AppButton({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
+      // Keeps the tap target at least 44dp tall on the shorter login button.
+      hitSlop={Math.max(0, Math.ceil((44 - height) / 2))}
       style={({ pressed }) => [
         styles.shell,
         isPrimary && styles.shellGlow,
@@ -57,31 +65,13 @@ export function AppButton({
         style,
       ]}
     >
-      <View style={styles.clip}>
-        {isPrimary ? (
-          <>
-            {/* Glass */}
-            <BlurView
-              intensity={theme.glass.blurIntensity}
-              tint={theme.glass.blurTint}
-              style={StyleSheet.absoluteFill}
-            />
-            {/* Linear gradient fill at 20% */}
-            <LinearGradient
-              colors={[...theme.glass.gradientColors]}
-              start={theme.glass.gradientStart}
-              end={theme.glass.gradientEnd}
-              style={[StyleSheet.absoluteFill, { opacity: theme.glass.fillOpacity }]}
-            />
-          </>
-        ) : null}
-
-        {/* Label is centred on the button, not on the space beside the icon. */}
+      <GlassSurface radius={height / 2} tinted={isPrimary} style={styles.surface}>
+        {/* Centred on the button itself, so a side icon never shifts it. */}
         <View style={styles.labelLayer} pointerEvents="none">
           {loading ? (
             <ActivityIndicator color={theme.colors.textPrimary} />
           ) : (
-            <AppText variant="button">{title}</AppText>
+            <AppText variant={labelVariant}>{title}</AppText>
           )}
         </View>
 
@@ -90,7 +80,13 @@ export function AppButton({
             {leadingIcon}
           </View>
         ) : null}
-      </View>
+
+        {trailingIcon ? (
+          <View style={styles.trailingIcon} pointerEvents="none">
+            {trailingIcon}
+          </View>
+        ) : null}
+      </GlassSurface>
     </Pressable>
   );
 }
@@ -104,12 +100,8 @@ function createStyles(theme: AppTheme, height: number) {
       borderRadius: height / 2,
     },
     shellGlow: theme.shadows.glow,
-    clip: {
+    surface: {
       flex: 1,
-      borderRadius: height / 2,
-      overflow: 'hidden',
-      borderWidth: theme.glass.strokeWidth,
-      borderColor: theme.glass.strokeColor,
       justifyContent: 'center',
     },
     labelLayer: {
@@ -131,6 +123,13 @@ function createStyles(theme: AppTheme, height: number) {
       borderWidth: 1,
       borderColor: theme.colors.border,
       alignItems: 'center',
+      justifyContent: 'center',
+    },
+    trailingIcon: {
+      position: 'absolute',
+      right: theme.spacing.lg,
+      top: 0,
+      bottom: 0,
       justifyContent: 'center',
     },
     pressed: {

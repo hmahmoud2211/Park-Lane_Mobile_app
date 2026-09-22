@@ -3,6 +3,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -14,6 +15,10 @@ import { AppBackground } from '../common/AppBackground';
 export interface ScreenWrapperProps extends PropsWithChildren {
   /** Renders the shared photo background behind the content. */
   withBackground?: boolean;
+  /** Overrides the background photo; defaults to the shared one. */
+  backgroundSource?: ImageSourcePropType;
+  /** Darkens the top and bottom of the background for legibility. */
+  withScrim?: boolean;
   /** Applies the standard horizontal gutter. */
   withGutter?: boolean;
   scrollable?: boolean;
@@ -26,6 +31,8 @@ export interface ScreenWrapperProps extends PropsWithChildren {
 
 export function ScreenWrapper({
   withBackground = true,
+  backgroundSource,
+  withScrim = true,
   withGutter = false,
   scrollable = false,
   edges = ['top', 'bottom'],
@@ -65,7 +72,7 @@ export function ScreenWrapper({
   }
 
   return (
-    <AppBackground>
+    <AppBackground source={backgroundSource} withScrim={withScrim}>
       {backdrop}
       {body}
     </AppBackground>

@@ -1,4 +1,5 @@
- import { StatusBar } from 'expo-status-bar';
+ import { useNavigation } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 
@@ -10,6 +11,7 @@ import { GlowArc } from '../../components/ui/GlowArc';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useResponsive } from '../../hooks/useResponsive';
+import type { RootStackScreenProps } from '../../types/navigation.types';
 import { eyebrowLines, headlineLines, primaryCta } from './FirstScreen.data';
 import { createStyles } from './FirstScreen.styles';
 
@@ -20,6 +22,7 @@ export function FirstScreen() {
   const theme = useAppTheme();
   const { isCompact, scale, width } = useResponsive();
   const { completeOnboarding } = useAppContext();
+  const navigation = useNavigation<RootStackScreenProps<'FirstScreen'>['navigation']>();
 
   const headlineFontSize = Math.round(scale(theme.typography.displayLarge.fontSize));
   const headlineLineHeight = Math.round(headlineFontSize * 1.1);
@@ -33,9 +36,8 @@ export function FirstScreen() {
 
   const handleGetStarted = useCallback(() => {
     completeOnboarding();
-    // TODO(nav): navigate to the sign-in screen once it exists. Deliberately
-    // not calling navigate() yet - the route is not registered.
-  }, [completeOnboarding]);
+    navigation.navigate('Login');
+  }, [completeOnboarding, navigation]);
 
   return (
     <ScreenWrapper
