@@ -7,7 +7,7 @@ import type { AppTheme } from '../../types/theme.types';
  * whose frame is 390 x 792 with a 47dp status bar. Values below are gaps
  * between elements, so the layout keeps its proportions on taller devices.
  */
-const LOCKUP_TOP = 14;
+const LOCKUP_TOP = 34;
 const LOCKUP_WIDTH = 118;
 const LOCKUP_HEIGHT = 36;
 const LOCKUP_TO_HEADING = 60;
