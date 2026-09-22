@@ -6,8 +6,8 @@ import { View } from 'react-native';
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { GlowArc } from '../../components/ui/GlowArc';
+import { NudgingArrow } from '../../components/ui/NudgingArrow';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -74,7 +74,8 @@ export function FirstScreen() {
             title={primaryCta.label}
             onPress={handleGetStarted}
             height={CTA_HEIGHT}
-            leadingIcon={<ArrowRightIcon size={15} />}
+            leadingIcon={<NudgingArrow size={15} />}
+            pressEffect="advance"
             style={styles.cta}
           />
         </View>

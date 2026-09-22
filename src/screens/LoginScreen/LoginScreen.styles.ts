@@ -25,6 +25,7 @@ const METHOD_CARD_SIZE = 63;
 const METHOD_CARD_GAP = 32;
 
 /** Consumed by the screen, which passes them to shared components. */
+export const BACK_BUTTON_SIZE = 36;
 export const FIELD_HEIGHT = 40;
 export const SUBMIT_HEIGHT = 34;
 
@@ -40,10 +41,22 @@ export function createStyles(theme: AppTheme) {
       paddingBottom: theme.spacing.xxl,
     },
 
+    lockupRow: {
+      width: '100%',
+      height: LOCKUP_HEIGHT,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      marginBottom: LOCKUP_TO_HEADING,
+    },
     lockup: {
       width: LOCKUP_WIDTH,
       height: LOCKUP_HEIGHT,
-      marginBottom: LOCKUP_TO_HEADING,
+    },
+    backButton: {
+      position: 'absolute',
+      left: 0,
+      zIndex: 1,
     },
 
     heading: {

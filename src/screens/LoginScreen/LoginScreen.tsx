@@ -17,6 +17,7 @@ import {
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
+import { BackButton } from '../../components/common/BackButton';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { GradientText } from '../../components/common/GradientText';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -32,7 +33,12 @@ import {
   type LoginErrors,
   type SignInMethodId,
 } from './LoginScreen.data';
-import { FIELD_HEIGHT, SUBMIT_HEIGHT, createStyles } from './LoginScreen.styles';
+import {
+  BACK_BUTTON_SIZE,
+  FIELD_HEIGHT,
+  SUBMIT_HEIGHT,
+  createStyles,
+} from './LoginScreen.styles';
 
 const FIELD_ICON_SIZE = 17;
 
@@ -89,12 +95,15 @@ export function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Image
-            source={images.brandWordmark}
-            style={styles.lockup}
-            resizeMode="contain"
-            accessibilityLabel="Park Lane Compoundhood, New Capital"
-          />
+          <View style={styles.lockupRow}>
+            <BackButton size={BACK_BUTTON_SIZE} style={styles.backButton} />
+            <Image
+              source={images.brandWordmark}
+              style={styles.lockup}
+              resizeMode="contain"
+              accessibilityLabel="Park Lane Compoundhood, New Capital"
+            />
+          </View>
 
           <View style={styles.heading}>
             <AppText variant="heading">{loginCopy.headingLead}</AppText>
