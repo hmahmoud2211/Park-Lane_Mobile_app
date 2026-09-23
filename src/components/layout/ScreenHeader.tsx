@@ -15,7 +15,7 @@ export interface ScreenHeaderProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const ACTION_SIZE = 34;
+const ACTION_SIZE = 40;
 const LOCKUP_WIDTH = 132;
 const LOCKUP_HEIGHT = 40;
 

@@ -47,7 +47,7 @@ export function ProfileScreen() {
             strokeColors={[theme.colors.featureStrokeFrom, theme.colors.featureStrokeTo]}
             style={styles.identity}
           >
-            <Avatar initials={initialsOf(resident)} size={34} />
+            <Avatar initials={initialsOf(resident)} size={36} variant="flat" />
             <View style={styles.identityText}>
               <AppText variant="tileTitle">{fullName}</AppText>
             </View>

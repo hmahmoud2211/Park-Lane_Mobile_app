@@ -19,7 +19,14 @@ export function WeatherPill({ temperature, condition, style }: WeatherPillProps)
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <GlassSurface radius={theme.borderRadius.lg} tinted={false} style={[styles.surface, style]}>
+    <GlassSurface
+      radius={theme.borderRadius.lg}
+      stroke="gradient"
+      strokeColors={[theme.colors.frameStroke, theme.colors.frameStroke]}
+      strokeWidth={0.75}
+      strokeFade
+      style={[styles.surface, style]}
+    >
       <Ionicons name="moon" size={22} color={theme.colors.textPrimary} />
       <View style={styles.text}>
         <AppText variant="cardTitle">{temperature}</AppText>

@@ -32,6 +32,10 @@ export interface GlassSurfaceProps extends PropsWithChildren {
   stroke?: GlassStroke;
   /** Stops for `stroke="gradient"`; defaults to the card stroke tokens. */
   strokeColors?: readonly [string, string];
+  /** Overrides the stroke thickness; defaults to the Figma frame spec. */
+  strokeWidth?: number;
+  /** Runs the stroke left to right and fades it out, instead of diagonally. */
+  strokeFade?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -49,6 +53,8 @@ export function GlassSurface({
   tinted = true,
   stroke = 'hairline',
   strokeColors,
+  strokeWidth: strokeWidthProp,
+  strokeFade = false,
   style,
   children,
 }: GlassSurfaceProps) {
@@ -66,7 +72,7 @@ export function GlassSurface({
           borderRadius: radius,
           // Required so Android clips the blur layer to the rounded corners.
           overflow: 'hidden',
-          borderWidth: isGradient ? 0 : theme.glass.strokeWidth,
+          borderWidth: isGradient ? 0 : (strokeWidthProp ?? theme.glass.strokeWidth),
           borderColor: theme.glass.strokeColor,
         },
         fill: { opacity: theme.glass.fillOpacity },
@@ -76,7 +82,7 @@ export function GlassSurface({
           left: 0,
         },
       }),
-    [radius, isGradient, theme],
+    [radius, isGradient, strokeWidthProp, theme],
   );
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -92,7 +98,7 @@ export function GlassSurface({
   };
 
   const edge = strokeColors ?? ([theme.colors.cardStrokeFrom, theme.colors.cardStrokeTo] as const);
-  const strokeWidth = theme.glass.strokeWidth;
+  const strokeWidth = strokeWidthProp ?? theme.glass.strokeWidth;
   const inset = strokeWidth / 2;
 
   return (
@@ -124,9 +130,15 @@ export function GlassSurface({
           pointerEvents="none"
         >
           <Defs>
-            <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+            <SvgLinearGradient
+              id={gradientId}
+              x1="0"
+              y1="0"
+              x2="1"
+              y2={strokeFade ? '0' : '1'}
+            >
               <Stop offset="0" stopColor={edge[0]} />
-              <Stop offset="1" stopColor={edge[1]} />
+              <Stop offset="1" stopColor={edge[1]} stopOpacity={strokeFade ? 0 : 1} />
             </SvgLinearGradient>
           </Defs>
           <Rect
