@@ -19,6 +19,8 @@ export interface ScreenWrapperProps extends PropsWithChildren {
   backgroundSource?: ImageSourcePropType;
   /** Darkens the top and bottom of the background for legibility. */
   withScrim?: boolean;
+  /** Flat darkening over the whole background photo, 0-1. */
+  backgroundOverlay?: number;
   /** Applies the standard horizontal gutter. */
   withGutter?: boolean;
   scrollable?: boolean;
@@ -33,6 +35,7 @@ export function ScreenWrapper({
   withBackground = true,
   backgroundSource,
   withScrim = true,
+  backgroundOverlay,
   withGutter = false,
   scrollable = false,
   edges = ['top', 'bottom'],
@@ -72,7 +75,7 @@ export function ScreenWrapper({
   }
 
   return (
-    <AppBackground source={backgroundSource} withScrim={withScrim}>
+    <AppBackground source={backgroundSource} withScrim={withScrim} overlay={backgroundOverlay}>
       {backdrop}
       {body}
     </AppBackground>

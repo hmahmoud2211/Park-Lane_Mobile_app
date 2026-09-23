@@ -16,6 +16,16 @@ export const images = {
 
   /** Google's official four-colour mark, rasterised from their brand paths. */
   googleMark: require('../assets/images/icons/google-mark.png') as number,
+
+  homeBackground: require('../assets/images/backgrounds/home-background.png') as number,
+
+  unitPhoto: require('../assets/images/illustrations/unit-a302.png') as number,
+
+  /**
+   * PLACEHOLDER, cropped from the home screen reference. Replace with the real
+   * export at this path; no code change needed.
+   */
+  promoPhoto: require('../assets/images/illustrations/promo-lifestyle.png') as number,
 } as const;
 
 export type ImageKey = keyof typeof images;

@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -20,7 +21,11 @@ import type { AppTheme } from '../../types/theme.types';
 import { AppText } from './AppText';
 import { GlassSurface } from './GlassSurface';
 
-export type AppButtonVariant = 'primary' | 'secondary';
+/**
+ * `primary` and `secondary` are the glass pills. `gradient` is the solid
+ * cyan-to-magenta fill used by the home screen's promo CTA.
+ */
+export type AppButtonVariant = 'primary' | 'secondary' | 'gradient';
 
 /**
  * `advance` sweeps the leading icon across the button and fades the label out
@@ -40,6 +45,8 @@ export interface AppButtonProps extends Omit<PressableProps, 'style' | 'children
   /** Overrides the label style; defaults to the `button` typography variant. */
   labelVariant?: TypographyVariant;
   pressEffect?: AppButtonPressEffect;
+  /** Distance from the trailing edge to `trailingIcon`. */
+  trailingInset?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -59,12 +66,16 @@ export function AppButton({
   height = 56,
   labelVariant = 'button',
   pressEffect = 'none',
+  trailingInset,
   style,
   onPress,
   ...rest
 }: AppButtonProps) {
   const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme, height), [theme, height]);
+  const styles = useMemo(
+    () => createStyles(theme, height, trailingInset ?? theme.spacing.lg),
+    [theme, height, trailingInset],
+  );
 
   // Lazy state rather than a ref: stable across renders, and readable during
   // render without tripping the rules of React.
@@ -73,6 +84,7 @@ export function AppButton({
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isPrimary = variant === 'primary';
+  const isGradient = variant === 'gradient';
   const isDisabled = disabled || loading;
   const animates = pressEffect === 'advance' && Boolean(leadingIcon);
 
@@ -139,26 +151,9 @@ export function AppButton({
       })
     : 1;
 
-  return (
-    <Pressable
-      {...rest}
-      onPress={handlePress}
-      onLayout={onLayout}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
-      disabled={isDisabled}
-      // Keeps the tap target at least 44dp tall on the shorter login button.
-      hitSlop={Math.max(0, Math.ceil((44 - height) / 2))}
-      style={({ pressed }) => [
-        styles.shell,
-        isPrimary && styles.shellGlow,
-        isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
-        style,
-      ]}
-    >
-      <GlassSurface radius={height / 2} tinted={isPrimary} style={styles.surface}>
-        {/* Centred on the button itself, so a side icon never shifts it. */}
+  const content = (
+    <>
+      {/* Centred on the button itself, so a side icon never shifts it. */}
         <Animated.View style={[styles.labelLayer, { opacity: labelOpacity }]} pointerEvents="none">
           {loading ? (
             <ActivityIndicator color={theme.colors.textPrimary} />
@@ -181,12 +176,46 @@ export function AppButton({
             {trailingIcon}
           </View>
         ) : null}
-      </GlassSurface>
+    </>
+  );
+
+  return (
+    <Pressable
+      {...rest}
+      onPress={handlePress}
+      onLayout={onLayout}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      disabled={isDisabled}
+      // Keeps the tap target at least 44dp tall on the shorter login button.
+      hitSlop={Math.max(0, Math.ceil((44 - height) / 2))}
+      style={({ pressed }) => [
+        styles.shell,
+        isPrimary && styles.shellGlow,
+        isDisabled && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
+        style,
+      ]}
+    >
+      {isGradient ? (
+        <LinearGradient
+          colors={[theme.colors.accent, theme.colors.magenta]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.surface, styles.gradientSurface]}
+        >
+          {content}
+        </LinearGradient>
+      ) : (
+        <GlassSurface radius={height / 2} tinted={isPrimary} style={styles.surface}>
+          {content}
+        </GlassSurface>
+      )}
     </Pressable>
   );
 }
 
-function createStyles(theme: AppTheme, height: number) {
+function createStyles(theme: AppTheme, height: number, trailingInset: number) {
   const iconSize = height - ICON_INSET * 2;
 
   return StyleSheet.create({
@@ -198,6 +227,10 @@ function createStyles(theme: AppTheme, height: number) {
     surface: {
       flex: 1,
       justifyContent: 'center',
+    },
+    gradientSurface: {
+      borderRadius: height / 2,
+      overflow: 'hidden',
     },
     labelLayer: {
       position: 'absolute',
@@ -222,7 +255,7 @@ function createStyles(theme: AppTheme, height: number) {
     },
     trailingIcon: {
       position: 'absolute',
-      right: theme.spacing.lg,
+      right: trailingInset,
       top: 0,
       bottom: 0,
       justifyContent: 'center',

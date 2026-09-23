@@ -66,6 +66,15 @@ export const colors = {
   link: 'rgba(255, 255, 255, 0.50)',
   divider: 'rgba(255, 255, 255, 0.22)',
 
+  /**
+   * Glowing card outlines on the home screen. Derived from that screenshot:
+   * the tiles run cyan into blue, the feature cards blue into violet.
+   */
+  cardStrokeFrom: '#19D7FF',
+  cardStrokeTo: '#2B8CFF',
+  featureStrokeFrom: '#2B8CFF',
+  featureStrokeTo: '#7A4DFF',
+
   /** Decorative corner glow (see components/ui/GlowArc). */
   glowInner: 'rgba(25, 215, 255, 0.55)',
   glowOuter: 'rgba(43, 140, 255, 0.00)',

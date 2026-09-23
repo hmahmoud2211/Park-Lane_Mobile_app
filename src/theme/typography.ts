@@ -49,6 +49,37 @@ export const typography = {
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  /** The greeting name, e.g. "Ahmed". */
+  displayName: {
+    fontFamily: fontFamily.bold,
+    fontSize: 17.5,
+    lineHeight: 23,
+    letterSpacing: -0.2,
+  },
+  /** Card titles, e.g. "Unit A-302" and the promo heading. */
+  cardTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  /** Promo card heading, which must keep "Tomorrow Together" on one line. */
+  promoTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  /** Service tile title. */
+  tileTitle: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 9.5,
+    lineHeight: 13,
+  },
+  /** Service tile supporting line. */
+  tileSubtitle: {
+    fontFamily: fontFamily.regular,
+    fontSize: 7.5,
+    lineHeight: 10.5,
+  },
   /** Supporting line under a heading, links and small labels. */
   bodySmall: {
     fontFamily: fontFamily.regular,

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { useAppTheme } from '../hooks/useAppTheme';
 import { FirstScreen } from '../screens/FirstScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import type { RootStackParamList } from '../types/navigation.types';
 
@@ -45,6 +46,7 @@ export function AppNavigator() {
       >
         <Stack.Screen name="FirstScreen" component={FirstScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
         {/* Register later screens here as their designs land. */}
       </Stack.Navigator>
     </NavigationContainer>

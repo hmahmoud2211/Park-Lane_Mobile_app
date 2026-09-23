@@ -1,5 +1,6 @@
 // Imported by subpath: the package root re-exports every icon set, which
 // bundles ~2.5MB of unused .ttf fonts.
+import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +27,7 @@ import { GoogleMark } from '../../components/ui/GoogleMark';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
+import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   loginCopy,
   signInMethods,
@@ -58,12 +60,12 @@ function MethodIcon({ id, theme }: { id: SignInMethodId; theme: AppTheme }) {
 export function LoginScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const navigation = useNavigation<RootStackScreenProps<'Login'>['navigation']>();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<LoginErrors>({});
-  const [notice, setNotice] = useState<string | null>(null);
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -72,13 +74,14 @@ export function LoginScreen() {
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
-      setNotice(null);
       return;
     }
 
-    // Frontend only: no authentication service is wired up behind this yet.
-    setNotice('Details look valid. Sign-in is not connected to a backend yet.');
-  }, [email, password]);
+    // Frontend only: nothing is authenticated here. `replace` rather than
+    // `navigate` so the back gesture does not return to the login form.
+    // TODO(auth): verify credentials before routing once a backend exists.
+    navigation.replace('Home');
+  }, [email, password, navigation]);
 
   const togglePassword = useCallback(() => setShowPassword((shown) => !shown), []);
 
@@ -197,16 +200,6 @@ export function LoginScreen() {
               style={styles.submit}
             />
 
-            {notice ? (
-              <AppText
-                variant="caption"
-                color={theme.colors.textSecondary}
-                align="center"
-                style={styles.notice}
-              >
-                {notice}
-              </AppText>
-            ) : null}
           </View>
 
           <View style={styles.dividerRow}>

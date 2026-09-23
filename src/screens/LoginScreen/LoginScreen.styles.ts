@@ -88,10 +88,6 @@ export function createStyles(theme: AppTheme) {
       marginTop: FORGOT_TO_SUBMIT,
     },
 
-    notice: {
-      marginTop: theme.spacing.md,
-    },
-
     dividerRow: {
       flexDirection: 'row',
       alignItems: 'center',

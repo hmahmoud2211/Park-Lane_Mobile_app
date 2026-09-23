@@ -18,6 +18,8 @@ export interface AppBackgroundProps extends PropsWithChildren {
   resizeMode?: ImageResizeMode;
   /** Darkens the top and bottom so text stays legible over the photo. */
   withScrim?: boolean;
+  /** Flat darkening over the whole photo, 0-1, for content-dense screens. */
+  overlay?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -33,6 +35,7 @@ export function AppBackground({
   source = images.mainBackground,
   resizeMode = 'cover',
   withScrim = true,
+  overlay = 0,
   style,
   children,
 }: AppBackgroundProps) {
@@ -59,6 +62,12 @@ export function AppBackground({
         style={styles.image}
         accessibilityIgnoresInvertColors
       />
+      {overlay > 0 ? (
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.black, opacity: overlay }]}
+          pointerEvents="none"
+        />
+      ) : null}
       {withScrim ? (
         <LinearGradient
           colors={[...scrimColors]}
