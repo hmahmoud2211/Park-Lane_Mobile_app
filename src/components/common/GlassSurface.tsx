@@ -70,6 +70,11 @@ export function GlassSurface({
           borderColor: theme.glass.strokeColor,
         },
         fill: { opacity: theme.glass.fillOpacity },
+        ring: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+        },
       }),
     [radius, isGradient, theme],
   );
@@ -110,7 +115,14 @@ export function GlassSurface({
       {children}
 
       {isGradient && box.width > 0 ? (
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg
+          // Sized by prop, not style: an <Svg> left to its default viewport
+          // clips the ring on anything taller than 150dp.
+          width={box.width}
+          height={box.height}
+          style={styles.ring}
+          pointerEvents="none"
+        >
           <Defs>
             <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0" stopColor={edge[0]} />

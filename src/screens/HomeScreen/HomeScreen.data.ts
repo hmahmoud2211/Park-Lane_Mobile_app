@@ -8,7 +8,9 @@ import type { IconSet } from '../../components/ui/ServiceTile';
 
 export interface ResidentSummary {
   greeting: string;
-  name: string;
+  firstName: string;
+  /** Mock surname; the design only ever shows the first name. */
+  lastName: string;
   tagline: string;
 }
 
@@ -32,9 +34,15 @@ export interface ServiceTileItem {
 
 export const resident: ResidentSummary = {
   greeting: 'Good evening,',
-  name: 'Ahmed',
+  firstName: 'Ahmed',
+  lastName: 'Hassan',
   tagline: 'Home Feels Better Together.',
 };
+
+/** First letter of each name, for the header avatar. */
+export function initialsOf({ firstName, lastName }: ResidentSummary): string {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
 
 export const unit: UnitSummary = {
   title: 'Unit A-302',

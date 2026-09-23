@@ -5,10 +5,13 @@ import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } fr
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
+import { Avatar } from '../ui/Avatar';
 
 export interface ScreenHeaderProps {
+  /** Two-letter initials shown in the trailing avatar. */
+  initials: string;
   onMenuPress?: () => void;
-  onNotificationsPress?: () => void;
+  onProfilePress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -20,7 +23,7 @@ const LOCKUP_HEIGHT = 40;
  * Menu, centred brand lockup and notifications. The two actions are equal
  * width, so the lockup stays optically centred without absolute positioning.
  */
-export function ScreenHeader({ onMenuPress, onNotificationsPress, style }: ScreenHeaderProps) {
+export function ScreenHeader({ initials, onMenuPress, onProfilePress, style }: ScreenHeaderProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -44,13 +47,13 @@ export function ScreenHeader({ onMenuPress, onNotificationsPress, style }: Scree
       />
 
       <Pressable
-        onPress={onNotificationsPress}
+        onPress={onProfilePress}
         hitSlop={10}
         accessibilityRole="button"
-        accessibilityLabel="Notifications"
+        accessibilityLabel="Profile"
         style={[styles.action, styles.actionEnd]}
       >
-        <Ionicons name="notifications-outline" size={22} color={theme.colors.textPrimary} />
+        <Avatar initials={initials} size={ACTION_SIZE} />
       </Pressable>
     </View>
   );

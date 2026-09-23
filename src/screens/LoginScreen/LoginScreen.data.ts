@@ -3,7 +3,7 @@
  * screen exactly and must not be reworded here.
  */
 
-export type SignInMethodId = 'face-id' | 'fingerprint' | 'google';
+export type SignInMethodId = 'biometric' | 'google';
 
 export interface SignInMethod {
   id: SignInMethodId;
@@ -11,8 +11,8 @@ export interface SignInMethod {
 }
 
 export const signInMethods: readonly SignInMethod[] = [
-  { id: 'face-id', label: 'Face ID' },
-  { id: 'fingerprint', label: 'Fingerprint' },
+  // Face and fingerprint are one option: the OS picks whichever sensor exists.
+  { id: 'biometric', label: 'Biometric' },
   { id: 'google', label: 'Continue\nwith Google' },
 ];
 

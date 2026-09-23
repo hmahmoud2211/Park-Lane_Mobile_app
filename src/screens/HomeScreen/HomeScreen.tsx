@@ -15,7 +15,7 @@ import { WeatherPill } from '../../components/ui/WeatherPill';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { promo, resident, serviceTiles, unit, weather } from './HomeScreen.data';
+import { initialsOf, promo, resident, serviceTiles, unit, weather } from './HomeScreen.data';
 import { createStyles } from './HomeScreen.styles';
 
 export function HomeScreen() {
@@ -48,17 +48,12 @@ export function HomeScreen() {
       <StatusBar style="light" />
 
       <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator
-          indicatorStyle="white"
-        >
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <ScreenHeader
             style={styles.header}
+            initials={initialsOf(resident)}
             onMenuPress={() => setMenuOpen(true)}
-            onNotificationsPress={() => {
-              // TODO(nav): route to Notifications once that screen exists.
-            }}
+            onProfilePress={() => navigation.navigate('Profile')}
           />
 
           <View style={styles.greetingRow}>
@@ -66,7 +61,7 @@ export function HomeScreen() {
               <AppText variant="tileTitle" color={theme.colors.textSecondary}>
                 {resident.greeting}
               </AppText>
-              <AppText variant="displayName">{resident.name}</AppText>
+              <AppText variant="displayName">{resident.firstName}</AppText>
               <AppText variant="tileTitle" color={theme.colors.textSecondary} style={styles.tagline}>
                 {resident.tagline}
               </AppText>

@@ -48,9 +48,7 @@ function MethodIcon({ id, theme }: { id: SignInMethodId; theme: AppTheme }) {
   const color = theme.colors.textPrimary;
 
   switch (id) {
-    case 'face-id':
-      return <MaterialCommunityIcons name="face-recognition" size={23} color={color} />;
-    case 'fingerprint':
+    case 'biometric':
       return <MaterialCommunityIcons name="fingerprint" size={23} color={color} />;
     case 'google':
       return <GoogleMark size={21} />;
@@ -120,7 +118,8 @@ export function LoginScreen() {
 
           <View style={styles.form}>
             <AppInput
-              label={loginCopy.emailLabel}
+              placeholder={loginCopy.emailLabel}
+              accessibilityLabel={loginCopy.emailLabel}
               value={email}
               onChangeText={setEmail}
               height={FIELD_HEIGHT}
@@ -143,7 +142,8 @@ export function LoginScreen() {
 
             <AppInput
               ref={passwordRef}
-              label={loginCopy.passwordLabel}
+              placeholder={loginCopy.passwordLabel}
+              accessibilityLabel={loginCopy.passwordLabel}
               value={password}
               onChangeText={setPassword}
               height={FIELD_HEIGHT}

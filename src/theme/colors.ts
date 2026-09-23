@@ -65,6 +65,8 @@ export const colors = {
   inputLabel: 'rgba(255, 255, 255, 0.75)',
   link: 'rgba(255, 255, 255, 0.50)',
   divider: 'rgba(255, 255, 255, 0.22)',
+  /** Fill for small chips that sit on top of another surface. */
+  surfaceSubtle: 'rgba(255, 255, 255, 0.12)',
 
   /**
    * Glowing card outlines on the home screen. Derived from that screenshot:

@@ -12,7 +12,8 @@ export type IconSet = 'ionicons' | 'material';
 
 export interface ServiceTileProps {
   title: string;
-  subtitle: string;
+  /** Omitted on single-line rows, such as the profile menu. */
+  subtitle?: string;
   iconSet: IconSet;
   iconName: string;
   onPress?: () => void;
@@ -58,7 +59,7 @@ export function ServiceTile({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${title}. ${subtitle}`}
+      accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
       style={({ pressed }) => [style, pressed && styles.pressed]}
     >
       <GlassSurface
@@ -69,9 +70,11 @@ export function ServiceTile({
         {icon}
         <View style={styles.text}>
           <AppText variant="tileTitle">{title}</AppText>
-          <AppText variant="tileSubtitle" color={theme.colors.textSecondary}>
-            {subtitle}
-          </AppText>
+          {subtitle ? (
+            <AppText variant="tileSubtitle" color={theme.colors.textSecondary}>
+              {subtitle}
+            </AppText>
+          ) : null}
         </View>
         <Ionicons name="chevron-forward" size={13} color={theme.colors.textSecondary} />
       </GlassSurface>
