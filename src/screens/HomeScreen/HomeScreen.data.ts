@@ -1,4 +1,5 @@
 import type { IconSet } from '../../components/ui/ServiceTile';
+import type { RootStackParamList } from '../../types/navigation.types';
 
 /**
  * Mock content for the home screen. Shaped the way a real API response would
@@ -30,6 +31,8 @@ export interface ServiceTileItem {
   subtitle: string;
   iconSet: IconSet;
   iconName: string;
+  /** Screen the tile opens; tiles without one are not wired up yet. */
+  route?: keyof RootStackParamList;
 }
 
 export const resident: ResidentSummary = {
@@ -55,7 +58,14 @@ export const weather: WeatherSummary = {
 };
 
 export const serviceTiles: readonly ServiceTileItem[] = [
-  { id: 'my-unit', title: 'My Unit', subtitle: 'View details', iconSet: 'ionicons', iconName: 'home-outline' },
+  {
+    id: 'my-unit',
+    title: 'My Unit',
+    subtitle: 'View details',
+    iconSet: 'ionicons',
+    iconName: 'home-outline',
+    route: 'MyUnit',
+  },
   { id: 'smart-home', title: 'Smart Home', subtitle: 'Control your unit', iconSet: 'material', iconName: 'home-automation' },
   { id: 'bms', title: 'BMS', subtitle: 'Manage & grow', iconSet: 'material', iconName: 'file-cog-outline' },
   { id: 'visitor-access', title: 'Visitor Access', subtitle: 'Invite & manage', iconSet: 'material', iconName: 'account-check-outline' },

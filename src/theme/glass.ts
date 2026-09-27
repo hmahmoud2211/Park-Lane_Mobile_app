@@ -18,6 +18,11 @@ export const glass = {
   gradientStart: { x: 0, y: 0 },
   gradientEnd: { x: 1, y: 0 },
   fillOpacity: 0.2,
+  /**
+   * The same gradient at a lighter tint, for content-dense screens where every
+   * panel is glass (measured on the My Unit screenshot, assets/Screens/screen4.png).
+   */
+  subtleFillOpacity: 0.05,
   strokeWidth: 1,
   strokeColor: colors.frameStroke,
   blurIntensity: 24,

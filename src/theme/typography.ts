@@ -112,6 +112,61 @@ export const typography = {
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+
+  /*
+   * My Unit screen (assets/Screens/screen4.png). The design face is narrower
+   * than Inter, so these sizes were solved against the measured text widths.
+   */
+
+  /** Title beside a back arrow, e.g. "My Unit". */
+  screenTitle: {
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  /** The unit name on the hero card. */
+  heroTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 20.5,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+  },
+  /** "3 Bedrooms • Tower A • Floor 3". */
+  heroSubtitle: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  /** Card headings, e.g. "Unit Overview". */
+  sectionTitle: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 13.5,
+    lineHeight: 18,
+  },
+  /** Caption above a figure, e.g. "Building", "Unit Price". */
+  statLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 8,
+    lineHeight: 11,
+  },
+  /** The figure itself, e.g. "Tower A", "EGP 145,000". */
+  statValue: {
+    fontFamily: fontFamily.medium,
+    fontSize: 9.5,
+    lineHeight: 13,
+  },
+  /** Headline figures, e.g. the unit price row. */
+  statValueLarge: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  /** Supporting line on a compact tile, e.g. "View & download". */
+  tileCaption: {
+    fontFamily: fontFamily.regular,
+    fontSize: 7,
+    lineHeight: 10,
+  },
 } satisfies Record<string, TextStyle>;
 
 export type TypographyVariant = keyof typeof typography;

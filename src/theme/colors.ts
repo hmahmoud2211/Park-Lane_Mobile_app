@@ -81,9 +81,22 @@ export const colors = {
   glowInner: 'rgba(25, 215, 255, 0.55)',
   glowOuter: 'rgba(43, 140, 255, 0.00)',
 
+  /**
+   * Derived from the My Unit screenshot (assets/Screens/screen4.png): a
+   * photo-free backdrop, near-black navy with a blue glow behind the header.
+   */
+  backgroundDeep: '#00112C',
+  backgroundGlow: '#012A6D',
+  /** Column separators inside a card; bluer and fainter than `divider`. */
+  dividerSubtle: 'rgba(127, 160, 255, 0.25)',
+
+  /**
+   * Status colours, first specified by the My Unit screen: the "Active"
+   * handover dot and the month-on-month utility trends. `warning` is still
+   * absent because no design shows one yet.
+   */
+  success: '#66E9A4',
+  error: '#FC5848',
+
   transparent: 'transparent',
 } as const;
-
-// NOTE: `success` / `warning` / `error` are intentionally absent. The supplied
-// palette defines no status colors and none appear in screen 1; inventing them
-// here would contradict the design system. Add them when a design specifies them.

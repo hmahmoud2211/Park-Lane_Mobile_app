@@ -14,7 +14,8 @@ import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 
 export interface AppBackgroundProps extends PropsWithChildren {
-  source?: ImageSourcePropType;
+  /** `null` draws no photo, for screens whose backdrop is painted in code. */
+  source?: ImageSourcePropType | null;
   resizeMode?: ImageResizeMode;
   /** Darkens the top and bottom so text stays legible over the photo. */
   withScrim?: boolean;
@@ -56,12 +57,14 @@ export function AppBackground({
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }, style]}>
-      <Image
-        source={source}
-        resizeMode={resizeMode}
-        style={styles.image}
-        accessibilityIgnoresInvertColors
-      />
+      {source ? (
+        <Image
+          source={source}
+          resizeMode={resizeMode}
+          style={styles.image}
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
       {overlay > 0 ? (
         <View
           style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.black, opacity: overlay }]}

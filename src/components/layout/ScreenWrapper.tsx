@@ -15,8 +15,11 @@ import { AppBackground } from '../common/AppBackground';
 export interface ScreenWrapperProps extends PropsWithChildren {
   /** Renders the shared photo background behind the content. */
   withBackground?: boolean;
-  /** Overrides the background photo; defaults to the shared one. */
-  backgroundSource?: ImageSourcePropType;
+  /**
+   * Overrides the background photo; defaults to the shared one. `null` drops
+   * the photo so `backdrop` can paint the whole background.
+   */
+  backgroundSource?: ImageSourcePropType | null;
   /** Darkens the top and bottom of the background for legibility. */
   withScrim?: boolean;
   /** Flat darkening over the whole background photo, 0-1. */

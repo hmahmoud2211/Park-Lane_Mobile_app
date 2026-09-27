@@ -74,9 +74,7 @@ export function HomeScreen() {
             title={unit.title}
             meta={unit.meta}
             style={styles.unitCard}
-            onPress={() => {
-              // TODO(nav): route to the unit detail screen once it exists.
-            }}
+            onPress={() => navigation.navigate('MyUnit')}
           />
 
           <View style={styles.grid}>
@@ -88,7 +86,10 @@ export function HomeScreen() {
                   iconSet={tile.iconSet}
                   iconName={tile.iconName}
                   onPress={() => {
-                    // TODO(nav): route to the `tile.id` screen once it exists.
+                    if (tile.route) {
+                      navigation.navigate(tile.route);
+                    }
+                    // TODO(nav): give the remaining tiles a `route` as their screens land.
                   }}
                 />
               </View>

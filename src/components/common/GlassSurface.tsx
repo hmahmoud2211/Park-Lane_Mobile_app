@@ -29,6 +29,8 @@ export interface GlassSurfaceProps extends PropsWithChildren {
   radius: number;
   /** Drop the gradient tint, leaving the stroke and frosted backdrop only. */
   tinted?: boolean;
+  /** Strength of the gradient tint; defaults to the Figma frame spec. */
+  fillOpacity?: number;
   stroke?: GlassStroke;
   /** Stops for `stroke="gradient"`; defaults to the card stroke tokens. */
   strokeColors?: readonly [string, string];
@@ -36,6 +38,12 @@ export interface GlassSurfaceProps extends PropsWithChildren {
   strokeWidth?: number;
   /** Runs the stroke left to right and fades it out, instead of diagonally. */
   strokeFade?: boolean;
+  /**
+   * Set false for a surface laid on another glass panel: a blur nested inside
+   * a blur composites as a visible square patch, and the outer panel already
+   * frosts the backdrop.
+   */
+  blurred?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -51,10 +59,12 @@ export interface GlassSurfaceProps extends PropsWithChildren {
 export function GlassSurface({
   radius,
   tinted = true,
+  fillOpacity,
   stroke = 'hairline',
   strokeColors,
   strokeWidth: strokeWidthProp,
   strokeFade = false,
+  blurred = true,
   style,
   children,
 }: GlassSurfaceProps) {
@@ -103,18 +113,24 @@ export function GlassSurface({
 
   return (
     <View style={[styles.root, style]} onLayout={onLayout}>
-      <BlurView
-        intensity={theme.glass.blurIntensity}
-        tint={theme.glass.blurTint}
-        style={StyleSheet.absoluteFill}
-      />
+      {blurred ? (
+        <BlurView
+          intensity={theme.glass.blurIntensity}
+          tint={theme.glass.blurTint}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
 
       {tinted ? (
         <LinearGradient
           colors={[...theme.glass.gradientColors]}
           start={theme.glass.gradientStart}
           end={theme.glass.gradientEnd}
-          style={[StyleSheet.absoluteFill, styles.fill]}
+          style={[
+            StyleSheet.absoluteFill,
+            styles.fill,
+            fillOpacity !== undefined && { opacity: fillOpacity },
+          ]}
         />
       ) : null}
 
