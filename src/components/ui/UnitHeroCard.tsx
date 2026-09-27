@@ -62,36 +62,40 @@ export function UnitHeroCard({
   return (
     <GlassSurface
       radius={theme.borderRadius.md}
-      stroke="gradient"
+      glow
       strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+      // The hero's glow runs corner to corner: violet bottom-left, cyan bottom-right.
+      glowBottomColors={[theme.colors.featureStrokeTo, theme.colors.cardStrokeFrom]}
       fillOpacity={theme.glass.subtleFillOpacity}
       style={[styles.surface, style]}
     >
-      <View style={styles.photo} pointerEvents="none">
-        <Image
-          source={images.unitPhoto}
-          style={styles.photoImage}
-          resizeMode="cover"
-          accessibilityIgnoresInvertColors
+      {/* The glowing surface leaves its children unclipped, so the photo and
+          its fades carry their own rounded clip. */}
+      <View style={styles.media} pointerEvents="none">
+        <View style={styles.photo}>
+          <Image
+            source={images.unitPhoto}
+            style={styles.photoImage}
+            resizeMode="cover"
+            accessibilityIgnoresInvertColors
+          />
+        </View>
+        <LinearGradient
+          colors={[...sideScrim]}
+          locations={[0, 0.4, 0.62]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <LinearGradient
+          colors={[...bottomScrim]}
+          // The photo's bottom edge sits at PHOTO_HEIGHT / CARD_MIN_HEIGHT.
+          locations={[0.3, PHOTO_HEIGHT / CARD_MIN_HEIGHT, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
         />
       </View>
-      <LinearGradient
-        colors={[...sideScrim]}
-        locations={[0, 0.4, 0.62]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={[...bottomScrim]}
-        // The photo's bottom edge sits at PHOTO_HEIGHT / CARD_MIN_HEIGHT.
-        locations={[0.3, PHOTO_HEIGHT / CARD_MIN_HEIGHT, 1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
 
       <View style={styles.heading} accessibilityRole="header">
         <AppText variant="heroTitle">{title}</AppText>
@@ -114,6 +118,11 @@ function createStyles(theme: AppTheme) {
     surface: {
       minHeight: CARD_MIN_HEIGHT,
       justifyContent: 'space-between',
+    },
+    media: {
+      ...StyleSheet.absoluteFill,
+      borderRadius: theme.borderRadius.md,
+      overflow: 'hidden',
     },
     photo: {
       position: 'absolute',

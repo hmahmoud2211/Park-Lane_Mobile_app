@@ -16,6 +16,7 @@ import Svg, {
 } from 'react-native-svg';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { NeonEdge } from './NeonEdge';
 
 /**
  * `hairline` is the white 1px stroke from the Figma frame spec, used on the
@@ -44,6 +45,15 @@ export interface GlassSurfaceProps extends PropsWithChildren {
    * frosts the backdrop.
    */
   blurred?: boolean;
+  /**
+   * Swaps the stroke for the glowing neon edge of the My Unit cards (see
+   * NeonEdge), coloured by `strokeColors`. Its halo spills past the surface,
+   * so in this mode only the blur and tint are clipped to the corners, and
+   * children must clip anything that reaches the edge themselves.
+   */
+  glow?: boolean;
+  /** In glow mode, the bottom-left and bottom-right corner colours; default to `strokeColors`. */
+  glowBottomColors?: readonly [string, string];
   style?: StyleProp<ViewStyle>;
 }
 
@@ -65,6 +75,8 @@ export function GlassSurface({
   strokeWidth: strokeWidthProp,
   strokeFade = false,
   blurred = true,
+  glow = false,
+  glowBottomColors,
   style,
   children,
 }: GlassSurfaceProps) {
@@ -91,12 +103,20 @@ export function GlassSurface({
           top: 0,
           left: 0,
         },
+        glowRoot: {
+          borderRadius: radius,
+        },
+        glowClip: {
+          ...StyleSheet.absoluteFill,
+          borderRadius: radius,
+          overflow: 'hidden',
+        },
       }),
     [radius, isGradient, strokeWidthProp, theme],
   );
 
   const onLayout = (event: LayoutChangeEvent) => {
-    if (!isGradient) {
+    if (!isGradient && !glow) {
       return;
     }
     const { width, height } = event.nativeEvent.layout;
@@ -111,8 +131,8 @@ export function GlassSurface({
   const strokeWidth = strokeWidthProp ?? theme.glass.strokeWidth;
   const inset = strokeWidth / 2;
 
-  return (
-    <View style={[styles.root, style]} onLayout={onLayout}>
+  const backdrop = (
+    <>
       {blurred ? (
         <BlurView
           intensity={theme.glass.blurIntensity}
@@ -133,6 +153,34 @@ export function GlassSurface({
           ]}
         />
       ) : null}
+    </>
+  );
+
+  if (glow) {
+    return (
+      <View style={[styles.glowRoot, style]} onLayout={onLayout}>
+        <View style={styles.glowClip} pointerEvents="none">
+          {backdrop}
+        </View>
+
+        {children}
+
+        {box.width > 0 ? (
+          <NeonEdge
+            width={box.width}
+            height={box.height}
+            radius={radius}
+            colors={edge}
+            bottomColors={glowBottomColors}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.root, style]} onLayout={onLayout}>
+      {backdrop}
 
       {children}
 

@@ -47,7 +47,7 @@ export function SectionCard({
   return (
     <GlassSurface
       radius={theme.borderRadius.md}
-      stroke="gradient"
+      glow
       strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
       fillOpacity={theme.glass.subtleFillOpacity}
       style={style}

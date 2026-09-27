@@ -188,6 +188,7 @@ export function MyUnitScreen() {
                 iconName={doc.iconName}
                 compact
                 nested
+                glow
                 scale={scale}
                 style={styles.documentTile}
                 onPress={() => {

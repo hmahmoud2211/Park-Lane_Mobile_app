@@ -33,6 +33,8 @@ export interface ServiceTileProps {
    * beneath is already tinted.
    */
   nested?: boolean;
+  /** Draws the neon edge of the My Unit cards (see GlassSurface `glow`). */
+  glow?: boolean;
   /**
    * Shrinks type, icon and insets together, for tiles narrower than the
    * design's. 1 is the reference size.
@@ -59,6 +61,7 @@ export function ServiceTile({
   onPress,
   compact = false,
   nested = false,
+  glow = false,
   scale = 1,
   style,
 }: ServiceTileProps) {
@@ -93,6 +96,10 @@ export function ServiceTile({
       <GlassSurface
         radius={theme.borderRadius.md}
         stroke="gradient"
+        glow={glow}
+        strokeColors={
+          glow ? [theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo] : undefined
+        }
         blurred={!nested}
         fillOpacity={nested ? theme.glass.subtleFillOpacity : undefined}
         style={[styles.surface, compact && styles.surfaceCompact]}
