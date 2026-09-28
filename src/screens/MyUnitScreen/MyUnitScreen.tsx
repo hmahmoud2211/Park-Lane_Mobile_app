@@ -1,8 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { BackButton } from '../../components/common/BackButton';
@@ -53,24 +52,13 @@ export function MyUnitScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const scale = statScaleFor(width, theme);
 
-  // A glow in the top-right corner over near-black navy; this screen has no
-  // background photo.
-  const backdrop = useMemo(
-    () => (
-      <LinearGradient
-        colors={[theme.colors.backgroundGlow, theme.colors.backgroundDeep, theme.colors.backgroundDeep]}
-        locations={[0, 0.3, 1]}
-        start={{ x: 0.9, y: 0 }}
-        end={{ x: 0.2, y: 0.45 }}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-    ),
-    [theme],
-  );
-
   return (
-    <ScreenWrapper backgroundSource={null} backdrop={backdrop} withScrim={false}>
+    // Same photo and overlay as the home screen.
+    <ScreenWrapper
+      backgroundSource={images.homeBackground}
+      withScrim={false}
+      backgroundOverlay={0.34}
+    >
       <StatusBar style="light" />
 
       <View style={styles.flex}>
