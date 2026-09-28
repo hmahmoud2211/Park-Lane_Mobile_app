@@ -167,6 +167,42 @@ export const typography = {
     fontSize: 7,
     lineHeight: 10,
   },
+
+  /*
+   * Visitor Access screen (assets/Screens/screen5.png), solved against the
+   * measured text widths the same way. Its other text reuses the tokens above.
+   */
+
+  /** Banner heading, e.g. "Create secure guest entry". */
+  bannerTitle: {
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
+    lineHeight: 16.5,
+  },
+  /** Card headings, e.g. "New Visitor Pass" and the pass holder's name. */
+  passTitle: {
+    fontFamily: fontFamily.medium,
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  /** Caption inside a compact field, list meta and the pass footnote. */
+  fieldCaption: {
+    fontFamily: fontFamily.regular,
+    fontSize: 6.5,
+    lineHeight: 9,
+  },
+  /** The value inside a compact field, and visitor names in the list. */
+  fieldValue: {
+    fontFamily: fontFamily.medium,
+    fontSize: 7.5,
+    lineHeight: 10,
+  },
+  /** Status chip label, e.g. "Scheduled". */
+  chipLabel: {
+    fontFamily: fontFamily.medium,
+    fontSize: 6.5,
+    lineHeight: 9,
+  },
 } satisfies Record<string, TextStyle>;
 
 export type TypographyVariant = keyof typeof typography;

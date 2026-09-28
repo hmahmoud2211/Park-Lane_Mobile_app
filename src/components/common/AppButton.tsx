@@ -47,6 +47,13 @@ export interface AppButtonProps extends Omit<PressableProps, 'style' | 'children
   pressEffect?: AppButtonPressEffect;
   /** Distance from the trailing edge to `trailingIcon`. */
   trailingInset?: number;
+  /**
+   * `edge` pins `trailingIcon` to the button's end. `label` hangs it just
+   * after the label instead, leaving the label itself centred.
+   */
+  trailingPlacement?: 'edge' | 'label';
+  /** Fill stops for the `gradient` variant; defaults to cyan into magenta. */
+  gradientColors?: readonly [string, string, ...string[]];
   style?: StyleProp<ViewStyle>;
 }
 
@@ -55,6 +62,8 @@ const ADVANCE_DURATION_MS = 420;
 const ADVANCE_RESET_DELAY_MS = 650;
 
 const ICON_INSET = 6;
+/** Gap between the label and a `trailingPlacement="label"` icon. */
+const LABEL_ICON_GAP = 12;
 
 export function AppButton({
   title,
@@ -67,6 +76,8 @@ export function AppButton({
   labelVariant = 'button',
   pressEffect = 'none',
   trailingInset,
+  trailingPlacement = 'edge',
+  gradientColors,
   style,
   onPress,
   ...rest
@@ -158,7 +169,12 @@ export function AppButton({
           {loading ? (
             <ActivityIndicator color={theme.colors.textPrimary} />
           ) : (
-            <AppText variant={labelVariant}>{title}</AppText>
+            <View>
+              <AppText variant={labelVariant}>{title}</AppText>
+              {trailingIcon && trailingPlacement === 'label' ? (
+                <View style={styles.labelIcon}>{trailingIcon}</View>
+              ) : null}
+            </View>
           )}
         </Animated.View>
 
@@ -171,7 +187,7 @@ export function AppButton({
           </Animated.View>
         ) : null}
 
-        {trailingIcon ? (
+        {trailingIcon && trailingPlacement === 'edge' ? (
           <View style={styles.trailingIcon} pointerEvents="none">
             {trailingIcon}
           </View>
@@ -199,7 +215,7 @@ export function AppButton({
     >
       {isGradient ? (
         <LinearGradient
-          colors={[theme.colors.accent, theme.colors.magenta]}
+          colors={gradientColors ? [...gradientColors] : [theme.colors.accent, theme.colors.magenta]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[styles.surface, styles.gradientSurface]}
@@ -251,6 +267,14 @@ function createStyles(theme: AppTheme, height: number, trailingInset: number) {
       borderWidth: 1,
       borderColor: theme.colors.border,
       alignItems: 'center',
+      justifyContent: 'center',
+    },
+    labelIcon: {
+      position: 'absolute',
+      left: '100%',
+      top: 0,
+      bottom: 0,
+      marginLeft: LABEL_ICON_GAP,
       justifyContent: 'center',
     },
     trailingIcon: {

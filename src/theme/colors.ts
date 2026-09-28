@@ -98,5 +98,45 @@ export const colors = {
   success: '#66E9A4',
   error: '#FC5848',
 
+  /**
+   * Visitor Access screen (assets/Screens/screen5.png), sampled from the
+   * screenshot. Form fields sit darker than their card: `backgroundDeep` at
+   * 40%. Their stroke measures exactly `dividerSubtle`.
+   */
+  fieldFill: 'rgba(0, 17, 44, 0.40)',
+  /**
+   * `textAccentSoft`, dimmed for the small supporting lines here: the design
+   * face is thinner than Inter, so at full strength Inter reads brighter.
+   */
+  textSupport: 'rgba(169, 200, 255, 0.85)',
+  /**
+   * The screen's cards read as near-opaque navy, not tinted glass: sampled at
+   * (0, 28, 65) against a page of (0, 14, 47).
+   */
+  panelFill: 'rgba(0, 29, 67, 0.90)',
+  /** "Generate QR Pass": sky blue, royal blue, violet, pink at even stops. */
+  ctaSky: '#0096FF',
+  ctaRoyal: '#0248DE',
+  ctaViolet: '#6634E6',
+  ctaPink: '#E650FF',
+  /** Initials chips in the visitor list: a blue-tinted disc and ring. */
+  avatarFill: 'rgba(43, 140, 255, 0.25)',
+  avatarStroke: 'rgba(127, 160, 255, 0.50)',
+  /**
+   * Visitor status chips. Opaque, as drawn: each sits on a card of known
+   * colour. Teal marks "Arrived" and the active pass, violet "Scheduled" (its
+   * stroke runs blue into violet) and slate "Entered".
+   */
+  chipTealText: '#6FF8E2',
+  chipTealFill: '#01333B',
+  chipTealStroke: '#0A9A98',
+  chipVioletText: '#BEAAEA',
+  chipVioletFill: '#0D1D56',
+  chipVioletStrokeFrom: '#3D5CB9',
+  chipVioletStrokeTo: '#7048BF',
+  chipSlateText: '#E2E8F0',
+  chipSlateFill: '#0B2146',
+  chipSlateStroke: '#3D619C',
+
   transparent: 'transparent',
 } as const;

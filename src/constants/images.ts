@@ -34,6 +34,14 @@ export const images = {
    * export at this path; no code change needed.
    */
   promoPhoto: require('../assets/images/illustrations/promo-lifestyle.png') as number,
+
+  /**
+   * PLACEHOLDER, cropped from the Visitor Access reference
+   * (assets/Screens/screen5.png) at about 2x: the entrance at night with the
+   * PARKLANE sign. Replace with the full-resolution export at this path; no
+   * code change needed.
+   */
+  visitorHero: require('../assets/images/illustrations/visitor-hero.png') as number,
 } as const;
 
 export type ImageKey = keyof typeof images;

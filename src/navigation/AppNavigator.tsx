@@ -8,6 +8,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { MyUnitScreen } from '../screens/MyUnitScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import type { RootStackParamList } from '../types/navigation.types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -51,6 +52,7 @@ export function AppNavigator() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="MyUnit" component={MyUnitScreen} />
+        <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
         {/* Register later screens here as their designs land. */}
       </Stack.Navigator>
     </NavigationContainer>

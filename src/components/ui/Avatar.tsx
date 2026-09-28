@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { GlassSurface } from '../common/GlassSurface';
@@ -18,16 +19,24 @@ export interface AvatarProps {
   initials: string;
   size?: number;
   variant?: AvatarVariant;
+  /** Type for the initials; smaller chips, such as list rows, need less. */
+  labelVariant?: TypographyVariant;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Circular avatar showing a resident's initials. */
-export function Avatar({ initials, size = 40, variant = 'glass', style }: AvatarProps) {
+export function Avatar({
+  initials,
+  size = 40,
+  variant = 'glass',
+  labelVariant = 'tileTitle',
+  style,
+}: AvatarProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme, size), [theme, size]);
 
   const label = (
-    <AppText variant="tileTitle" color={theme.colors.textPrimary} style={styles.label}>
+    <AppText variant={labelVariant} color={theme.colors.textPrimary} style={styles.label}>
       {initials}
     </AppText>
   );

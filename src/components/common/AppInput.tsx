@@ -14,6 +14,14 @@ import type { AppTheme } from '../../types/theme.types';
 import { AppText } from './AppText';
 import { GlassSurface } from './GlassSurface';
 
+/**
+ * `pill` is the login field. `field` is the compact form field from the
+ * Visitor Access design (assets/Screens/screen5.png): a rounded rectangle
+ * darker than its card, a faint hairline, no divider after the icon, and
+ * smaller type.
+ */
+export type AppInputVariant = 'pill' | 'field';
+
 export interface AppInputProps extends Omit<TextInputProps, 'style'> {
   /** Small caption above the value, inside the field. */
   label?: string;
@@ -25,9 +33,17 @@ export interface AppInputProps extends Omit<TextInputProps, 'style'> {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   height?: number;
+  variant?: AppInputVariant;
   containerStyle?: StyleProp<ViewStyle>;
   inputStyle?: StyleProp<TextStyle>;
 }
+
+/** `field` variant measurements, from the Visitor Access reference. */
+const FIELD_RADIUS = 5;
+/** Centres the icon 17dp in and starts the text 38dp in. */
+const FIELD_ICON_COLUMN = 34.5;
+const FIELD_TEXT_INSET = 3.5;
+const FIELD_TRAILING_INSET = 7;
 
 /**
  * Glass text field matching the login design: a leading icon column divided by
@@ -43,6 +59,7 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
     leftIcon,
     rightIcon,
     height = 56,
+    variant = 'pill',
     containerStyle,
     inputStyle,
     ...rest
@@ -51,20 +68,31 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
 ) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme, height), [theme, height]);
+  const isField = variant === 'field';
 
   return (
     <View style={containerStyle}>
-      <GlassSurface radius={height / 2} style={styles.surface}>
+      <GlassSurface
+        radius={isField ? FIELD_RADIUS : height / 2}
+        // The field sits on a glass card, so it takes a flat fill of its own
+        // rather than a second blur and tint (see GlassSurface `blurred`).
+        tinted={!isField}
+        blurred={!isField}
+        style={[styles.surface, isField && styles.fieldSurface]}
+      >
         {leftIcon ? (
-          <View style={styles.iconColumn}>
+          <View style={[styles.iconColumn, isField && styles.fieldIconColumn]}>
             {leftIcon}
-            <View style={styles.iconDivider} />
+            {isField ? null : <View style={styles.iconDivider} />}
           </View>
         ) : null}
 
-        <View style={styles.body}>
+        <View style={[styles.body, isField && styles.fieldBody]}>
           {label ? (
-            <AppText variant="inputLabel" color={theme.colors.inputLabel}>
+            <AppText
+              variant={isField ? 'fieldCaption' : 'inputLabel'}
+              color={theme.colors.inputLabel}
+            >
               {label}
             </AppText>
           ) : null}
@@ -73,18 +101,30 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
             ref={ref}
             value={value}
             onChangeText={onChangeText}
-            placeholderTextColor={theme.colors.placeholder}
+            placeholderTextColor={isField ? theme.colors.textSupport : theme.colors.placeholder}
             selectionColor={theme.colors.accent}
             underlineColorAndroid={theme.colors.transparent}
-            style={[styles.input, inputStyle]}
+            style={[
+              styles.input,
+              isField && styles.fieldInput,
+              // The design sets placeholders in the regular cut, values in medium.
+              isField && !value && styles.fieldInputEmpty,
+              inputStyle,
+            ]}
           />
         </View>
 
-        {rightIcon ? <View style={styles.rightIcon}>{rightIcon}</View> : null}
+        {rightIcon ? (
+          <View style={[styles.rightIcon, isField && styles.fieldRightIcon]}>{rightIcon}</View>
+        ) : null}
       </GlassSurface>
 
       {error ? (
-        <AppText variant="bodySmall" color={theme.colors.magenta} style={styles.error}>
+        <AppText
+          variant={isField ? 'fieldCaption' : 'bodySmall'}
+          color={theme.colors.magenta}
+          style={[styles.error, isField && styles.fieldError]}
+        >
           {error}
         </AppText>
       ) : null}
@@ -138,6 +178,35 @@ function createStyles(theme: AppTheme, height: number) {
     error: {
       marginTop: theme.spacing.xs,
       marginLeft: theme.spacing.md,
+    },
+
+    fieldSurface: {
+      borderColor: theme.colors.dividerSubtle,
+      backgroundColor: theme.colors.fieldFill,
+    },
+    fieldIconColumn: {
+      width: FIELD_ICON_COLUMN,
+    },
+    // The label and value sit 1dp below centre, as drawn.
+    fieldBody: {
+      paddingLeft: FIELD_TEXT_INSET,
+      paddingRight: theme.spacing.xs,
+      paddingTop: 2,
+    },
+    fieldInput: {
+      ...theme.typography.fieldValue,
+      marginTop: 2,
+    },
+    fieldInputEmpty: {
+      fontFamily: theme.fontFamily.regular,
+    },
+    fieldRightIcon: {
+      paddingLeft: theme.spacing.xs,
+      paddingRight: FIELD_TRAILING_INSET,
+    },
+    fieldError: {
+      marginTop: 3,
+      marginLeft: theme.spacing.xs,
     },
   });
 }

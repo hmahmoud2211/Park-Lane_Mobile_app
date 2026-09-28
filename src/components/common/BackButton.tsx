@@ -6,12 +6,14 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import { ArrowRightIcon } from '../ui/ArrowRightIcon';
+import { AppText } from './AppText';
 
 /**
  * `ring` is the chevron in a circle used by the profile screen. `arrow` is the
- * bare hairline arrow from the My Unit header.
+ * bare hairline arrow from the My Unit header. `chevron` is the small bare
+ * chevron from the Visitor Access header, usually followed by `label`.
  */
-export type BackButtonVariant = 'ring' | 'arrow';
+export type BackButtonVariant = 'ring' | 'arrow' | 'chevron';
 
 export interface BackButtonProps {
   /** Overrides the default pop-then-fallback behaviour. */
@@ -19,11 +21,16 @@ export interface BackButtonProps {
   /** Ring diameter, or the arrow's length for the `arrow` variant. */
   size?: number;
   variant?: BackButtonVariant;
+  /** Text after the chevron, e.g. the screen's name; `chevron` variant only. */
+  label?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 /** The `arrow` variant's head is longer than ArrowRightIcon's default. */
 const ARROW_HEAD_RATIO = 0.6;
+/** `chevron` variant: glyph size and the gap before its label, as measured. */
+const CHEVRON_SIZE = 11;
+const CHEVRON_LABEL_GAP = 1;
 
 /**
  * Back control. The default ring is styled like the one around the onboarding
@@ -32,11 +39,12 @@ const ARROW_HEAD_RATIO = 0.6;
  * Pops the stack when there is something to pop, and otherwise routes to the
  * first screen, so it still works if the screen is opened directly.
  */
-export function BackButton({ onPress, size, variant = 'ring', style }: BackButtonProps) {
+export function BackButton({ onPress, size, variant = 'ring', label, style }: BackButtonProps) {
   const theme = useAppTheme();
   const navigation = useNavigation();
   const isArrow = variant === 'arrow';
-  const resolvedSize = size ?? (isArrow ? 20 : 36);
+  const isChevron = variant === 'chevron';
+  const resolvedSize = size ?? (isArrow ? 20 : isChevron ? CHEVRON_SIZE : 36);
   const styles = useMemo(() => createStyles(theme, resolvedSize), [theme, resolvedSize]);
 
   const handlePress = useCallback(() => {
@@ -51,6 +59,26 @@ export function BackButton({ onPress, size, variant = 'ring', style }: BackButto
       navigation.navigate('FirstScreen');
     }
   }, [onPress, navigation]);
+
+  if (isChevron) {
+    return (
+      <Pressable
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={label ? `Go back, ${label}` : 'Go back'}
+        // The row is short, so the tap target grows vertically to 44dp.
+        hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
+        style={({ pressed }) => [styles.chevronRow, pressed && styles.pressed, style]}
+      >
+        <Ionicons name="chevron-back" size={resolvedSize} color={theme.colors.textPrimary} />
+        {label ? (
+          <AppText variant="tileSubtitle" style={styles.chevronLabel} numberOfLines={1}>
+            {label}
+          </AppText>
+        ) : null}
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -95,6 +123,13 @@ function createStyles(theme: AppTheme, size: number) {
     },
     mirror: {
       transform: [{ scaleX: -1 }],
+    },
+    chevronRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    chevronLabel: {
+      marginLeft: CHEVRON_LABEL_GAP,
     },
     pressed: {
       opacity: 0.6,
