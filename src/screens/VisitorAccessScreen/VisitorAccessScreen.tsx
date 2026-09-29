@@ -1,17 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
   type TextInput,
 } from 'react-native';
@@ -20,15 +17,17 @@ import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
-import { BackButton } from '../../components/common/BackButton';
-import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
+import { FeatureBanner } from '../../components/ui/FeatureBanner';
+import { NeonPanel } from '../../components/ui/NeonPanel';
+import { PanelHeading } from '../../components/ui/PanelHeading';
 import { VisitorPassCard } from '../../components/ui/VisitorPassCard';
 import { VisitorRow } from '../../components/ui/VisitorRow';
-import { images } from '../../constants/images';
+import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
@@ -60,10 +59,7 @@ import {
   FIELD_CHEVRON_SIZE,
   FIELD_HEIGHT,
   FORM_ICON_SIZE,
-  LIST_ICON_SIZE,
-  MENU_ICON_SIZE,
   PARKING_CHEVRON_SIZE,
-  VIEW_ALL_CHEVRON_SIZE,
   createStyles,
 } from './VisitorAccessScreen.styles';
 
@@ -109,19 +105,6 @@ export function VisitorAccessScreen() {
     () => ({ date: dateOptions(), time: timeOptions, guests: guestOptions }),
     [],
   );
-
-  /**
-   * Every card here is a flat navy panel with the neon edge. The design shows
-   * no frosting or tint, and the fill is nearly opaque, so the blur would only
-   * cost performance (and on web its saturation boost turns the navy purple).
-   */
-  const panelProps = {
-    radius: theme.borderRadius.sm,
-    glow: true,
-    strokeColors: [theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo],
-    blurred: false,
-    tinted: false,
-  } as const;
 
   const closeMenu = useCallback(() => setOpenMenu(null), []);
 
@@ -311,71 +294,21 @@ export function VisitorAccessScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Image
-              source={images.brandWordmark}
-              style={styles.lockup}
-              resizeMode="contain"
-              accessibilityLabel="Park Lane Compoundhood, New Capital"
-            />
-            {/* Drawn over the lockup, so both controls stay tappable. */}
-            <View style={styles.headerRow} pointerEvents="box-none">
-              <BackButton variant="chevron" label={copy.title} />
-              <Pressable
-                onPress={() => setOpenMenu({ kind: 'header' })}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Open menu"
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Ionicons name="menu" size={MENU_ICON_SIZE} color={theme.colors.textPrimary} />
-              </Pressable>
-            </View>
-          </View>
+          <PageHeader
+            title={copy.title}
+            onMenuPress={() => setOpenMenu({ kind: 'header' })}
+            style={styles.header}
+          />
 
-          <GlassSurface
-            {...panelProps}
-            // As on the My Unit hero: violet bottom-left, cyan bottom-right.
-            glowBottomColors={[theme.colors.featureStrokeTo, theme.colors.cardStrokeFrom]}
-            style={[styles.card, styles.banner]}
-          >
-            <View style={styles.bannerMedia} pointerEvents="none">
-              <View style={styles.bannerPhoto}>
-                <Image
-                  source={images.visitorHero}
-                  style={styles.bannerPhotoImage}
-                  resizeMode="cover"
-                  accessibilityIgnoresInvertColors
-                />
-                <LinearGradient
-                  colors={[theme.colors.backgroundDeep, theme.colors.transparent]}
-                  locations={[0, 0.5]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </View>
-            </View>
+          <FeatureBanner
+            title={copy.bannerTitle}
+            body={copy.bannerBody}
+            photo={images.visitorHero}
+            photoAspect={imageAspects.visitorHero}
+            style={styles.card}
+          />
 
-            <AppText variant="bannerTitle" accessibilityRole="header">
-              {copy.bannerTitle}
-            </AppText>
-            <AppText
-              variant="tileSubtitle"
-              color={theme.colors.textSupport}
-              style={styles.bannerBody}
-            >
-              {copy.bannerBody}
-            </AppText>
-            <View style={styles.indicator} accessibilityElementsHidden>
-              <View style={styles.indicatorActive} />
-            </View>
-          </GlassSurface>
-
-          <GlassSurface
-            {...panelProps}
-            style={[styles.card, styles.panel, styles.form]}
-          >
+          <NeonPanel style={[styles.card, styles.form]}>
             <View style={styles.formHeader}>
               <View style={styles.formIcon}>
                 <Ionicons
@@ -422,7 +355,7 @@ export function VisitorAccessScreen() {
               onPress={handleGenerate}
               style={styles.cta}
             />
-          </GlassSurface>
+          </NeonPanel>
 
           {activePass ? (
             <VisitorPassCard
@@ -447,39 +380,13 @@ export function VisitorAccessScreen() {
           ) : null}
 
           {upcoming.length > 0 ? (
-            <GlassSurface
-              {...panelProps}
-              style={[styles.card, styles.panel, styles.list]}
-            >
-              <View style={styles.listHeader}>
-                <Ionicons name="time-outline" size={LIST_ICON_SIZE} color={theme.colors.textPrimary} />
-                <AppText variant="statValue" style={styles.listTitle} accessibilityRole="header">
-                  {copy.upcomingTitle}
-                </AppText>
-                <Pressable
-                  onPress={notYetRouted}
-                  hitSlop={12}
-                  accessibilityRole="link"
-                  accessibilityLabel={`${copy.viewAll} ${copy.upcomingTitle.toLowerCase()}`}
-                  style={({ pressed }) => [styles.viewAll, pressed && styles.pressed]}
-                >
-                  <AppText variant="tileSubtitle" color={theme.colors.textSupport}>
-                    {copy.viewAll}
-                  </AppText>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={VIEW_ALL_CHEVRON_SIZE}
-                    color={theme.colors.textSupport}
-                    style={styles.viewAllChevron}
-                  />
-                </Pressable>
-              </View>
-
-              <LinearGradient
-                colors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.listDivider}
+            <NeonPanel style={[styles.card, styles.list]}>
+              <PanelHeading
+                title={copy.upcomingTitle}
+                iconSet="ionicons"
+                iconName="time-outline"
+                actionLabel={copy.viewAll}
+                onActionPress={notYetRouted}
               />
 
               <View style={styles.listRows}>
@@ -497,7 +404,7 @@ export function VisitorAccessScreen() {
                   />
                 ))}
               </View>
-            </GlassSurface>
+            </NeonPanel>
           ) : null}
 
           <Pressable
@@ -506,10 +413,7 @@ export function VisitorAccessScreen() {
             accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
           >
-            <GlassSurface
-              {...panelProps}
-              style={[styles.panel, styles.parking]}
-            >
+            <NeonPanel style={styles.parking}>
               <View style={styles.parkingBadge}>
                 <AppText variant="body">P</AppText>
               </View>
@@ -524,7 +428,7 @@ export function VisitorAccessScreen() {
                 size={PARKING_CHEVRON_SIZE}
                 color={theme.colors.textPrimary}
               />
-            </GlassSurface>
+            </NeonPanel>
           </Pressable>
         </ScrollView>
 

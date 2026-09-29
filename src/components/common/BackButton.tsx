@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { ArrowRightIcon } from '../ui/ArrowRightIcon';
 import { AppText } from './AppText';
@@ -23,6 +24,8 @@ export interface BackButtonProps {
   variant?: BackButtonVariant;
   /** Text after the chevron, e.g. the screen's name; `chevron` variant only. */
   label?: string;
+  /** Type for `label`; defaults to the Visitor Access header's. */
+  labelVariant?: TypographyVariant;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -39,7 +42,14 @@ const CHEVRON_LABEL_GAP = 1;
  * Pops the stack when there is something to pop, and otherwise routes to the
  * first screen, so it still works if the screen is opened directly.
  */
-export function BackButton({ onPress, size, variant = 'ring', label, style }: BackButtonProps) {
+export function BackButton({
+  onPress,
+  size,
+  variant = 'ring',
+  label,
+  labelVariant = 'tileSubtitle',
+  style,
+}: BackButtonProps) {
   const theme = useAppTheme();
   const navigation = useNavigation();
   const isArrow = variant === 'arrow';
@@ -72,7 +82,7 @@ export function BackButton({ onPress, size, variant = 'ring', label, style }: Ba
       >
         <Ionicons name="chevron-back" size={resolvedSize} color={theme.colors.textPrimary} />
         {label ? (
-          <AppText variant="tileSubtitle" style={styles.chevronLabel} numberOfLines={1}>
+          <AppText variant={labelVariant} style={styles.chevronLabel} numberOfLines={1}>
             {label}
           </AppText>
         ) : null}

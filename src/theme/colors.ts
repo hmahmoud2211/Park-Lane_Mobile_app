@@ -138,5 +138,19 @@ export const colors = {
   chipSlateFill: '#0B2146',
   chipSlateStroke: '#3D619C',
 
+  /**
+   * Maintenance screen (assets/Screens/screen6.png), sampled from the
+   * screenshot. `stepActive` is the current stage of a request's progress
+   * track; `badgeFill` backs an icon tile, a shade lighter than its panel.
+   */
+  stepActive: '#A526FC',
+  badgeFill: 'rgba(43, 140, 255, 0.08)',
+  /** Emergency Support: the warning glyph, the "Call Now" pill and a faint wash. */
+  emergencyIcon: '#FF5C7A',
+  emergencyStroke: '#E04A6B',
+  emergencyFill: '#311634',
+  emergencyText: '#FFE6E4',
+  emergencyWash: 'rgba(255, 77, 109, 0.12)',
+
   transparent: 'transparent',
 } as const;

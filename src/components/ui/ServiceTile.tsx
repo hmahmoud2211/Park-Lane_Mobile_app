@@ -36,6 +36,11 @@ export interface ServiceTileProps {
   /** Draws the neon edge of the My Unit cards (see GlassSurface `glow`). */
   glow?: boolean;
   /**
+   * `row` puts the icon beside the text. `stacked` puts it above, with the
+   * chevron at the right, as in the Maintenance categories grid.
+   */
+  layout?: 'row' | 'stacked';
+  /**
    * Shrinks type, icon and insets together, for tiles narrower than the
    * design's. 1 is the reference size.
    */
@@ -47,6 +52,12 @@ const MIN_HEIGHT = 45;
 const ICON_SIZE = 21;
 const COMPACT_MIN_HEIGHT = 40;
 const COMPACT_ICON_SIZE = 17;
+/** `stacked` layout, from the Maintenance design with its extra room. */
+const STACKED_ICON_SIZE = 22;
+const STACKED_PADDING = 10;
+const STACKED_ICON_GAP = 6;
+const STACKED_CHEVRON_INSET = 6;
+const STACKED_CHEVRON_SIZE = 13;
 
 /**
  * One entry in the home screen's service grid: icon, title, supporting line and
@@ -62,12 +73,14 @@ export function ServiceTile({
   compact = false,
   nested = false,
   glow = false,
+  layout = 'row',
   scale = 1,
   style,
 }: ServiceTileProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme, scale), [theme, scale]);
-  const iconSize = (compact ? COMPACT_ICON_SIZE : ICON_SIZE) * scale;
+  const stacked = layout === 'stacked';
+  const iconSize = (stacked ? STACKED_ICON_SIZE : compact ? COMPACT_ICON_SIZE : ICON_SIZE) * scale;
   const subtitleVariant = compact ? 'tileCaption' : 'tileSubtitle';
 
   // The icon sets do not share a name union, so the name is typed per set.
@@ -85,6 +98,60 @@ export function ServiceTile({
         color={theme.colors.textPrimary}
       />
     );
+
+  const glassProps = {
+    stroke: 'gradient',
+    glow,
+    strokeColors: glow
+      ? ([theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo] as const)
+      : undefined,
+    blurred: !nested,
+    fillOpacity: nested ? theme.glass.subtleFillOpacity : undefined,
+  } as const;
+
+  if (stacked) {
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
+        style={({ pressed }) => [style, pressed && styles.pressed]}
+      >
+        <GlassSurface
+          {...glassProps}
+          radius={theme.borderRadius.sm}
+          // Flat, as drawn: the panel beneath already carries the tint. The
+          // edge stays cyan into blue, without the violet of the larger cards.
+          tinted={false}
+          strokeColors={glow ? [theme.colors.cardStrokeFrom, theme.colors.cardStrokeTo] : undefined}
+          style={styles.stackedSurface}
+        >
+          {/* A fixed box, so glyphs from both icon sets start the text on one line. */}
+          <View style={{ height: iconSize, justifyContent: 'center' }}>{icon}</View>
+          <AppText variant="statValue" numberOfLines={1} style={styles.stackedTitle}>
+            {title}
+          </AppText>
+          {subtitle ? (
+            <AppText
+              variant="tileCaption"
+              color={theme.colors.textSupport}
+              numberOfLines={1}
+              style={styles.stackedCaption}
+            >
+              {subtitle}
+            </AppText>
+          ) : null}
+          <View style={styles.stackedChevron} pointerEvents="none">
+            <Ionicons
+              name="chevron-forward"
+              size={STACKED_CHEVRON_SIZE * scale}
+              color={theme.colors.textPrimary}
+            />
+          </View>
+        </GlassSurface>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -165,6 +232,22 @@ function createStyles(theme: AppTheme, scale: number) {
     },
     pressed: {
       opacity: 0.75,
+    },
+    stackedSurface: {
+      padding: STACKED_PADDING * scale,
+    },
+    stackedTitle: {
+      ...sized('statValue'),
+      marginTop: STACKED_ICON_GAP * scale,
+      marginBottom: 2 * scale,
+    },
+    stackedCaption: sized('tileCaption'),
+    // Centred on the icon's bottom edge, as drawn: above the title, so the
+    // title can run the tile's full width beneath it.
+    stackedChevron: {
+      position: 'absolute',
+      top: (STACKED_PADDING + STACKED_ICON_SIZE - STACKED_CHEVRON_SIZE / 2) * scale,
+      right: STACKED_CHEVRON_INSET * scale,
     },
   });
 }

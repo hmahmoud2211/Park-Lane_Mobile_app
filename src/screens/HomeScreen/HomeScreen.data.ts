@@ -77,7 +77,14 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     route: 'VisitorAccess',
   },
   { id: 'parking', title: 'Parking', subtitle: 'Check availability', iconSet: 'ionicons', iconName: 'car-outline' },
-  { id: 'maintenance', title: 'Maintenance', subtitle: 'Request & track', iconSet: 'material', iconName: 'tools' },
+  {
+    id: 'maintenance',
+    title: 'Maintenance',
+    subtitle: 'Request & track',
+    iconSet: 'material',
+    iconName: 'tools',
+    route: 'Maintenance',
+  },
   { id: 'community', title: 'Community', subtitle: 'New', iconSet: 'ionicons', iconName: 'bag-outline' },
   { id: 'amenities', title: 'Amenities Booking', subtitle: 'Request & track', iconSet: 'material', iconName: 'calendar-check-outline' },
 ];

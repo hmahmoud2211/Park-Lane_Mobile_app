@@ -38,6 +38,13 @@ export interface AppButtonProps extends Omit<PressableProps, 'style' | 'children
   variant?: AppButtonVariant;
   /** Rendered in a circular frame inset at the leading edge. */
   leadingIcon?: ReactNode;
+  /**
+   * `frame` draws `leadingIcon` in its ring at the leading edge. `inline`
+   * sets it bare just before the label, the pair centred together.
+   */
+  leadingPlacement?: 'frame' | 'inline';
+  /** Corner radius; defaults to a full pill. */
+  radius?: number;
   /** Rendered bare at the trailing edge, as on the login screen's Sign in. */
   trailingIcon?: ReactNode;
   loading?: boolean;
@@ -69,6 +76,8 @@ export function AppButton({
   title,
   variant = 'primary',
   leadingIcon,
+  leadingPlacement = 'frame',
+  radius,
   trailingIcon,
   loading = false,
   disabled = false,
@@ -84,8 +93,8 @@ export function AppButton({
 }: AppButtonProps) {
   const theme = useAppTheme();
   const styles = useMemo(
-    () => createStyles(theme, height, trailingInset ?? theme.spacing.lg),
-    [theme, height, trailingInset],
+    () => createStyles(theme, height, trailingInset ?? theme.spacing.lg, radius ?? height / 2),
+    [theme, height, trailingInset, radius],
   );
 
   // Lazy state rather than a ref: stable across renders, and readable during
@@ -97,7 +106,8 @@ export function AppButton({
   const isPrimary = variant === 'primary';
   const isGradient = variant === 'gradient';
   const isDisabled = disabled || loading;
-  const animates = pressEffect === 'advance' && Boolean(leadingIcon);
+  const leadingInline = leadingPlacement === 'inline' && Boolean(leadingIcon);
+  const animates = pressEffect === 'advance' && Boolean(leadingIcon) && !leadingInline;
 
   useEffect(
     () => () => {
@@ -169,7 +179,8 @@ export function AppButton({
           {loading ? (
             <ActivityIndicator color={theme.colors.textPrimary} />
           ) : (
-            <View>
+            <View style={leadingInline && styles.inlineRow}>
+              {leadingInline ? <View style={styles.inlineIcon}>{leadingIcon}</View> : null}
               <AppText variant={labelVariant}>{title}</AppText>
               {trailingIcon && trailingPlacement === 'label' ? (
                 <View style={styles.labelIcon}>{trailingIcon}</View>
@@ -178,7 +189,7 @@ export function AppButton({
           )}
         </Animated.View>
 
-        {leadingIcon ? (
+        {leadingIcon && !leadingInline ? (
           <Animated.View
             style={[styles.iconFrame, iconTransform ? { transform: iconTransform } : null]}
             pointerEvents="none"
@@ -223,7 +234,7 @@ export function AppButton({
           {content}
         </LinearGradient>
       ) : (
-        <GlassSurface radius={height / 2} tinted={isPrimary} style={styles.surface}>
+        <GlassSurface radius={radius ?? height / 2} tinted={isPrimary} style={styles.surface}>
           {content}
         </GlassSurface>
       )}
@@ -231,13 +242,13 @@ export function AppButton({
   );
 }
 
-function createStyles(theme: AppTheme, height: number, trailingInset: number) {
+function createStyles(theme: AppTheme, height: number, trailingInset: number, radius: number) {
   const iconSize = height - ICON_INSET * 2;
 
   return StyleSheet.create({
     shell: {
       height,
-      borderRadius: height / 2,
+      borderRadius: radius,
     },
     shellGlow: theme.shadows.glow,
     surface: {
@@ -245,7 +256,7 @@ function createStyles(theme: AppTheme, height: number, trailingInset: number) {
       justifyContent: 'center',
     },
     gradientSurface: {
-      borderRadius: height / 2,
+      borderRadius: radius,
       overflow: 'hidden',
     },
     labelLayer: {
@@ -268,6 +279,13 @@ function createStyles(theme: AppTheme, height: number, trailingInset: number) {
       borderColor: theme.colors.border,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    inlineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    inlineIcon: {
+      marginRight: LABEL_ICON_GAP,
     },
     labelIcon: {
       position: 'absolute',

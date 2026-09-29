@@ -42,6 +42,23 @@ export const images = {
    * code change needed.
    */
   visitorHero: require('../assets/images/illustrations/visitor-hero.png') as number,
+
+  /**
+   * PLACEHOLDER, cropped from the Maintenance reference
+   * (assets/Screens/screen6.png) at about 2x: the lobby entrance with the
+   * PARKLANE sign. Replace with the full-resolution export at this path; no
+   * code change needed.
+   */
+  maintenanceHero: require('../assets/images/illustrations/maintenance-hero.png') as number,
+} as const;
+
+/**
+ * Width over height for banner photos, so they are laid out whole. Update an
+ * entry if its replacement export is framed differently.
+ */
+export const imageAspects = {
+  visitorHero: 411 / 195,
+  maintenanceHero: 356 / 208,
 } as const;
 
 export type ImageKey = keyof typeof images;

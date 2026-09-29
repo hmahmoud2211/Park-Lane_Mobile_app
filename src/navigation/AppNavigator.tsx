@@ -6,6 +6,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { FirstScreen } from '../screens/FirstScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
+import { MaintenanceScreen } from '../screens/MaintenanceScreen';
 import { MyUnitScreen } from '../screens/MyUnitScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
@@ -53,6 +54,7 @@ export function AppNavigator() {
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="MyUnit" component={MyUnitScreen} />
         <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
+        <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
         {/* Register later screens here as their designs land. */}
       </Stack.Navigator>
     </NavigationContainer>
