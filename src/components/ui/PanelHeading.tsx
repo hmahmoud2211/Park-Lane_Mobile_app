@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
@@ -15,8 +14,6 @@ export interface PanelHeadingProps {
   iconSet: IconSet;
   iconName: string;
   iconSize?: number;
-  /** Type for `title`; the designs differ slightly between screens. */
-  titleVariant?: TypographyVariant;
   /** A trailing link, e.g. "View All", drawn with a chevron. */
   actionLabel?: string;
   onActionPress?: () => void;
@@ -43,7 +40,6 @@ export function PanelHeading({
   iconSet,
   iconName,
   iconSize = 17,
-  titleVariant = 'statValue',
   actionLabel,
   onActionPress,
   divider = true,
@@ -55,7 +51,8 @@ export function PanelHeading({
   return (
     <View style={[styles.row, style]}>
       <AppIcon set={iconSet} name={iconName} size={iconSize} />
-      <AppText variant={titleVariant} style={styles.title} accessibilityRole="header">
+      {/* Set like My Unit's card headings (SectionCard), so the screens share one type. */}
+      <AppText variant="sectionTitle" style={styles.title} accessibilityRole="header">
         {title}
       </AppText>
 
@@ -67,7 +64,7 @@ export function PanelHeading({
           accessibilityLabel={`${actionLabel} ${title.toLowerCase()}`}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
-          <AppText variant="tileSubtitle" color={theme.colors.textSupport}>
+          <AppText variant="statLabel" color={theme.colors.textSupport}>
             {actionLabel}
           </AppText>
           <Ionicons

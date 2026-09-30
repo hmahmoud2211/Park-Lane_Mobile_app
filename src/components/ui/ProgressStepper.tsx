@@ -80,7 +80,7 @@ export function ProgressStepper({ steps, currentIndex, style }: ProgressStepperP
               )}
             </View>
             <AppText
-              variant={state === 'pending' ? 'tileSubtitle' : 'fieldValue'}
+              variant="statValue"
               color={state === 'pending' ? theme.colors.textSupport : theme.colors.textPrimary}
               numberOfLines={1}
               style={styles.label}

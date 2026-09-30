@@ -4,7 +4,6 @@ import { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { ArrowRightIcon } from '../ui/ArrowRightIcon';
 import { AppText } from './AppText';
@@ -24,8 +23,6 @@ export interface BackButtonProps {
   variant?: BackButtonVariant;
   /** Text after the chevron, e.g. the screen's name; `chevron` variant only. */
   label?: string;
-  /** Type for `label`; defaults to the Visitor Access header's. */
-  labelVariant?: TypographyVariant;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -47,7 +44,6 @@ export function BackButton({
   size,
   variant = 'ring',
   label,
-  labelVariant = 'tileSubtitle',
   style,
 }: BackButtonProps) {
   const theme = useAppTheme();
@@ -82,7 +78,8 @@ export function BackButton({
       >
         <Ionicons name="chevron-back" size={resolvedSize} color={theme.colors.textPrimary} />
         {label ? (
-          <AppText variant={labelVariant} style={styles.chevronLabel} numberOfLines={1}>
+          // Set like the My Unit header's title, so every inner screen's title matches.
+          <AppText variant="screenTitle" style={styles.chevronLabel} numberOfLines={1}>
             {label}
           </AppText>
         ) : null}

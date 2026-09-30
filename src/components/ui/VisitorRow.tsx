@@ -37,7 +37,8 @@ const NAME_GAP = 10;
 const CAR_ICON_SIZE = 13;
 const CAR_TO_PLATE = 9;
 const PLATE_COLUMN = 40.5;
-const CHIP_WIDTH = 65.5;
+/** Narrower than drawn, so the longest meta line keeps one line in My Unit's type. */
+const CHIP_WIDTH = 60;
 const CHIP_TO_CHEVRON = 5;
 const CHEVRON_SIZE = 13;
 
@@ -76,11 +77,11 @@ export function VisitorRow({
       />
 
       <View style={styles.text}>
-        <AppText variant="fieldValue" numberOfLines={1}>
+        <AppText variant="statValue" numberOfLines={1}>
           {name}
         </AppText>
         <AppText
-          variant="fieldCaption"
+          variant="tileCaption"
           color={theme.colors.textSupport}
           numberOfLines={1}
           style={styles.meta}
@@ -91,7 +92,7 @@ export function VisitorRow({
 
       <Ionicons name="car-outline" size={CAR_ICON_SIZE} color={theme.colors.textPrimary} />
       <AppText
-        variant="fieldCaption"
+        variant="tileCaption"
         color={theme.colors.inputLabel}
         numberOfLines={1}
         style={styles.plate}

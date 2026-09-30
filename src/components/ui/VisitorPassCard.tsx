@@ -37,8 +37,8 @@ export interface VisitorPassCardProps {
 /*
  * Based on the Visitor Access reference (assets/Screens/screen5.png), with
  * more air than it draws: the QR 14dp in, the details column 14dp after it,
- * and a divided column for the "more" button on the right. The footnote still
- * fits on one line at 390dp.
+ * and a divided column for the "more" button on the right. The text is set in
+ * My Unit's type, so the footnote wraps where the design fits it on one line.
  */
 const QR_SIZE = 56;
 const QR_PADDING = 3.5;
@@ -47,9 +47,6 @@ const QR_INSET = 14;
 const DETAILS_GAP = 14;
 const DETAILS_TOP = 14;
 const DETAILS_BOTTOM = 14;
-const NAME_ROW_HEIGHT = 14;
-/** The chip is taller than the name, so it hangs from the name row's top. */
-const CHIP_OFFSET = 2.2;
 const INFO_ICON_SIZE = 12;
 const INFO_ICON_GAP = 6.5;
 const INFO_SEPARATOR_HEIGHT = 11;
@@ -111,7 +108,8 @@ export function VisitorPassCard({
 
       <View style={styles.details}>
         <View style={styles.nameRow}>
-          <AppText variant="passTitle" numberOfLines={1} style={styles.name}>
+          {/* Wraps rather than truncates where a narrow screen crowds it against the chip. */}
+          <AppText variant="sectionTitle" numberOfLines={2} style={styles.name}>
             {name}
           </AppText>
           <StatusChip
@@ -119,11 +117,10 @@ export function VisitorPassCard({
             tone={statusTone}
             icon={statusIcon}
             glow
-            style={styles.chip}
           />
         </View>
 
-        <AppText variant="tileSubtitle" color={theme.colors.textSupport} style={styles.schedule}>
+        <AppText variant="statLabel" color={theme.colors.textSupport} style={styles.schedule}>
           {schedule}
         </AppText>
 
@@ -147,7 +144,7 @@ export function VisitorPassCard({
           ) : null}
         </View>
 
-        <AppText variant="fieldCaption" color={theme.colors.textSupport} style={styles.caption}>
+        <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.caption}>
           {caption}
         </AppText>
       </View>
@@ -200,19 +197,16 @@ function createStyles(theme: AppTheme) {
       paddingTop: DETAILS_TOP,
       paddingBottom: DETAILS_BOTTOM,
     },
+    // The chip sits on the name's first line, a touch taller than it; the glow
+    // overhangs the row below.
     nameRow: {
-      height: NAME_ROW_HEIGHT,
       flexDirection: 'row',
       alignItems: 'flex-start',
-      // The chip overhangs the row below; nothing sits under it there.
       zIndex: 1,
     },
     name: {
       flex: 1,
       marginRight: theme.spacing.sm,
-    },
-    chip: {
-      marginTop: CHIP_OFFSET,
     },
     schedule: {
       marginTop: 5,

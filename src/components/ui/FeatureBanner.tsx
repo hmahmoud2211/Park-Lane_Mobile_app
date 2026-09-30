@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { NeonPanel } from './NeonPanel';
@@ -21,15 +20,14 @@ export interface FeatureBannerProps {
   photo: ImageSourcePropType;
   /** The photo's width over its height, so it is shown whole, never cropped. */
   photoAspect: number;
-  /** Type for `body`; the designs differ slightly between screens. */
-  bodyVariant?: TypographyVariant;
   style?: StyleProp<ViewStyle>;
 }
 
 /*
  * From the Visitor Access and Maintenance designs (assets/Screens/screen5.png,
  * screen6.png), with the extra room given to both screens: text on the left,
- * a photo on the right fading into the panel, and a carousel indicator.
+ * a photo on the right fading into the panel, and a carousel indicator. The
+ * text is set in My Unit's type, as are the rest of both screens.
  */
 const HEIGHT = 116;
 const INSET_LEFT = 18;
@@ -48,7 +46,6 @@ export function FeatureBanner({
   body,
   photo,
   photoAspect,
-  bodyVariant = 'tileSubtitle',
   style,
 }: FeatureBannerProps) {
   const theme = useAppTheme();
@@ -80,10 +77,10 @@ export function FeatureBanner({
         </View>
       </View>
 
-      <AppText variant="bannerTitle" accessibilityRole="header">
+      <AppText variant="screenTitle" accessibilityRole="header">
         {title}
       </AppText>
-      <AppText variant={bodyVariant} color={theme.colors.textSupport} style={styles.body}>
+      <AppText variant="statLabel" color={theme.colors.textSupport} style={styles.body}>
         {body}
       </AppText>
       <View style={styles.indicator} accessibilityElementsHidden>

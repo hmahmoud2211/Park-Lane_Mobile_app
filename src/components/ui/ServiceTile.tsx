@@ -128,7 +128,7 @@ export function ServiceTile({
         >
           {/* A fixed box, so glyphs from both icon sets start the text on one line. */}
           <View style={{ height: iconSize, justifyContent: 'center' }}>{icon}</View>
-          <AppText variant="statValue" numberOfLines={1} style={styles.stackedTitle}>
+          <AppText variant="tileTitle" numberOfLines={1} style={styles.stackedTitle}>
             {title}
           </AppText>
           {subtitle ? (
@@ -237,7 +237,7 @@ function createStyles(theme: AppTheme, scale: number) {
       padding: STACKED_PADDING * scale,
     },
     stackedTitle: {
-      ...sized('statValue'),
+      ...sized('tileTitle'),
       marginTop: STACKED_ICON_GAP * scale,
       marginBottom: 2 * scale,
     },

@@ -318,11 +318,11 @@ export function VisitorAccessScreen() {
                 />
               </View>
               <View style={styles.formTitle}>
-                <AppText variant="passTitle" accessibilityRole="header">
+                <AppText variant="sectionTitle" accessibilityRole="header">
                   {copy.formTitle}
                 </AppText>
                 <AppText
-                  variant="tileSubtitle"
+                  variant="statLabel"
                   color={theme.colors.textSupport}
                   style={styles.formSubtitle}
                 >

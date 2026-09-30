@@ -116,6 +116,8 @@ export const typography = {
   /*
    * My Unit screen (assets/Screens/screen4.png). The design face is narrower
    * than Inter, so these sizes were solved against the measured text widths.
+   * Visitor Access and Maintenance are set in these too, so the inner
+   * screens share one type.
    */
 
   /** Title beside a back arrow, e.g. "My Unit". */
@@ -166,42 +168,6 @@ export const typography = {
     fontFamily: fontFamily.regular,
     fontSize: 7,
     lineHeight: 10,
-  },
-
-  /*
-   * Visitor Access screen (assets/Screens/screen5.png), solved against the
-   * measured text widths the same way. Its other text reuses the tokens above.
-   */
-
-  /** Banner heading, e.g. "Create secure guest entry". */
-  bannerTitle: {
-    fontFamily: fontFamily.medium,
-    fontSize: 14,
-    lineHeight: 16.5,
-  },
-  /** Card headings, e.g. "New Visitor Pass" and the pass holder's name. */
-  passTitle: {
-    fontFamily: fontFamily.medium,
-    fontSize: 10.5,
-    lineHeight: 14,
-  },
-  /** Caption inside a compact field, list meta and the pass footnote. */
-  fieldCaption: {
-    fontFamily: fontFamily.regular,
-    fontSize: 6.5,
-    lineHeight: 9,
-  },
-  /** The value inside a compact field, and visitor names in the list. */
-  fieldValue: {
-    fontFamily: fontFamily.medium,
-    fontSize: 7.5,
-    lineHeight: 10,
-  },
-  /** Status chip label, e.g. "Scheduled". */
-  chipLabel: {
-    fontFamily: fontFamily.medium,
-    fontSize: 6.5,
-    lineHeight: 9,
   },
 } satisfies Record<string, TextStyle>;
 

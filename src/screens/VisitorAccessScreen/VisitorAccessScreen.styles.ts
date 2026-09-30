@@ -9,8 +9,8 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * the home reference's does, so the header shares Home's 28dp top.
  *
  * As on My Unit, the spacing between and inside the cards is deliberately
- * roomier than the reference, which packed them almost edge to edge. Sizes,
- * type and the card width still follow the reference.
+ * roomier than the reference, which packed them almost edge to edge. Sizes
+ * and the card width still follow the reference; the type is My Unit's.
  */
 const GUTTER = 35;
 /** Matches My Unit's gap between cards. */

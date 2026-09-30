@@ -18,7 +18,7 @@ import { GlassSurface } from './GlassSurface';
  * `pill` is the login field. `field` is the compact form field from the
  * Visitor Access design (assets/Screens/screen5.png): a rounded rectangle
  * darker than its card, a faint hairline, no divider after the icon, and
- * smaller type.
+ * smaller type, taken from My Unit's figures (caption over value).
  */
 export type AppInputVariant = 'pill' | 'field';
 
@@ -90,7 +90,7 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
         <View style={[styles.body, isField && styles.fieldBody]}>
           {label ? (
             <AppText
-              variant={isField ? 'fieldCaption' : 'inputLabel'}
+              variant={isField ? 'tileCaption' : 'inputLabel'}
               color={theme.colors.inputLabel}
             >
               {label}
@@ -121,7 +121,7 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
 
       {error ? (
         <AppText
-          variant={isField ? 'fieldCaption' : 'bodySmall'}
+          variant={isField ? 'tileCaption' : 'bodySmall'}
           color={theme.colors.magenta}
           style={[styles.error, isField && styles.fieldError]}
         >
@@ -194,7 +194,7 @@ function createStyles(theme: AppTheme, height: number) {
       paddingTop: 2,
     },
     fieldInput: {
-      ...theme.typography.fieldValue,
+      ...theme.typography.statValue,
       marginTop: 2,
     },
     fieldInputEmpty: {

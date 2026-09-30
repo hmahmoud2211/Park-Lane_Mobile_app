@@ -5,8 +5,8 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
 /**
  * Measured from the Figma screen (assets/Screens/screen6.png), exported at
- * 792px for a 390dp frame (2.031px per dp). Sizes, type and colours follow
- * it. As on My Unit and Visitor Access, the spacing between and inside the
+ * 792px for a 390dp frame (2.031px per dp). Sizes and colours follow it; the
+ * type is My Unit's. As on My Unit and Visitor Access, the spacing between and inside the
  * cards is deliberately roomier than the reference, which packs them almost
  * edge to edge, so the three inner screens share one rhythm.
  */

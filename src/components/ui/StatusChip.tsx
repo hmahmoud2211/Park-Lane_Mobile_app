@@ -53,7 +53,7 @@ export function StatusChip({ label, tone, icon, glow = false, style }: StatusChi
       >
         <View style={[styles.fill, { backgroundColor: fill }]}>
           {icon ? <Ionicons name={icon} size={ICON_SIZE} color={text} style={styles.icon} /> : null}
-          <AppText variant="chipLabel" color={text} numberOfLines={1}>
+          <AppText variant="statLabel" color={text} numberOfLines={1}>
             {label}
           </AppText>
         </View>

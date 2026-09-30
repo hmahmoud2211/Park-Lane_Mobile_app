@@ -113,7 +113,6 @@ export function MaintenanceScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <PageHeader
             title={copy.title}
-            titleVariant="inputLabel"
             onMenuPress={() => setMenuOpen(true)}
             style={styles.header}
           />
@@ -121,7 +120,6 @@ export function MaintenanceScreen() {
           <FeatureBanner
             title={copy.bannerTitle}
             body={copy.bannerBody}
-            bodyVariant="statLabel"
             photo={images.maintenanceHero}
             photoAspect={imageAspects.maintenanceHero}
             style={styles.card}
@@ -130,7 +128,6 @@ export function MaintenanceScreen() {
           <NeonPanel style={[styles.card, styles.categories]}>
             <PanelHeading
               title={copy.categoriesTitle}
-              titleVariant="passTitle"
               iconSet="ionicons"
               iconName="grid-outline"
               iconSize={19}
@@ -165,7 +162,6 @@ export function MaintenanceScreen() {
           <NeonPanel style={styles.card}>
             <PanelHeading
               title={copy.activeTitle}
-              titleVariant="passTitle"
               iconSet="ionicons"
               iconName="document-text-outline"
               iconSize={19}
@@ -189,7 +185,7 @@ export function MaintenanceScreen() {
                   {request.title}
                 </AppText>
                 <AppText
-                  variant="tileSubtitle"
+                  variant="tileCaption"
                   color={theme.colors.textSupport}
                   numberOfLines={1}
                   style={styles.requestMeta}
@@ -338,7 +334,7 @@ export function MaintenanceScreen() {
                   color={theme.colors.emergencyIcon}
                 />
                 <AppText
-                  variant="tileSubtitle"
+                  variant="statLabel"
                   color={theme.colors.emergencyText}
                   style={styles.callNowLabel}
                 >
