@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -11,14 +11,18 @@ import type { IconSet } from './ServiceTile';
 
 export interface PanelHeadingProps {
   title: string;
-  iconSet: IconSet;
-  iconName: string;
+  iconSet?: IconSet;
+  iconName?: string;
   iconSize?: number;
+  /** Drawn in place of `iconSet`/`iconName`, for icons no set has (e.g. ParkingSign). */
+  icon?: ReactNode;
   /** A trailing link, e.g. "View All", drawn with a chevron. */
   actionLabel?: string;
   onActionPress?: () => void;
   /** Gradient hairline under the heading. */
   divider?: boolean;
+  /** Overrides the divider's placement, e.g. to stop it short of a photo. */
+  dividerStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -40,9 +44,11 @@ export function PanelHeading({
   iconSet,
   iconName,
   iconSize = 17,
+  icon,
   actionLabel,
   onActionPress,
   divider = true,
+  dividerStyle,
   style,
 }: PanelHeadingProps) {
   const theme = useAppTheme();
@@ -50,7 +56,8 @@ export function PanelHeading({
 
   return (
     <View style={[styles.row, style]}>
-      <AppIcon set={iconSet} name={iconName} size={iconSize} />
+      {icon ??
+        (iconSet && iconName ? <AppIcon set={iconSet} name={iconName} size={iconSize} /> : null)}
       {/* Set like My Unit's card headings (SectionCard), so the screens share one type. */}
       <AppText variant="sectionTitle" style={styles.title} accessibilityRole="header">
         {title}
@@ -81,7 +88,7 @@ export function PanelHeading({
           colors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
-          style={styles.divider}
+          style={[styles.divider, dividerStyle]}
         />
       ) : null}
     </View>

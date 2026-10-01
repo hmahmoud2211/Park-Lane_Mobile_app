@@ -181,7 +181,10 @@ export function AppButton({
           ) : (
             <View style={leadingInline && styles.inlineRow}>
               {leadingInline ? <View style={styles.inlineIcon}>{leadingIcon}</View> : null}
-              <AppText variant={labelVariant}>{title}</AppText>
+              {/* Beside an inline icon the label may wrap rather than overflow a narrow button. */}
+              <AppText variant={labelVariant} style={leadingInline && styles.inlineLabel}>
+                {title}
+              </AppText>
               {trailingIcon && trailingPlacement === 'label' ? (
                 <View style={styles.labelIcon}>{trailingIcon}</View>
               ) : null}
@@ -280,12 +283,17 @@ function createStyles(theme: AppTheme, height: number, trailingInset: number, ra
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // Capped at the button's width, so a long label wraps inside it.
     inlineRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      maxWidth: '100%',
     },
     inlineIcon: {
       marginRight: LABEL_ICON_GAP,
+    },
+    inlineLabel: {
+      flexShrink: 1,
     },
     labelIcon: {
       position: 'absolute',

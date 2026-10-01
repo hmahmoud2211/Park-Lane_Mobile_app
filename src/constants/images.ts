@@ -4,8 +4,8 @@
  * assets/ folder and are deliberately not bundled.
  */
 export const images = {
-  mainBackground: require('../assets/images/backgrounds/main-background.png') as number,
-  loginBackground: require('../assets/images/backgrounds/login-background.png') as number,
+  mainBackground: require('../assets/images/backgrounds/main-background.jpg') as number,
+  loginBackground: require('../assets/images/backgrounds/login-background.jpg') as number,
 
   /**
    * PLACEHOLDER. Generated stand-in for the brand lockup so the login screen
@@ -25,9 +25,9 @@ export const images = {
   /** Google's official four-colour mark, rasterised from their brand paths. */
   googleMark: require('../assets/images/icons/google-mark.png') as number,
 
-  homeBackground: require('../assets/images/backgrounds/home-background.png') as number,
+  homeBackground: require('../assets/images/backgrounds/home-background.jpg') as number,
 
-  unitPhoto: require('../assets/images/illustrations/unit-a302.png') as number,
+  unitPhoto: require('../assets/images/illustrations/unit-a302.jpg') as number,
 
   /**
    * PLACEHOLDER, cropped from the home screen reference. Replace with the real
@@ -41,7 +41,7 @@ export const images = {
    * PARKLANE sign. Replace with the full-resolution export at this path; no
    * code change needed.
    */
-  visitorHero: require('../assets/images/illustrations/visitor-hero.png') as number,
+  visitorHero: require('../assets/images/illustrations/visitor-hero.jpg') as number,
 
   /**
    * PLACEHOLDER, cropped from the Maintenance reference
@@ -49,7 +49,22 @@ export const images = {
    * PARKLANE sign. Replace with the full-resolution export at this path; no
    * code change needed.
    */
-  maintenanceHero: require('../assets/images/illustrations/maintenance-hero.png') as number,
+  maintenanceHero: require('../assets/images/illustrations/maintenance-hero.jpg') as number,
+
+  /**
+   * PLACEHOLDERS, cropped from the Parking reference (assets/Screens/screen7.png)
+   * at about 1.6x, so they are soft on high-density screens: the entrance with
+   * the PARKLANE sign, and the resident's bay at P2-148. Replace with the
+   * full-resolution exports at these paths; no code change needed.
+   */
+  parkingHero: require('../assets/images/illustrations/parking-hero.jpg') as number,
+  parkingSlot: require('../assets/images/illustrations/parking-slot.jpg') as number,
+
+  /**
+   * PLACEHOLDER, keyed out of the Parking reference: the BMW X5 on a
+   * transparent background. Replace with a transparent render at this path.
+   */
+  registeredVehicle: require('../assets/images/illustrations/registered-vehicle.png') as number,
 } as const;
 
 /**
@@ -59,6 +74,9 @@ export const images = {
 export const imageAspects = {
   visitorHero: 411 / 195,
   maintenanceHero: 356 / 208,
+  parkingHero: 312 / 149,
+  parkingSlot: 306 / 136,
+  registeredVehicle: 207 / 99,
 } as const;
 
 export type ImageKey = keyof typeof images;

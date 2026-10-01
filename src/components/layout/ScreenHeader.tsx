@@ -40,6 +40,7 @@ export function ScreenHeader({ initials, onMenuPress, onProfilePress, style }: S
       </Pressable>
 
       <Image
+        fadeDuration={0}
         source={images.brandWordmark}
         style={styles.lockup}
         resizeMode="contain"

@@ -1,4 +1,4 @@
-import { Fragment, useId, useMemo } from 'react';
+import { Fragment, memo, useId, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
@@ -31,7 +31,7 @@ const CORNERS: readonly Corner[] = ['tl', 'tr', 'bl', 'br'];
  * react-native-svg renders inconsistently across platforms. Each corner glow
  * is the same ring painted with a radial gradient centred on that corner.
  */
-export function NeonEdge({ width, height, radius, colors, bottomColors }: NeonEdgeProps) {
+function NeonEdgeSvg({ width, height, radius, colors, bottomColors }: NeonEdgeProps) {
   const theme = useAppTheme();
   const neon = theme.glass.neon;
 
@@ -193,6 +193,24 @@ export function NeonEdge({ width, height, radius, colors, bottomColors }: NeonEd
     </Svg>
   );
 }
+
+const samePair = (a?: readonly [string, string], b?: readonly [string, string]) =>
+  a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]);
+
+/**
+ * Callers pass their colour pairs as fresh array literals, so compare them by
+ * value: the edge is dozens of SVG shapes and must not redraw on every render
+ * of its card (e.g. each keystroke in the Visitor Access form).
+ */
+export const NeonEdge = memo(
+  NeonEdgeSvg,
+  (prev, next) =>
+    prev.width === next.width &&
+    prev.height === next.height &&
+    prev.radius === next.radius &&
+    samePair(prev.colors, next.colors) &&
+    samePair(prev.bottomColors, next.bottomColors),
+);
 
 /** How far the edge's halo reaches past the card, for callers that need room. */
 export function neonEdgeOverhang(haloRingCount: number): number {

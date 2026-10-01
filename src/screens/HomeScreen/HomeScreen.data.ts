@@ -76,7 +76,14 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     iconName: 'account-check-outline',
     route: 'VisitorAccess',
   },
-  { id: 'parking', title: 'Parking', subtitle: 'Check availability', iconSet: 'ionicons', iconName: 'car-outline' },
+  {
+    id: 'parking',
+    title: 'Parking',
+    subtitle: 'Check availability',
+    iconSet: 'ionicons',
+    iconName: 'car-outline',
+    route: 'Parking',
+  },
   {
     id: 'maintenance',
     title: 'Maintenance',

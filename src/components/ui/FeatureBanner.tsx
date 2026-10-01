@@ -20,6 +20,8 @@ export interface FeatureBannerProps {
   photo: ImageSourcePropType;
   /** The photo's width over its height, so it is shown whole, never cropped. */
   photoAspect: number;
+  /** Taller than the default for a longer body, e.g. Parking's three lines. */
+  height?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -28,6 +30,11 @@ export interface FeatureBannerProps {
  * screen6.png), with the extra room given to both screens: text on the left,
  * a photo on the right fading into the panel, and a carousel indicator. The
  * text is set in My Unit's type, as are the rest of both screens.
+ *
+ * The panel is the My Unit glass, so, as on the My Unit hero, the navy wash
+ * spans the whole card rather than just the photo: a solid strip up to the
+ * photo, then fading out across it, so no seam shows against the glass. Laid
+ * out with flex rather than measured, so it is right on the first frame.
  */
 const HEIGHT = 116;
 const INSET_LEFT = 18;
@@ -46,35 +53,38 @@ export function FeatureBanner({
   body,
   photo,
   photoAspect,
+  height = HEIGHT,
   style,
 }: FeatureBannerProps) {
   const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, height), [theme, height]);
+  const photoWidth = Math.round(height * photoAspect);
 
   return (
     <NeonPanel
-      // Darker than the other cards: the page's own navy, which the photo fades into.
-      fill={theme.colors.backgroundDeep}
       // As on the My Unit hero: violet bottom-left, cyan bottom-right.
       glowBottomColors={[theme.colors.featureStrokeTo, theme.colors.cardStrokeFrom]}
       style={[styles.banner, style]}
     >
+      {/* Reversed, so the photo is anchored right and the wash fills the rest. */}
       <View style={styles.media} pointerEvents="none">
-        <View style={[styles.photo, { width: Math.round(HEIGHT * photoAspect) }]}>
+        <View style={[styles.photo, { width: photoWidth }]}>
           <Image
             source={photo}
             style={styles.photoImage}
             resizeMode="cover"
+            fadeDuration={0}
             accessibilityIgnoresInvertColors
           />
           <LinearGradient
-            colors={[theme.colors.backgroundDeep, theme.colors.transparent]}
+            colors={[theme.colors.scrimBottom, theme.colors.transparent]}
             locations={[0, FADE_END]}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={StyleSheet.absoluteFill}
           />
         </View>
+        <View style={styles.wash} />
       </View>
 
       <AppText variant="screenTitle" accessibilityRole="header">
@@ -90,10 +100,10 @@ export function FeatureBanner({
   );
 }
 
-function createStyles(theme: AppTheme) {
+function createStyles(theme: AppTheme, height: number) {
   return StyleSheet.create({
     banner: {
-      height: HEIGHT,
+      height,
       paddingLeft: INSET_LEFT,
       paddingTop: INSET_TOP,
     },
@@ -101,14 +111,16 @@ function createStyles(theme: AppTheme) {
     // own rounded clip.
     media: {
       ...StyleSheet.absoluteFill,
-      borderRadius: theme.borderRadius.sm,
+      flexDirection: 'row-reverse',
+      borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
     },
     photo: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
+      flexShrink: 0,
+    },
+    wash: {
+      flex: 1,
+      backgroundColor: theme.colors.scrimBottom,
     },
     // Explicit 100% rather than absoluteFill: react-native-web stamps the
     // image's intrinsic size onto the element, which beats inset-0 alone.

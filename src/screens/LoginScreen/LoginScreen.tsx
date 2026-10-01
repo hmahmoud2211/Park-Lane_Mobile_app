@@ -99,6 +99,7 @@ export function LoginScreen() {
           <View style={styles.lockupRow}>
             <BackButton size={BACK_BUTTON_SIZE} style={styles.backButton} />
             <Image
+              fadeDuration={0}
               source={images.brandWordmark}
               style={styles.lockup}
               resizeMode="contain"

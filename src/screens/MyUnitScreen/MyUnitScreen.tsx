@@ -67,6 +67,7 @@ export function MyUnitScreen() {
             {/* Drawn first, beneath the row, so the controls stay tappable. */}
             <View style={styles.lockupFrame} pointerEvents="none">
               <Image
+                fadeDuration={0}
                 source={images.brandLockup}
                 style={styles.lockup}
                 resizeMode="contain"

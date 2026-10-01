@@ -74,6 +74,7 @@ export function UnitHeroCard({
       <View style={styles.media} pointerEvents="none">
         <View style={styles.photo}>
           <Image
+            fadeDuration={0}
             source={images.unitPhoto}
             style={styles.photoImage}
             resizeMode="cover"

@@ -109,11 +109,6 @@ export const colors = {
    * face is thinner than Inter, so at full strength Inter reads brighter.
    */
   textSupport: 'rgba(169, 200, 255, 0.85)',
-  /**
-   * The screen's cards read as near-opaque navy, not tinted glass: sampled at
-   * (0, 28, 65) against a page of (0, 14, 47).
-   */
-  panelFill: 'rgba(0, 29, 67, 0.90)',
   /** "Generate QR Pass": sky blue, royal blue, violet, pink at even stops. */
   ctaSky: '#0096FF',
   ctaRoyal: '#0248DE',
@@ -151,6 +146,20 @@ export const colors = {
   emergencyFill: '#311634',
   emergencyText: '#FFE6E4',
   emergencyWash: 'rgba(255, 77, 109, 0.12)',
+
+  /**
+   * Parking screen (assets/Screens/screen7.png), sampled from the screenshot.
+   * The two filled action buttons are lit from their edges, so each fill runs
+   * edge, core, edge from left to right. "Navigate to My Car" takes
+   * `electricCyan` for its rim; "Request Guest Parking" has a lavender one.
+   */
+  actionBlueFrom: '#0074EA',
+  actionBlueVia: '#003593',
+  actionBlueTo: '#003AAE',
+  actionVioletFrom: '#332199',
+  actionVioletVia: '#191F79',
+  actionVioletTo: '#2D1F82',
+  actionVioletStroke: '#986FF9',
 
   transparent: 'transparent',
 } as const;

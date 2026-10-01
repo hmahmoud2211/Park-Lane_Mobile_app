@@ -1,21 +1,12 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useId, useMemo, useState, type PropsWithChildren } from 'react';
-import {
-  StyleSheet,
-  View,
-  type LayoutChangeEvent,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
-import Svg, {
-  Defs,
-  LinearGradient as SvgLinearGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import { useId, useMemo, type PropsWithChildren } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useLayoutSize } from '../../hooks/useLayoutSize';
+import { useBlurTarget } from './BlurTarget';
 import { NeonEdge } from './NeonEdge';
 
 /**
@@ -81,11 +72,13 @@ export function GlassSurface({
   children,
 }: GlassSurfaceProps) {
   const theme = useAppTheme();
+  const blurTarget = useBlurTarget();
   const isGradient = stroke === 'gradient';
 
   const rawId = useId();
   const gradientId = useMemo(() => `stroke-${rawId.replace(/:/g, '')}`, [rawId]);
-  const [box, setBox] = useState({ width: 0, height: 0 });
+  // Measured before the first paint, so the outline draws with the card.
+  const { ref, size: box, onLayout } = useLayoutSize(isGradient || glow);
 
   const styles = useMemo(
     () =>
@@ -115,18 +108,6 @@ export function GlassSurface({
     [radius, isGradient, strokeWidthProp, theme],
   );
 
-  const onLayout = (event: LayoutChangeEvent) => {
-    if (!isGradient && !glow) {
-      return;
-    }
-    const { width, height } = event.nativeEvent.layout;
-    setBox((current) =>
-      Math.abs(current.width - width) < 0.5 && Math.abs(current.height - height) < 0.5
-        ? current
-        : { width, height },
-    );
-  };
-
   const edge = strokeColors ?? ([theme.colors.cardStrokeFrom, theme.colors.cardStrokeTo] as const);
   const strokeWidth = strokeWidthProp ?? theme.glass.strokeWidth;
   const inset = strokeWidth / 2;
@@ -137,6 +118,9 @@ export function GlassSurface({
         <BlurView
           intensity={theme.glass.blurIntensity}
           tint={theme.glass.blurTint}
+          // Android only blurs a BlurTargetView; outside one it keeps the flat fallback.
+          blurTarget={blurTarget ?? undefined}
+          blurMethod={blurTarget ? 'dimezisBlurViewSdk31Plus' : 'none'}
           style={StyleSheet.absoluteFill}
         />
       ) : null}
@@ -158,7 +142,7 @@ export function GlassSurface({
 
   if (glow) {
     return (
-      <View style={[styles.glowRoot, style]} onLayout={onLayout}>
+      <View ref={ref} style={[styles.glowRoot, style]} onLayout={onLayout}>
         <View style={styles.glowClip} pointerEvents="none">
           {backdrop}
         </View>
@@ -179,7 +163,7 @@ export function GlassSurface({
   }
 
   return (
-    <View style={[styles.root, style]} onLayout={onLayout}>
+    <View ref={ref} style={[styles.root, style]} onLayout={onLayout}>
       {backdrop}
 
       {children}
@@ -194,13 +178,7 @@ export function GlassSurface({
           pointerEvents="none"
         >
           <Defs>
-            <SvgLinearGradient
-              id={gradientId}
-              x1="0"
-              y1="0"
-              x2="1"
-              y2={strokeFade ? '0' : '1'}
-            >
+            <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="1" y2={strokeFade ? '0' : '1'}>
               <Stop offset="0" stopColor={edge[0]} />
               <Stop offset="1" stopColor={edge[1]} stopOpacity={strokeFade ? 0 : 1} />
             </SvgLinearGradient>

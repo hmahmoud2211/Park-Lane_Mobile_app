@@ -1,5 +1,6 @@
+import { BlurTargetView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, type PropsWithChildren } from 'react';
+import { useMemo, useRef, type PropsWithChildren } from 'react';
 import {
   Image,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { BlurTargetContext } from './BlurTarget';
 
 export interface AppBackgroundProps extends PropsWithChildren {
   /** `null` draws no photo, for screens whose backdrop is painted in code. */
@@ -31,6 +33,10 @@ export interface AppBackgroundProps extends PropsWithChildren {
  * sizes its inner image from `style.width`/`style.height`, which a `flex: 1`
  * container does not provide, so the image falls back to its intrinsic size
  * and the crop goes wrong. absoluteFill pins it to the container instead.
+ *
+ * The photo and its shading sit in a BlurTargetView, which the glass panels
+ * among `children` blur on Android (see BlurTarget). The children stay outside
+ * it, as a target that contained its own blur views would sample itself.
  */
 export function AppBackground({
   source = images.mainBackground,
@@ -41,6 +47,7 @@ export function AppBackground({
   children,
 }: AppBackgroundProps) {
   const theme = useAppTheme();
+  const blurTarget = useRef<View>(null);
 
   // Fading between two alphas of the same colour, rather than to `transparent`,
   // avoids the grey midpoint Android interpolates through.
@@ -57,29 +64,35 @@ export function AppBackground({
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }, style]}>
-      {source ? (
-        <Image
-          source={source}
-          resizeMode={resizeMode}
-          style={styles.image}
-          accessibilityIgnoresInvertColors
-        />
-      ) : null}
-      {overlay > 0 ? (
-        <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.black, opacity: overlay }]}
-          pointerEvents="none"
-        />
-      ) : null}
-      {withScrim ? (
-        <LinearGradient
-          colors={[...scrimColors]}
-          locations={[0, 0.22, 0.5, 1]}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
-      ) : null}
-      {children}
+      <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill} pointerEvents="none">
+        {source ? (
+          <Image
+            fadeDuration={0}
+            source={source}
+            resizeMode={resizeMode}
+            style={styles.image}
+            accessibilityIgnoresInvertColors
+          />
+        ) : null}
+        {overlay > 0 ? (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: theme.colors.black, opacity: overlay },
+            ]}
+            pointerEvents="none"
+          />
+        ) : null}
+        {withScrim ? (
+          <LinearGradient
+            colors={[...scrimColors]}
+            locations={[0, 0.22, 0.5, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+        ) : null}
+      </BlurTargetView>
+      <BlurTargetContext.Provider value={blurTarget}>{children}</BlurTargetContext.Provider>
     </View>
   );
 }

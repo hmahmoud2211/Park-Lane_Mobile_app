@@ -197,7 +197,8 @@ export function createStyles(theme: AppTheme) {
     // Clipped to the panel's corners; the glowing surface does not clip.
     emergencyWashClip: {
       ...StyleSheet.absoluteFill,
-      borderRadius: theme.borderRadius.sm,
+      // Follows the NeonPanel's corners.
+      borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
     },
     emergencyWash: {

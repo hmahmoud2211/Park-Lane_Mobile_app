@@ -49,7 +49,7 @@ export function PromoCard({ title, body, ctaLabel, onPress, style }: PromoCardPr
         />
       </View>
 
-      <Image source={images.promoPhoto} style={styles.photo} resizeMode="cover" />
+      <Image fadeDuration={0} source={images.promoPhoto} style={styles.photo} resizeMode="cover" />
     </GlassSurface>
   );
 }

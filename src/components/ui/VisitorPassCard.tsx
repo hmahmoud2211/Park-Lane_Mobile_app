@@ -82,12 +82,11 @@ export function VisitorPassCard({
 
   return (
     <GlassSurface
-      radius={theme.borderRadius.sm}
+      radius={theme.borderRadius.md}
       glow
       strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-      // A flat navy panel, as drawn: no frosting or tint under the near-opaque fill.
-      blurred={false}
-      tinted={false}
+      // The same frosted glass as the My Unit cards.
+      fillOpacity={theme.glass.subtleFillOpacity}
       style={[styles.card, style]}
     >
       <View
@@ -173,7 +172,6 @@ export function VisitorPassCard({
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     card: {
-      backgroundColor: theme.colors.panelFill,
       flexDirection: 'row',
       alignItems: 'center',
       paddingLeft: QR_INSET,

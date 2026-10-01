@@ -12,6 +12,7 @@ export type RootStackParamList = {
   MyUnit: undefined;
   VisitorAccess: undefined;
   Maintenance: undefined;
+  Parking: undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =

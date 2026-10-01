@@ -48,7 +48,7 @@ export function UnitSummaryCard({ title, meta, onPress, style }: UnitSummaryCard
         strokeColors={[theme.colors.featureStrokeFrom, theme.colors.featureStrokeTo]}
         style={styles.surface}
       >
-        <Image source={images.unitPhoto} style={styles.photo} resizeMode="cover" />
+        <Image fadeDuration={0} source={images.unitPhoto} style={styles.photo} resizeMode="cover" />
 
         <LinearGradient
           colors={[...scrim]}

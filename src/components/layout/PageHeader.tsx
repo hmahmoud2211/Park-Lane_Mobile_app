@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useLayoutSize } from '../../hooks/useLayoutSize';
 import type { AppTheme } from '../../types/theme.types';
 import { clamp } from '../../utils/responsive';
 import { BackButton } from '../common/BackButton';
@@ -43,8 +44,13 @@ const MENU_ICON_SIZE = 24;
 export function PageHeader({ title, onMenuPress, style }: PageHeaderProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [headerWidth, setHeaderWidth] = useState(0);
-  const [backWidth, setBackWidth] = useState(0);
+  // Both measured before the first paint, so the lockup never jumps in size.
+  const {
+    ref: headerRef,
+    size: { width: headerWidth },
+    onLayout: onHeaderLayout,
+  } = useLayoutSize();
+  const { ref: backRef, size: { width: backWidth }, onLayout: onBackLayout } = useLayoutSize();
 
   // Centred, so it gives up equal room on both sides to clear the back label.
   const lockupWidth =
@@ -57,11 +63,9 @@ export function PageHeader({ title, onMenuPress, style }: PageHeaderProps) {
       : LOCKUP_WIDTH;
 
   return (
-    <View
-      style={[styles.header, style]}
-      onLayout={(event) => setHeaderWidth(event.nativeEvent.layout.width)}
-    >
+    <View ref={headerRef} style={[styles.header, style]} onLayout={onHeaderLayout}>
       <Image
+        fadeDuration={0}
         source={images.brandWordmark}
         style={[styles.lockup, { width: lockupWidth, height: lockupWidth / LOCKUP_ASPECT }]}
         resizeMode="contain"
@@ -69,7 +73,7 @@ export function PageHeader({ title, onMenuPress, style }: PageHeaderProps) {
       />
       {/* Drawn over the lockup, so both controls stay tappable. */}
       <View style={styles.row} pointerEvents="box-none">
-        <View onLayout={(event) => setBackWidth(event.nativeEvent.layout.width)}>
+        <View ref={backRef} onLayout={onBackLayout}>
           <BackButton variant="chevron" label={title} />
         </View>
         <Pressable

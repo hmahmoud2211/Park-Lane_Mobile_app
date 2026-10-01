@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type Ref } from 'react';
 import { Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -9,6 +9,7 @@ export interface AppTextProps extends TextProps {
   color?: string;
   align?: TextStyle['textAlign'];
   style?: StyleProp<TextStyle>;
+  ref?: Ref<Text>;
 }
 
 export function AppText({

@@ -1,15 +1,16 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo } from 'react';
 import {
   StyleSheet,
   View,
-  type LayoutChangeEvent,
   type StyleProp,
+  type Text,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useLayoutSize } from '../../hooks/useLayoutSize';
 import type { TypographyVariant } from '../../theme';
 import { AppText } from './AppText';
 
@@ -33,27 +34,19 @@ export function GradientText({ children, variant = 'heading', colors, style }: G
   // Colons from useId() are not safe inside an SVG url(#...) reference.
   const rawId = useId();
   const id = useMemo(() => `grad-${rawId.replace(/:/g, '')}`, [rawId]);
-  const [box, setBox] = useState({ width: 0, height: 0 });
+  // Measured before the first paint, so the gradient text shows on the first frame.
+  const { ref, size: box, onLayout } = useLayoutSize<Text>();
 
   const [from, to] = colors ?? [theme.colors.electricCyan, theme.colors.frameGradientEnd];
   const textStyle = theme.typography[variant] as TextStyle;
   const fontSize = textStyle.fontSize ?? 16;
-
-  const onLayout = (event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    setBox((current) =>
-      Math.abs(current.width - width) < 0.5 && Math.abs(current.height - height) < 0.5
-        ? current
-        : { width, height },
-    );
-  };
 
   // Centre the cap height in the line box, matching how Text lays glyphs out.
   const baseline = box.height / 2 + fontSize * 0.36;
 
   return (
     <View style={[styles.root, style]}>
-      <AppText variant={variant} onLayout={onLayout} style={styles.sizer}>
+      <AppText ref={ref} variant={variant} onLayout={onLayout} style={styles.sizer}>
         {children}
       </AppText>
 

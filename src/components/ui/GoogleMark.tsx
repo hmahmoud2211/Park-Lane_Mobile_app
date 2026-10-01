@@ -18,6 +18,7 @@ export interface GoogleMarkProps {
 export function GoogleMark({ size = 24, style }: GoogleMarkProps) {
   return (
     <Image
+      fadeDuration={0}
       source={images.googleMark}
       style={[{ width: size, height: size }, style]}
       resizeMode="contain"
