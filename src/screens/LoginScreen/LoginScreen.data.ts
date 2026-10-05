@@ -3,7 +3,7 @@
  * screen exactly and must not be reworded here.
  */
 
-export type SignInMethodId = 'biometric' | 'google';
+export type SignInMethodId = 'biometric' | 'guest';
 
 export interface SignInMethod {
   id: SignInMethodId;
@@ -13,7 +13,8 @@ export interface SignInMethod {
 export const signInMethods: readonly SignInMethod[] = [
   // Face and fingerprint are one option: the OS picks whichever sensor exists.
   { id: 'biometric', label: 'Biometric' },
-  { id: 'google', label: 'Continue\nwith Google' },
+  // Skips the form and opens Home without a resident; see LoginScreen.
+  { id: 'guest', label: 'Continue\nas Guest' },
 ];
 
 export const loginCopy = {

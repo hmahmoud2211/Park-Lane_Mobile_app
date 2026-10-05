@@ -29,4 +29,6 @@ export const headlineLines: readonly HeadlineLine[] = [
 
 export const primaryCta = {
   label: 'Get Started',
+  /** Read by screen readers, which activate the slider with a double tap. */
+  hint: 'Slide the arrow right to get started',
 } as const;

@@ -16,6 +16,11 @@ export interface PanelHeadingProps {
   iconSize?: number;
   /** Drawn in place of `iconSet`/`iconName`, for icons no set has (e.g. ParkingSign). */
   icon?: ReactNode;
+  /**
+   * A supporting line under the title, aligned with it, e.g. Community's
+   * "Your opinion helps…". With `icon`, set `iconSize` to the icon's width.
+   */
+  subtitle?: string;
   /** A trailing link, e.g. "View All", drawn with a chevron. */
   actionLabel?: string;
   onActionPress?: () => void;
@@ -37,6 +42,9 @@ const INSET_RIGHT = 9.5;
 const TITLE_GAP = 14;
 const ACTION_CHEVRON_SIZE = 9;
 const DIVIDER_INSET = 12;
+/** Pulls the subtitle up under the title line, which is centred in the row. */
+const SUBTITLE_PULL = -8;
+const SUBTITLE_BOTTOM = 4;
 
 /** Icon, title and an optional "View All" link across the top of a panel. */
 export function PanelHeading({
@@ -45,6 +53,7 @@ export function PanelHeading({
   iconName,
   iconSize = 17,
   icon,
+  subtitle,
   actionLabel,
   onActionPress,
   divider = true,
@@ -54,8 +63,8 @@ export function PanelHeading({
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  return (
-    <View style={[styles.row, style]}>
+  const row = (
+    <View style={[styles.row, !subtitle && style]}>
       {icon ??
         (iconSet && iconName ? <AppIcon set={iconSet} name={iconName} size={iconSize} /> : null)}
       {/* Set like My Unit's card headings (SectionCard), so the screens share one type. */}
@@ -93,6 +102,23 @@ export function PanelHeading({
       ) : null}
     </View>
   );
+
+  if (!subtitle) {
+    return row;
+  }
+
+  return (
+    <View style={style}>
+      {row}
+      <AppText
+        variant="tileCaption"
+        color={theme.colors.textSupport}
+        style={[styles.subtitle, { marginLeft: INSET_LEFT + iconSize + TITLE_GAP }]}
+      >
+        {subtitle}
+      </AppText>
+    </View>
+  );
 }
 
 function createStyles(theme: AppTheme) {
@@ -123,6 +149,11 @@ function createStyles(theme: AppTheme) {
       right: DIVIDER_INSET,
       height: StyleSheet.hairlineWidth,
       opacity: 0.45,
+    },
+    subtitle: {
+      marginTop: SUBTITLE_PULL,
+      marginRight: INSET_RIGHT,
+      marginBottom: SUBTITLE_BOTTOM,
     },
     pressed: {
       opacity: 0.6,

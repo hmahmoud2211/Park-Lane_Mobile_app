@@ -92,7 +92,14 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     iconName: 'tools',
     route: 'Maintenance',
   },
-  { id: 'community', title: 'Community', subtitle: 'New', iconSet: 'ionicons', iconName: 'bag-outline' },
+  {
+    id: 'community',
+    title: 'Community',
+    subtitle: 'New',
+    iconSet: 'ionicons',
+    iconName: 'bag-outline',
+    route: 'Community',
+  },
   { id: 'amenities', title: 'Amenities Booking', subtitle: 'Request & track', iconSet: 'material', iconName: 'calendar-check-outline' },
 ];
 

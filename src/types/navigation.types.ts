@@ -13,6 +13,7 @@ export type RootStackParamList = {
   VisitorAccess: undefined;
   Maintenance: undefined;
   Parking: undefined;
+  Community: undefined;
   /** Opens in chat unless `mode` asks for voice, e.g. from Home's mic button. */
   Assistant: { mode?: 'chat' | 'voice' } | undefined;
 };

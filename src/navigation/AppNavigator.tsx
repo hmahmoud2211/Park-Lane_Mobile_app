@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AssistantScreen } from '../screens/AssistantScreen';
+import { CommunityScreen } from '../screens/CommunityScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -58,6 +59,7 @@ export function AppNavigator() {
         <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
         <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
         <Stack.Screen name="Parking" component={ParkingScreen} />
+        <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Assistant" component={AssistantScreen} />
         {/* Register later screens here as their designs land. */}
       </Stack.Navigator>

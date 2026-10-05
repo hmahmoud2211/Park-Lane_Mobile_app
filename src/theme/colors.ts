@@ -162,6 +162,15 @@ export const colors = {
   actionVioletStroke: '#986FF9',
 
   /**
+   * Community screen (assets/Screens/screen8.png), sampled from the
+   * screenshot. The "Register" pill is a brighter cousin of the violet chip:
+   * a royal-blue fill, its rim running blue into lavender, white text.
+   */
+  chipIndigoFill: '#0F2776',
+  chipIndigoStrokeFrom: '#236CC8',
+  chipIndigoStrokeTo: '#8762BD',
+
+  /**
    * Assistant screen. No design exists for it yet, so everything here is
    * derived from the palette above rather than sampled.
    *

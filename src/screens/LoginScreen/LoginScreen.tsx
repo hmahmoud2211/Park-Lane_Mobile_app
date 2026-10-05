@@ -23,8 +23,9 @@ import { GlassSurface } from '../../components/common/GlassSurface';
 import { GradientText } from '../../components/common/GradientText';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
-import { GoogleMark } from '../../components/ui/GoogleMark';
+import { assistantConfig } from '../../constants/assistantConfig';
 import { images } from '../../constants/images';
+import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
@@ -50,8 +51,8 @@ function MethodIcon({ id, theme }: { id: SignInMethodId; theme: AppTheme }) {
   switch (id) {
     case 'biometric':
       return <MaterialCommunityIcons name="fingerprint" size={23} color={color} />;
-    case 'google':
-      return <GoogleMark size={21} />;
+    case 'guest':
+      return <MaterialCommunityIcons name="account-arrow-right-outline" size={23} color={color} />;
   }
 }
 
@@ -59,6 +60,7 @@ export function LoginScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'Login'>['navigation']>();
+  const { setResidentId } = useAppContext();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -78,8 +80,26 @@ export function LoginScreen() {
     // Frontend only: nothing is authenticated here. `replace` rather than
     // `navigate` so the back gesture does not return to the login form.
     // TODO(auth): verify credentials before routing once a backend exists.
+    setResidentId(assistantConfig.defaultResidentId);
     navigation.replace('Home');
-  }, [email, password, navigation]);
+  }, [email, password, navigation, setResidentId]);
+
+  // Straight to Home with no resident, so the assistant answers as for a guest.
+  const handleGuest = useCallback(() => {
+    setResidentId(null);
+    navigation.replace('Home');
+  }, [navigation, setResidentId]);
+
+  const handleMethod = (id: SignInMethodId) => {
+    switch (id) {
+      case 'guest':
+        handleGuest();
+        return;
+      case 'biometric':
+        // TODO(auth): wire to the device's biometric prompt once sign-in exists.
+        return;
+    }
+  };
 
   const togglePassword = useCallback(() => setShowPassword((shown) => !shown), []);
 
@@ -215,9 +235,7 @@ export function LoginScreen() {
             {signInMethods.map((method, index) => (
               <Pressable
                 key={method.id}
-                onPress={() => {
-                  // TODO(auth): wire to the real provider once one exists.
-                }}
+                onPress={() => handleMethod(method.id)}
                 accessibilityRole="button"
                 accessibilityLabel={method.label.split('\n').join(' ')}
                 style={index > 0 ? styles.methodGap : undefined}

@@ -65,6 +65,26 @@ export const images = {
    * transparent background. Replace with a transparent render at this path.
    */
   registeredVehicle: require('../assets/images/illustrations/registered-vehicle.png') as number,
+
+  /**
+   * PLACEHOLDERS, cropped from the Community reference (assets/Screens/screen8.png)
+   * at about 2x, so the banner photo in particular is soft once enlarged.
+   * The gate, pool-at-night and feedback crops still carry the badge the
+   * reference draws over them; the screen draws its own on top, so clean
+   * replacements need no code change. Replace each at its path.
+   */
+  communityHero: require('../assets/images/illustrations/community-hero.jpg') as number,
+  communityPool: require('../assets/images/illustrations/community-pool.jpg') as number,
+  communityCafe: require('../assets/images/illustrations/community-cafe.jpg') as number,
+  communityMovie: require('../assets/images/illustrations/community-movie.jpg') as number,
+  communityYoga: require('../assets/images/illustrations/community-yoga.jpg') as number,
+  communityGathering: require('../assets/images/illustrations/community-gathering.jpg') as number,
+  communityGate: require('../assets/images/illustrations/community-gate.jpg') as number,
+  communityPoolNight: require('../assets/images/illustrations/community-pool-night.jpg') as number,
+  communityPollEvents: require('../assets/images/illustrations/community-poll-events.jpg') as number,
+  communityPollFitness: require('../assets/images/illustrations/community-poll-fitness.jpg') as number,
+  communityPollKids: require('../assets/images/illustrations/community-poll-kids.jpg') as number,
+  communityFeedback: require('../assets/images/illustrations/community-feedback.jpg') as number,
 } as const;
 
 /**
@@ -77,6 +97,7 @@ export const imageAspects = {
   parkingHero: 312 / 149,
   parkingSlot: 306 / 136,
   registeredVehicle: 207 / 99,
+  communityHero: 346 / 161,
 } as const;
 
 export type ImageKey = keyof typeof images;

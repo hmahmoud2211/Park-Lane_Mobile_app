@@ -3,8 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 
-import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
+import { SlideButton } from '../../components/common/SlideButton';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { GlowArc } from '../../components/ui/GlowArc';
 import { NudgingArrow } from '../../components/ui/NudgingArrow';
@@ -70,12 +70,13 @@ export function FirstScreen() {
             ))}
           </View>
 
-          <AppButton
+          {/* Slid rather than tapped: the arrow is dragged to the far end. */}
+          <SlideButton
             title={primaryCta.label}
-            onPress={handleGetStarted}
+            onComplete={handleGetStarted}
             height={CTA_HEIGHT}
-            leadingIcon={<NudgingArrow size={15} />}
-            pressEffect="advance"
+            icon={<NudgingArrow size={15} />}
+            accessibilityHint={primaryCta.hint}
             style={styles.cta}
           />
         </View>

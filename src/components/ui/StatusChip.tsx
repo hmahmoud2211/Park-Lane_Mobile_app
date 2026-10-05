@@ -7,8 +7,11 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 
-/** `teal` marks arrivals and the active pass, `violet` scheduled visits, `slate` entries. */
-export type StatusTone = 'teal' | 'violet' | 'slate';
+/**
+ * `teal` marks arrivals and the active pass, `violet` scheduled visits, `slate`
+ * entries, and `indigo` an open invitation, e.g. Community's "Register".
+ */
+export type StatusTone = 'teal' | 'violet' | 'slate' | 'indigo';
 
 export interface StatusChipProps {
   label: string;
@@ -82,6 +85,12 @@ function toneColors(theme: AppTheme, tone: StatusTone) {
         text: colors.chipSlateText,
         fill: colors.chipSlateFill,
         stroke: [colors.chipSlateStroke, colors.chipSlateStroke] as const,
+      };
+    case 'indigo':
+      return {
+        text: colors.textPrimary,
+        fill: colors.chipIndigoFill,
+        stroke: [colors.chipIndigoStrokeFrom, colors.chipIndigoStrokeTo] as const,
       };
   }
 }
