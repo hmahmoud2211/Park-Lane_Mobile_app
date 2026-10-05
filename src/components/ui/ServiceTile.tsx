@@ -25,7 +25,7 @@ export interface ServiceTileProps {
   iconSet: IconSet;
   iconName: string;
   onPress?: () => void;
-  /** Tighter insets and type, for three tiles across a card (My Unit documents). */
+  /** Tighter insets and a smaller icon, for three tiles across a card (My Unit documents). */
   compact?: boolean;
   /**
    * Set when the tile sits on another glass panel: it skips its own blur (see
@@ -81,7 +81,6 @@ export function ServiceTile({
   const styles = useMemo(() => createStyles(theme, scale), [theme, scale]);
   const stacked = layout === 'stacked';
   const iconSize = (stacked ? STACKED_ICON_SIZE : compact ? COMPACT_ICON_SIZE : ICON_SIZE) * scale;
-  const subtitleVariant = compact ? 'tileCaption' : 'tileSubtitle';
 
   // The icon sets do not share a name union, so the name is typed per set.
   const icon =
@@ -178,9 +177,9 @@ export function ServiceTile({
           </AppText>
           {subtitle ? (
             <AppText
-              variant={subtitleVariant}
+              variant="tileCaption"
               color={theme.colors.textSecondary}
-              style={compact ? styles.captionCompact : styles.subtitle}
+              style={styles.subtitle}
             >
               {subtitle}
             </AppText>
@@ -219,8 +218,7 @@ function createStyles(theme: AppTheme, scale: number) {
       marginRight: 2,
     },
     title: sized('tileTitle'),
-    subtitle: sized('tileSubtitle'),
-    captionCompact: sized('tileCaption'),
+    subtitle: sized('tileCaption'),
     surfaceCompact: {
       minHeight: COMPACT_MIN_HEIGHT * scale,
       paddingLeft: 9 * scale,

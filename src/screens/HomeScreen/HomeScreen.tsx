@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
+import { AssistantLauncher } from '../../components/assistant/AssistantLauncher';
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
@@ -61,7 +62,7 @@ export function HomeScreen() {
               <AppText variant="tileTitle" color={theme.colors.textSecondary}>
                 {resident.greeting}
               </AppText>
-              <AppText variant="displayName">{resident.firstName}</AppText>
+              <AppText variant="heroTitle">{resident.firstName}</AppText>
               <AppText variant="tileTitle" color={theme.colors.textSecondary} style={styles.tagline}>
                 {resident.tagline}
               </AppText>
@@ -106,7 +107,12 @@ export function HomeScreen() {
           />
         </ScrollView>
 
-        <BottomBar height={62} style={styles.bottomBar} />
+        <BottomBar height={62} style={styles.bottomBar}>
+          <AssistantLauncher
+            onChat={() => navigation.navigate('Assistant', { mode: 'chat' })}
+            onVoice={() => navigation.navigate('Assistant', { mode: 'voice' })}
+          />
+        </BottomBar>
 
         <AppMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
       </View>

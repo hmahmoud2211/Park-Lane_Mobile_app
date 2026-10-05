@@ -33,8 +33,8 @@ export function PromoCard({ title, body, ctaLabel, onPress, style }: PromoCardPr
       style={[styles.surface, style]}
     >
       <View style={styles.text}>
-        <AppText variant="promoTitle">{title}</AppText>
-        <AppText variant="tileSubtitle" color={theme.colors.textSecondary} style={styles.body}>
+        <AppText variant="sectionTitle">{title}</AppText>
+        <AppText variant="statLabel" color={theme.colors.textSecondary} style={styles.body}>
           {body}
         </AppText>
         <AppButton

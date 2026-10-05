@@ -49,24 +49,11 @@ export const typography = {
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  /** The greeting name, e.g. "Ahmed". */
-  displayName: {
-    fontFamily: fontFamily.bold,
-    fontSize: 17.5,
-    lineHeight: 23,
-    letterSpacing: -0.2,
-  },
-  /** Card titles, e.g. "Unit A-302" and the promo heading. */
+  /** The profile screen's title. */
   cardTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
     lineHeight: 19,
-  },
-  /** Promo card heading, which must keep "Tomorrow Together" on one line. */
-  promoTitle: {
-    fontFamily: fontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
   },
   /** Service tile title. */
   tileTitle: {
@@ -74,7 +61,7 @@ export const typography = {
     fontSize: 9.5,
     lineHeight: 13,
   },
-  /** Service tile supporting line. */
+  /** The profile pass caption. */
   tileSubtitle: {
     fontFamily: fontFamily.regular,
     fontSize: 7.5,
@@ -116,7 +103,7 @@ export const typography = {
   /*
    * My Unit screen (assets/Screens/screen4.png). The design face is narrower
    * than Inter, so these sizes were solved against the measured text widths.
-   * Visitor Access and Maintenance are set in these too, so the inner
+   * Home, Visitor Access and Maintenance are set in these too, so the
    * screens share one type.
    */
 
@@ -168,6 +155,65 @@ export const typography = {
     fontFamily: fontFamily.regular,
     fontSize: 7,
     lineHeight: 10,
+  },
+
+  /*
+   * Assistant screen. No Figma reference exists yet, so these are set for
+   * reading rather than measured: answers run to several lines, and Arabic
+   * (drawn in the system fallback face) needs the taller line box.
+   */
+
+  /** "How can I help?" over the empty chat. */
+  assistantTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 21,
+    lineHeight: 27,
+    letterSpacing: -0.3,
+  },
+  /** A message bubble's text. */
+  chatBody: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  /** A `###` heading inside an answer. */
+  chatHeading: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  /** Sender line and timestamps around a bubble. */
+  chatMeta: {
+    fontFamily: fontFamily.medium,
+    fontSize: 9.5,
+    lineHeight: 13,
+    letterSpacing: 0.2,
+  },
+  /** Suggestion chips, badges and segmented-control labels. */
+  chipLabel: {
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  /** The assistant's live spoken reply. */
+  voiceCaption: {
+    fontFamily: fontFamily.medium,
+    fontSize: 16,
+    lineHeight: 25,
+  },
+  /** The resident's own words, above the reply. */
+  voiceCaptionMuted: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  /** "LISTENING", "SPEAKING" in the status pill. */
+  voiceStatus: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 10.5,
+    lineHeight: 14,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
 } satisfies Record<string, TextStyle>;
 

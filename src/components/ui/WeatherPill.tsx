@@ -29,8 +29,8 @@ export function WeatherPill({ temperature, condition, style }: WeatherPillProps)
     >
       <Ionicons name="moon" size={22} color={theme.colors.textPrimary} />
       <View style={styles.text}>
-        <AppText variant="cardTitle">{temperature}</AppText>
-        <AppText variant="tileSubtitle" color={theme.colors.textSecondary}>
+        <AppText variant="sectionTitle">{temperature}</AppText>
+        <AppText variant="tileCaption" color={theme.colors.textSecondary}>
           {condition}
         </AppText>
       </View>

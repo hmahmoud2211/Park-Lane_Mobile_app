@@ -161,5 +161,47 @@ export const colors = {
   actionVioletTo: '#2D1F82',
   actionVioletStroke: '#986FF9',
 
+  /**
+   * Assistant screen. No design exists for it yet, so everything here is
+   * derived from the palette above rather than sampled.
+   *
+   * The orb is built from the palette's four glows. Its halo fades from
+   * `electricCyan` (listening) or `magenta` (speaking) to nothing.
+   */
+  orbHaloListen: 'rgba(25, 215, 255, 0.42)',
+  orbHaloSpeak: 'rgba(212, 75, 255, 0.40)',
+  orbHaloEdge: 'rgba(43, 140, 255, 0.00)',
+  orbBlobCyan: 'rgba(25, 215, 255, 0.95)',
+  orbBlobMagenta: 'rgba(212, 75, 255, 0.85)',
+  orbGloss: 'rgba(255, 255, 255, 0.55)',
+  orbGlossEdge: 'rgba(255, 255, 255, 0.00)',
+  orbRing: 'rgba(25, 215, 255, 0.55)',
+  orbRingSpeak: 'rgba(212, 75, 255, 0.55)',
+  /** An answer bubble: `midnightBlue` at 60%, so it reads over any backdrop. */
+  bubbleFill: 'rgba(10, 37, 94, 0.60)',
+  bubbleStroke: 'rgba(127, 160, 255, 0.30)',
+  /**
+   * `warning` marks stale building data ("possibly offline"). It is the
+   * first amber in the system, kept soft so it sits beside the cyan.
+   */
+  warning: '#FFC861',
+  warningFill: 'rgba(255, 200, 97, 0.12)',
+  warningStroke: 'rgba(255, 200, 97, 0.45)',
+  errorFill: 'rgba(252, 88, 72, 0.12)',
+  errorStroke: 'rgba(252, 88, 72, 0.50)',
+  successFill: 'rgba(102, 233, 164, 0.12)',
+  successStroke: 'rgba(102, 233, 164, 0.45)',
+  infoFill: 'rgba(25, 215, 255, 0.10)',
+  infoStroke: 'rgba(25, 215, 255, 0.40)',
+  /** The red hang-up button, lit from the top like the CTAs. */
+  hangUpFrom: '#FF5C7A',
+  hangUpTo: '#D7264F',
+  /** Fades the caption list into the page at its top edge. */
+  fadeDeep: 'rgba(0, 17, 44, 0.00)',
+  /** The camera preview's frame while it waits for its first picture. */
+  cameraFill: 'rgba(0, 17, 44, 0.85)',
+  scanLine: 'rgba(25, 215, 255, 0.85)',
+  scanGlow: 'rgba(25, 215, 255, 0.00)',
+
   transparent: 'transparent',
 } as const;
