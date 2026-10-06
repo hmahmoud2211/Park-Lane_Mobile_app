@@ -15,8 +15,10 @@ import { WebViewport } from './src/components/layout/WebViewport';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { colors } from './src/theme';
 import { installWebFormStyles } from './src/utils/webFormStyles';
+import { installWebZoomLock } from './src/utils/webZoomLock';
 
 installWebFormStyles();
+installWebZoomLock();
 
 export default function App() {
   const [fontsLoaded] = useFonts({
