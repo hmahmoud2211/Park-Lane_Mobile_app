@@ -171,6 +171,46 @@ export const colors = {
   chipIndigoStrokeTo: '#8762BD',
 
   /**
+   * Smart Home screen (assets/Screens/screen9.png, screen10.png), sampled
+   * from the screenshots. Lit fixtures (bulb, curtains, the Scenes star and
+   * the energy icons) glow a warm yellow; the active scene is rimmed in amber.
+   */
+  iconWarm: '#FFE98A',
+  sceneActive: '#F5B240',
+  /** The AC snowflake: a pale ice blue. */
+  iconCool: '#9EDCFF',
+  /** Toggle switches when on: a bright blue pill lit a little more at the knob end. */
+  toggleOnFrom: '#0091FE',
+  toggleOnTo: '#00A5FE',
+  /** Brightness slider: a pale gold running into warm white. */
+  sliderWarmFrom: '#F8D778',
+  sliderWarmTo: '#F8F7EF',
+  /** Light colour presets, left to right: warm, amber, daylight, blue, violet. */
+  lightWarm: '#FECB74',
+  lightAmber: '#FDA541',
+  lightDaylight: '#E3F0FE',
+  lightBlue: '#0AA7FF',
+  lightViolet: '#A03CFD',
+  /** Hues around the custom-colour ring, from the top going clockwise. */
+  hueRed: '#FF3B5C',
+  hueOrange: '#FF9F2E',
+  hueYellow: '#FFE93D',
+  hueGreen: '#2EF07A',
+  hueCyan: '#00E0FF',
+  hueBlue: '#2B6BFF',
+  hueMagenta: '#C23DFF',
+  /** The well behind the colour presets, and the AC's unlit fan bars. */
+  wellFill: 'rgba(11, 44, 100, 0.55)',
+  levelOff: '#183261',
+  /** The energy gauge's arc and its "down on yesterday" trend. */
+  energyArc: '#00FCF2',
+  energyArcTrack: 'rgba(17, 53, 95, 0.90)',
+  energyArcGlow: 'rgba(0, 252, 242, 0.22)',
+  energyTrendDown: '#00F5C8',
+  /** A device's "Online" dot. */
+  online: '#01FBC2',
+
+  /**
    * Assistant screen. No design exists for it yet, so everything here is
    * derived from the palette above rather than sampled.
    *

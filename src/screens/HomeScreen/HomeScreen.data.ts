@@ -74,7 +74,7 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     subtitle: 'Control your unit',
     iconSet: 'material',
     iconName: 'home-automation',
-    underDevelopment: true,
+    route: 'SmartHome',
   },
   {
     id: 'bms',

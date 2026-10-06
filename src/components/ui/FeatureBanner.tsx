@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   Image,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { NeonPanel } from './NeonPanel';
@@ -22,6 +23,12 @@ export interface FeatureBannerProps {
   photoAspect: number;
   /** Taller than the default for a longer body, e.g. Parking's three lines. */
   height?: number;
+  /** Larger type for a headline banner, e.g. Smart Home's unit name; defaults to `screenTitle`. */
+  titleVariant?: TypographyVariant;
+  /** Defaults to `statLabel` in the soft accent colour; other variants are set in white. */
+  bodyVariant?: TypographyVariant;
+  /** Drawn in place of the carousel indicator, e.g. Smart Home's round chevron button. */
+  footer?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -54,6 +61,9 @@ export function FeatureBanner({
   photo,
   photoAspect,
   height = HEIGHT,
+  titleVariant = 'screenTitle',
+  bodyVariant = 'statLabel',
+  footer,
   style,
 }: FeatureBannerProps) {
   const theme = useAppTheme();
@@ -87,15 +97,21 @@ export function FeatureBanner({
         <View style={styles.wash} />
       </View>
 
-      <AppText variant="screenTitle" accessibilityRole="header">
+      <AppText variant={titleVariant} accessibilityRole="header">
         {title}
       </AppText>
-      <AppText variant="statLabel" color={theme.colors.textSupport} style={styles.body}>
+      <AppText
+        variant={bodyVariant}
+        color={bodyVariant === 'statLabel' ? theme.colors.textSupport : theme.colors.textPrimary}
+        style={styles.body}
+      >
         {body}
       </AppText>
-      <View style={styles.indicator} accessibilityElementsHidden>
-        <View style={styles.indicatorActive} />
-      </View>
+      {footer ?? (
+        <View style={styles.indicator} accessibilityElementsHidden>
+          <View style={styles.indicatorActive} />
+        </View>
+      )}
     </NeonPanel>
   );
 }

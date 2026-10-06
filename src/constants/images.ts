@@ -85,6 +85,28 @@ export const images = {
   communityPollFitness: require('../assets/images/illustrations/community-poll-fitness.jpg') as number,
   communityPollKids: require('../assets/images/illustrations/community-poll-kids.jpg') as number,
   communityFeedback: require('../assets/images/illustrations/community-feedback.jpg') as number,
+
+  /**
+   * PLACEHOLDERS, cropped from the Smart Home reference (assets/Screens/screen9.png)
+   * at about 2x, so they are soft on high-density screens. The banner crop
+   * starts right of the baked-in unit name. The scene photos had their
+   * baked-in icon and label painted out, and the screen draws its own over the
+   * faint traces left behind. Replace each at its path; no code change needed.
+   */
+  smartHomeHero: require('../assets/images/illustrations/smart-home-hero.jpg') as number,
+  sceneWelcome: require('../assets/images/illustrations/smart-scene-welcome.jpg') as number,
+  sceneRelax: require('../assets/images/illustrations/smart-scene-relax.jpg') as number,
+  sceneMovie: require('../assets/images/illustrations/smart-scene-movie.jpg') as number,
+  sceneNight: require('../assets/images/illustrations/smart-scene-night.jpg') as number,
+
+  /**
+   * PLACEHOLDERS, keyed out of the Smart Home reference at about 2x: the
+   * streaming services' marks on transparent. Replace them with the official
+   * brand assets at these paths.
+   */
+  netflixLogo: require('../assets/images/icons/netflix-logo.png') as number,
+  youtubeLogo: require('../assets/images/icons/youtube-logo.png') as number,
+  disneyLogo: require('../assets/images/icons/disney-logo.png') as number,
 } as const;
 
 /**
@@ -98,6 +120,10 @@ export const imageAspects = {
   parkingSlot: 306 / 136,
   registeredVehicle: 207 / 99,
   communityHero: 346 / 161,
+  smartHomeHero: 363 / 182,
+  netflixLogo: 36 / 42,
+  youtubeLogo: 46 / 38,
+  disneyLogo: 51 / 34,
 } as const;
 
 export type ImageKey = keyof typeof images;

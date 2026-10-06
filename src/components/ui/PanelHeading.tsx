@@ -24,6 +24,8 @@ export interface PanelHeadingProps {
   /** A trailing link, e.g. "View All", drawn with a chevron. */
   actionLabel?: string;
   onActionPress?: () => void;
+  /** Drawn at the end of the title row, after any action, e.g. Smart Home's toggles. */
+  trailing?: ReactNode;
   /** Gradient hairline under the heading. */
   divider?: boolean;
   /** Overrides the divider's placement, e.g. to stop it short of a photo. */
@@ -56,6 +58,7 @@ export function PanelHeading({
   subtitle,
   actionLabel,
   onActionPress,
+  trailing,
   divider = true,
   dividerStyle,
   style,
@@ -91,6 +94,8 @@ export function PanelHeading({
           />
         </Pressable>
       ) : null}
+
+      {trailing}
 
       {divider ? (
         <LinearGradient
