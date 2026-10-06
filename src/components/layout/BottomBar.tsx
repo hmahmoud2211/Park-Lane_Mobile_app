@@ -280,7 +280,7 @@ function createStyles(theme: AppTheme, height: number) {
       borderRadius: seat / 2,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.backgroundDeep,
+      backgroundColor: theme.colors.navHomeSeat,
       ...theme.shadows.glow,
       shadowColor: theme.colors.violet,
     },

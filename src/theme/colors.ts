@@ -215,9 +215,10 @@ export const colors = {
   /**
    * Bottom navigation bar, built from the existing brand colours. The raised
    * Home disc takes the CTA gradient (`ctaSky` -> `ctaPink`) and sits in a
-   * `backgroundDeep` seat; its halo is the Glass frame gradient (#4F7BFF ->
+   * `midnightBlue` seat; its halo is the Glass frame gradient (#4F7BFF ->
    * #FF5CCB) at 30%, rimmed by a faint white hairline.
    */
+  navHomeSeat: palette.midnightBlue,
   navHaloFrom: 'rgba(79, 123, 255, 0.30)',
   navHaloTo: 'rgba(255, 92, 203, 0.30)',
   navHaloStroke: 'rgba(255, 255, 255, 0.18)',
