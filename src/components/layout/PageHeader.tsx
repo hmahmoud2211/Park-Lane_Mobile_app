@@ -4,7 +4,6 @@ import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } fr
 
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useLayoutSize } from '../../hooks/useLayoutSize';
 import type { AppTheme } from '../../types/theme.types';
 import { BACK_BUTTON_SIZE, BackButton } from '../common/BackButton';
 
@@ -19,69 +18,41 @@ export interface PageHeaderProps {
  * From the Visitor Access and Maintenance designs (assets/Screens/screen5.png,
  * screen6.png): back control, brand lockup and menu across the top.
  *
- * The back control is the Profile header's ring and bold title, shared by
- * every screen, and sits 24dp from the screen edge like My Unit's. That pair
- * is wider than the design's bare chevron, so the lockup is centred in the
- * space between the title and the menu rather than on the screen, shrinking
- * to a floor on narrow screens and hidden if a long title leaves no room.
+ * The lockup is part of the backdrop: fixed in size, centred on the screen
+ * and drawn beneath the controls, so the title never moves or shrinks it.
+ * The back control is the Profile header's ring and bold title, 24dp from
+ * the screen edge like My Unit's.
  */
 const HEIGHT = 40;
 /** The design's lockup is 132 x 40; this keeps its proportions. */
 const LOCKUP_ASPECT = 132 / 40;
 const LOCKUP_WIDTH = 112;
-const LOCKUP_MIN_WIDTH = 72;
-/** Space kept on each side of the lockup. */
-const LOCKUP_CLEARANCE = 8;
+const LOCKUP_HEIGHT = LOCKUP_WIDTH / LOCKUP_ASPECT;
 const ROW_HEIGHT = BACK_BUTTON_SIZE;
 /** Out into the screens' 35dp gutter, so the ring starts 24dp in. */
 const INSET_LEFT = -11;
 const MENU_INSET_RIGHT = 12;
 const MENU_ICON_SIZE = 24;
 
-/** Back control, brand lockup and menu, across the top of an inner screen. */
+/** Back control and menu over the brand lockup, across the top of an inner screen. */
 export function PageHeader({ title, onMenuPress, style }: PageHeaderProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  // Both measured before the first paint, so the lockup never jumps in size.
-  const {
-    ref: headerRef,
-    size: { width: headerWidth },
-    onLayout: onHeaderLayout,
-  } = useLayoutSize();
-  const { ref: backRef, size: { width: backWidth }, onLayout: onBackLayout } = useLayoutSize();
-
-  const measured = headerWidth > 0 && backWidth > 0;
-  const gapStart = INSET_LEFT + backWidth + LOCKUP_CLEARANCE;
-  const gapEnd = headerWidth - MENU_INSET_RIGHT - MENU_ICON_SIZE - LOCKUP_CLEARANCE;
-  const available = gapEnd - gapStart;
-  const lockupWidth = Math.min(LOCKUP_WIDTH, available);
-  const lockupHeight = lockupWidth / LOCKUP_ASPECT;
-  const showLockup = measured && available >= LOCKUP_MIN_WIDTH;
 
   return (
-    <View ref={headerRef} style={[styles.header, style]} onLayout={onHeaderLayout}>
-      {showLockup ? (
+    <View style={[styles.header, style]}>
+      {/* Backdrop layer: never takes touches, so the controls above stay tappable. */}
+      <View style={styles.lockupLayer} pointerEvents="none">
         <Image
           fadeDuration={0}
           source={images.brandWordmark}
-          style={[
-            styles.lockup,
-            {
-              width: lockupWidth,
-              height: lockupHeight,
-              left: gapStart + (available - lockupWidth) / 2,
-              top: (ROW_HEIGHT - lockupHeight) / 2,
-            },
-          ]}
+          style={styles.lockup}
           resizeMode="contain"
           accessibilityLabel="Park Lane Compoundhood, New Capital"
         />
-      ) : null}
-      {/* Drawn over the lockup, so both controls stay tappable. */}
+      </View>
       <View style={styles.row} pointerEvents="box-none">
-        <View ref={backRef} onLayout={onBackLayout} style={styles.back}>
-          <BackButton title={title} />
-        </View>
+        <BackButton title={title} style={styles.back} />
         <Pressable
           onPress={onMenuPress}
           hitSlop={10}
@@ -101,8 +72,14 @@ function createStyles(theme: AppTheme) {
     header: {
       height: HEIGHT,
     },
+    lockupLayer: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+    },
     lockup: {
-      position: 'absolute',
+      marginTop: (ROW_HEIGHT - LOCKUP_HEIGHT) / 2,
+      width: LOCKUP_WIDTH,
+      height: LOCKUP_HEIGHT,
       tintColor: theme.colors.textPrimary,
     },
     back: {
