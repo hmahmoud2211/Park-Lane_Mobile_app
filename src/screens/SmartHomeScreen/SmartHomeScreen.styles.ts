@@ -9,19 +9,26 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * screen10.png), exported at 794px for a 390dp frame (2.036px per dp). Its
  * header and bottom bar sit where Community's do, so the rhythm is the inner
  * screens' shared one: the spacing between and inside the cards is roomier
- * than the reference, which packs them almost edge to edge, and the cards
- * span the same 320dp. Sizes and colours follow the reference; the type is
- * My Unit's, shared by the inner screens.
+ * than the reference, which packs them almost edge to edge. The cards span
+ * My Unit's width (a 16dp gutter, 358dp at 390dp), as asked for. Sizes and
+ * colours follow the reference; the type is My Unit's, shared by the inner
+ * screens.
  */
-const GUTTER = 35;
+const GUTTER = 16;
+/** The gutter PageHeader is drawn for; the header keeps its place on screen. */
+const HEADER_GUTTER = 35;
 const CARD_GAP = 18;
 
 /** As on Maintenance, Parking and Community; Home's header sits at 28. */
 const HEADER_TOP = 44;
 const HEADER_TO_BANNER = 30;
 
-/** The unit banner, drawn 93dp tall; a little taller for the larger title. */
-export const BANNER_HEIGHT = 112;
+/**
+ * The unit banner, drawn 93dp tall. Taller here for the larger title and so
+ * the chevron clears the bottom edge by about as much as the title sits below
+ * the top (FeatureBanner's 22dp): 108dp of content plus 20dp beneath.
+ */
+export const BANNER_HEIGHT = 128;
 /** The banner's round chevron, drawn 22dp. */
 export const BANNER_BUTTON_SIZE = 26;
 const BANNER_BUTTON_TOP = 12;
@@ -112,6 +119,7 @@ export function createStyles(theme: AppTheme) {
     },
 
     header: {
+      marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_BANNER,
     },
     card: {
