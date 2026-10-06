@@ -103,7 +103,8 @@ export function EnergyGauge({
 
       <View style={styles.centre} pointerEvents="none">
         <Ionicons name="leaf-outline" size={LEAF_SIZE} color={theme.colors.energyArc} />
-        <AppText variant="screenTitle">{value}</AppText>
+        {/* My Unit's headline-figure role, e.g. its "EGP 8,500,000". */}
+        <AppText variant="statValueLarge">{value}</AppText>
         <AppText variant="statLabel">{caption}</AppText>
       </View>
 
