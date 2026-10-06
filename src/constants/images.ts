@@ -107,6 +107,17 @@ export const images = {
   netflixLogo: require('../assets/images/icons/netflix-logo.png') as number,
   youtubeLogo: require('../assets/images/icons/youtube-logo.png') as number,
   disneyLogo: require('../assets/images/icons/disney-logo.png') as number,
+
+  /**
+   * PLACEHOLDERS, cropped from the Amenities Booking reference
+   * (assets/Screens/screen11.png) at about 2x, so they are soft on
+   * high-density screens. The banner crop starts right of the baked-in
+   * heading. Replace each at its path; no code change needed.
+   */
+  amenitiesHero: require('../assets/images/illustrations/amenities-hero.jpg') as number,
+  amenityPool: require('../assets/images/illustrations/amenity-pool.jpg') as number,
+  amenityGym: require('../assets/images/illustrations/amenity-gym.jpg') as number,
+  amenityHall: require('../assets/images/illustrations/amenity-hall.jpg') as number,
 } as const;
 
 /**
@@ -124,6 +135,7 @@ export const imageAspects = {
   netflixLogo: 36 / 42,
   youtubeLogo: 46 / 38,
   disneyLogo: 51 / 34,
+  amenitiesHero: 381 / 203,
 } as const;
 
 export type ImageKey = keyof typeof images;

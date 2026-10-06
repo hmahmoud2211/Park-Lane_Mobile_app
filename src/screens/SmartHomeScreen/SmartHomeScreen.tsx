@@ -12,6 +12,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
+import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
@@ -171,36 +172,16 @@ export function SmartHomeScreen() {
             contentContainerStyle={styles.roomsContent}
             accessibilityRole="tablist"
           >
-            {rooms.map((room) => {
-              const selected = room.id === roomId;
-              return (
-                <Pressable
-                  key={room.id}
-                  onPress={() => setRoomId(room.id)}
-                  accessibilityRole="tab"
-                  accessibilityLabel={room.label}
-                  accessibilityState={{ selected }}
-                  style={({ pressed }) => pressed && styles.pressed}
-                >
-                  <GlassSurface
-                    radius={theme.borderRadius.sm}
-                    glow={selected}
-                    stroke="gradient"
-                    strokeColors={
-                      selected
-                        ? [theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]
-                        : [theme.colors.dividerSubtle, theme.colors.dividerSubtle]
-                    }
-                    blurred={false}
-                    fillOpacity={selected ? undefined : theme.glass.subtleFillOpacity}
-                    style={[styles.roomSurface, !selected && styles.roomIdle]}
-                  >
-                    <AppIcon set={room.iconSet} name={room.iconName} size={ROOM_ICON_SIZE} />
-                    <AppText variant={selected ? 'statValue' : 'statLabel'}>{room.label}</AppText>
-                  </GlassSurface>
-                </Pressable>
-              );
-            })}
+            {rooms.map((room) => (
+              <FilterChip
+                key={room.id}
+                label={room.label}
+                iconSet={room.iconSet}
+                iconName={room.iconName}
+                selected={room.id === roomId}
+                onPress={() => setRoomId(room.id)}
+              />
+            ))}
           </ScrollView>
 
           <View style={gridStyle}>

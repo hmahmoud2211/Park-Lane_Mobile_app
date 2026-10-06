@@ -34,14 +34,11 @@ export const BANNER_BUTTON_SIZE = 26;
 const BANNER_BUTTON_TOP = 12;
 export const BANNER_CHEVRON_SIZE = 13;
 
-/** Room chips, drawn 30dp tall, scrolling sideways within the cards' width. */
+/** Room chips (FilterChip), scrolling sideways within the cards' width. */
 const BANNER_TO_ROOMS = 14;
 const ROOMS_TO_GRID = 18;
-const ROOM_HEIGHT = 32;
 const ROOM_GAP = 7;
-const ROOM_PADDING = 11;
 export const ROOM_ICON_SIZE = 15;
-const ROOM_ICON_GAP = 7;
 /** Room for the active chip's glow inside the scroll view, which clips. */
 const ROOM_GLOW_ROOM = 4;
 
@@ -147,16 +144,6 @@ export function createStyles(theme: AppTheme) {
     roomsContent: {
       padding: ROOM_GLOW_ROOM,
       gap: ROOM_GAP,
-    },
-    roomSurface: {
-      height: ROOM_HEIGHT,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: ROOM_PADDING,
-      gap: ROOM_ICON_GAP,
-    },
-    roomIdle: {
-      backgroundColor: theme.colors.fieldFill,
     },
 
     grid: {

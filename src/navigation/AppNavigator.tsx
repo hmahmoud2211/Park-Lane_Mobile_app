@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
 
 import { useAppTheme } from '../hooks/useAppTheme';
+import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { FirstScreen } from '../screens/FirstScreen';
@@ -63,6 +64,7 @@ export function AppNavigator() {
         <Stack.Screen name="Parking" component={ParkingScreen} />
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
+        <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
         <Stack.Screen name="Assistant" component={AssistantScreen} />
         <Stack.Screen name="UnderDevelopment" component={UnderDevelopmentScreen} />
         {/* Register later screens here as their designs land. */}

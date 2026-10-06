@@ -27,7 +27,10 @@ export interface FeatureBannerProps {
   titleVariant?: TypographyVariant;
   /** Defaults to `statLabel` in the soft accent colour; other variants are set in white. */
   bodyVariant?: TypographyVariant;
-  /** Drawn in place of the carousel indicator, e.g. Smart Home's round chevron button. */
+  /**
+   * Drawn in place of the carousel indicator, e.g. Smart Home's round chevron
+   * button. `null` drops the indicator and draws nothing, as on Amenities Booking.
+   */
   footer?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
@@ -107,7 +110,9 @@ export function FeatureBanner({
       >
         {body}
       </AppText>
-      {footer ?? (
+      {footer !== undefined ? (
+        footer
+      ) : (
         <View style={styles.indicator} accessibilityElementsHidden>
           <View style={styles.indicatorActive} />
         </View>

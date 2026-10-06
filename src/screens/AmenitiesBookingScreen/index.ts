@@ -1,0 +1,1 @@
+export { AmenitiesBookingScreen } from './AmenitiesBookingScreen';

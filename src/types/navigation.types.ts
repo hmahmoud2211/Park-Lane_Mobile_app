@@ -17,6 +17,7 @@ export type RootStackParamList = {
   Parking: undefined;
   Community: undefined;
   SmartHome: undefined;
+  AmenitiesBooking: undefined;
   /** Opens in chat unless `mode` asks for voice, e.g. from Home's mic button. */
   Assistant: { mode?: 'chat' | 'voice' } | undefined;
   /** Placeholder for a feature still being built, named and drawn by its tile. */

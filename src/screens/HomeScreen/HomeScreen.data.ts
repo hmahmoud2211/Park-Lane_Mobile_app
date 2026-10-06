@@ -122,7 +122,7 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     subtitle: 'Request & track',
     iconSet: 'material',
     iconName: 'calendar-check-outline',
-    underDevelopment: true,
+    route: 'AmenitiesBooking',
   },
 ];
 
