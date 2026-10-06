@@ -11,7 +11,10 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
  * cards is deliberately roomier than the reference, which packs them almost
  * edge to edge, so the three inner screens share one rhythm.
  */
-const GUTTER = 35;
+/** My Unit's gutter, so the cards span its width (358dp at 390dp). */
+const GUTTER = 16;
+/** The gutter PageHeader is drawn for; the header keeps its place on screen. */
+const HEADER_GUTTER = 35;
 const CARD_GAP = 18;
 
 /** Panel width the tiles and visit details were fitted to: a 390dp frame. */
@@ -93,6 +96,7 @@ export function createStyles(theme: AppTheme) {
     },
 
     header: {
+      marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_BANNER,
     },
     card: {

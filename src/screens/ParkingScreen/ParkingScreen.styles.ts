@@ -6,13 +6,16 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
 /**
  * Measured from the Figma screen (assets/Screens/screen7.png), exported at
- * 611px for a 390dp frame (1.567px per dp). Its header, card width and bottom
+ * 611px for a 390dp frame (1.567px per dp). Its header and bottom
  * bar sit where Maintenance's do, so the rhythm is Maintenance's: the spacing
  * between and inside the cards is roomier than the reference, which packs
  * them almost edge to edge. Sizes and colours follow the reference; the type
  * is My Unit's, shared by the inner screens.
  */
-const GUTTER = 35;
+/** My Unit's gutter, so the cards span its width (358dp at 390dp). */
+const GUTTER = 16;
+/** The gutter PageHeader is drawn for; the header keeps its place on screen. */
+const HEADER_GUTTER = 35;
 const CARD_GAP = 18;
 
 /** Content width the tiles and action labels were fitted to: a 390dp frame. */
@@ -76,6 +79,7 @@ export function createStyles(theme: AppTheme) {
     },
 
     header: {
+      marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_BANNER,
     },
     card: {

@@ -11,9 +11,12 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  *
  * As on My Unit, the spacing between and inside the cards is deliberately
  * roomier than the reference, which packed them almost edge to edge. Sizes
- * and the card width still follow the reference; the type is My Unit's.
+ * follow the reference; the cards span My Unit's width; the type is My Unit's.
  */
-const GUTTER = 35;
+/** My Unit's gutter, so the cards span its width (358dp at 390dp). */
+const GUTTER = 16;
+/** The gutter PageHeader is drawn for; the header keeps its place on screen. */
+const HEADER_GUTTER = 35;
 /** Matches My Unit's gap between cards. */
 const CARD_GAP = 14;
 
@@ -73,6 +76,7 @@ export function createStyles(theme: AppTheme) {
     },
 
     header: {
+      marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_BANNER,
     },
 
