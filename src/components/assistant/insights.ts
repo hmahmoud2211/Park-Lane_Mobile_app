@@ -1,7 +1,7 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { AnswerSummary } from '../../services/assistant/assistant.types';
-import type { RootStackParamList } from '../../types/navigation.types';
+import type { ParamlessRoute } from '../../types/navigation.types';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -9,7 +9,7 @@ export interface IntentMeta {
   label: string;
   icon: IconName;
   /** The app screen covering the same topic, offered as a shortcut. */
-  route?: Exclude<keyof RootStackParamList, 'Assistant'>;
+  route?: Exclude<ParamlessRoute, 'Assistant'>;
 }
 
 /** `summary.intent` is stable (FRONTEND_INTEGRATION.md §4.3); unknown ones fall back. */

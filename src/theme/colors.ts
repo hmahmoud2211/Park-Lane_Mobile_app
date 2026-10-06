@@ -212,5 +212,20 @@ export const colors = {
   scanLine: 'rgba(25, 215, 255, 0.85)',
   scanGlow: 'rgba(25, 215, 255, 0.00)',
 
+  /**
+   * Bottom navigation bar, built from the existing brand colours. The raised
+   * Home disc takes the CTA gradient (`ctaSky` -> `ctaPink`) and sits in a
+   * `backgroundDeep` seat; its halo is the Glass frame gradient (#4F7BFF ->
+   * #FF5CCB) at 30%, rimmed by a faint white hairline.
+   */
+  navHaloFrom: 'rgba(79, 123, 255, 0.30)',
+  navHaloTo: 'rgba(255, 92, 203, 0.30)',
+  navHaloStroke: 'rgba(255, 255, 255, 0.18)',
+  /** Specular highlight across the top of the Home disc. */
+  navGloss: 'rgba(255, 255, 255, 0.38)',
+  navGlossEdge: 'rgba(255, 255, 255, 0.00)',
+  /** Inactive tab icon and label; the active tab is full white with a gradient label. */
+  navLabel: 'rgba(255, 255, 255, 0.60)',
+
   transparent: 'transparent',
 } as const;

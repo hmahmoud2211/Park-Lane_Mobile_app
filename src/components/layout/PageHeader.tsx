@@ -6,11 +6,10 @@ import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useLayoutSize } from '../../hooks/useLayoutSize';
 import type { AppTheme } from '../../types/theme.types';
-import { clamp } from '../../utils/responsive';
-import { BackButton } from '../common/BackButton';
+import { BACK_BUTTON_SIZE, BackButton } from '../common/BackButton';
 
 export interface PageHeaderProps {
-  /** The screen's name, shown after the back chevron. */
+  /** The screen's name, shown beside the back ring. */
   title: string;
   onMenuPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -18,29 +17,28 @@ export interface PageHeaderProps {
 
 /*
  * From the Visitor Access and Maintenance designs (assets/Screens/screen5.png,
- * screen6.png). The lockup sits where Home's does, so it holds its place
- * between screens; the back label and menu ride 10dp below the header top,
- * above the lockup's middle.
+ * screen6.png): back control, brand lockup and menu across the top.
  *
- * The back label takes My Unit's title type, which is wider than the
- * design's, so the chevron moves out to where My Unit's back arrow sits, 24dp
- * from the screen edge, and the lockup is drawn smaller. On narrow screens it
- * shrinks further, down to a floor, to keep clear of the label.
+ * The back control is the Profile header's ring and bold title, shared by
+ * every screen, and sits 24dp from the screen edge like My Unit's. That pair
+ * is wider than the design's bare chevron, so the lockup is centred in the
+ * space between the title and the menu rather than on the screen, shrinking
+ * to a floor on narrow screens and hidden if a long title leaves no room.
  */
 const HEIGHT = 40;
 /** The design's lockup is 132 x 40; this keeps its proportions. */
 const LOCKUP_ASPECT = 132 / 40;
 const LOCKUP_WIDTH = 112;
-const LOCKUP_MIN_WIDTH = 80;
-/** Space kept between the end of the back label and the lockup. */
+const LOCKUP_MIN_WIDTH = 72;
+/** Space kept on each side of the lockup. */
 const LOCKUP_CLEARANCE = 8;
-const ROW_HEIGHT = 20;
-/** Out into the screens' 35dp gutter, so the chevron starts 24dp in. */
+const ROW_HEIGHT = BACK_BUTTON_SIZE;
+/** Out into the screens' 35dp gutter, so the ring starts 24dp in. */
 const INSET_LEFT = -11;
 const MENU_INSET_RIGHT = 12;
 const MENU_ICON_SIZE = 24;
 
-/** Back label, centred brand lockup and menu, across the top of an inner screen. */
+/** Back control, brand lockup and menu, across the top of an inner screen. */
 export function PageHeader({ title, onMenuPress, style }: PageHeaderProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -52,29 +50,37 @@ export function PageHeader({ title, onMenuPress, style }: PageHeaderProps) {
   } = useLayoutSize();
   const { ref: backRef, size: { width: backWidth }, onLayout: onBackLayout } = useLayoutSize();
 
-  // Centred, so it gives up equal room on both sides to clear the back label.
-  const lockupWidth =
-    headerWidth > 0 && backWidth > 0
-      ? clamp(
-          headerWidth - 2 * (INSET_LEFT + backWidth + LOCKUP_CLEARANCE),
-          LOCKUP_MIN_WIDTH,
-          LOCKUP_WIDTH,
-        )
-      : LOCKUP_WIDTH;
+  const measured = headerWidth > 0 && backWidth > 0;
+  const gapStart = INSET_LEFT + backWidth + LOCKUP_CLEARANCE;
+  const gapEnd = headerWidth - MENU_INSET_RIGHT - MENU_ICON_SIZE - LOCKUP_CLEARANCE;
+  const available = gapEnd - gapStart;
+  const lockupWidth = Math.min(LOCKUP_WIDTH, available);
+  const lockupHeight = lockupWidth / LOCKUP_ASPECT;
+  const showLockup = measured && available >= LOCKUP_MIN_WIDTH;
 
   return (
     <View ref={headerRef} style={[styles.header, style]} onLayout={onHeaderLayout}>
-      <Image
-        fadeDuration={0}
-        source={images.brandWordmark}
-        style={[styles.lockup, { width: lockupWidth, height: lockupWidth / LOCKUP_ASPECT }]}
-        resizeMode="contain"
-        accessibilityLabel="Park Lane Compoundhood, New Capital"
-      />
+      {showLockup ? (
+        <Image
+          fadeDuration={0}
+          source={images.brandWordmark}
+          style={[
+            styles.lockup,
+            {
+              width: lockupWidth,
+              height: lockupHeight,
+              left: gapStart + (available - lockupWidth) / 2,
+              top: (ROW_HEIGHT - lockupHeight) / 2,
+            },
+          ]}
+          resizeMode="contain"
+          accessibilityLabel="Park Lane Compoundhood, New Capital"
+        />
+      ) : null}
       {/* Drawn over the lockup, so both controls stay tappable. */}
       <View style={styles.row} pointerEvents="box-none">
-        <View ref={backRef} onLayout={onBackLayout}>
-          <BackButton variant="chevron" label={title} />
+        <View ref={backRef} onLayout={onBackLayout} style={styles.back}>
+          <BackButton title={title} />
         </View>
         <Pressable
           onPress={onMenuPress}
@@ -96,8 +102,12 @@ function createStyles(theme: AppTheme) {
       height: HEIGHT,
     },
     lockup: {
-      alignSelf: 'center',
+      position: 'absolute',
       tintColor: theme.colors.textPrimary,
+    },
+    back: {
+      flexShrink: 1,
+      marginRight: theme.spacing.sm,
     },
     row: {
       position: 'absolute',

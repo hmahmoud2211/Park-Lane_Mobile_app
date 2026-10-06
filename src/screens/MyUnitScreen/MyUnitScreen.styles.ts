@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
@@ -19,7 +20,6 @@ const HEADER_HEIGHT = 68;
 const HEADER_ROW_HEIGHT = 38;
 const HEADER_INSET_LEFT = 8;
 const HEADER_INSET_RIGHT = 7;
-const TITLE_OFFSET = 17;
 const LOCKUP_WIDTH = 102;
 const LOCKUP_HEIGHT = 50;
 const MORE_SIZE = 22;
@@ -57,9 +57,6 @@ export function statScaleFor(windowWidth: number, theme: AppTheme): number {
 export const UTILITY_ICON_SIZE = 22;
 export const UTILITY_ICON_GAP = 9;
 
-/** The home screen's bottom bar, reproduced here at the same size and place. */
-export const BOTTOM_BAR_HEIGHT = 62;
-
 /** Documents: three tiles across, inset a little less than the other bodies. */
 const DOCUMENTS_INSET = 12;
 const DOCUMENT_GAP = 8;
@@ -76,7 +73,7 @@ export function createStyles(theme: AppTheme) {
       paddingTop: HEADER_TOP,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
-      paddingBottom: BOTTOM_BAR_HEIGHT + theme.spacing.md + CARD_GAP,
+      paddingBottom: NAV_BAR_CLEARANCE + CARD_GAP,
     },
 
     header: {
@@ -91,7 +88,6 @@ export function createStyles(theme: AppTheme) {
     },
     headerTitle: {
       flex: 1,
-      marginLeft: TITLE_OFFSET,
     },
     lockupFrame: {
       position: 'absolute',
@@ -150,15 +146,6 @@ export function createStyles(theme: AppTheme) {
     },
     documentTile: {
       flex: 1,
-    },
-
-    // Home insets its bar 16dp wider than its 36dp gutter; this screen has no
-    // gutter on this container, so the same 20dp is set outright.
-    bottomBar: {
-      position: 'absolute',
-      left: theme.spacing.screenGutter - theme.spacing.md,
-      right: theme.spacing.screenGutter - theme.spacing.md,
-      bottom: theme.spacing.md,
     },
   });
 }

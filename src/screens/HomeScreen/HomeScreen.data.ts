@@ -1,5 +1,5 @@
 import type { IconSet } from '../../components/ui/ServiceTile';
-import type { RootStackParamList } from '../../types/navigation.types';
+import type { ParamlessRoute } from '../../types/navigation.types';
 
 /**
  * Mock content for the home screen. Shaped the way a real API response would
@@ -32,7 +32,9 @@ export interface ServiceTileItem {
   iconSet: IconSet;
   iconName: string;
   /** Screen the tile opens; tiles without one are not wired up yet. */
-  route?: keyof RootStackParamList;
+  route?: ParamlessRoute;
+  /** Opens the "Under Development" placeholder until the feature is built. */
+  underDevelopment?: boolean;
 }
 
 export const resident: ResidentSummary = {
@@ -66,8 +68,22 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     iconName: 'home-outline',
     route: 'MyUnit',
   },
-  { id: 'smart-home', title: 'Smart Home', subtitle: 'Control your unit', iconSet: 'material', iconName: 'home-automation' },
-  { id: 'bms', title: 'BMS', subtitle: 'Manage & grow', iconSet: 'material', iconName: 'file-cog-outline' },
+  {
+    id: 'smart-home',
+    title: 'Smart Home',
+    subtitle: 'Control your unit',
+    iconSet: 'material',
+    iconName: 'home-automation',
+    underDevelopment: true,
+  },
+  {
+    id: 'bms',
+    title: 'BMS',
+    subtitle: 'Manage & grow',
+    iconSet: 'material',
+    iconName: 'file-cog-outline',
+    underDevelopment: true,
+  },
   {
     id: 'visitor-access',
     title: 'Visitor Access',
@@ -100,7 +116,14 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     iconName: 'bag-outline',
     route: 'Community',
   },
-  { id: 'amenities', title: 'Amenities Booking', subtitle: 'Request & track', iconSet: 'material', iconName: 'calendar-check-outline' },
+  {
+    id: 'amenities',
+    title: 'Amenities Booking',
+    subtitle: 'Request & track',
+    iconSet: 'material',
+    iconName: 'calendar-check-outline',
+    underDevelopment: true,
+  },
 ];
 
 export const promo = {

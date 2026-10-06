@@ -26,7 +26,6 @@ import {
   utilities,
 } from './MyUnitScreen.data';
 import {
-  BOTTOM_BAR_HEIGHT,
   UTILITY_ICON_GAP,
   UTILITY_ICON_SIZE,
   columns,
@@ -76,10 +75,7 @@ export function MyUnitScreen() {
             </View>
 
             <View style={styles.headerRow}>
-              <BackButton variant="arrow" />
-              <AppText variant="screenTitle" style={styles.headerTitle} accessibilityRole="header">
-                {myUnitCopy.title}
-              </AppText>
+              <BackButton title={myUnitCopy.title} style={styles.headerTitle} />
               <Pressable
                 onPress={() => {
                   // TODO(menu): the design gives this button no menu items yet.
@@ -189,7 +185,7 @@ export function MyUnitScreen() {
         </ScrollView>
 
         {/* The same empty glass bar as the home screen. */}
-        <BottomBar height={BOTTOM_BAR_HEIGHT} style={styles.bottomBar} />
+        <BottomBar />
       </View>
     </ScreenWrapper>
   );

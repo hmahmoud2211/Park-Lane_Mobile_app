@@ -53,7 +53,6 @@ import {
   type VisitorPass,
 } from './VisitorAccessScreen.data';
 import {
-  BOTTOM_BAR_HEIGHT,
   CTA_ARROW_SIZE,
   CTA_HEIGHT,
   FIELD_CHEVRON_SIZE,
@@ -433,7 +432,7 @@ export function VisitorAccessScreen() {
         </ScrollView>
 
         {/* The same empty glass bar as the home screen, drawn taller here. */}
-        <BottomBar height={BOTTOM_BAR_HEIGHT} style={styles.bottomBar} />
+        <BottomBar />
       </KeyboardAvoidingView>
 
       <AppMenu

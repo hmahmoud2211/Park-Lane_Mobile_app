@@ -35,10 +35,7 @@ export function ProfileScreen() {
       <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <BackButton />
-            <AppText variant="cardTitle" style={styles.headerTitle}>
-              {profileCopy.title}
-            </AppText>
+            <BackButton title={profileCopy.title} />
           </View>
 
           <GlassSurface
@@ -90,7 +87,7 @@ export function ProfileScreen() {
           ))}
         </ScrollView>
 
-        <BottomBar height={62} style={styles.bottomBar} />
+        <BottomBar inset={theme.spacing.screenGutter} />
       </View>
     </ScreenWrapper>
   );

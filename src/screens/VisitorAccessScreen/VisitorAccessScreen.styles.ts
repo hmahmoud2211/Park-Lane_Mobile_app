@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 
@@ -53,11 +54,6 @@ const PARKING_TITLE_LEFT = 14;
 export const PARKING_CHEVRON_SIZE = 14;
 const PARKING_INSET_RIGHT = 8;
 
-/** A taller, narrower glass bar than Home's, as drawn on this screen. */
-const BOTTOM_BAR_HEIGHT = 72;
-const BOTTOM_BAR_INSET = 40;
-const BOTTOM_BAR_BOTTOM = 21;
-
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     flex: {
@@ -70,7 +66,7 @@ export function createStyles(theme: AppTheme) {
       paddingTop: HEADER_TOP,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
-      paddingBottom: BOTTOM_BAR_BOTTOM + BOTTOM_BAR_HEIGHT + 2 * CARD_GAP,
+      paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,
     },
     pressed: {
       opacity: 0.6,
@@ -155,14 +151,6 @@ export function createStyles(theme: AppTheme) {
       marginLeft: PARKING_TITLE_LEFT,
       gap: 3,
     },
-
-    bottomBar: {
-      position: 'absolute',
-      left: BOTTOM_BAR_INSET,
-      right: BOTTOM_BAR_INSET,
-      bottom: BOTTOM_BAR_BOTTOM,
-    },
   });
 }
 
-export { BOTTOM_BAR_HEIGHT };

@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
@@ -59,11 +60,6 @@ export const ACTION_ICON_SIZE = 18;
 export const ROW_ICON_SIZE = 16;
 const LIST_BOTTOM = 6;
 
-/** The same glass bar as Visitor Access and Maintenance. */
-export const BOTTOM_BAR_HEIGHT = 72;
-const BOTTOM_BAR_INSET = 40;
-const BOTTOM_BAR_BOTTOM = 21;
-
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     content: {
@@ -73,7 +69,7 @@ export function createStyles(theme: AppTheme) {
       paddingTop: HEADER_TOP,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
-      paddingBottom: BOTTOM_BAR_BOTTOM + BOTTOM_BAR_HEIGHT + 2 * CARD_GAP,
+      paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,
     },
     flex: {
       flex: 1,
@@ -115,13 +111,6 @@ export function createStyles(theme: AppTheme) {
 
     list: {
       paddingBottom: LIST_BOTTOM,
-    },
-
-    bottomBar: {
-      position: 'absolute',
-      left: BOTTOM_BAR_INSET,
-      right: BOTTOM_BAR_INSET,
-      bottom: BOTTOM_BAR_BOTTOM,
     },
   });
 }

@@ -1,5 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import type { IconSet } from '../components/ui/ServiceTile';
+
 /**
  * Only the implemented screen is registered. Later screens are added here
  * alongside their params, which keeps navigation calls type-checked.
@@ -16,7 +18,14 @@ export type RootStackParamList = {
   Community: undefined;
   /** Opens in chat unless `mode` asks for voice, e.g. from Home's mic button. */
   Assistant: { mode?: 'chat' | 'voice' } | undefined;
+  /** Placeholder for a feature still being built, named and drawn by its tile. */
+  UnderDevelopment: { title: string; iconSet: IconSet; iconName: string };
 };
+
+/** Routes that can be opened without params, e.g. from data-driven tiles and tabs. */
+export type ParamlessRoute = {
+  [K in keyof RootStackParamList]: undefined extends RootStackParamList[K] ? K : never;
+}[keyof RootStackParamList];
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;

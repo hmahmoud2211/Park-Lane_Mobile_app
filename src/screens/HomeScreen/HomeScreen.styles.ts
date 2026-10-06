@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 
 /**
@@ -24,7 +25,7 @@ export function createStyles(theme: AppTheme) {
     content: {
       paddingTop: HEADER_TOP,
       // Clears the pinned bottom bar so the promo card is fully scrollable.
-      paddingBottom: 104,
+      paddingBottom: NAV_BAR_CLEARANCE + theme.spacing.md,
     },
 
     header: {
@@ -60,14 +61,6 @@ export function createStyles(theme: AppTheme) {
       width: '50%',
       paddingHorizontal: TILE_GAP / 2,
       marginBottom: TILE_ROW_GAP,
-    },
-
-    bottomBar: {
-      position: 'absolute',
-      // Wider than the content gutter, matching the reference.
-      left: -theme.spacing.md,
-      right: -theme.spacing.md,
-      bottom: theme.spacing.md,
     },
   });
 }

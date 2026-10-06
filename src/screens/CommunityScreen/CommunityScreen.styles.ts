@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 
@@ -62,11 +63,6 @@ export const FEEDBACK_BUTTON_HEIGHT = 26;
 const FEEDBACK_BUTTON_WIDTH = 98;
 export const FEEDBACK_CHEVRON_SIZE = 10;
 
-/** The same glass bar as Visitor Access, Maintenance and Parking. */
-export const BOTTOM_BAR_HEIGHT = 72;
-const BOTTOM_BAR_INSET = 40;
-const BOTTOM_BAR_BOTTOM = 21;
-
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     content: {
@@ -76,7 +72,7 @@ export function createStyles(theme: AppTheme) {
       paddingTop: HEADER_TOP,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
-      paddingBottom: BOTTOM_BAR_BOTTOM + BOTTOM_BAR_HEIGHT + 2 * CARD_GAP,
+      paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,
     },
     flex: {
       flex: 1,
@@ -173,13 +169,6 @@ export function createStyles(theme: AppTheme) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: theme.spacing.xs,
-    },
-
-    bottomBar: {
-      position: 'absolute',
-      left: BOTTOM_BAR_INSET,
-      right: BOTTOM_BAR_INSET,
-      bottom: BOTTOM_BAR_BOTTOM,
     },
   });
 }

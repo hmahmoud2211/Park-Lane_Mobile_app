@@ -41,7 +41,6 @@ import {
   ALERT_PHOTO,
   ANNOUNCEMENT_PHOTO,
   BANNER_HEIGHT,
-  BOTTOM_BAR_HEIGHT,
   DATE_COLUMN_WIDTH,
   EVENT_PHOTO,
   FEEDBACK_CHEVRON_SIZE,
@@ -335,7 +334,7 @@ export function CommunityScreen() {
         </ScrollView>
 
         {/* The same empty glass bar as Visitor Access, Maintenance and Parking. */}
-        <BottomBar height={BOTTOM_BAR_HEIGHT} style={styles.bottomBar} />
+        <BottomBar />
       </View>
 
       <AppMenu

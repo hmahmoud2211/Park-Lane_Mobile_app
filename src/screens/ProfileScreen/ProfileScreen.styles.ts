@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 
 const HEADER_TOP = 28;
@@ -19,16 +20,13 @@ export function createStyles(theme: AppTheme) {
     content: {
       paddingTop: HEADER_TOP,
       // Clears the pinned bottom bar.
-      paddingBottom: 104,
+      paddingBottom: NAV_BAR_CLEARANCE + theme.spacing.md,
     },
 
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: HEADER_TO_IDENTITY,
-    },
-    headerTitle: {
-      marginLeft: theme.spacing.md,
     },
 
     identity: {
@@ -60,13 +58,6 @@ export function createStyles(theme: AppTheme) {
 
     menuRow: {
       marginBottom: MENU_ROW_GAP,
-    },
-
-    bottomBar: {
-      position: 'absolute',
-      left: -theme.spacing.md,
-      right: -theme.spacing.md,
-      bottom: theme.spacing.md,
     },
   });
 }

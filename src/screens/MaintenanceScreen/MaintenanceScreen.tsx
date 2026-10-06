@@ -38,7 +38,6 @@ import {
   ACTION_ICON_SIZE,
   ACTION_RADIUS,
   BADGE_ICON_SIZE,
-  BOTTOM_BAR_HEIGHT,
   CALL_ICON_SIZE,
   DETAILS_GAP,
   DETAILS_ICON_GAP,
@@ -352,7 +351,7 @@ export function MaintenanceScreen() {
         </ScrollView>
 
         {/* The same empty glass bar as Visitor Access. */}
-        <BottomBar height={BOTTOM_BAR_HEIGHT} style={styles.bottomBar} />
+        <BottomBar />
       </View>
 
       <AppMenu

@@ -45,7 +45,6 @@ import {
   ACTION_RADIUS,
   ACTION_WEIGHTS,
   BANNER_HEIGHT,
-  BOTTOM_BAR_HEIGHT,
   HEADING_ICON_SIZE,
   HEADING_SIGN_SIZE,
   ROW_ICON_SIZE,
@@ -270,7 +269,7 @@ export function ParkingScreen() {
         </ScrollView>
 
         {/* The same empty glass bar as Visitor Access and Maintenance. */}
-        <BottomBar height={BOTTOM_BAR_HEIGHT} style={styles.bottomBar} />
+        <BottomBar />
       </View>
 
       <AppMenu

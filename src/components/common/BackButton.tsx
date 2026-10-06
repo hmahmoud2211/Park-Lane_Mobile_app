@@ -5,53 +5,35 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
-import { ArrowRightIcon } from '../ui/ArrowRightIcon';
 import { AppText } from './AppText';
-
-/**
- * `ring` is the chevron in a circle used by the profile screen. `arrow` is the
- * bare hairline arrow from the My Unit header. `chevron` is the small bare
- * chevron from the Visitor Access header, usually followed by `label`.
- */
-export type BackButtonVariant = 'ring' | 'arrow' | 'chevron';
 
 export interface BackButtonProps {
   /** Overrides the default pop-then-fallback behaviour. */
   onPress?: () => void;
-  /** Ring diameter, or the arrow's length for the `arrow` variant. */
+  /** Ring diameter. */
   size?: number;
-  variant?: BackButtonVariant;
-  /** Text after the chevron, e.g. the screen's name; `chevron` variant only. */
-  label?: string;
+  /** The screen's name, set beside the ring as on the Profile header. */
+  title?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-/** The `arrow` variant's head is longer than ArrowRightIcon's default. */
-const ARROW_HEAD_RATIO = 0.6;
-/** `chevron` variant: glyph size and the gap before its label, as measured. */
-const CHEVRON_SIZE = 11;
-const CHEVRON_LABEL_GAP = 1;
+/** The Profile header's back control, used on every screen. */
+export const BACK_BUTTON_SIZE = 36;
+/** Space between the ring and the title. */
+const TITLE_GAP = 16;
 
 /**
- * Back control. The default ring is styled like the one around the onboarding
- * CTA's arrow, so navigation chrome matches the rest of the system.
+ * Back control: a chevron in a hairline ring, styled like the one around the
+ * onboarding CTA's arrow, optionally followed by the screen's title. Every
+ * screen uses this one look, so the header reads the same throughout the app.
  *
  * Pops the stack when there is something to pop, and otherwise routes to the
  * first screen, so it still works if the screen is opened directly.
  */
-export function BackButton({
-  onPress,
-  size,
-  variant = 'ring',
-  label,
-  style,
-}: BackButtonProps) {
+export function BackButton({ onPress, size = BACK_BUTTON_SIZE, title, style }: BackButtonProps) {
   const theme = useAppTheme();
   const navigation = useNavigation();
-  const isArrow = variant === 'arrow';
-  const isChevron = variant === 'chevron';
-  const resolvedSize = size ?? (isArrow ? 20 : isChevron ? CHEVRON_SIZE : 36);
-  const styles = useMemo(() => createStyles(theme, resolvedSize), [theme, resolvedSize]);
+  const styles = useMemo(() => createStyles(theme, size), [theme, size]);
 
   const handlePress = useCallback(() => {
     if (onPress) {
@@ -66,45 +48,30 @@ export function BackButton({
     }
   }, [onPress, navigation]);
 
-  if (isChevron) {
-    return (
-      <Pressable
-        onPress={handlePress}
-        accessibilityRole="button"
-        accessibilityLabel={label ? `Go back, ${label}` : 'Go back'}
-        // The row is short, so the tap target grows vertically to 44dp.
-        hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
-        style={({ pressed }) => [styles.chevronRow, pressed && styles.pressed, style]}
-      >
-        <Ionicons name="chevron-back" size={resolvedSize} color={theme.colors.textPrimary} />
-        {label ? (
-          // Set like the My Unit header's title, so every inner screen's title matches.
-          <AppText variant="screenTitle" style={styles.chevronLabel} numberOfLines={1}>
-            {label}
-          </AppText>
-        ) : null}
-      </Pressable>
-    );
-  }
-
-  return (
+  const ring = (
     <Pressable
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel="Go back"
       // Brings the tap target up to 44dp without enlarging the ring.
-      hitSlop={Math.max(0, Math.ceil((44 - resolvedSize) / 2))}
-      style={({ pressed }) => [isArrow ? styles.arrow : styles.ring, pressed && styles.pressed, style]}
+      hitSlop={Math.max(0, Math.ceil((44 - size) / 2))}
+      style={({ pressed }) => [styles.ring, pressed && styles.pressed, !title && style]}
     >
-      {isArrow ? (
-        // Mirrored rather than rotated, so the stroke keeps its pixel alignment.
-        <View style={styles.mirror}>
-          <ArrowRightIcon size={resolvedSize} headRatio={ARROW_HEAD_RATIO} />
-        </View>
-      ) : (
-        <Ionicons name="chevron-back" size={resolvedSize * 0.5} color={theme.colors.textPrimary} />
-      )}
+      <Ionicons name="chevron-back" size={size * 0.5} color={theme.colors.textPrimary} />
     </Pressable>
+  );
+
+  if (!title) {
+    return ring;
+  }
+
+  return (
+    <View style={[styles.row, style]}>
+      {ring}
+      <AppText variant="cardTitle" style={styles.title} numberOfLines={1} accessibilityRole="header">
+        {title}
+      </AppText>
+    </View>
   );
 }
 
@@ -122,21 +89,14 @@ function createStyles(theme: AppTheme, size: number) {
       // Nudges the chevron off centre-left so it reads as optically centred.
       paddingRight: 2,
     },
-    arrow: {
-      width: size,
-      height: size,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    mirror: {
-      transform: [{ scaleX: -1 }],
-    },
-    chevronRow: {
+    row: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexShrink: 1,
     },
-    chevronLabel: {
-      marginLeft: CHEVRON_LABEL_GAP,
+    title: {
+      marginLeft: TITLE_GAP,
+      flexShrink: 1,
     },
     pressed: {
       opacity: 0.6,

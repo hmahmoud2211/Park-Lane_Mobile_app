@@ -3,7 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { AssistantLauncher } from '../../components/assistant/AssistantLauncher';
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
@@ -89,8 +88,13 @@ export function HomeScreen() {
                   onPress={() => {
                     if (tile.route) {
                       navigation.navigate(tile.route);
+                    } else if (tile.underDevelopment) {
+                      navigation.navigate('UnderDevelopment', {
+                        title: tile.title,
+                        iconSet: tile.iconSet,
+                        iconName: tile.iconName,
+                      });
                     }
-                    // TODO(nav): give the remaining tiles a `route` as their screens land.
                   }}
                 />
               </View>
@@ -107,12 +111,7 @@ export function HomeScreen() {
           />
         </ScrollView>
 
-        <BottomBar height={62} style={styles.bottomBar}>
-          <AssistantLauncher
-            onChat={() => navigation.navigate('Assistant', { mode: 'chat' })}
-            onVoice={() => navigation.navigate('Assistant', { mode: 'voice' })}
-          />
-        </BottomBar>
+        <BottomBar inset={theme.spacing.screenGutter} />
 
         <AppMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
       </View>

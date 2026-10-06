@@ -215,6 +215,15 @@ export const typography = {
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
+
+  /** Bottom navigation labels, e.g. "EMS AI", "HOME". */
+  navLabel: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 8.5,
+    lineHeight: 11,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
 } satisfies Record<string, TextStyle>;
 
 export type TypographyVariant = keyof typeof typography;
