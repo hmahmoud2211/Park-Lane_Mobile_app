@@ -18,8 +18,6 @@ const GUTTER = 16;
 const HEADER_GUTTER = 35;
 const CARD_GAP = 18;
 
-/** As on Maintenance and Parking: extra room above the header; Home's sits at 28. */
-const HEADER_TOP = 44;
 const HEADER_TO_BANNER = 30;
 
 /** Parking's banner height, for the same three-line body. */
@@ -72,7 +70,8 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
       paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,

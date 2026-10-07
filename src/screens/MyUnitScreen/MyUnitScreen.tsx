@@ -1,11 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
-import { Image, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { BackButton } from '../../components/common/BackButton';
 import { BottomBar } from '../../components/layout/BottomBar';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { DividedRow } from '../../components/ui/DividedRow';
 import { ProgressBar } from '../../components/ui/ProgressBar';
@@ -62,20 +62,10 @@ export function MyUnitScreen() {
 
       <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            {/* Drawn first, beneath the row, so the controls stay tappable. */}
-            <View style={styles.lockupFrame} pointerEvents="none">
-              <Image
-                fadeDuration={0}
-                source={images.brandLockup}
-                style={styles.lockup}
-                resizeMode="contain"
-                accessibilityLabel="Parklane, Smart Community Living"
-              />
-            </View>
-
-            <View style={styles.headerRow}>
-              <BackButton title={myUnitCopy.title} style={styles.headerTitle} />
+          <PageHeader
+            title={myUnitCopy.title}
+            style={styles.header}
+            trailing={
               <Pressable
                 onPress={() => {
                   // TODO(menu): the design gives this button no menu items yet.
@@ -87,8 +77,8 @@ export function MyUnitScreen() {
               >
                 <Ionicons name="ellipsis-horizontal" size={13} color={theme.colors.textPrimary} />
               </Pressable>
-            </View>
-          </View>
+            }
+          />
 
           <UnitHeroCard
             title={unitHero.title}

@@ -7,9 +7,9 @@ import { View } from 'react-native';
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
-import { BackButton } from '../../components/common/BackButton';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -36,9 +36,7 @@ export function UnderDevelopmentScreen() {
 
       <View style={styles.flex}>
         <View style={styles.content}>
-          <View style={styles.headerRow}>
-            <BackButton title={title} style={styles.headerTitle} />
-          </View>
+          <PageHeader title={title} style={styles.header} />
 
           <View style={styles.body}>
             <GlassSurface

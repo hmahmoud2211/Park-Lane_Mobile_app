@@ -5,9 +5,9 @@ import { ScrollView, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { AppText } from '../../components/common/AppText';
-import { BackButton } from '../../components/common/BackButton';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Avatar } from '../../components/ui/Avatar';
 import { ServiceTile } from '../../components/ui/ServiceTile';
@@ -34,9 +34,7 @@ export function ProfileScreen() {
 
       <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <BackButton title={profileCopy.title} />
-          </View>
+          <PageHeader title={profileCopy.title} style={styles.header} />
 
           <GlassSurface
             radius={theme.borderRadius.xl}

@@ -31,8 +31,6 @@ export function contentScaleFor(windowWidth: number): number {
   return clamp(content / FITTED_CONTENT_WIDTH, 0.85, 1);
 }
 
-/** As on Maintenance: extra room above the header; Home's sits at 28. */
-const HEADER_TOP = 44;
 const HEADER_TO_BANNER = 30;
 
 /** Taller than the shared banner's 116dp, for this screen's three-line body. */
@@ -69,7 +67,8 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
       paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,

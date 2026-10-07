@@ -7,7 +7,7 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 /**
  * Measured from the Figma screen (assets/Screens/screen5.png), exported at
  * 791px for a 390dp frame (2.028px per dp). Its wordmark sits exactly where
- * the home reference's does, so the header shares Home's 28dp top.
+ * the home reference's does, so the header shares Home's spacing.headerTop.
  *
  * As on My Unit, the spacing between and inside the cards is deliberately
  * roomier than the reference, which packed them almost edge to edge. Sizes
@@ -20,8 +20,6 @@ const HEADER_GUTTER = 35;
 /** Matches My Unit's gap between cards. */
 const CARD_GAP = 14;
 
-/** Matches Home, so the wordmark holds its place between the two screens. */
-const HEADER_TOP = 28;
 const HEADER_TO_BANNER = 24;
 
 /**
@@ -66,7 +64,8 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
       paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,

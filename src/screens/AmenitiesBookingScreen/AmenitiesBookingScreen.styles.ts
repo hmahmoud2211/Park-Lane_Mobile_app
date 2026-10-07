@@ -14,7 +14,6 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 const GUTTER = 16;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
 const HEADER_GUTTER = 35;
-const HEADER_TOP = 44;
 const HEADER_TO_BANNER = 30;
 
 /** The banner, drawn 100dp tall, its two lines centred in it. */
@@ -44,7 +43,8 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last control scrolls fully into view.
       paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,

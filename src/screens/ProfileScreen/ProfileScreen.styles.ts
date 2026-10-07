@@ -3,7 +3,8 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 
-const HEADER_TOP = 28;
+/** The gutter PageHeader is drawn for, against this screen's 36dp one. */
+const HEADER_GUTTER = 35;
 const HEADER_TO_IDENTITY = 24;
 const IDENTITY_TO_PASS = 18;
 const PASS_TO_MENU = 22;
@@ -18,14 +19,14 @@ export function createStyles(theme: AppTheme) {
       flex: 1,
     },
     content: {
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       // Clears the pinned bottom bar.
       paddingBottom: NAV_BAR_CLEARANCE + theme.spacing.md,
     },
 
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      marginHorizontal: HEADER_GUTTER - theme.spacing.screenGutter,
       marginBottom: HEADER_TO_IDENTITY,
     },
 

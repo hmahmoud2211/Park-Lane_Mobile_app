@@ -13,15 +13,9 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 const GUTTER = 16;
 const CARD_GAP = 14;
 
-/** Matches Home and Profile, so the header holds its line between screens. */
-const HEADER_TOP = 28;
-/** Back arrow, title and "…" share this row; the lockup overhangs it. */
-const HEADER_HEIGHT = 68;
-const HEADER_ROW_HEIGHT = 38;
-const HEADER_INSET_LEFT = 8;
-const HEADER_INSET_RIGHT = 7;
-const LOCKUP_WIDTH = 102;
-const LOCKUP_HEIGHT = 50;
+/** The gutter PageHeader is drawn for; the header keeps its place on screen. */
+const HEADER_GUTTER = 35;
+const HEADER_TO_HERO = 18;
 const MORE_SIZE = 22;
 
 /**
@@ -70,35 +64,16 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
       paddingBottom: NAV_BAR_CLEARANCE + CARD_GAP,
     },
 
     header: {
-      height: HEADER_HEIGHT,
-    },
-    headerRow: {
-      height: HEADER_ROW_HEIGHT,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: HEADER_INSET_LEFT,
-      paddingRight: HEADER_INSET_RIGHT,
-    },
-    headerTitle: {
-      flex: 1,
-    },
-    lockupFrame: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      alignItems: 'center',
-    },
-    lockup: {
-      width: LOCKUP_WIDTH,
-      height: LOCKUP_HEIGHT,
+      marginHorizontal: HEADER_GUTTER - GUTTER,
+      marginBottom: HEADER_TO_HERO,
     },
     more: {
       width: MORE_SIZE,

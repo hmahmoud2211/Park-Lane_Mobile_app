@@ -7,7 +7,6 @@ import type { AppTheme } from '../../types/theme.types';
  * Vertical rhythm measured from the Figma screen (assets/Screens/screen3.jpg),
  * whose frame is 390 x 818 with a 36dp gutter.
  */
-const HEADER_TOP = 28;
 const HEADER_TO_GREETING = 26;
 const GREETING_TO_UNIT = 30;
 const UNIT_TO_GRID = 31;
@@ -23,7 +22,8 @@ export function createStyles(theme: AppTheme) {
       flex: 1,
     },
     content: {
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       // Clears the pinned bottom bar so the promo card is fully scrollable.
       paddingBottom: NAV_BAR_CLEARANCE + theme.spacing.md,
     },

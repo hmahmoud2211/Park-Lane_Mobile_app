@@ -1,11 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import { Avatar } from '../ui/Avatar';
+import { BRAND_LOCKUP_HEIGHT, BrandLockup } from './BrandLockup';
 
 export interface ScreenHeaderProps {
   /** Two-letter initials shown in the trailing avatar. */
@@ -15,9 +15,8 @@ export interface ScreenHeaderProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const ACTION_SIZE = 40;
-const LOCKUP_WIDTH = 132;
-const LOCKUP_HEIGHT = 40;
+/** Matches the lockup's height, so the row is as tall as PageHeader's. */
+const ACTION_SIZE = BRAND_LOCKUP_HEIGHT;
 
 /**
  * Menu, centred brand lockup and notifications. The two actions are equal
@@ -39,13 +38,7 @@ export function ScreenHeader({ initials, onMenuPress, onProfilePress, style }: S
         <Ionicons name="menu" size={24} color={theme.colors.textPrimary} />
       </Pressable>
 
-      <Image
-        fadeDuration={0}
-        source={images.brandWordmark}
-        style={styles.lockup}
-        resizeMode="contain"
-        accessibilityLabel="Park Lane Compoundhood, New Capital"
-      />
+      <BrandLockup />
 
       <Pressable
         onPress={onProfilePress}
@@ -76,11 +69,6 @@ function createStyles(theme: AppTheme) {
     },
     actionEnd: {
       alignItems: 'flex-end',
-    },
-    lockup: {
-      width: LOCKUP_WIDTH,
-      height: LOCKUP_HEIGHT,
-      tintColor: theme.colors.textPrimary,
     },
   });
 }

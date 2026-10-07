@@ -78,6 +78,9 @@ export function AmenitiesBookingScreen() {
             photo={images.amenitiesHero}
             photoAspect={imageAspects.amenitiesHero}
             height={BANNER_HEIGHT}
+            // My Unit's hero type, as on Smart Home's banner.
+            titleVariant="heroTitle"
+            bodyVariant="heroSubtitle"
             footer={null}
             style={styles.banner}
           />

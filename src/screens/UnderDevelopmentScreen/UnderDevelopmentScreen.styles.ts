@@ -5,13 +5,12 @@ import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 
 /**
- * No Figma reference exists for this placeholder; the header matches My Unit's
- * (assets/Screens/screen4.png) so the title holds its line between screens.
+ * No Figma reference exists for this placeholder; it shares the inner
+ * screens' PageHeader so the lockup and title hold their place.
  */
 const GUTTER = 16;
-const HEADER_TOP = 28;
-const HEADER_ROW_HEIGHT = 38;
-const HEADER_INSET_LEFT = 8;
+/** The gutter PageHeader is drawn for; the header keeps its place on screen. */
+const HEADER_GUTTER = 35;
 
 export const ICON_DISC_SIZE = 72;
 export const ICON_SIZE = 32;
@@ -26,18 +25,13 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       paddingBottom: NAV_BAR_CLEARANCE + theme.spacing.md,
     },
-    headerRow: {
-      height: HEADER_ROW_HEIGHT,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: HEADER_INSET_LEFT,
-    },
-    headerTitle: {
-      flex: 1,
+    header: {
+      marginHorizontal: HEADER_GUTTER - GUTTER,
     },
     body: {
       flex: 1,

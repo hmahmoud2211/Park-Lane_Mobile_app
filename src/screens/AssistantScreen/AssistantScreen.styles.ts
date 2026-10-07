@@ -10,8 +10,6 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  */
 const HEADER_GUTTER = 35;
 const GUTTER = 20;
-/** Extra room above the header, matching Visitor Access and Maintenance. */
-const HEADER_TOP = 44;
 const TOOLBAR_GAP = 18;
 const MODE_SWITCH_WIDTH = 164;
 
@@ -29,7 +27,8 @@ export function createStyles(theme: AppTheme) {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignSelf: 'center',
-      paddingTop: HEADER_TOP,
+      // Shared by every screen, so the brand lockup sits at the same height.
+      paddingTop: theme.spacing.headerTop,
     },
     header: {
       paddingHorizontal: HEADER_GUTTER,
