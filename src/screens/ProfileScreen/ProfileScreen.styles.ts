@@ -21,6 +21,9 @@ export function createStyles(theme: AppTheme) {
     content: {
       // Shared by every screen, so the brand lockup sits at the same height.
       paddingTop: theme.spacing.headerTop,
+      // The gutter sits inside the scroll view, not on the wrapper: the
+      // header reaches out past it, and a scroll view clips at its edges.
+      paddingHorizontal: theme.spacing.screenGutter,
       // Clears the pinned bottom bar.
       paddingBottom: NAV_BAR_CLEARANCE + theme.spacing.md,
     },

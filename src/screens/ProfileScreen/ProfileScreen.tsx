@@ -28,7 +28,6 @@ export function ProfileScreen() {
       backgroundSource={images.homeBackground}
       withScrim={false}
       backgroundOverlay={0.34}
-      withGutter
     >
       <StatusBar style="light" />
 
