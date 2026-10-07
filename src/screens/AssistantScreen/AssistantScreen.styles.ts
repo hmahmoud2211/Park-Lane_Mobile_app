@@ -119,7 +119,7 @@ export function createStyles(theme: AppTheme) {
       marginTop: -theme.spacing.sm,
     },
     voiceHint: {
-      marginTop: -theme.spacing.md,
+      marginTop: theme.spacing.xs,
       minHeight: 20,
     },
     voiceNotice: {
@@ -130,9 +130,17 @@ export function createStyles(theme: AppTheme) {
       marginTop: theme.spacing.md,
       marginBottom: theme.spacing.md,
     },
-    voiceIntro: {
+    voiceIntroScroll: {
       flex: 1,
+      marginTop: theme.spacing.sm,
+    },
+    // Centred while it fits; once it does not, it scrolls from the top.
+    voiceIntroContent: {
+      flexGrow: 1,
       justifyContent: 'center',
+      paddingVertical: theme.spacing.sm,
+    },
+    voiceIntro: {
       paddingHorizontal: theme.spacing.md,
     },
     voiceIntroBody: {

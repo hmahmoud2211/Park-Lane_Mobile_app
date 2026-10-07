@@ -57,21 +57,22 @@ export function UnderDevelopmentScreen() {
               </View>
 
               <View style={styles.badge}>
-                <AppText variant="voiceStatus" color={theme.colors.chipVioletText}>
+                <AppText variant="statLabel" color={theme.colors.chipVioletText}>
                   {underDevelopmentCopy.badge}
                 </AppText>
               </View>
 
-              <AppText variant="heroTitle" align="center" style={styles.heading}>
+              <AppText variant="screenTitle" align="center" style={styles.heading}>
                 {underDevelopmentCopy.heading}
               </AppText>
-              <AppText variant="caption" align="center" color={theme.colors.textSupport} style={styles.message}>
+              <AppText variant="statLabel" align="center" color={theme.colors.textSupport} style={styles.message}>
                 {underDevelopmentCopy.body(title)}
               </AppText>
 
               <AppButton
                 title={underDevelopmentCopy.cta}
                 variant="gradient"
+                labelVariant="statValue"
                 onPress={() => navigation.popTo('Home')}
                 style={styles.cta}
               />

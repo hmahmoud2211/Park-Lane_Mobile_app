@@ -102,7 +102,7 @@ export function AmenityCard({
           <View style={styles.details}>
             <View style={styles.detail}>
               <Ionicons name="time-outline" size={DETAIL_ICON_SIZE} color={theme.colors.textPrimary} />
-              <AppText variant="statValue">{hours}</AppText>
+              <AppText variant="tileCaption">{hours}</AppText>
             </View>
             <View style={styles.rule} />
             <View style={styles.detail}>
@@ -111,7 +111,7 @@ export function AmenityCard({
                 size={DETAIL_ICON_SIZE + 1}
                 color={theme.colors.textPrimary}
               />
-              <AppText variant="statValue">{capacity}</AppText>
+              <AppText variant="tileCaption">{capacity}</AppText>
             </View>
           </View>
 

@@ -161,11 +161,11 @@ export function PhotoCard({
       <PanelHeading title={title} icon={icon} dividerStyle={styles.headingDivider} />
 
       <View style={styles.body}>
-        <AppText variant="cardTitle" numberOfLines={1} style={styles.headline}>
+        <AppText variant="sectionTitle" numberOfLines={1} style={styles.headline}>
           {headline}
         </AppText>
         <AppText
-          variant="bodySmall"
+          variant="statLabel"
           color={theme.colors.textSupport}
           numberOfLines={2}
           style={styles.meta}
@@ -232,7 +232,7 @@ function createStyles(theme: AppTheme, scale: number) {
       right: 0,
       height: '100%',
     },
-    headline: sized('cardTitle'),
+    headline: sized('sectionTitle'),
     wash: {
       flex: 1,
       backgroundColor: theme.colors.scrimBottom,
@@ -253,7 +253,7 @@ function createStyles(theme: AppTheme, scale: number) {
       paddingBottom: BODY_BOTTOM,
     },
     meta: {
-      ...sized('bodySmall'),
+      ...sized('statLabel'),
       marginTop: META_TOP,
     },
     footer: {

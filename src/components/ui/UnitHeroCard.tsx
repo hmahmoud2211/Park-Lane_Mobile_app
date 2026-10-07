@@ -99,8 +99,8 @@ export function UnitHeroCard({
       </View>
 
       <View style={styles.heading} accessibilityRole="header">
-        <AppText variant="heroTitle">{title}</AppText>
-        <AppText variant="heroSubtitle" style={styles.meta}>
+        <AppText variant="screenTitle">{title}</AppText>
+        <AppText variant="statLabel" style={styles.meta}>
           {meta}
         </AppText>
       </View>

@@ -158,60 +158,59 @@ export const typography = {
   },
 
   /*
-   * Assistant screen. No Figma reference exists yet, so these are set for
-   * reading rather than measured: answers run to several lines, and Arabic
-   * (drawn in the system fallback face) needs the taller line box.
+   * Assistant screen, set in the same sizes as Visitor Access and the other
+   * inner screens (the Visitor Access token each one matches is named). Line
+   * heights run a little taller where answers wrap, since Arabic (drawn in
+   * the system fallback face) needs the taller line box.
    */
 
-  /** "How can I help?" over the empty chat. */
+  /** "How can I help?" over the empty chat: `screenTitle`, the banner title. */
   assistantTitle: {
-    fontFamily: fontFamily.bold,
-    fontSize: 21,
-    lineHeight: 27,
-    letterSpacing: -0.3,
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
+    lineHeight: 19,
   },
-  /** A message bubble's text. */
+  /** A message bubble's text: `statValue`'s size. */
   chatBody: {
     fontFamily: fontFamily.regular,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 9.5,
+    lineHeight: 15,
   },
-  /** A `###` heading inside an answer. */
+  /** A `###` heading inside an answer: `sectionTitle`. */
   chatHeading: {
     fontFamily: fontFamily.semiBold,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
-  /** Sender line and timestamps around a bubble. */
+  /** Sender line and timestamps around a bubble: `tileCaption`. */
   chatMeta: {
+    fontFamily: fontFamily.regular,
+    fontSize: 7,
+    lineHeight: 10,
+  },
+  /** Suggestion chips, badges and segmented-control labels: `statValue`. */
+  chipLabel: {
     fontFamily: fontFamily.medium,
     fontSize: 9.5,
     lineHeight: 13,
-    letterSpacing: 0.2,
   },
-  /** Suggestion chips, badges and segmented-control labels. */
-  chipLabel: {
-    fontFamily: fontFamily.medium,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  /** The assistant's live spoken reply. */
+  /** The assistant's live spoken reply: `screenTitle`'s size. */
   voiceCaption: {
     fontFamily: fontFamily.medium,
-    fontSize: 16,
-    lineHeight: 25,
-  },
-  /** The resident's own words, above the reply. */
-  voiceCaptionMuted: {
-    fontFamily: fontFamily.regular,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 20,
   },
-  /** "LISTENING", "SPEAKING" in the status pill. */
+  /** The resident's own words, above the reply: `statValue`'s size. */
+  voiceCaptionMuted: {
+    fontFamily: fontFamily.regular,
+    fontSize: 9.5,
+    lineHeight: 15,
+  },
+  /** "LISTENING", "SPEAKING" in the status pill: `statLabel`'s size. */
   voiceStatus: {
     fontFamily: fontFamily.semiBold,
-    fontSize: 10.5,
-    lineHeight: 14,
+    fontSize: 8,
+    lineHeight: 11,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },

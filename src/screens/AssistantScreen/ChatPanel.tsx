@@ -72,7 +72,7 @@ export function ChatPanel({
               >
                 <AssistantOrb size={EMPTY_ORB_SIZE} mood="idle" />
               </Pressable>
-              <AppText variant="heroSubtitle" color={theme.colors.textSupport} align="center">
+              <AppText variant="statLabel" color={theme.colors.textSupport} align="center">
                 {copy.greeting(residentName)}
               </AppText>
               <AppText variant="assistantTitle" align="center" style={styles.welcomeTitle}>

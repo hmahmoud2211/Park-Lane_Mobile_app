@@ -1,6 +1,6 @@
 import { useCameraPermissions } from 'expo-camera';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { AssistantOrb, moodForPhase } from '../../components/assistant/AssistantOrb';
 import { CameraPeek, type CameraPeekHandle } from '../../components/assistant/CameraPeek';
@@ -111,38 +111,46 @@ export function VoicePanel({ residentId, onSignIn, onOpenRoute }: VoicePanelProp
           style={styles.voiceTranscript}
         />
       ) : (
-        <FadeSwap swapKey={inCall ? 'live' : 'idle'} style={styles.voiceIntro}>
-          {inCall ? null : (
-            <>
-              <AppText variant="sectionTitle" align="center">
-                {copy.voiceIdleTitle}
-              </AppText>
-              <AppText
-                variant="chatBody"
-                align="center"
-                color={theme.colors.textSecondary}
-                style={styles.voiceIntroBody}
-              >
-                {copy.voiceIdleBody}
-              </AppText>
-            </>
-          )}
-          <AppText variant="chatMeta" align="center" color={theme.colors.textMuted} style={styles.voiceTry}>
-            {copy.voiceTryLabel}
-          </AppText>
-          <View style={styles.voiceExamples}>
-            {voiceExamples.map((example) => (
-              <View key={example} style={styles.voiceExample}>
-                <AppText variant="chipLabel" color={theme.colors.textAccentSoft}>
-                  {`“${example}”`}
+        // Scrolls when the intro is taller than the room between the orb and
+        // the controls, rather than spilling over either.
+        <ScrollView
+          style={styles.voiceIntroScroll}
+          contentContainerStyle={styles.voiceIntroContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <FadeSwap swapKey={inCall ? 'live' : 'idle'} style={styles.voiceIntro}>
+            {inCall ? null : (
+              <>
+                <AppText variant="sectionTitle" align="center">
+                  {copy.voiceIdleTitle}
                 </AppText>
-              </View>
-            ))}
-          </View>
-          <AppText variant="chatMeta" align="center" color={theme.colors.textMuted} style={styles.voiceNote}>
-            {copy.voiceLanguageNote}
-          </AppText>
-        </FadeSwap>
+                <AppText
+                  variant="chatBody"
+                  align="center"
+                  color={theme.colors.textSecondary}
+                  style={styles.voiceIntroBody}
+                >
+                  {copy.voiceIdleBody}
+                </AppText>
+              </>
+            )}
+            <AppText variant="chatMeta" align="center" color={theme.colors.textMuted} style={styles.voiceTry}>
+              {copy.voiceTryLabel}
+            </AppText>
+            <View style={styles.voiceExamples}>
+              {voiceExamples.map((example) => (
+                <View key={example} style={styles.voiceExample}>
+                  <AppText variant="chipLabel" color={theme.colors.textAccentSoft}>
+                    {`“${example}”`}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+            <AppText variant="chatMeta" align="center" color={theme.colors.textMuted} style={styles.voiceNote}>
+              {copy.voiceLanguageNote}
+            </AppText>
+          </FadeSwap>
+        </ScrollView>
       )}
 
       <VoiceControls

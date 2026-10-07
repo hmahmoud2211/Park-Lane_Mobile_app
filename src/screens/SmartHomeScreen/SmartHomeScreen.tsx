@@ -141,8 +141,6 @@ export function SmartHomeScreen() {
               photo={images.smartHomeHero}
               photoAspect={imageAspects.smartHomeHero}
               height={BANNER_HEIGHT}
-              titleVariant="heroTitle"
-              bodyVariant="heroSubtitle"
               footer={
                 <Pressable
                   onPress={() => navigation.navigate('MyUnit')}

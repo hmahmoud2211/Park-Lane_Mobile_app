@@ -58,11 +58,11 @@ export function HomeScreen() {
 
           <View style={styles.greetingRow}>
             <View style={styles.greetingText}>
-              <AppText variant="tileTitle" color={theme.colors.textSecondary}>
+              <AppText variant="statLabel" color={theme.colors.textSecondary}>
                 {resident.greeting}
               </AppText>
-              <AppText variant="heroTitle">{resident.firstName}</AppText>
-              <AppText variant="tileTitle" color={theme.colors.textSecondary} style={styles.tagline}>
+              <AppText variant="screenTitle">{resident.firstName}</AppText>
+              <AppText variant="statLabel" color={theme.colors.textSecondary} style={styles.tagline}>
                 {resident.tagline}
               </AppText>
             </View>

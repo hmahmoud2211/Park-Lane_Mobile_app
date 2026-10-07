@@ -61,7 +61,7 @@ export function UnitSummaryCard({ title, meta, onPress, style }: UnitSummaryCard
 
         <View style={styles.text}>
           <AppText variant="sectionTitle">{title}</AppText>
-          <AppText variant="tileTitle" color={theme.colors.textSecondary}>
+          <AppText variant="statLabel" color={theme.colors.textSecondary}>
             {meta}
           </AppText>
         </View>

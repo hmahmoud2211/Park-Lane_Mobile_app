@@ -41,7 +41,7 @@ export function PromoCard({ title, body, ctaLabel, onPress, style }: PromoCardPr
           title={ctaLabel}
           variant="gradient"
           height={CTA_HEIGHT}
-          labelVariant="tileTitle"
+          labelVariant="statValue"
           trailingIcon={<ArrowRightIcon size={13} />}
           trailingInset={14}
           onPress={onPress}

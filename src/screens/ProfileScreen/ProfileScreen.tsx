@@ -44,7 +44,7 @@ export function ProfileScreen() {
           >
             <Avatar initials={initialsOf(resident)} size={36} variant="flat" />
             <View style={styles.identityText}>
-              <AppText variant="tileTitle">{fullName}</AppText>
+              <AppText variant="sectionTitle">{fullName}</AppText>
             </View>
             <Ionicons name="chevron-forward" size={15} color={theme.colors.textSecondary} />
           </GlassSurface>
@@ -63,7 +63,7 @@ export function ProfileScreen() {
               />
             </View>
             <AppText
-              variant="tileSubtitle"
+              variant="tileCaption"
               color={theme.colors.textSecondary}
               style={styles.passCaption}
             >

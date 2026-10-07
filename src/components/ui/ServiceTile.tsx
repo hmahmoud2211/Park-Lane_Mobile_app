@@ -127,7 +127,7 @@ export function ServiceTile({
         >
           {/* A fixed box, so glyphs from both icon sets start the text on one line. */}
           <View style={{ height: iconSize, justifyContent: 'center' }}>{icon}</View>
-          <AppText variant="tileTitle" numberOfLines={1} style={styles.stackedTitle}>
+          <AppText variant="statValue" numberOfLines={1} style={styles.stackedTitle}>
             {title}
           </AppText>
           {subtitle ? (
@@ -172,7 +172,7 @@ export function ServiceTile({
       >
         {icon}
         <View style={[styles.text, compact && styles.textCompact]}>
-          <AppText variant="tileTitle" style={styles.title}>
+          <AppText variant="statValue" style={styles.title}>
             {title}
           </AppText>
           {subtitle ? (
@@ -217,7 +217,7 @@ function createStyles(theme: AppTheme, scale: number) {
       marginLeft: 8,
       marginRight: 2,
     },
-    title: sized('tileTitle'),
+    title: sized('statValue'),
     subtitle: sized('tileCaption'),
     surfaceCompact: {
       minHeight: COMPACT_MIN_HEIGHT * scale,
@@ -235,7 +235,7 @@ function createStyles(theme: AppTheme, scale: number) {
       padding: STACKED_PADDING * scale,
     },
     stackedTitle: {
-      ...sized('tileTitle'),
+      ...sized('statValue'),
       marginTop: STACKED_ICON_GAP * scale,
       marginBottom: 2 * scale,
     },

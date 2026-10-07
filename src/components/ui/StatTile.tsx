@@ -93,7 +93,7 @@ export function StatTile({
         <View>
           <View style={styles.valueRow}>
             <View>
-              <AppText variant="cardTitle" numberOfLines={1} style={styles.value}>
+              <AppText variant="sectionTitle" numberOfLines={1} style={styles.value}>
                 {value}
               </AppText>
               {progress === undefined ? <View style={styles.accent} /> : null}
@@ -159,7 +159,7 @@ function createStyles(theme: AppTheme, scale: number) {
       alignItems: 'baseline',
       marginTop: VALUE_TOP * scale,
     },
-    value: sized('cardTitle'),
+    value: sized('sectionTitle'),
     total: {
       ...sized('statLabel'),
       flexShrink: 1,
