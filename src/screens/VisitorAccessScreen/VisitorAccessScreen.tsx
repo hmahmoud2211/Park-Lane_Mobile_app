@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +30,7 @@ import { VisitorPassCard } from '../../components/ui/VisitorPassCard';
 import { VisitorRow } from '../../components/ui/VisitorRow';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { downloadPdf } from '../../services/documents/exportPdf';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   SEPARATOR,
@@ -52,6 +54,7 @@ import {
   type VisitorForm,
   type VisitorPass,
 } from './VisitorAccessScreen.data';
+import { buildPassDocument } from './VisitorAccessScreen.documents';
 import {
   CTA_ARROW_SIZE,
   CTA_HEIGHT,
@@ -72,11 +75,6 @@ type OpenMenu =
   | { kind: 'pass'; anchor: MenuAnchor }
   | { kind: 'select'; key: SelectKey; anchor: MenuAnchor; align: 'left' | 'right' };
 
-/** Placeholder for links whose destination screens are not designed yet. */
-function notYetRouted() {
-  // TODO(nav): route to the destination screen once it is designed.
-}
-
 /** The fields in the reference's two-column rows. */
 const fieldRows: readonly (readonly FormFieldConfig[])[] = Array.from(
   { length: Math.ceil(formFields.length / 2) },
@@ -93,12 +91,16 @@ export function VisitorAccessScreen() {
   const [form, setForm] = useState<VisitorForm>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [openMenu, setOpenMenu] = useState<OpenMenu | null>(null);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
   const inputRefs = useRef<Partial<Record<FormFieldKey, TextInput | null>>>({});
   const selectRefs = useRef<Partial<Record<SelectKey, View | null>>>({});
 
   const activePass = visitors.find((visitor) => visitor.id === activeId) ?? null;
-  const upcoming = visitors.filter((visitor) => visitor.id !== activeId).slice(0, UPCOMING_LIMIT);
+  const allUpcoming = visitors.filter((visitor) => visitor.id !== activeId);
+  // "View All" only appears when someone is hidden behind it.
+  const hasMoreUpcoming = allUpcoming.length > UPCOMING_LIMIT;
+  const upcoming = showAllUpcoming ? allUpcoming : allUpcoming.slice(0, UPCOMING_LIMIT);
 
   const selectOptions = useMemo<Record<SelectKey, readonly Option[]>>(
     () => ({ date: dateOptions(), time: timeOptions, guests: guestOptions }),
@@ -141,6 +143,19 @@ export function VisitorAccessScreen() {
     setActiveId(remaining[0]?.id ?? null);
   }, [visitors, activeId]);
 
+  // The visitor needs the QR, so the pass goes out as a one-page PDF: the
+  // share sheet on a phone (WhatsApp, Mail, Files...), the print dialog's
+  // "Save as PDF" on the web.
+  const shareActivePass = useCallback(() => {
+    setOpenMenu(null);
+    if (!activePass) {
+      return;
+    }
+    downloadPdf(buildPassDocument(activePass)).catch(() =>
+      Alert.alert(copy.shareFailedTitle, copy.shareFailedBody),
+    );
+  }, [activePass]);
+
   const handleGenerate = useCallback(() => {
     Keyboard.dismiss();
     const found = validateForm(form);
@@ -176,9 +191,24 @@ export function VisitorAccessScreen() {
       return [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }];
     }
     if (openMenu.kind === 'pass') {
-      return [
-        { id: 'cancel', label: 'Cancel pass', icon: 'close-circle-outline', onPress: cancelActivePass },
-      ];
+      const share: AppMenuItem = {
+        id: 'share',
+        label: copy.sharePass,
+        icon: 'share-outline',
+        onPress: shareActivePass,
+      };
+      // Only a visit that has not happened yet can be cancelled.
+      return activePass?.status === 'scheduled'
+        ? [
+            share,
+            {
+              id: 'cancel',
+              label: copy.cancelPass,
+              icon: 'close-circle-outline',
+              onPress: cancelActivePass,
+            },
+          ]
+        : [share];
     }
     const { key } = openMenu;
     return selectOptions[key].map((option) => ({
@@ -189,7 +219,15 @@ export function VisitorAccessScreen() {
         setOpenMenu(null);
       },
     }));
-  }, [openMenu, selectOptions, handleLogout, cancelActivePass, updateField]);
+  }, [
+    openMenu,
+    selectOptions,
+    handleLogout,
+    activePass,
+    shareActivePass,
+    cancelActivePass,
+    updateField,
+  ]);
 
   const selectedOptionId =
     openMenu?.kind === 'select'
@@ -368,12 +406,7 @@ export function VisitorAccessScreen() {
               // The active pass is always drawn in teal, whatever its status.
               statusTone="teal"
               statusIcon={statusDisplay[activePass.status].icon}
-              // Only a visit that has not happened yet can be cancelled.
-              onMorePress={
-                activePass.status === 'scheduled'
-                  ? ({ y, height }) => setOpenMenu({ kind: 'pass', anchor: { y, height } })
-                  : undefined
-              }
+              onMorePress={({ y, height }) => setOpenMenu({ kind: 'pass', anchor: { y, height } })}
               style={styles.card}
             />
           ) : null}
@@ -384,8 +417,11 @@ export function VisitorAccessScreen() {
                 title={copy.upcomingTitle}
                 iconSet="ionicons"
                 iconName="time-outline"
-                actionLabel={copy.viewAll}
-                onActionPress={notYetRouted}
+                actionLabel={
+                  hasMoreUpcoming ? (showAllUpcoming ? copy.showLess : copy.viewAll) : undefined
+                }
+                actionExpanded={hasMoreUpcoming ? showAllUpcoming : undefined}
+                onActionPress={() => setShowAllUpcoming((current) => !current)}
               />
 
               <View style={styles.listRows}>
@@ -406,8 +442,10 @@ export function VisitorAccessScreen() {
             </NeonPanel>
           ) : null}
 
+          {/* Guest parking is booked from the Parking screen, which shows the
+              free guest bays and the latest request. */}
           <Pressable
-            onPress={notYetRouted}
+            onPress={() => navigation.navigate('Parking')}
             accessibilityRole="button"
             accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}

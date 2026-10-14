@@ -38,7 +38,8 @@
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "backgroundColor": "#071B44"
   }

@@ -17,6 +17,9 @@ export const smartHomeCopy = {
   unitTitle: 'Unit A-302',
   unitMeta: '3 Bedrooms • Tower A • Floor 3',
   viewAll: 'View All',
+  /** Not in the design: the same link once a panel shows everything. */
+  showLess: 'Show Less',
+  energyByRoom: 'By Room',
   scenesTitle: 'Scenes',
   scenesSubtitle: 'One tap for the perfect atmosphere.',
   energyTitle: 'Energy Usage',
@@ -138,10 +141,21 @@ export const mediaSources: readonly MediaSource[] = [
   { id: 'apps', label: 'Apps', iconSet: 'ionicons', iconName: 'grid-outline' },
 ];
 
+/**
+ * How many items each panel shows before "View All", as the design draws
+ * them; "View All" opens the rest in place.
+ */
+export const previewCounts = {
+  scenes: 4,
+  devices: 4,
+  automations: 3,
+} as const;
+
 export interface Scene extends Glyph {
   id: string;
   label: string;
-  photo: ImageKey;
+  /** Scenes without a photo are drawn as glass tiles (see SceneTile). */
+  photo?: ImageKey;
 }
 
 export const scenes: readonly Scene[] = [
@@ -149,6 +163,12 @@ export const scenes: readonly Scene[] = [
   { id: 'relax', label: 'Relax', photo: 'sceneRelax', iconSet: 'ionicons', iconName: 'leaf-outline' },
   { id: 'movie', label: 'Movie Night', photo: 'sceneMovie', iconSet: 'material', iconName: 'movie-open-play-outline' },
   { id: 'night', label: 'Good Night', photo: 'sceneNight', iconSet: 'ionicons', iconName: 'moon-outline' },
+  // Behind "View All". No photos exist for these yet; add a `photo` key once
+  // they are exported and the tiles pick them up.
+  { id: 'morning', label: 'Good Morning', iconSet: 'ionicons', iconName: 'sunny-outline' },
+  { id: 'dinner', label: 'Dinner', iconSet: 'ionicons', iconName: 'restaurant-outline' },
+  { id: 'reading', label: 'Reading', iconSet: 'ionicons', iconName: 'book-outline' },
+  { id: 'away', label: 'Away', iconSet: 'ionicons', iconName: 'airplane-outline' },
 ];
 
 /** The scene running when the screen opens. */
@@ -173,6 +193,14 @@ export const energy = {
     { id: 'media', label: 'TV & Media', kwh: 1.8, iconSet: 'material', iconName: 'monitor', iconColor: 'textPrimary' },
     { id: 'other', label: 'Other', kwh: 0.9, iconSet: 'material', iconName: 'power-socket-eu', iconColor: 'textPrimary' },
   ] satisfies readonly EnergyRow[],
+  /** Today's use per room, behind "View All". Sums to `todayKwh`, as the breakdown does. */
+  byRoom: [
+    { roomId: 'living', kwh: 4.2 },
+    { roomId: 'master', kwh: 3.1 },
+    { roomId: 'bedroom-2', kwh: 1.6 },
+    { roomId: 'bedroom-3', kwh: 1.3 },
+    { roomId: 'kitchen', kwh: 2.2 },
+  ] satisfies readonly { roomId: Room['id']; kwh: number }[],
 } as const;
 
 /** "12.4 kWh". */
@@ -193,6 +221,11 @@ export const devices: readonly SmartDevice[] = [
   { id: 'camera', name: 'Security Camera', location: 'Living Room', online: true, enabled: true, iconSet: 'material', iconName: 'cctv' },
   { id: 'speaker', name: 'Smart Speaker', location: 'Living Room', online: true, enabled: true, iconSet: 'material', iconName: 'speaker' },
   { id: 'motion', name: 'Motion Sensor', location: 'Corridor', online: true, enabled: true, iconSet: 'material', iconName: 'access-point' },
+  // Behind "View All".
+  { id: 'doorbell', name: 'Video Doorbell', location: 'Front Door', online: true, enabled: true, iconSet: 'material', iconName: 'doorbell-video' },
+  { id: 'thermostat', name: 'Thermostat', location: 'Master Bedroom', online: true, enabled: true, iconSet: 'material', iconName: 'thermostat' },
+  { id: 'smoke', name: 'Smoke Detector', location: 'Kitchen', online: true, enabled: true, iconSet: 'material', iconName: 'smoke-detector-variant' },
+  { id: 'window', name: 'Window Sensor', location: 'Bedroom 2', online: false, enabled: false, iconSet: 'material', iconName: 'window-closed-variant' },
 ];
 
 export const deviceStatusLabel = { online: 'Online', offline: 'Offline' } as const;
@@ -228,5 +261,30 @@ export const automations: readonly Automation[] = [
     enabled: true,
     iconSet: 'ionicons',
     iconName: 'moon-outline',
+  },
+  // Behind "View All".
+  {
+    id: 'wake',
+    title: 'Wake Up',
+    summary: 'Open curtains, lights to 60%, set AC to 23°C',
+    enabled: false,
+    iconSet: 'ionicons',
+    iconName: 'alarm-outline',
+  },
+  {
+    id: 'movie',
+    title: 'Movie Time',
+    summary: 'Dim lights, close curtains, turn on TV',
+    enabled: true,
+    iconSet: 'ionicons',
+    iconName: 'film-outline',
+  },
+  {
+    id: 'saver',
+    title: 'Energy Saver',
+    summary: 'Turn off idle devices after 30 minutes',
+    enabled: false,
+    iconSet: 'ionicons',
+    iconName: 'flash-off-outline',
   },
 ];

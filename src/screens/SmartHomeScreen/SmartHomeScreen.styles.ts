@@ -197,12 +197,20 @@ export function createStyles(theme: AppTheme) {
       height: MEDIA_LOGO_HEIGHT,
     },
 
-    sceneRow: {
-      flexDirection: 'row',
+    // Rows of four; "View All" adds rows below the drawn one.
+    sceneGrid: {
       gap: ROW_GAP,
       paddingHorizontal: PANEL_INSET,
       paddingTop: 2,
       paddingBottom: PANEL_BOTTOM,
+    },
+    sceneRow: {
+      flexDirection: 'row',
+      gap: ROW_GAP,
+    },
+    /** Holds a short last row's empty places, so its tiles keep their width. */
+    sceneSpacer: {
+      flex: 1,
     },
 
     energyBody: {
@@ -237,6 +245,15 @@ export function createStyles(theme: AppTheme) {
     energyLabel: {
       flex: 1,
       marginLeft: ENERGY_ROW_INSET,
+    },
+    // "View All": today's use per room, under the gauge and breakdown.
+    energyRooms: {
+      gap: ENERGY_ROW_GAP,
+      paddingHorizontal: PANEL_INSET + 2,
+      paddingBottom: PANEL_BOTTOM,
+    },
+    energyRoomsTitle: {
+      marginBottom: 2,
     },
 
     deviceGrid: {

@@ -28,19 +28,24 @@ const BASE_DELAY_MS = 180;
 
 /*
  * After the Assistant design (assets/Screens/screen14.png), more compact:
- * neon cards two across, 48dp tall and 10dp apart, a cyan glyph 14dp in, the
- * question 12dp beyond it and a chevron at the end.
+ * neon cards two across, 48dp tall and 10dp apart, a cyan glyph 12dp in, the
+ * question 10dp beyond it and a chevron at the end. At Home's width (154dp
+ * cards at 390dp) that leaves 85dp for the question: "Any active alarms"
+ * still fits on a line.
  */
 const CARD_GAP = 10;
 const MIN_HEIGHT = 48;
 const ICON_SIZE = 18;
 const CHEVRON_SIZE = 13;
+/** Cards narrower than this (small phones) drop the chevron to give the question room. */
+const NARROW_CARD = 140;
 
 /** Example questions as cards that cascade in, one after another. */
 export function SuggestionChips({ suggestions, onPick, disabled, style }: SuggestionChipsProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [progress] = useState(() => suggestions.map(() => new Animated.Value(0)));
+  const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
     const cascade = Animated.stagger(
@@ -62,7 +67,12 @@ export function SuggestionChips({ suggestions, onPick, disabled, style }: Sugges
   }, [progress]);
 
   return (
-    <View style={[styles.wrap, style]}>
+    <View
+      style={[styles.wrap, style]}
+      // Two cards share the row; the cards are still hidden by the cascade
+      // when this first runs, so dropping the chevron never shows.
+      onLayout={(event) => setNarrow(event.nativeEvent.layout.width / 2 < NARROW_CARD)}
+    >
       {suggestions.map((suggestion, index) => {
         const value = progress[index];
         const rtl = isRtlText(suggestion.text);
@@ -88,16 +98,18 @@ export function SuggestionChips({ suggestions, onPick, disabled, style }: Sugges
                 <Ionicons name={suggestion.icon} size={ICON_SIZE} color={theme.colors.accent} />
                 <AppText
                   variant="chipLabel"
-                  numberOfLines={2}
+                  numberOfLines={3}
                   style={[styles.label, rtl ? styles.labelRtl : null]}
                 >
                   {suggestion.text}
                 </AppText>
-                <Ionicons
-                  name={rtl ? 'chevron-back' : 'chevron-forward'}
-                  size={CHEVRON_SIZE}
-                  color={theme.colors.textSecondary}
-                />
+                {narrow ? null : (
+                  <Ionicons
+                    name={rtl ? 'chevron-back' : 'chevron-forward'}
+                    size={CHEVRON_SIZE}
+                    color={theme.colors.textSecondary}
+                  />
+                )}
               </NeonPanel>
             </Pressable>
           </Animated.View>
@@ -126,23 +138,23 @@ function createStyles(theme: AppTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       minHeight: MIN_HEIGHT,
-      paddingLeft: 14,
-      paddingRight: 11,
+      paddingLeft: 12,
+      paddingRight: 10,
       paddingVertical: theme.spacing.sm,
     },
     chipRtl: {
       flexDirection: 'row-reverse',
-      paddingLeft: 11,
-      paddingRight: 14,
+      paddingLeft: 10,
+      paddingRight: 12,
     },
     label: {
       flex: 1,
-      marginLeft: 12,
-      marginRight: 8,
+      marginLeft: 10,
+      marginRight: 6,
     },
     labelRtl: {
-      marginLeft: 8,
-      marginRight: 12,
+      marginLeft: 6,
+      marginRight: 10,
       textAlign: 'right',
       writingDirection: 'rtl',
     },

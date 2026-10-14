@@ -24,6 +24,11 @@ export interface PanelHeadingProps {
   /** A trailing link, e.g. "View All", drawn with a chevron. */
   actionLabel?: string;
   onActionPress?: () => void;
+  /**
+   * For an action that opens the panel in place: points the chevron up once
+   * open and reports the state to screen readers. Omit for a plain link.
+   */
+  actionExpanded?: boolean;
   /** Drawn at the end of the title row, after any action, e.g. Smart Home's toggles. */
   trailing?: ReactNode;
   /** Gradient hairline under the heading. */
@@ -58,6 +63,7 @@ export function PanelHeading({
   subtitle,
   actionLabel,
   onActionPress,
+  actionExpanded,
   trailing,
   divider = true,
   dividerStyle,
@@ -79,15 +85,16 @@ export function PanelHeading({
         <Pressable
           onPress={onActionPress}
           hitSlop={12}
-          accessibilityRole="link"
+          accessibilityRole={actionExpanded === undefined ? 'link' : 'button'}
           accessibilityLabel={`${actionLabel} ${title.toLowerCase()}`}
+          accessibilityState={actionExpanded === undefined ? undefined : { expanded: actionExpanded }}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
           <AppText variant="statLabel" color={theme.colors.textSupport}>
             {actionLabel}
           </AppText>
           <Ionicons
-            name="chevron-forward"
+            name={actionExpanded ? 'chevron-up' : 'chevron-forward'}
             size={ACTION_CHEVRON_SIZE}
             color={theme.colors.textSupport}
             style={styles.actionChevron}

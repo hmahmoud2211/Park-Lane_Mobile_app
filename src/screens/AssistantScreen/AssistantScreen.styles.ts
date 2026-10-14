@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 import { HALO_SPAN } from '../../components/assistant/AssistantOrb';
+import { spacing } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
@@ -8,21 +9,22 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
  * Measured from the Figma screen (assets/Screens/screen14.png), exported at
  * 761px for a 390dp frame (1.951px per dp), which draws the chat's welcome
  * state. The header keeps the inner screens' 35dp gutter so the back ring and
- * lockup hold their place; everything below spans the design's 16dp gutter.
+ * lockup hold their place; everything below sits inside the theme's screen
+ * gutter, so every frame is as wide as Home's cards.
  * Colours follow the reference; the type is My Unit's. The frames are drawn
  * more compact than the reference, and the screen has no bottom bar: chat
  * gets the full height.
  */
 const HEADER_GUTTER = 35;
-const GUTTER = 16;
+/** Home's gutter: 318dp frames at 390dp. */
+const GUTTER = spacing.screenGutter;
 const TOOLBAR_GAP = 18;
 const MODE_SWITCH_WIDTH = 156;
 
 /**
- * The welcome card, set 5dp inside the suggestion cards' edges: the orb's box
- * 12dp in, the greeting 4dp beyond it, the card as tall as the orb's halo.
+ * The welcome card: the orb's box 12dp in, the greeting 4dp beyond it, the
+ * card as tall as the orb's halo.
  */
-const HERO_INSET = 5;
 const HERO_PADDING_VERTICAL = 12;
 const HERO_ORB_INSET = 12;
 const HERO_TEXT_GAP = 4;
@@ -31,7 +33,8 @@ const HERO_PADDING_RIGHT = 13;
 const HERO_TEXT_MIN = 150;
 /** The orb core; its halo spans `HALO_SPAN` times this. */
 const EMPTY_ORB_MAX = 72;
-const EMPTY_ORB_MIN = 52;
+/** Small enough that a 320dp phone keeps the intro's line breaks. */
+const EMPTY_ORB_MIN = 44;
 /** Space above the welcome card, and between the suggestions and the composer. */
 const WELCOME_TOP = 18;
 const WELCOME_BOTTOM = 14;
@@ -41,7 +44,7 @@ const WELCOME_BOTTOM = 14;
  * room, and smaller on narrow phones.
  */
 export function emptyOrbSizeFor(windowWidth: number): number {
-  const card = Math.min(windowWidth, MAX_CONTENT_WIDTH) - 2 * GUTTER - 2 * HERO_INSET;
+  const card = Math.min(windowWidth, MAX_CONTENT_WIDTH) - 2 * GUTTER;
   const room = card - HERO_ORB_INSET - HERO_TEXT_GAP - HERO_PADDING_RIGHT - HERO_TEXT_MIN;
   return Math.round(clamp(room / HALO_SPAN, EMPTY_ORB_MIN, EMPTY_ORB_MAX));
 }
@@ -131,7 +134,6 @@ export function createStyles(theme: AppTheme) {
     hero: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: HERO_INSET,
       paddingVertical: HERO_PADDING_VERTICAL,
       paddingLeft: HERO_ORB_INSET,
       paddingRight: HERO_PADDING_RIGHT,

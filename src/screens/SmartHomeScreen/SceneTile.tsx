@@ -10,7 +10,8 @@ import type { AppTheme } from '../../types/theme.types';
 
 export interface SceneTileProps {
   label: string;
-  photo: ImageSourcePropType;
+  /** Without one, the tile is drawn as glass in the app's blues. */
+  photo?: ImageSourcePropType;
   iconSet: IconSet;
   iconName: string;
   active: boolean;
@@ -20,7 +21,8 @@ export interface SceneTileProps {
 /*
  * Measured on the Smart Home reference: a room photo, drawn 72 x 66dp, darkened
  * towards the bottom under a glyph and the scene's name. The running scene is
- * rimmed in glowing amber; the rest take a faint blue hairline.
+ * rimmed in glowing amber; the rest take a faint blue hairline. Scenes with
+ * no photo yet fill the frame with a midnight-to-indigo wash instead.
  */
 const ASPECT = 1.08;
 const ICON_SIZE = 17;
@@ -41,13 +43,22 @@ export function SceneTile({ label, photo, iconSet, iconName, active, onPress }: 
       style={({ pressed }) => [styles.tile, active && styles.activeGlow, pressed && styles.pressed]}
     >
       <View style={[styles.frame, active ? styles.activeFrame : styles.idleFrame]}>
-        <Image
-          source={photo}
-          style={styles.photo}
-          resizeMode="cover"
-          fadeDuration={0}
-          accessibilityIgnoresInvertColors
-        />
+        {photo ? (
+          <Image
+            source={photo}
+            style={styles.photo}
+            resizeMode="cover"
+            fadeDuration={0}
+            accessibilityIgnoresInvertColors
+          />
+        ) : (
+          <LinearGradient
+            colors={[theme.colors.midnightBlue, theme.colors.chipIndigoFill, theme.colors.chipVioletFill]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
         <LinearGradient
           colors={[theme.colors.transparent, theme.colors.scrimTop, theme.colors.scrimBottom]}
           locations={[0.25, 0.6, 1]}
