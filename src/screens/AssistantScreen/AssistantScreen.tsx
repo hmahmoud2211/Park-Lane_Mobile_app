@@ -1,14 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Keyboard, Platform, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { FadeSwap } from '../../components/assistant/FadeSwap';
 import type { IntentMeta } from '../../components/assistant/insights';
 import { ModeSwitch, type AssistantMode } from '../../components/assistant/ModeSwitch';
 import { ResidentChip, type AssistantHealthState } from '../../components/assistant/ResidentChip';
 import { AppText } from '../../components/common/AppText';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
@@ -29,9 +28,6 @@ const NEW_CHAT_ID = 'new-chat';
 const residentItemId = (id: number) => `resident-${id}`;
 /** Slide distance when switching between chat and voice. */
 const PANE_SHIFT = 24;
-/** iOS announces the keyboard before it moves; Android only once it has. */
-const KEYBOARD_SHOW = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-const KEYBOARD_HIDE = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
 /**
  * The Parklane Assistant: text chat over REST and a realtime voice
@@ -46,7 +42,6 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
   const [menuOpen, setMenuOpen] = useState(false);
   const [residents, setResidents] = useState<readonly AssistantResident[]>([]);
   const [health, setHealth] = useState<AssistantHealthState>('checking');
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const chat = useAssistantChat(residentId);
   const resetChat = chat.reset;
 
@@ -64,17 +59,6 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
     setHealth('checking');
     probeHealth();
   }, [probeHealth]);
-
-  // The composer sits just above the bottom bar. While typing, the bar steps
-  // aside so the composer rests on the keyboard instead of riding above both.
-  useEffect(() => {
-    const show = Keyboard.addListener(KEYBOARD_SHOW, () => setKeyboardOpen(true));
-    const hide = Keyboard.addListener(KEYBOARD_HIDE, () => setKeyboardOpen(false));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -177,7 +161,7 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
           rise={0}
           shift={mode === 'voice' ? PANE_SHIFT : -PANE_SHIFT}
           duration={360}
-          style={[styles.pane, keyboardOpen && styles.paneKeyboard]}
+          style={styles.pane}
         >
           {mode === 'chat' ? (
             <ChatPanel
@@ -194,8 +178,6 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
             <VoicePanel residentId={residentId} onSignIn={openResidentMenu} onOpenRoute={openRoute} />
           )}
         </FadeSwap>
-
-        {keyboardOpen ? null : <BottomBar />}
       </View>
 
       <AppMenu

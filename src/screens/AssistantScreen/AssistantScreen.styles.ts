@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 
 import { HALO_SPAN } from '../../components/assistant/AssistantOrb';
-import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
@@ -10,33 +9,35 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
  * 761px for a 390dp frame (1.951px per dp), which draws the chat's welcome
  * state. The header keeps the inner screens' 35dp gutter so the back ring and
  * lockup hold their place; everything below spans the design's 16dp gutter.
- * Sizes and colours follow the reference; the type is My Unit's.
+ * Colours follow the reference; the type is My Unit's. The frames are drawn
+ * more compact than the reference, and the screen has no bottom bar: chat
+ * gets the full height.
  */
 const HEADER_GUTTER = 35;
 const GUTTER = 16;
 const TOOLBAR_GAP = 18;
-const MODE_SWITCH_WIDTH = 170;
+const MODE_SWITCH_WIDTH = 156;
 
 /**
- * The welcome card: the orb's box 15dp in, the greeting 4dp beyond it, drawn
- * 346 x 186dp and set 5dp inside the suggestion cards' edges.
+ * The welcome card, set 5dp inside the suggestion cards' edges: the orb's box
+ * 12dp in, the greeting 4dp beyond it, the card as tall as the orb's halo.
  */
 const HERO_INSET = 5;
-const HERO_MIN_HEIGHT = 186;
-const HERO_ORB_INSET = 15;
+const HERO_PADDING_VERTICAL = 12;
+const HERO_ORB_INSET = 12;
 const HERO_TEXT_GAP = 4;
 const HERO_PADDING_RIGHT = 13;
 /** The greeting column never narrows past this; the orb shrinks instead. */
 const HERO_TEXT_MIN = 150;
-/** The design's orb core; its halo spans `HALO_SPAN` times this. */
-const EMPTY_ORB_MAX = 92;
-const EMPTY_ORB_MIN = 56;
+/** The orb core; its halo spans `HALO_SPAN` times this. */
+const EMPTY_ORB_MAX = 72;
+const EMPTY_ORB_MIN = 52;
 /** Space above the welcome card, and between the suggestions and the composer. */
-const WELCOME_TOP = 22;
-const WELCOME_BOTTOM = 17;
+const WELCOME_TOP = 18;
+const WELCOME_BOTTOM = 14;
 
 /**
- * The welcome orb at its drawn size wherever the card leaves the greeting
+ * The welcome orb at its full size wherever the card leaves the greeting
  * room, and smaller on narrow phones.
  */
 export function emptyOrbSizeFor(windowWidth: number): number {
@@ -104,11 +105,6 @@ export function createStyles(theme: AppTheme) {
     pane: {
       flex: 1,
       marginTop: theme.spacing.sm,
-      // Clears the pinned bottom bar; dropped while the keyboard covers it.
-      marginBottom: NAV_BAR_CLEARANCE,
-    },
-    paneKeyboard: {
-      marginBottom: 0,
     },
     pressed: {
       opacity: 0.7,
@@ -133,11 +129,10 @@ export function createStyles(theme: AppTheme) {
       paddingBottom: WELCOME_BOTTOM,
     },
     hero: {
-      minHeight: HERO_MIN_HEIGHT,
       flexDirection: 'row',
       alignItems: 'center',
       marginHorizontal: HERO_INSET,
-      paddingVertical: theme.spacing.sm,
+      paddingVertical: HERO_PADDING_VERTICAL,
       paddingLeft: HERO_ORB_INSET,
       paddingRight: HERO_PADDING_RIGHT,
     },

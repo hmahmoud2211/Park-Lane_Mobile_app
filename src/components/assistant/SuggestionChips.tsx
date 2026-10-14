@@ -27,14 +27,14 @@ const STAGGER_MS = 55;
 const BASE_DELAY_MS = 180;
 
 /*
- * From the Assistant design (assets/Screens/screen14.png): neon cards two
- * across, 57dp tall and 10dp apart, a cyan glyph 17dp in, the question 16dp
- * beyond it and a chevron at the end.
+ * After the Assistant design (assets/Screens/screen14.png), more compact:
+ * neon cards two across, 48dp tall and 10dp apart, a cyan glyph 14dp in, the
+ * question 12dp beyond it and a chevron at the end.
  */
 const CARD_GAP = 10;
-const MIN_HEIGHT = 57;
-const ICON_SIZE = 22;
-const CHEVRON_SIZE = 15;
+const MIN_HEIGHT = 48;
+const ICON_SIZE = 18;
+const CHEVRON_SIZE = 13;
 
 /** Example questions as cards that cascade in, one after another. */
 export function SuggestionChips({ suggestions, onPick, disabled, style }: SuggestionChipsProps) {
@@ -126,25 +126,23 @@ function createStyles(theme: AppTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       minHeight: MIN_HEIGHT,
-      paddingLeft: 17,
+      paddingLeft: 14,
       paddingRight: 11,
       paddingVertical: theme.spacing.sm,
     },
     chipRtl: {
       flexDirection: 'row-reverse',
       paddingLeft: 11,
-      paddingRight: 17,
+      paddingRight: 14,
     },
-    // 84dp at 390dp: room for "Any active alarms" on one line, while the
-    // longer questions break where the design breaks them.
     label: {
       flex: 1,
-      marginLeft: 16,
+      marginLeft: 12,
       marginRight: 8,
     },
     labelRtl: {
       marginLeft: 8,
-      marginRight: 16,
+      marginRight: 12,
       textAlign: 'right',
       writingDirection: 'rtl',
     },

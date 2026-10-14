@@ -19,13 +19,13 @@ export interface ResidentChipProps {
 }
 
 /*
- * From the Assistant design (assets/Screens/screen14.png): a 43dp pill, a
- * 30dp avatar 9dp in, the name over the unit code, and a chevron 16dp from
- * the right edge.
+ * After the Assistant design (assets/Screens/screen14.png), drawn a little
+ * more compact: a 38dp pill, a 26dp avatar 6dp in, the name over the unit
+ * code, and a chevron at the end.
  */
-const HEIGHT = 43;
-const AVATAR_SIZE = 30;
-const LIGHT_SIZE = 9;
+const HEIGHT = 38;
+const AVATAR_SIZE = 26;
+const LIGHT_SIZE = 8;
 
 /** Who the assistant is answering for, with a light for the backend's health. */
 export function ResidentChip({ name, unitCode, health, onPress, style }: ResidentChipProps) {
@@ -57,14 +57,14 @@ export function ResidentChip({ name, unitCode, health, onPress, style }: Residen
         <View style={[styles.light, { backgroundColor: light }]} />
       </View>
       <View style={styles.text}>
-        <AppText variant="statValueLarge" numberOfLines={1}>
+        <AppText variant="chipLabel" numberOfLines={1}>
           {name ?? 'Guest'}
         </AppText>
         <AppText variant="chatMeta" color={theme.colors.textSupport} numberOfLines={1}>
           {unitCode ?? 'Not signed in'}
         </AppText>
       </View>
-      <Ionicons name="chevron-down" size={15} color={theme.colors.textSecondary} />
+      <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
     </Pressable>
   );
 }
@@ -75,8 +75,8 @@ function createStyles(theme: AppTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       height: HEIGHT,
-      paddingLeft: 9,
-      paddingRight: 14,
+      paddingLeft: 6,
+      paddingRight: 12,
       borderRadius: HEIGHT / 2,
       backgroundColor: theme.colors.fieldFill,
       borderWidth: theme.glass.strokeWidth,
@@ -95,8 +95,8 @@ function createStyles(theme: AppTheme) {
     },
     text: {
       flexShrink: 1,
-      marginLeft: 11,
-      marginRight: 12,
+      marginLeft: 8,
+      marginRight: 10,
     },
     pressed: {
       opacity: 0.7,

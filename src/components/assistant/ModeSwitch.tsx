@@ -25,10 +25,10 @@ export interface ModeSwitchProps {
 }
 
 const NATIVE = Platform.OS !== 'web';
-/** From the Assistant design (assets/Screens/screen14.png): a 43dp track, the lit pill 5dp inside it. */
-const HEIGHT = 43;
-const INSET = 5;
-const ICON_SIZE = 18;
+/** After the Assistant design (assets/Screens/screen14.png), more compact: a 38dp track, the lit pill 4dp inside it. */
+const HEIGHT = 38;
+const INSET = 4;
+const ICON_SIZE = 16;
 
 const OPTIONS: readonly { mode: AssistantMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { mode: 'chat', label: 'Chat', icon: 'chatbubble-ellipses-outline' },
@@ -141,7 +141,7 @@ function createStyles(theme: AppTheme) {
       justifyContent: 'center',
     },
     label: {
-      marginLeft: 8,
+      marginLeft: 6,
     },
   });
 }

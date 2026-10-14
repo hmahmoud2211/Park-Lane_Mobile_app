@@ -31,17 +31,25 @@ export interface ChatComposerProps {
 
 const NATIVE = Platform.OS !== 'web';
 /*
- * From the Assistant design (assets/Screens/screen14.png): a 55dp neon pill,
- * a cyan sparkle 14dp in, and a 39dp mic in a blue-to-violet ring, 8dp from
- * the right edge.
+ * After the Assistant design (assets/Screens/screen14.png), more compact: a
+ * 48dp neon pill, a cyan sparkle 14dp in, and a 34dp mic in a blue-to-violet
+ * ring, 7dp from the right edge.
  */
-const MIN_HEIGHT = 55;
+const MIN_HEIGHT = 48;
 const MAX_INPUT_HEIGHT = 112;
-const BUTTON_SIZE = 39;
-const BUTTON_INSET = 8;
-const SPARKLE_SIZE = 22;
+const BUTTON_SIZE = 34;
+const BUTTON_INSET = 7;
+const SPARKLE_SIZE = 19;
+const MIC_ICON_SIZE = 18;
 const MIC_RING = 1.5;
 const MAX_LENGTH = 600;
+/**
+ * react-native-web's textarea defaults to two rows, which sets the placeholder
+ * above the mic; one row lines them up. `rows` is web-only (React Native's
+ * types omit it, and native sizes the field to its content), so it is spread
+ * in rather than passed as a typed prop.
+ */
+const WEB_SINGLE_ROW: object = Platform.OS === 'web' ? { rows: 1 } : {};
 
 /**
  * The message field. Its trailing button is the mic while the field is empty
@@ -120,6 +128,7 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
           selectionColor={theme.colors.accent}
           underlineColorAndroid={theme.colors.transparent}
           multiline
+          {...WEB_SINGLE_ROW}
           maxLength={MAX_LENGTH}
           accessibilityLabel="Message the assistant"
           style={[styles.input, isRtlText(text) && styles.inputRtl]}
@@ -148,7 +157,7 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
                 end={{ x: 1, y: 1 }}
                 style={styles.micFill}
               >
-                <Ionicons name="mic-outline" size={21} color={theme.colors.textPrimary} />
+                <Ionicons name="mic-outline" size={MIC_ICON_SIZE} color={theme.colors.textPrimary} />
               </LinearGradient>
             </LinearGradient>
           </Pressable>
@@ -173,7 +182,7 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
               {busy ? (
                 <ActivityIndicator size="small" color={theme.colors.textPrimary} />
               ) : (
-                <Ionicons name="arrow-up" size={20} color={theme.colors.textPrimary} />
+                <Ionicons name="arrow-up" size={MIC_ICON_SIZE} color={theme.colors.textPrimary} />
               )}
             </LinearGradient>
           </Pressable>

@@ -10,7 +10,6 @@ import { VoiceControls } from '../../components/assistant/VoiceControls';
 import { VoiceStatusPill } from '../../components/assistant/VoiceStatusPill';
 import { VoiceTranscript } from '../../components/assistant/VoiceTranscript';
 import { AppText } from '../../components/common/AppText';
-import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useVoiceSession, type VoicePhase } from '../../hooks/useVoiceSession';
 import { assistantCopy as copy, voiceExamples } from './AssistantScreen.data';
@@ -22,11 +21,8 @@ export interface VoicePanelProps {
   onOpenRoute: (route: NonNullable<IntentMeta['route']>) => void;
 }
 
-/**
- * Below this height the orb shrinks so the captions keep their room. Tuned
- * for the full-height pane, so it also counts the bottom bar's share.
- */
-const COMPACT_HEIGHT = 760 + NAV_BAR_CLEARANCE;
+/** Below this height the orb shrinks so the captions keep their room. */
+const COMPACT_HEIGHT = 760;
 
 /** Phases where a tap on the orb cuts the assistant off. */
 const INTERRUPTIBLE: readonly VoicePhase[] = ['speaking', 'thinking', 'searching', 'looking'];
