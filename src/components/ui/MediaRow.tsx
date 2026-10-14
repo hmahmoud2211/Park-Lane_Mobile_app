@@ -12,10 +12,14 @@ import {
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
+import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
+import type { IconSet } from './ServiceTile';
 
 export interface MediaRowProps {
-  photo: ImageSourcePropType;
+  /** Without one, `icon` is drawn on a tinted tile of the same size. */
+  photo?: ImageSourcePropType;
+  icon?: { set: IconSet; name: string };
   photoWidth: number;
   photoHeight: number;
   /** Drawn over the photo's left part, e.g. an alert's warning badge. */
@@ -38,6 +42,12 @@ export interface MediaRowProps {
   dividerInsetLeft?: number;
   /** Makes the row a button, shown by its trailing chevron. */
   onPress?: () => void;
+  /**
+   * Shown under the row while `expanded`, for a row that opens in place; the
+   * chevron then points down.
+   */
+  expandedContent?: ReactNode;
+  expanded?: boolean;
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
 }
@@ -59,10 +69,14 @@ const TIME_GAP = 8;
 const ACTION_GAP = 6;
 const CHEVRON_SIZE = 13;
 const CHEVRON_GAP = 6;
+const ICON_SIZE = 18;
+const ICON_TILE_BADGED_RIGHT = 8;
+const EXPANDED_BOTTOM = 10;
 
 /** One entry in a panel's list, led by a photo: an announcement, event or alert. */
 export function MediaRow({
   photo,
+  icon,
   photoWidth,
   photoHeight,
   photoBadge,
@@ -74,13 +88,16 @@ export function MediaRow({
   divided = false,
   dividerInsetLeft = MEDIA_ROW_INSET_LEFT,
   onPress,
+  expandedContent,
+  expanded = false,
   accessibilityHint,
   style,
 }: MediaRowProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const expandable = expandedContent !== undefined;
 
-  return (
+  const row = (
     <View style={[styles.row, style]}>
       {divided ? <View style={[styles.divider, { left: dividerInsetLeft }]} /> : null}
 
@@ -90,18 +107,31 @@ export function MediaRow({
         accessibilityRole={onPress ? 'button' : undefined}
         accessibilityLabel={[title, ...details, time].filter(Boolean).join(', ')}
         accessibilityHint={accessibilityHint}
+        accessibilityState={expandable ? { expanded } : undefined}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}
       >
         {leading ? <View style={styles.leading}>{leading}</View> : null}
 
-        <View style={[styles.photo, { width: photoWidth, height: photoHeight }]}>
-          <Image
-            source={photo}
-            style={styles.photoImage}
-            resizeMode="cover"
-            fadeDuration={0}
-            accessibilityIgnoresInvertColors
-          />
+        <View
+          style={[
+            styles.photo,
+            !photo && styles.iconTile,
+            // Keeps the glyph clear of a badge over the tile's left part.
+            !photo && photoBadge ? styles.iconTileBadged : null,
+            { width: photoWidth, height: photoHeight },
+          ]}
+        >
+          {photo ? (
+            <Image
+              source={photo}
+              style={styles.photoImage}
+              resizeMode="cover"
+              fadeDuration={0}
+              accessibilityIgnoresInvertColors
+            />
+          ) : icon ? (
+            <AppIcon set={icon.set} name={icon.name} size={ICON_SIZE} />
+          ) : null}
           {photoBadge ? <View style={styles.photoBadge}>{photoBadge}</View> : null}
         </View>
 
@@ -144,9 +174,23 @@ export function MediaRow({
           importantForAccessibility="no-hide-descendants"
           style={({ pressed }) => [styles.chevron, pressed && styles.pressed]}
         >
-          <Ionicons name="chevron-forward" size={CHEVRON_SIZE} color={theme.colors.textPrimary} />
+          <Ionicons
+            name={expandable && expanded ? 'chevron-down' : 'chevron-forward'}
+            size={CHEVRON_SIZE}
+            color={theme.colors.textPrimary}
+          />
         </Pressable>
       ) : null}
+    </View>
+  );
+
+  if (!expandable) {
+    return row;
+  }
+  return (
+    <View>
+      {row}
+      {expanded ? <View style={styles.expanded}>{expandedContent}</View> : null}
     </View>
   );
 }
@@ -193,6 +237,21 @@ function createStyles(theme: AppTheme) {
       left: 0,
       width: '100%',
       height: '100%',
+    },
+    // A row with no photo yet: its glyph on the panel's badge fill.
+    iconTile: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.badgeFill,
+    },
+    iconTileBadged: {
+      alignItems: 'flex-end',
+      paddingRight: ICON_TILE_BADGED_RIGHT,
+    },
+    expanded: {
+      paddingLeft: MEDIA_ROW_INSET_LEFT,
+      paddingRight: INSET_RIGHT + CHEVRON_SIZE + CHEVRON_GAP,
+      paddingBottom: EXPANDED_BOTTOM,
     },
     photoBadge: {
       position: 'absolute',

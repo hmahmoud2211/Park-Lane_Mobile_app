@@ -34,6 +34,11 @@ const MORE_HEIGHT = 36;
 const MORE_INSET = 18;
 export const MORE_CHEVRON_SIZE = 12;
 
+/** My Bookings rows: the amenity's glyph in a ring, as on its card, then a cancel button. */
+const BOOKING_RING = 32;
+export const BOOKING_ICON_SIZE = 17;
+export const CANCEL_ICON_SIZE = 18;
+
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     flex: {
@@ -94,6 +99,39 @@ export function createStyles(theme: AppTheme) {
     },
     pressed: {
       opacity: 0.7,
+    },
+
+    // The resident's bookings, below the list.
+    bookings: {
+      marginTop: LIST_TO_MORE,
+      paddingBottom: 6,
+    },
+    booking: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+    },
+    bookingDivided: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.dividerSubtle,
+    },
+    bookingRing: {
+      width: BOOKING_RING,
+      height: BOOKING_RING,
+      borderRadius: BOOKING_RING / 2,
+      borderWidth: theme.glass.strokeWidth,
+      borderColor: theme.colors.avatarStroke,
+      backgroundColor: theme.colors.badgeFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bookingText: {
+      flex: 1,
+      marginHorizontal: 10,
+    },
+    bookingMeta: {
+      marginTop: 2,
     },
   });
 }

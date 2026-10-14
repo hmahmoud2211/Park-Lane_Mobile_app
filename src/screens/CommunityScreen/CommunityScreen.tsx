@@ -1,8 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
@@ -18,6 +26,7 @@ import {
 } from '../../components/ui/MediaRow';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -28,8 +37,10 @@ import {
   communityCopy as copy,
   currentPoll,
   dateParts,
+  pastPolls,
   pollShares,
   rsvpDisplay,
+  shownCounts,
   timeRange,
   upcomingEvents,
   type AlertLevel,
@@ -48,12 +59,14 @@ import {
   HEADING_ICON_SIZE,
   createStyles,
 } from './CommunityScreen.styles';
+import { FeedbackForm } from './FeedbackForm';
 import { PollOptionRow } from './PollOptionRow';
 
-/** Placeholder for links whose destination screens are not designed yet. */
-function notYetRouted() {
-  // TODO(nav): route to the destination screen once it is designed.
-}
+/** The panels whose "View All" opens the full list in place. */
+type ExpandablePanel = 'announcements' | 'events' | 'alerts' | 'polls';
+
+/** Space kept above a panel the screen scrolls to, so its heading clears the edge. */
+const SCROLL_MARGIN = 12;
 
 /** Event rows' hairlines start at the photo, clear of the date column. */
 const EVENT_DIVIDER_INSET = MEDIA_ROW_INSET_LEFT + DATE_COLUMN_WIDTH + MEDIA_ROW_LEADING_GAP;
@@ -76,6 +89,55 @@ export function CommunityScreen() {
   );
   const [vote, setVote] = useState(currentPoll.myVote);
   const shares = useMemo(() => pollShares(currentPoll, vote), [vote]);
+  const [expanded, setExpanded] = useState<Record<ExpandablePanel, boolean>>({
+    announcements: false,
+    events: false,
+    alerts: false,
+    polls: false,
+  });
+  /** The one row opened to its full text, across all lists. */
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // TODO(api): send feedback to management once the community service exists.
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const scroll = useRef<ScrollView>(null);
+  const scrollToFeedback = useRef(false);
+
+  // "View All" opens the panel's full list in place; "Show Less" folds it back.
+  const viewAll = (panel: ExpandablePanel) => ({
+    actionLabel: expanded[panel] ? copy.showLess : copy.viewAll,
+    actionExpanded: expanded[panel],
+    onActionPress: () => setExpanded((current) => ({ ...current, [panel]: !current[panel] })),
+  });
+  const shown = <T,>(items: readonly T[], panel: Exclude<ExpandablePanel, 'polls'>) =>
+    expanded[panel] ? items : items.slice(0, shownCounts[panel]);
+
+  // A row opens to its full text; tapping it again, or another row, closes it.
+  const rowProps = (id: string, text: string) => ({
+    onPress: () => setOpenRow((current) => (current === id ? null : id)),
+    expanded: openRow === id,
+    expandedContent: (
+      <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.rowMore}>
+        {text}
+      </AppText>
+    ),
+  });
+
+  const openFeedback = () => {
+    setFeedbackSent(false);
+    // Scrolled to once the form has laid out (see its onLayout).
+    scrollToFeedback.current = true;
+    setFeedbackOpen(true);
+  };
+
+  // The form hands over a valid message; with no service yet, it is only
+  // acknowledged here.
+  const sendFeedback = () => {
+    setFeedbackOpen(false);
+    setFeedbackSent(true);
+    AccessibilityInfo.announceForAccessibility(copy.feedbackThanks);
+  };
 
   const handleLogout = useCallback(() => {
     setMenuOpen(false);
@@ -139,8 +201,17 @@ export function CommunityScreen() {
     >
       <StatusBar style="light" />
 
-      <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* The feedback form types; as on Visitor Access, iOS pads for the keyboard. */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <PageHeader
             title={copy.title}
             onMenuPress={() => setMenuOpen(true)}
@@ -162,22 +233,21 @@ export function CommunityScreen() {
               iconSet="ionicons"
               iconName="megaphone-outline"
               iconSize={HEADING_ICON_SIZE}
-              actionLabel={copy.viewAll}
-              onActionPress={notYetRouted}
+              {...viewAll('announcements')}
             />
-            {announcements.map((item, index) => (
+            {shown(announcements, 'announcements').map((item, index) => (
               <MediaRow
                 key={item.id}
                 divided={index > 0}
-                photo={images[item.photo]}
+                photo={item.photo ? images[item.photo] : undefined}
+                icon={item.icon}
                 photoWidth={ANNOUNCEMENT_PHOTO.width}
                 photoHeight={ANNOUNCEMENT_PHOTO.height}
                 title={item.title}
                 details={[item.body]}
                 time={item.postedAgo}
-                // TODO(nav): open the announcement once its detail screen is designed.
-                onPress={notYetRouted}
-                accessibilityHint="Shows the announcement"
+                {...rowProps(item.id, item.fullText)}
+                accessibilityHint="Shows the full announcement"
               />
             ))}
           </NeonPanel>
@@ -188,24 +258,23 @@ export function CommunityScreen() {
               iconSet="material"
               iconName="calendar-month-outline"
               iconSize={HEADING_ICON_SIZE}
-              actionLabel={copy.viewAll}
-              onActionPress={notYetRouted}
+              {...viewAll('events')}
             />
-            {upcomingEvents.map((event, index) => (
+            {shown(upcomingEvents, 'events').map((event, index) => (
               <MediaRow
                 key={event.id}
                 divided={index > 0}
                 dividerInsetLeft={EVENT_DIVIDER_INSET}
                 leading={renderDate(event.date)}
-                photo={images[event.photo]}
+                photo={event.photo ? images[event.photo] : undefined}
+                icon={event.icon}
                 photoWidth={EVENT_PHOTO.width}
                 photoHeight={EVENT_PHOTO.height}
                 title={event.title}
                 details={[timeRange(event), event.venue]}
                 action={renderRsvp(event)}
-                // TODO(nav): open the event once its detail screen is designed.
-                onPress={notYetRouted}
-                accessibilityHint="Shows the event"
+                {...rowProps(event.id, event.description)}
+                accessibilityHint="Shows the event's details"
               />
             ))}
           </NeonPanel>
@@ -216,14 +285,14 @@ export function CommunityScreen() {
               iconSet="ionicons"
               iconName="notifications-outline"
               iconSize={HEADING_ICON_SIZE}
-              actionLabel={copy.viewAll}
-              onActionPress={notYetRouted}
+              {...viewAll('alerts')}
             />
-            {communityAlerts.map((alert, index) => (
+            {shown(communityAlerts, 'alerts').map((alert, index) => (
               <MediaRow
                 key={alert.id}
                 divided={index > 0}
-                photo={images[alert.photo]}
+                photo={alert.photo ? images[alert.photo] : undefined}
+                icon={alert.icon}
                 photoWidth={ALERT_PHOTO.width}
                 photoHeight={ALERT_PHOTO.height}
                 photoBadge={
@@ -243,9 +312,8 @@ export function CommunityScreen() {
                 title={alert.title}
                 details={[alert.body]}
                 time={alert.postedAgo}
-                // TODO(nav): open the alert once its detail screen is designed.
-                onPress={notYetRouted}
-                accessibilityHint="Shows the alert"
+                {...rowProps(alert.id, alert.fullText)}
+                accessibilityHint="Shows the full alert"
               />
             ))}
           </NeonPanel>
@@ -257,8 +325,7 @@ export function CommunityScreen() {
               iconSet="ionicons"
               iconName="stats-chart-outline"
               iconSize={HEADING_ICON_SIZE}
-              actionLabel={copy.viewAll}
-              onActionPress={notYetRouted}
+              {...viewAll('polls')}
               divider={false}
             />
             <View accessibilityRole="radiogroup">
@@ -273,6 +340,61 @@ export function CommunityScreen() {
                 />
               ))}
             </View>
+            {expanded.polls ? (
+              <View style={styles.pastPolls}>
+                <AppText
+                  variant="statLabel"
+                  color={theme.colors.textSupport}
+                  style={styles.pastPollsTitle}
+                >
+                  {copy.pastPollsTitle}
+                </AppText>
+                {pastPolls.map((poll) => {
+                  const total = poll.options.reduce((sum, option) => sum + option.votes, 0);
+                  return (
+                    <View key={poll.id}>
+                      <AppText variant="statValue">{poll.question}</AppText>
+                      <AppText
+                        variant="tileCaption"
+                        color={theme.colors.textSupport}
+                        style={styles.pastPollMeta}
+                      >
+                        {`${copy.pollClosed(poll.closedOn)} · ${copy.pollVotes(total)}`}
+                      </AppText>
+                      {poll.options.map((option) => {
+                        const share = total > 0 ? option.votes / total : 0;
+                        const percent = `${Math.round(share * 100)}%`;
+                        return (
+                          <View
+                            key={option.id}
+                            style={styles.pastOption}
+                            accessible
+                            accessibilityLabel={`${option.label}, ${percent}`}
+                          >
+                            <AppText
+                              variant="tileCaption"
+                              numberOfLines={1}
+                              style={styles.pastOptionLabel}
+                            >
+                              {option.label}
+                            </AppText>
+                            <ProgressBar
+                              progress={share}
+                              height={6}
+                              accessibilityLabel={percent}
+                              style={styles.pastOptionBar}
+                            />
+                            <AppText variant="tileCaption" style={styles.pastOptionShare}>
+                              {percent}
+                            </AppText>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </NeonPanel>
 
           <NeonPanel style={[styles.card, styles.feedback]}>
@@ -303,11 +425,20 @@ export function CommunityScreen() {
               >
                 {copy.feedbackBody}
               </AppText>
+              {feedbackSent ? (
+                <AppText
+                  variant="tileCaption"
+                  color={theme.colors.success}
+                  accessibilityLiveRegion="polite"
+                  style={styles.feedbackThanks}
+                >
+                  {copy.feedbackThanks}
+                </AppText>
+              ) : null}
             </View>
 
             <Pressable
-              // TODO(nav): open the feedback form once it is designed.
-              onPress={notYetRouted}
+              onPress={openFeedback}
               hitSlop={9}
               accessibilityRole="button"
               accessibilityLabel={copy.feedbackCta}
@@ -331,11 +462,29 @@ export function CommunityScreen() {
               </GlassSurface>
             </Pressable>
           </NeonPanel>
+
+          {feedbackOpen ? (
+            <View
+              onLayout={(event) => {
+                if (scrollToFeedback.current) {
+                  scrollToFeedback.current = false;
+                  const { y } = event.nativeEvent.layout;
+                  scroll.current?.scrollTo({ y: Math.max(0, y - SCROLL_MARGIN), animated: true });
+                }
+              }}
+            >
+              <FeedbackForm
+                onSubmit={sendFeedback}
+                onClose={() => setFeedbackOpen(false)}
+                style={styles.card}
+              />
+            </View>
+          ) : null}
         </ScrollView>
 
         {/* The same empty glass bar as Visitor Access, Maintenance and Parking. */}
         <BottomBar />
-      </View>
+      </KeyboardAvoidingView>
 
       <AppMenu
         visible={menuOpen}
