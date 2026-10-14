@@ -149,7 +149,8 @@ export function createStyles(theme: AppTheme) {
     composer: {
       marginHorizontal: GUTTER,
       marginTop: theme.spacing.xs,
-      marginBottom: theme.spacing.md,
+      // Lifts the field off the bottom edge, on top of the safe-area inset.
+      marginBottom: theme.spacing.xl,
     },
 
     /* Voice */
