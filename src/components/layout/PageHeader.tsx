@@ -10,6 +10,8 @@ import { BRAND_LOCKUP_HEIGHT, BrandLockup } from './BrandLockup';
 export interface PageHeaderProps {
   /** The screen's name, shown on its own line beneath the back ring. */
   title: string;
+  /** A supporting line under the title, e.g. "Everyday services, made easier." */
+  subtitle?: string;
   /** Shows the menu button at the end of the row. */
   onMenuPress?: () => void;
   /** Replaces the menu button with the screen's own control. */
@@ -38,9 +40,11 @@ const MENU_INSET_RIGHT = 12;
 const MENU_ICON_SIZE = 24;
 /** Space between the control row and the title. */
 const TITLE_GAP = 14;
+/** Space between the title and its supporting line, from the Services design. */
+const SUBTITLE_GAP = 2;
 
 /** Back control and menu over the brand lockup, across the top of an inner screen. */
-export function PageHeader({ title, onMenuPress, trailing, style }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, onMenuPress, trailing, style }: PageHeaderProps) {
   const theme = useAppTheme();
 
   const menu = onMenuPress ? (
@@ -73,6 +77,16 @@ export function PageHeader({ title, onMenuPress, trailing, style }: PageHeaderPr
       >
         {title}
       </AppText>
+      {subtitle ? (
+        <AppText
+          variant="bodySmall"
+          color={theme.colors.textAccentSoft}
+          style={styles.subtitle}
+          numberOfLines={2}
+        >
+          {subtitle}
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -96,6 +110,10 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: TITLE_GAP,
+    marginLeft: INSET_LEFT,
+  },
+  subtitle: {
+    marginTop: SUBTITLE_GAP,
     marginLeft: INSET_LEFT,
   },
   pressed: {

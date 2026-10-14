@@ -13,6 +13,8 @@ import { MaintenanceScreen } from '../screens/MaintenanceScreen';
 import { MyUnitScreen } from '../screens/MyUnitScreen';
 import { ParkingScreen } from '../screens/ParkingScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { ServicesScreen } from '../screens/ServicesScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { SmartHomeScreen } from '../screens/SmartHomeScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
@@ -65,6 +67,8 @@ export function AppNavigator() {
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
         <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
+        <Stack.Screen name="Services" component={ServicesScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Assistant" component={AssistantScreen} />
         <Stack.Screen name="UnderDevelopment" component={UnderDevelopmentScreen} />
         {/* Register later screens here as their designs land. */}

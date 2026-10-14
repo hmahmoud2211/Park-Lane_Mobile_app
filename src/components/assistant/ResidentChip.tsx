@@ -18,13 +18,22 @@ export interface ResidentChipProps {
   style?: StyleProp<ViewStyle>;
 }
 
+/*
+ * From the Assistant design (assets/Screens/screen14.png): a 43dp pill, a
+ * 30dp avatar 9dp in, the name over the unit code, and a chevron 16dp from
+ * the right edge.
+ */
+const HEIGHT = 43;
+const AVATAR_SIZE = 30;
+const LIGHT_SIZE = 9;
+
 /** Who the assistant is answering for, with a light for the backend's health. */
 export function ResidentChip({ name, unitCode, health, onPress, style }: ResidentChipProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const light =
     health === 'online'
-      ? theme.colors.success
+      ? theme.colors.online
       : health === 'degraded'
         ? theme.colors.warning
         : health === 'offline'
@@ -39,18 +48,23 @@ export function ResidentChip({ name, unitCode, health, onPress, style }: Residen
       style={({ pressed }) => [styles.chip, pressed && styles.pressed, style]}
     >
       <View>
-        <Avatar initials={(name ?? '?').slice(0, 1).toUpperCase()} size={26} variant="flat" labelVariant="chatMeta" />
+        <Avatar
+          initials={(name ?? '?').slice(0, 1).toUpperCase()}
+          size={AVATAR_SIZE}
+          variant="flat"
+          labelVariant="chipLabel"
+        />
         <View style={[styles.light, { backgroundColor: light }]} />
       </View>
       <View style={styles.text}>
-        <AppText variant="chipLabel" numberOfLines={1}>
+        <AppText variant="statValueLarge" numberOfLines={1}>
           {name ?? 'Guest'}
         </AppText>
         <AppText variant="chatMeta" color={theme.colors.textSupport} numberOfLines={1}>
           {unitCode ?? 'Not signed in'}
         </AppText>
       </View>
-      <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
+      <Ionicons name="chevron-down" size={15} color={theme.colors.textSecondary} />
     </Pressable>
   );
 }
@@ -60,29 +74,29 @@ function createStyles(theme: AppTheme) {
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
-      height: 38,
-      paddingLeft: 6,
-      paddingRight: 10,
-      borderRadius: 19,
+      height: HEIGHT,
+      paddingLeft: 9,
+      paddingRight: 14,
+      borderRadius: HEIGHT / 2,
       backgroundColor: theme.colors.fieldFill,
-      borderWidth: StyleSheet.hairlineWidth * 2,
-      borderColor: theme.colors.dividerSubtle,
+      borderWidth: theme.glass.strokeWidth,
+      borderColor: theme.colors.chipVioletStrokeFrom,
       flexShrink: 1,
     },
     light: {
       position: 'absolute',
       right: -1,
       bottom: -1,
-      width: 9,
-      height: 9,
-      borderRadius: 4.5,
+      width: LIGHT_SIZE,
+      height: LIGHT_SIZE,
+      borderRadius: LIGHT_SIZE / 2,
       borderWidth: 1.5,
       borderColor: theme.colors.backgroundDeep,
     },
     text: {
       flexShrink: 1,
-      marginLeft: 8,
-      marginRight: 6,
+      marginLeft: 11,
+      marginRight: 12,
     },
     pressed: {
       opacity: 0.7,

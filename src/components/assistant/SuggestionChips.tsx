@@ -5,6 +5,7 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, View, type StyleProp
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
+import { NeonPanel } from '../ui/NeonPanel';
 import { isRtlText } from './RichText';
 
 export interface Suggestion {
@@ -25,7 +26,17 @@ const NATIVE = Platform.OS !== 'web';
 const STAGGER_MS = 55;
 const BASE_DELAY_MS = 180;
 
-/** Example questions that cascade in, one after another. */
+/*
+ * From the Assistant design (assets/Screens/screen14.png): neon cards two
+ * across, 57dp tall and 10dp apart, a cyan glyph 17dp in, the question 16dp
+ * beyond it and a chevron at the end.
+ */
+const CARD_GAP = 10;
+const MIN_HEIGHT = 57;
+const ICON_SIZE = 22;
+const CHEVRON_SIZE = 15;
+
+/** Example questions as cards that cascade in, one after another. */
 export function SuggestionChips({ suggestions, onPick, disabled, style }: SuggestionChipsProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -71,18 +82,23 @@ export function SuggestionChips({ suggestions, onPick, disabled, style }: Sugges
               onPress={() => onPick(suggestion.text)}
               accessibilityRole="button"
               accessibilityLabel={`Ask: ${suggestion.text}`}
-              style={({ pressed }) => [styles.chip, rtl && styles.chipRtl, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.fill, pressed && styles.pressed]}
             >
-              <View style={styles.icon}>
-                <Ionicons name={suggestion.icon} size={14} color={theme.colors.accent} />
-              </View>
-              <AppText
-                variant="chipLabel"
-                numberOfLines={2}
-                style={[styles.label, rtl ? styles.labelRtl : null]}
-              >
-                {suggestion.text}
-              </AppText>
+              <NeonPanel style={[styles.chip, rtl && styles.chipRtl]}>
+                <Ionicons name={suggestion.icon} size={ICON_SIZE} color={theme.colors.accent} />
+                <AppText
+                  variant="chipLabel"
+                  numberOfLines={2}
+                  style={[styles.label, rtl ? styles.labelRtl : null]}
+                >
+                  {suggestion.text}
+                </AppText>
+                <Ionicons
+                  name={rtl ? 'chevron-back' : 'chevron-forward'}
+                  size={CHEVRON_SIZE}
+                  color={theme.colors.textSecondary}
+                />
+              </NeonPanel>
             </Pressable>
           </Animated.View>
         );
@@ -96,39 +112,39 @@ function createStyles(theme: AppTheme) {
     wrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      marginHorizontal: -5,
+      margin: -CARD_GAP / 2,
     },
     cell: {
       width: '50%',
-      padding: 5,
+      padding: CARD_GAP / 2,
+    },
+    fill: {
+      flex: 1,
     },
     chip: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 52,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.bubbleFill,
-      borderWidth: StyleSheet.hairlineWidth * 2,
-      borderColor: theme.colors.bubbleStroke,
+      minHeight: MIN_HEIGHT,
+      paddingLeft: 17,
+      paddingRight: 11,
+      paddingVertical: theme.spacing.sm,
     },
     chipRtl: {
       flexDirection: 'row-reverse',
+      paddingLeft: 11,
+      paddingRight: 17,
     },
-    icon: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.infoFill,
-    },
+    // 84dp at 390dp: room for "Any active alarms" on one line, while the
+    // longer questions break where the design breaks them.
     label: {
       flex: 1,
-      marginHorizontal: 8,
+      marginLeft: 16,
+      marginRight: 8,
     },
     labelRtl: {
+      marginLeft: 8,
+      marginRight: 16,
       textAlign: 'right',
       writingDirection: 'rtl',
     },

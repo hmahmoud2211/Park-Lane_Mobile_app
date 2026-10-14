@@ -42,9 +42,8 @@ const LEFT_TABS: readonly NavTab[] = [
   { id: 'contact', label: 'Contact Us', iconSet: 'ionicons', iconName: 'call-outline', underDevelopment: true },
 ];
 const RIGHT_TABS: readonly NavTab[] = [
-  { id: 'services', label: 'Services', iconSet: 'ionicons', iconName: 'grid-outline', underDevelopment: true },
-  // Account settings live on the Profile screen for now.
-  { id: 'settings', label: 'Settings', iconSet: 'ionicons', iconName: 'settings-outline', route: 'Profile' },
+  { id: 'services', label: 'Services', iconSet: 'ionicons', iconName: 'grid-outline', route: 'Services' },
+  { id: 'settings', label: 'Settings', iconSet: 'ionicons', iconName: 'settings-outline', route: 'Settings' },
 ];
 
 /*

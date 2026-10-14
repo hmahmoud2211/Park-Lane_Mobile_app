@@ -1,19 +1,49 @@
 import { StyleSheet } from 'react-native';
 
+import { HALO_SPAN } from '../../components/assistant/AssistantOrb';
+import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
-import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
 /**
- * No Figma frame exists for this screen yet. The header keeps the inner
- * screens' 35dp gutter so the back label and lockup hold their place; the
- * conversation below runs wider, as chat needs the room.
+ * Measured from the Figma screen (assets/Screens/screen14.png), exported at
+ * 761px for a 390dp frame (1.951px per dp), which draws the chat's welcome
+ * state. The header keeps the inner screens' 35dp gutter so the back ring and
+ * lockup hold their place; everything below spans the design's 16dp gutter.
+ * Sizes and colours follow the reference; the type is My Unit's.
  */
 const HEADER_GUTTER = 35;
-const GUTTER = 20;
+const GUTTER = 16;
 const TOOLBAR_GAP = 18;
-const MODE_SWITCH_WIDTH = 164;
+const MODE_SWITCH_WIDTH = 170;
 
-export const EMPTY_ORB_SIZE = 92;
+/**
+ * The welcome card: the orb's box 15dp in, the greeting 4dp beyond it, drawn
+ * 346 x 186dp and set 5dp inside the suggestion cards' edges.
+ */
+const HERO_INSET = 5;
+const HERO_MIN_HEIGHT = 186;
+const HERO_ORB_INSET = 15;
+const HERO_TEXT_GAP = 4;
+const HERO_PADDING_RIGHT = 13;
+/** The greeting column never narrows past this; the orb shrinks instead. */
+const HERO_TEXT_MIN = 150;
+/** The design's orb core; its halo spans `HALO_SPAN` times this. */
+const EMPTY_ORB_MAX = 92;
+const EMPTY_ORB_MIN = 56;
+/** Space above the welcome card, and between the suggestions and the composer. */
+const WELCOME_TOP = 22;
+const WELCOME_BOTTOM = 17;
+
+/**
+ * The welcome orb at its drawn size wherever the card leaves the greeting
+ * room, and smaller on narrow phones.
+ */
+export function emptyOrbSizeFor(windowWidth: number): number {
+  const card = Math.min(windowWidth, MAX_CONTENT_WIDTH) - 2 * GUTTER - 2 * HERO_INSET;
+  const room = card - HERO_ORB_INSET - HERO_TEXT_GAP - HERO_PADDING_RIGHT - HERO_TEXT_MIN;
+  return Math.round(clamp(room / HALO_SPAN, EMPTY_ORB_MIN, EMPTY_ORB_MAX));
+}
 export const VOICE_ORB_SIZE = 136;
 export const VOICE_ORB_SIZE_COMPACT = 104;
 
@@ -41,8 +71,11 @@ export function createStyles(theme: AppTheme) {
       paddingHorizontal: GUTTER,
       gap: theme.spacing.sm,
     },
+    // Takes what the resident chip leaves, up to its drawn width, so a narrow
+    // phone narrows the switch rather than truncating the name.
     modeSwitch: {
-      width: MODE_SWITCH_WIDTH,
+      flex: 1,
+      maxWidth: MODE_SWITCH_WIDTH,
     },
     banner: {
       flexDirection: 'row',
@@ -71,6 +104,11 @@ export function createStyles(theme: AppTheme) {
     pane: {
       flex: 1,
       marginTop: theme.spacing.sm,
+      // Clears the pinned bottom bar; dropped while the keyboard covers it.
+      marginBottom: NAV_BAR_CLEARANCE,
+    },
+    paneKeyboard: {
+      marginBottom: 0,
     },
     pressed: {
       opacity: 0.7,
@@ -84,25 +122,37 @@ export function createStyles(theme: AppTheme) {
     },
     threadEmpty: {
       flexGrow: 1,
-      justifyContent: 'center',
+      paddingTop: WELCOME_TOP,
     },
+    // The card at the top and the suggestions at the bottom, the backdrop
+    // showing between them as in the design.
     welcome: {
-      paddingBottom: theme.spacing.md,
+      flex: 1,
+      justifyContent: 'space-between',
+      gap: theme.spacing.lg,
+      paddingBottom: WELCOME_BOTTOM,
     },
-    welcomeOrb: {
-      alignSelf: 'center',
-      marginBottom: theme.spacing.xs,
+    hero: {
+      minHeight: HERO_MIN_HEIGHT,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: HERO_INSET,
+      paddingVertical: theme.spacing.sm,
+      paddingLeft: HERO_ORB_INSET,
+      paddingRight: HERO_PADDING_RIGHT,
     },
-    welcomeTitle: {
+    heroText: {
+      flex: 1,
+      marginLeft: HERO_TEXT_GAP,
+    },
+    heroTitle: {
       marginTop: 2,
     },
-    welcomeBody: {
+    heroBody: {
       marginTop: theme.spacing.sm,
-      marginBottom: theme.spacing.lg,
-      paddingHorizontal: theme.spacing.md,
     },
     composer: {
-      marginHorizontal: GUTTER - 6,
+      marginHorizontal: GUTTER,
       marginTop: theme.spacing.xs,
       marginBottom: theme.spacing.md,
     },

@@ -17,7 +17,7 @@ import {
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
-import { GlassSurface } from '../common/GlassSurface';
+import { NeonPanel } from '../ui/NeonPanel';
 import { isRtlText } from './RichText';
 
 export interface ChatComposerProps {
@@ -30,9 +30,17 @@ export interface ChatComposerProps {
 }
 
 const NATIVE = Platform.OS !== 'web';
-const MIN_HEIGHT = 50;
+/*
+ * From the Assistant design (assets/Screens/screen14.png): a 55dp neon pill,
+ * a cyan sparkle 14dp in, and a 39dp mic in a blue-to-violet ring, 8dp from
+ * the right edge.
+ */
+const MIN_HEIGHT = 55;
 const MAX_INPUT_HEIGHT = 112;
-const BUTTON_SIZE = 38;
+const BUTTON_SIZE = 39;
+const BUTTON_INSET = 8;
+const SPARKLE_SIZE = 22;
+const MIC_RING = 1.5;
 const MAX_LENGTH = 600;
 
 /**
@@ -95,7 +103,10 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
   };
 
   return (
-    <GlassSurface radius={MIN_HEIGHT / 2} style={[styles.surface, style]}>
+    <NeonPanel style={[styles.surface, style]} radius={MIN_HEIGHT / 2}>
+      <View style={styles.sparkle} pointerEvents="none">
+        <Ionicons name="sparkles-outline" size={SPARKLE_SIZE} color={theme.colors.accent} />
+      </View>
       {/* Wrapped so the field stacks above the blur layer on the web, where
           an absolutely positioned backdrop would otherwise paint over it. */}
       <View style={styles.field}>
@@ -122,9 +133,24 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel="Talk instead"
-            style={({ pressed }) => [styles.mic, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.fill, styles.micGlow, pressed && styles.pressed]}
           >
-            <Ionicons name="mic-outline" size={19} color={theme.colors.textPrimary} />
+            {/* The ring is the gradient showing around an inset fill. */}
+            <LinearGradient
+              colors={[theme.colors.ctaSky, theme.colors.ctaViolet]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.micRing}
+            >
+              <LinearGradient
+                colors={[theme.colors.actionBlueVia, theme.colors.actionVioletVia]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.micFill}
+              >
+                <Ionicons name="mic-outline" size={21} color={theme.colors.textPrimary} />
+              </LinearGradient>
+            </LinearGradient>
           </Pressable>
         </Animated.View>
 
@@ -153,7 +179,7 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
           </Pressable>
         </Animated.View>
       </View>
-    </GlassSurface>
+    </NeonPanel>
   );
 }
 
@@ -163,16 +189,22 @@ function createStyles(theme: AppTheme) {
       minHeight: MIN_HEIGHT,
       flexDirection: 'row',
       alignItems: 'flex-end',
-      paddingLeft: 18,
-      paddingRight: 6,
-      paddingVertical: 6,
+      paddingLeft: 14,
+      paddingRight: BUTTON_INSET,
+      paddingVertical: BUTTON_INSET,
+    },
+    // As tall as the button, so the glyph stays on the first line's centre.
+    sparkle: {
+      height: BUTTON_SIZE,
+      justifyContent: 'center',
+      marginRight: 10,
     },
     field: {
       flex: 1,
       marginRight: 8,
     },
     input: {
-      ...theme.typography.chatBody,
+      ...theme.typography.bodySmall,
       color: theme.colors.textPrimary,
       maxHeight: MAX_INPUT_HEIGHT,
       minHeight: BUTTON_SIZE,
@@ -193,14 +225,24 @@ function createStyles(theme: AppTheme) {
     fill: {
       flex: 1,
     },
-    mic: {
+    micGlow: {
+      borderRadius: BUTTON_SIZE / 2,
+      ...theme.shadows.glow,
+      shadowColor: theme.colors.violet,
+      shadowOffset: { width: 0, height: 0 },
+      shadowRadius: 8,
+      shadowOpacity: 0.6,
+    },
+    micRing: {
       flex: 1,
       borderRadius: BUTTON_SIZE / 2,
+      padding: MIC_RING,
+    },
+    micFill: {
+      flex: 1,
+      borderRadius: BUTTON_SIZE / 2 - MIC_RING,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceSubtle,
-      borderWidth: StyleSheet.hairlineWidth * 2,
-      borderColor: theme.colors.border,
     },
     send: {
       flex: 1,

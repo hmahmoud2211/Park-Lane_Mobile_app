@@ -26,8 +26,8 @@ export interface AssistantOrbProps {
 }
 
 const NATIVE = Platform.OS !== 'web';
-/** Room around the core for the halo and the outermost ripple. */
-const HALO_SPAN = 1.75;
+/** Room around the core for the halo and the outermost ripple: the orb's box is `size` times this. */
+export const HALO_SPAN = 1.75;
 const RIPPLE_COUNT = 3;
 /** Per-bar reach and wobble phase, so the equaliser never moves in lockstep. */
 const BAR_GAIN = [0.55, 0.85, 1, 0.8, 0.6] as const;
