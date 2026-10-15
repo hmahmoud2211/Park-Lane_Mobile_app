@@ -17,9 +17,12 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useCubeDevices } from '../../hooks/useCubeDevices';
+import type { CubeDevice } from '../../services/cube/cube.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 // My Unit's own scale, so the two screens' small type is drawn at one size.
 import { statScaleFor } from '../MyUnitScreen/MyUnitScreen.styles';
+import { AddDeviceSheet } from './AddDeviceSheet';
 import { AutomationRow } from './AutomationRow';
 import { ClimateControls } from './ClimateControls';
 import { ControlCard } from './ControlCard';
@@ -30,8 +33,10 @@ import { SceneTile } from './SceneTile';
 import {
   acCard,
   activeSceneId,
+  addDeviceCopy,
   automations,
   climate,
+  cubeCategoryGlyphs,
   curtainActions,
   curtainsCard,
   deviceStatusLabel,
@@ -51,6 +56,8 @@ import {
   type Scene,
 } from './SmartHomeScreen.data';
 import {
+  ADD_BUTTON_SIZE,
+  ADD_ICON_SIZE,
   BANNER_BUTTON_SIZE,
   BANNER_CHEVRON_SIZE,
   BANNER_HEIGHT,
@@ -87,6 +94,33 @@ function enabledMap(items: readonly { id: string; enabled: boolean }[]) {
   return Object.fromEntries(items.map((item) => [item.id, item.enabled]));
 }
 
+/** One card in the Smart Devices panel, from the hub or from the sample data. */
+interface DeviceItem {
+  id: string;
+  name: string;
+  location: string;
+  iconSet: Scene['iconSet'];
+  iconName: string;
+  online: boolean;
+  enabled: boolean;
+  onToggle?: (next: boolean) => void;
+}
+
+/** A device on the CUBE hub as a card: switchable only if it has power control. */
+function cubeDeviceItem(device: CubeDevice, setPower: (id: string, on: boolean) => void): DeviceItem {
+  const glyph = cubeCategoryGlyphs[device.display_category] ?? cubeCategoryGlyphs.chip;
+  const switchable = device.capabilities.some((entry) => entry.capability === 'power');
+  return {
+    id: device.serial_number,
+    name: device.name,
+    location: [device.manufacturer, device.model].filter(Boolean).join(' · '),
+    ...glyph,
+    online: device.online,
+    enabled: switchable ? device.state?.power?.powerState === 'on' : device.online,
+    onToggle: switchable ? (next) => setPower(device.serial_number, next) : undefined,
+  };
+}
+
 export function SmartHomeScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -97,6 +131,8 @@ export function SmartHomeScreen() {
   const cellStyle = layout.controlColumns === 2 ? styles.gridCell : undefined;
   const navigation = useNavigation<RootStackScreenProps<'SmartHome'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const hub = useCubeDevices();
 
   // Screen-local until there is a home-automation backend to send commands to.
   // TODO(api): send each change to the unit's controller once that service exists.
@@ -130,7 +166,26 @@ export function SmartHomeScreen() {
   });
 
   const visibleScenes = expanded.scenes ? scenes : scenes.slice(0, previewCounts.scenes);
-  const visibleDevices = expanded.devices ? devices : devices.slice(0, previewCounts.devices);
+  // The hub's devices once it answers; the design's sample devices while it cannot be reached.
+  const deviceItems: DeviceItem[] =
+    hub.status === 'connected'
+      ? hub.devices.map((device) => cubeDeviceItem(device, hub.setPower))
+      : devices.map((device) => ({
+          ...device,
+          enabled: devicesOn[device.id] ?? device.enabled,
+          onToggle: (next: boolean) => setDevicesOn((current) => ({ ...current, [device.id]: next })),
+        }));
+  const visibleDevices = expanded.devices
+    ? deviceItems
+    : deviceItems.slice(0, previewCounts.devices);
+  const deviceNote =
+    hub.status === 'connecting'
+      ? addDeviceCopy.hubConnecting
+      : hub.status === 'unreachable'
+        ? addDeviceCopy.hubUnreachable
+        : deviceItems.length === 0
+          ? addDeviceCopy.noDevices
+          : hub.error;
   const visibleAutomations = expanded.automations
     ? automations
     : automations.slice(0, previewCounts.automations);
@@ -460,9 +515,38 @@ export function SmartHomeScreen() {
                 }
                 iconSize={HEADING_ICON_SIZE}
                 {...viewAll('devices')}
+                trailing={
+                  <Pressable
+                    onPress={() => setAddOpen(true)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={addDeviceCopy.buttonLabel}
+                    style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+                  >
+                    <GlassSurface
+                      radius={ADD_BUTTON_SIZE / 2}
+                      stroke="gradient"
+                      strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+                      blurred={false}
+                      fillOpacity={theme.glass.subtleFillOpacity}
+                      style={styles.bannerButtonSurface}
+                    >
+                      <Ionicons name="add" size={ADD_ICON_SIZE} color={theme.colors.textPrimary} />
+                    </GlassSurface>
+                  </Pressable>
+                }
                 divider={false}
               />
               <View style={styles.deviceGrid}>
+                {deviceNote ? (
+                  <AppText
+                    variant="tileCaption"
+                    color={theme.colors.textSupport}
+                    style={styles.deviceNote}
+                  >
+                    {deviceNote}
+                  </AppText>
+                ) : null}
                 {visibleDevices.map((device) => (
                   <View
                     key={device.id}
@@ -475,8 +559,8 @@ export function SmartHomeScreen() {
                       iconName={device.iconName}
                       online={device.online}
                       statusLabel={device.online ? deviceStatusLabel.online : deviceStatusLabel.offline}
-                      enabled={devicesOn[device.id] ?? device.enabled}
-                      onToggle={(next) => setDevicesOn((current) => ({ ...current, [device.id]: next }))}
+                      enabled={device.enabled}
+                      onToggle={device.onToggle}
                       // TODO(nav): open the device once its detail screen is designed.
                       onPress={notYetRouted}
                     />
@@ -518,6 +602,8 @@ export function SmartHomeScreen() {
         {/* The same empty glass bar as the other inner screens. */}
         <BottomBar />
       </View>
+
+      <AddDeviceSheet visible={addOpen} onClose={() => setAddOpen(false)} refresh={hub.refresh} />
 
       <AppMenu
         visible={menuOpen}

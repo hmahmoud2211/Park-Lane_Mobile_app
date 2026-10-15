@@ -31,6 +31,10 @@ export const BANNER_HEIGHT = 128;
 export const BANNER_BUTTON_SIZE = 26;
 const BANNER_BUTTON_TOP = 12;
 export const BANNER_CHEVRON_SIZE = 13;
+/** Not in the design: the Smart Devices "+", a ring the banner chevron's size. */
+export const ADD_BUTTON_SIZE = BANNER_BUTTON_SIZE;
+export const ADD_ICON_SIZE = 16;
+const ACTION_TO_ADD = 10;
 
 /** Room chips (FilterChip), scrolling sideways within the cards' width. */
 const BANNER_TO_ROOMS = 14;
@@ -270,6 +274,14 @@ export function createStyles(theme: AppTheme) {
       flexBasis: '40%',
     },
     deviceCellFull: {
+      flexBasis: '100%',
+    },
+    addButton: {
+      width: ADD_BUTTON_SIZE,
+      height: ADD_BUTTON_SIZE,
+      marginLeft: ACTION_TO_ADD,
+    },
+    deviceNote: {
       flexBasis: '100%',
     },
 
