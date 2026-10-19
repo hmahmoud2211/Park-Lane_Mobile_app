@@ -16,6 +16,8 @@ export interface PageHeaderProps {
   onMenuPress?: () => void;
   /** Replaces the menu button with the screen's own control. */
   trailing?: ReactNode;
+  /** Overrides the back ring, e.g. to step back through a wizard rather than leave it. */
+  onBackPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -44,7 +46,7 @@ const TITLE_GAP = 14;
 const SUBTITLE_GAP = 2;
 
 /** Back control and menu over the brand lockup, across the top of an inner screen. */
-export function PageHeader({ title, subtitle, onMenuPress, trailing, style }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, onMenuPress, trailing, onBackPress, style }: PageHeaderProps) {
   const theme = useAppTheme();
 
   const menu = onMenuPress ? (
@@ -66,7 +68,7 @@ export function PageHeader({ title, subtitle, onMenuPress, trailing, style }: Pa
         <BrandLockup />
       </View>
       <View style={styles.row} pointerEvents="box-none">
-        <BackButton />
+        <BackButton onPress={onBackPress} />
         {trailing ?? menu}
       </View>
       <AppText

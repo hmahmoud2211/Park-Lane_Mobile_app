@@ -1,0 +1,1 @@
+export { SonoffPairingScreen } from './SonoffPairingScreen';

@@ -28,6 +28,8 @@ export interface AddDeviceSheetProps {
   onClose: () => void;
   /** Re-reads the hub's devices; resolves to the list, or null if the hub is unreachable. */
   refresh: () => Promise<CubeDevice[] | null>;
+  /** Opens the SONOFF Wi-Fi pairing wizard. */
+  onAddSonoff: () => void;
 }
 
 /*
@@ -50,7 +52,7 @@ function errorText(error: unknown): string {
 }
 
 /** Lets the resident add a Zigbee device, a camera or a Wi-Fi device to the unit's CUBE hub. */
-export function AddDeviceSheet({ visible, onClose, refresh }: AddDeviceSheetProps) {
+export function AddDeviceSheet({ visible, onClose, refresh, onAddSonoff }: AddDeviceSheetProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -309,6 +311,28 @@ export function AddDeviceSheet({ visible, onClose, refresh }: AddDeviceSheetProp
                     style={styles.action}
                   />
                   {notice(cameraNotice)}
+                </GlassSurface>
+
+                <GlassSurface
+                  radius={theme.borderRadius.sm}
+                  blurred={false}
+                  strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+                  fillOpacity={theme.glass.subtleFillOpacity}
+                  style={styles.option}
+                >
+                  {optionHeading('material', 'power-plug-outline', copy.sonoffTitle, copy.sonoffBody)}
+                  <AppButton
+                    title={copy.sonoffStart}
+                    variant="gradient"
+                    gradientColors={ctaColors}
+                    height={BUTTON_HEIGHT}
+                    labelVariant="statValue"
+                    onPress={() => {
+                      handleClose();
+                      onAddSonoff();
+                    }}
+                    style={styles.action}
+                  />
                 </GlassSurface>
 
                 <GlassSurface

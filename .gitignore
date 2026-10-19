@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# device backend: secrets and its device store
+server/.env
+server/data/

@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -133,6 +133,20 @@ export function SmartHomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const hub = useCubeDevices();
+
+  // Coming back from the SONOFF wizard, re-read the hub so a plug it added shows up.
+  const { refresh: refreshHub } = hub;
+  const focusedOnce = useRef(false);
+  useEffect(
+    () =>
+      navigation.addListener('focus', () => {
+        if (focusedOnce.current) {
+          void refreshHub();
+        }
+        focusedOnce.current = true;
+      }),
+    [navigation, refreshHub],
+  );
 
   // Screen-local until there is a home-automation backend to send commands to.
   // TODO(api): send each change to the unit's controller once that service exists.
@@ -603,7 +617,12 @@ export function SmartHomeScreen() {
         <BottomBar />
       </View>
 
-      <AddDeviceSheet visible={addOpen} onClose={() => setAddOpen(false)} refresh={hub.refresh} />
+      <AddDeviceSheet
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        refresh={hub.refresh}
+        onAddSonoff={() => navigation.navigate('SonoffPairing')}
+      />
 
       <AppMenu
         visible={menuOpen}
