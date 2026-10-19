@@ -18,7 +18,8 @@ export interface DeviceCardProps {
   statusLabel: string;
   online: boolean;
   enabled: boolean;
-  onToggle: (next: boolean) => void;
+  /** Omitted for devices with nothing to switch, e.g. sensors and cameras. */
+  onToggle?: (next: boolean) => void;
   onPress: () => void;
 }
 
@@ -77,7 +78,9 @@ export function DeviceCard({
             <AppText variant="statValue" numberOfLines={2} style={styles.name}>
               {name}
             </AppText>
-            <ToggleSwitch value={enabled} onValueChange={onToggle} accessibilityLabel={name} />
+            {onToggle ? (
+              <ToggleSwitch value={enabled} onValueChange={onToggle} accessibilityLabel={name} />
+            ) : null}
           </View>
           <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={1}>
             {location}

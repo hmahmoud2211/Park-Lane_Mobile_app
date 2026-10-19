@@ -117,7 +117,7 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
   }, [resetChat, residents, setResidentId]);
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.5}>
+    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
       <StatusBar style="light" />
 
       <View style={styles.page}>

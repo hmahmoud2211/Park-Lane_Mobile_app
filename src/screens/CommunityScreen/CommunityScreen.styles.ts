@@ -93,6 +93,45 @@ export function createStyles(theme: AppTheme) {
     poll: {
       paddingBottom: POLL_BOTTOM,
     },
+    // A row opened in place: its full text under it.
+    rowMore: {
+      marginTop: -2,
+    },
+    // The poll's "View All": closed polls and their results.
+    pastPolls: {
+      paddingHorizontal: 12,
+      paddingTop: 4,
+      paddingBottom: 6,
+      gap: 14,
+    },
+    pastPollsTitle: {
+      paddingTop: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.dividerSubtle,
+    },
+    pastPollMeta: {
+      marginTop: 2,
+      marginBottom: 6,
+    },
+    pastOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 6,
+      gap: 8,
+    },
+    pastOptionLabel: {
+      width: 104,
+    },
+    pastOptionBar: {
+      flex: 1,
+    },
+    pastOptionShare: {
+      width: 30,
+      textAlign: 'right',
+    },
+    feedbackThanks: {
+      marginTop: 4,
+    },
 
     dateColumn: {
       width: DATE_COLUMN_WIDTH,

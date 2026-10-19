@@ -14,8 +14,11 @@ export interface SectionMeta {
   iconName: string;
 }
 
+/** The unit documents the screen can generate (see MyUnitScreen.documents.ts). */
+export type DocumentId = 'contract' | 'receipts' | 'floor-plan';
+
 export interface DocumentItem {
-  id: string;
+  id: DocumentId;
   title: string;
   subtitle: string;
   iconSet: IconSet;
@@ -24,6 +27,12 @@ export interface DocumentItem {
 
 export const myUnitCopy = {
   title: 'My Unit',
+  /** Not in the design: the documents' menu, and the tile while its PDF is made. */
+  viewDocument: 'View',
+  downloadDocument: 'Download',
+  preparingDocument: 'Preparing…',
+  documentFailedTitle: "Couldn't create the document",
+  documentFailedBody: 'Please try again in a moment.',
 } as const;
 
 export const unitHero = {
@@ -195,4 +204,39 @@ export const documents: readonly DocumentItem[] = [
     iconSet: 'material',
     iconName: 'floor-plan',
   },
+];
+
+export interface PaymentRecord {
+  /** Receipt number. */
+  id: string;
+  /** "DD Mon YYYY", as the rest of the screen writes dates. */
+  date: string;
+  description: string;
+  /** EGP. */
+  amount: number;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const DOWN_PAYMENT = 1_175_000;
+const INSTALLMENT = 145_000;
+/** Monthly installments paid so far, on the 5th from Apr 2024 to Sep 2026. */
+const INSTALLMENTS_PAID = 30;
+
+/**
+ * Payments received, for the Receipts document: a down payment, then monthly
+ * installments up to the one before "Next Installment" (05 Oct 2026). They
+ * total `financial`'s Amount Paid, EGP 5,525,000.
+ */
+export const paymentHistory: readonly PaymentRecord[] = [
+  { id: 'RCP-2024-0001', date: '05 Mar 2024', description: 'Down payment', amount: DOWN_PAYMENT },
+  ...Array.from({ length: INSTALLMENTS_PAID }, (_, index): PaymentRecord => {
+    const month = (3 + index) % 12;
+    const year = 2024 + Math.floor((3 + index) / 12);
+    return {
+      id: `RCP-${year}-${String(index + 2).padStart(4, '0')}`,
+      date: `05 ${MONTHS[month]} ${year}`,
+      description: `Installment ${index + 1}`,
+      amount: INSTALLMENT,
+    };
+  }),
 ];

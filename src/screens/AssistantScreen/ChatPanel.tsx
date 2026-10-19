@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { AssistantOrb } from '../../components/assistant/AssistantOrb';
 import { ChatBubble } from '../../components/assistant/ChatBubble';
@@ -9,11 +9,12 @@ import type { IntentMeta } from '../../components/assistant/insights';
 import { SuggestionChips } from '../../components/assistant/SuggestionChips';
 import { TypingIndicator } from '../../components/assistant/TypingIndicator';
 import { AppText } from '../../components/common/AppText';
+import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { ChatMessage } from '../../hooks/useAssistantChat';
 import { useReduceMotion } from '../../hooks/useReduceMotion';
 import { assistantCopy as copy, chatSuggestions } from './AssistantScreen.data';
-import { EMPTY_ORB_SIZE, createStyles } from './AssistantScreen.styles';
+import { createStyles, emptyOrbSizeFor } from './AssistantScreen.styles';
 
 export interface ChatPanelProps {
   messages: readonly ChatMessage[];
@@ -26,7 +27,7 @@ export interface ChatPanelProps {
   onOpenRoute: (route: NonNullable<IntentMeta['route']>) => void;
 }
 
-/** The text conversation: a greeting with suggestions, then the thread and composer. */
+/** The text conversation: a welcome card and suggestions, then the thread and composer. */
 export function ChatPanel({
   messages,
   pending,
@@ -40,6 +41,8 @@ export function ChatPanel({
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const reduceMotion = useReduceMotion();
+  const { width } = useWindowDimensions();
+  const orbSize = emptyOrbSizeFor(width);
   const scroll = useRef<ScrollView>(null);
   // Messages already present when the panel opens are history: no entrance.
   const [history] = useState(() => new Set(messages.map((message) => message.id)));
@@ -64,23 +67,24 @@ export function ChatPanel({
         {empty ? (
           <View style={styles.welcome}>
             <FadeSwap swapKey="welcome" rise={16} duration={520}>
-              <Pressable
-                onPress={onVoice}
-                accessibilityRole="button"
-                accessibilityLabel="Talk to the assistant"
-                style={styles.welcomeOrb}
-              >
-                <AssistantOrb size={EMPTY_ORB_SIZE} mood="idle" />
-              </Pressable>
-              <AppText variant="statLabel" color={theme.colors.textSupport} align="center">
-                {copy.greeting(residentName)}
-              </AppText>
-              <AppText variant="assistantTitle" align="center" style={styles.welcomeTitle}>
-                {copy.headline}
-              </AppText>
-              <AppText variant="chatBody" color={theme.colors.textSecondary} align="center" style={styles.welcomeBody}>
-                {copy.intro}
-              </AppText>
+              <NeonPanel style={styles.hero}>
+                <Pressable
+                  onPress={onVoice}
+                  accessibilityRole="button"
+                  accessibilityLabel="Talk to the assistant"
+                >
+                  <AssistantOrb size={orbSize} mood="idle" />
+                </Pressable>
+                <View style={styles.heroText}>
+                  <AppText variant="bodySmall">{copy.greeting(residentName)}</AppText>
+                  <AppText variant="subheading" accessibilityRole="header" style={styles.heroTitle}>
+                    {copy.headline}
+                  </AppText>
+                  <AppText variant="statLabel" style={styles.heroBody}>
+                    {copy.intro}
+                  </AppText>
+                </View>
+              </NeonPanel>
             </FadeSwap>
             <SuggestionChips suggestions={chatSuggestions} onPick={onSend} disabled={pending} />
           </View>

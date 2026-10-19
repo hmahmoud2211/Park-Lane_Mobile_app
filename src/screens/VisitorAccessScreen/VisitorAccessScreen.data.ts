@@ -38,6 +38,14 @@ export const visitorAccessCopy = {
   viewAll: 'View All',
   parkingTitle: 'Reserve Guest Parking',
   parkingSubtitle: 'Reserve a parking slot for your visitors',
+  /** Not in the design: the list's link once it shows everyone. */
+  showLess: 'Show Less',
+  /** Not in the design: the pass card's options menu and its PDF. */
+  sharePass: 'Share pass',
+  cancelPass: 'Cancel pass',
+  passDocumentTitle: 'Visitor Pass',
+  shareFailedTitle: "Couldn't share the pass",
+  shareFailedBody: 'Please try again in a moment.',
 } as const;
 
 export const statusDisplay: Record<
@@ -93,6 +101,27 @@ export const initialVisitors: readonly VisitorPass[] = [
     guests: 2,
     plate: 'EGY 9911',
     status: 'entered',
+  },
+  // Behind "View All".
+  {
+    id: 'youssef-adel',
+    name: 'Youssef Adel',
+    mobile: '+20 11 6677 8899',
+    date: '07 Oct 2026',
+    time: '06:00 PM',
+    guests: 1,
+    plate: '',
+    status: 'scheduled',
+  },
+  {
+    id: 'hana-mostafa',
+    name: 'Hana Mostafa',
+    mobile: '+20 12 7788 9900',
+    date: '08 Oct 2026',
+    time: '01:30 PM',
+    guests: 4,
+    plate: 'EGY 3344',
+    status: 'scheduled',
   },
 ];
 

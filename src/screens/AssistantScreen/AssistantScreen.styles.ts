@@ -1,19 +1,53 @@
 import { StyleSheet } from 'react-native';
 
+import { HALO_SPAN } from '../../components/assistant/AssistantOrb';
+import { spacing } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
-import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
 /**
- * No Figma frame exists for this screen yet. The header keeps the inner
- * screens' 35dp gutter so the back label and lockup hold their place; the
- * conversation below runs wider, as chat needs the room.
+ * Measured from the Figma screen (assets/Screens/screen14.png), exported at
+ * 761px for a 390dp frame (1.951px per dp), which draws the chat's welcome
+ * state. The header keeps the inner screens' 35dp gutter so the back ring and
+ * lockup hold their place; everything below sits inside the theme's screen
+ * gutter, so every frame is as wide as Home's cards.
+ * Colours follow the reference; the type is My Unit's. The frames are drawn
+ * more compact than the reference, and the screen has no bottom bar: chat
+ * gets the full height.
  */
 const HEADER_GUTTER = 35;
-const GUTTER = 20;
+/** Home's gutter: 318dp frames at 390dp. */
+const GUTTER = spacing.screenGutter;
 const TOOLBAR_GAP = 18;
-const MODE_SWITCH_WIDTH = 164;
+const MODE_SWITCH_WIDTH = 156;
 
-export const EMPTY_ORB_SIZE = 92;
+/**
+ * The welcome card: the orb's box 12dp in, the greeting 4dp beyond it, the
+ * card as tall as the orb's halo.
+ */
+const HERO_PADDING_VERTICAL = 12;
+const HERO_ORB_INSET = 12;
+const HERO_TEXT_GAP = 4;
+const HERO_PADDING_RIGHT = 13;
+/** The greeting column never narrows past this; the orb shrinks instead. */
+const HERO_TEXT_MIN = 150;
+/** The orb core; its halo spans `HALO_SPAN` times this. */
+const EMPTY_ORB_MAX = 72;
+/** Small enough that a 320dp phone keeps the intro's line breaks. */
+const EMPTY_ORB_MIN = 44;
+/** Space above the welcome card, and between the suggestions and the composer. */
+const WELCOME_TOP = 18;
+const WELCOME_BOTTOM = 14;
+
+/**
+ * The welcome orb at its full size wherever the card leaves the greeting
+ * room, and smaller on narrow phones.
+ */
+export function emptyOrbSizeFor(windowWidth: number): number {
+  const card = Math.min(windowWidth, MAX_CONTENT_WIDTH) - 2 * GUTTER;
+  const room = card - HERO_ORB_INSET - HERO_TEXT_GAP - HERO_PADDING_RIGHT - HERO_TEXT_MIN;
+  return Math.round(clamp(room / HALO_SPAN, EMPTY_ORB_MIN, EMPTY_ORB_MAX));
+}
 export const VOICE_ORB_SIZE = 136;
 export const VOICE_ORB_SIZE_COMPACT = 104;
 
@@ -41,8 +75,11 @@ export function createStyles(theme: AppTheme) {
       paddingHorizontal: GUTTER,
       gap: theme.spacing.sm,
     },
+    // Takes what the resident chip leaves, up to its drawn width, so a narrow
+    // phone narrows the switch rather than truncating the name.
     modeSwitch: {
-      width: MODE_SWITCH_WIDTH,
+      flex: 1,
+      maxWidth: MODE_SWITCH_WIDTH,
     },
     banner: {
       flexDirection: 'row',
@@ -84,27 +121,38 @@ export function createStyles(theme: AppTheme) {
     },
     threadEmpty: {
       flexGrow: 1,
-      justifyContent: 'center',
+      paddingTop: WELCOME_TOP,
     },
+    // The card at the top and the suggestions at the bottom, the backdrop
+    // showing between them as in the design.
     welcome: {
-      paddingBottom: theme.spacing.md,
+      flex: 1,
+      justifyContent: 'space-between',
+      gap: theme.spacing.lg,
+      paddingBottom: WELCOME_BOTTOM,
     },
-    welcomeOrb: {
-      alignSelf: 'center',
-      marginBottom: theme.spacing.xs,
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: HERO_PADDING_VERTICAL,
+      paddingLeft: HERO_ORB_INSET,
+      paddingRight: HERO_PADDING_RIGHT,
     },
-    welcomeTitle: {
+    heroText: {
+      flex: 1,
+      marginLeft: HERO_TEXT_GAP,
+    },
+    heroTitle: {
       marginTop: 2,
     },
-    welcomeBody: {
+    heroBody: {
       marginTop: theme.spacing.sm,
-      marginBottom: theme.spacing.lg,
-      paddingHorizontal: theme.spacing.md,
     },
     composer: {
-      marginHorizontal: GUTTER - 6,
+      marginHorizontal: GUTTER,
       marginTop: theme.spacing.xs,
-      marginBottom: theme.spacing.md,
+      // Lifts the field off the bottom edge, on top of the safe-area inset.
+      marginBottom: theme.spacing.xl,
     },
 
     /* Voice */

@@ -25,8 +25,10 @@ export interface ModeSwitchProps {
 }
 
 const NATIVE = Platform.OS !== 'web';
+/** After the Assistant design (assets/Screens/screen14.png), more compact: a 38dp track, the lit pill 4dp inside it. */
 const HEIGHT = 38;
-const INSET = 3;
+const INSET = 4;
+const ICON_SIZE = 16;
 
 const OPTIONS: readonly { mode: AssistantMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { mode: 'chat', label: 'Chat', icon: 'chatbubble-ellipses-outline' },
@@ -70,8 +72,8 @@ export function ModeSwitch({ mode, onChange, style }: ModeSwitchProps) {
         >
           <LinearGradient
             colors={[theme.colors.ctaSky, theme.colors.ctaViolet]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
             style={styles.thumbFill}
           />
         </Animated.View>
@@ -90,7 +92,7 @@ export function ModeSwitch({ mode, onChange, style }: ModeSwitchProps) {
           >
             <Ionicons
               name={option.icon}
-              size={15}
+              size={ICON_SIZE}
               color={selected ? theme.colors.textPrimary : theme.colors.textSecondary}
             />
             <AppText
@@ -115,8 +117,8 @@ function createStyles(theme: AppTheme) {
       padding: INSET,
       borderRadius: HEIGHT / 2,
       backgroundColor: theme.colors.fieldFill,
-      borderWidth: StyleSheet.hairlineWidth * 2,
-      borderColor: theme.colors.dividerSubtle,
+      borderWidth: theme.glass.strokeWidth,
+      borderColor: theme.colors.chipVioletStrokeFrom,
     },
     thumb: {
       position: 'absolute',

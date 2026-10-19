@@ -10,6 +10,8 @@ import { BRAND_LOCKUP_HEIGHT, BrandLockup } from './BrandLockup';
 export interface PageHeaderProps {
   /** The screen's name, shown on its own line beneath the back ring. */
   title: string;
+  /** A supporting line under the title, e.g. "Everyday services, made easier." */
+  subtitle?: string;
   /** Shows the menu button at the end of the row. */
   onMenuPress?: () => void;
   /** Replaces the menu button with the screen's own control. */
@@ -20,6 +22,8 @@ export interface PageHeaderProps {
   onBack?: () => void;
   /** A quieter line under the title, e.g. "Step 2 of 2". */
   subtitle?: string;
+  /** Overrides the back ring, e.g. to step back through a wizard rather than leave it. */
+  onBackPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -44,9 +48,12 @@ const MENU_INSET_RIGHT = 12;
 const MENU_ICON_SIZE = 24;
 /** Space between the control row and the title. */
 const TITLE_GAP = 14;
+/** Space between the title and its supporting line, from the Services design. */
+const SUBTITLE_GAP = 2;
 
 /** Back control and menu over the brand lockup, across the top of an inner screen. */
 export function PageHeader({ title, onMenuPress, trailing, showBack = true, onBack, subtitle, style }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, onMenuPress, trailing, onBackPress, style }: PageHeaderProps) {
   const theme = useAppTheme();
 
   const menu = onMenuPress ? (
@@ -69,6 +76,7 @@ export function PageHeader({ title, onMenuPress, trailing, showBack = true, onBa
       </View>
       <View style={styles.row} pointerEvents="box-none">
         {showBack ? <BackButton onPress={onBack} /> : <View />}
+        <BackButton onPress={onBackPress} />
         {trailing ?? menu}
       </View>
       <AppText
@@ -81,6 +89,12 @@ export function PageHeader({ title, onMenuPress, trailing, showBack = true, onBa
       </AppText>
       {subtitle ? (
         <AppText variant="label" color={theme.colors.textSupport} style={styles.subtitle}>
+        <AppText
+          variant="bodySmall"
+          color={theme.colors.textAccentSoft}
+          style={styles.subtitle}
+          numberOfLines={2}
+        >
           {subtitle}
         </AppText>
       ) : null}
@@ -111,6 +125,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 2,
+    marginTop: SUBTITLE_GAP,
     marginLeft: INSET_LEFT,
   },
   pressed: {

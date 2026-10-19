@@ -118,6 +118,19 @@ export const images = {
   amenityPool: require('../assets/images/illustrations/amenity-pool.jpg') as number,
   amenityGym: require('../assets/images/illustrations/amenity-gym.jpg') as number,
   amenityHall: require('../assets/images/illustrations/amenity-hall.jpg') as number,
+
+  /**
+   * PLACEHOLDERS, keyed out of the Services reference
+   * (assets/Screens/screen12.png) at about 2x: each service's illustration on
+   * transparent, without the tile drawn around it (the screen draws its own).
+   * Soft on high-density screens. Replace each with the official export at
+   * its path; no code change needed.
+   */
+  serviceHousekeeping: require('../assets/images/icons/service-housekeeping.png') as number,
+  serviceBills: require('../assets/images/icons/service-bills.png') as number,
+  serviceDeliveries: require('../assets/images/icons/service-deliveries.png') as number,
+  serviceMoving: require('../assets/images/icons/service-moving.png') as number,
+  serviceSupport: require('../assets/images/icons/service-support.png') as number,
 } as const;
 
 /**

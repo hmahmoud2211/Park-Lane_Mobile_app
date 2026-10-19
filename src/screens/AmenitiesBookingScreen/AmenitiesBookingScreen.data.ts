@@ -1,5 +1,6 @@
 import type { IconSet } from '../../components/ui/ServiceTile';
 import type { ImageKey } from '../../constants/images';
+import { formatDate, guestsLabel } from '../VisitorAccessScreen/VisitorAccessScreen.data';
 
 /**
  * Mock content for the Amenities Booking screen. Shaped the way a real API
@@ -18,6 +19,23 @@ export const amenitiesCopy = {
   showLess: 'Show Less',
   /** Not in the design: shown only if a filter ever matches nothing. */
   empty: 'No amenities in this category yet.',
+  /*
+   * Not in the design: the booking form (built on the app's other forms) and
+   * the resident's bookings.
+   */
+  formTitle: (amenity: string) => `Book ${amenity}`,
+  formSubtitle: 'Choose a day, a time and how many are coming',
+  dateLabel: 'Date',
+  datePlaceholder: 'Select date',
+  slotLabel: 'Time',
+  slotPlaceholder: 'Select time',
+  guestsLabel: 'Guests',
+  confirm: 'Confirm Booking',
+  closeForm: 'Close the booking form',
+  bookingsTitle: 'My Bookings',
+  cancelBooking: (amenity: string, date: string) => `Cancel ${amenity} on ${date}`,
+  booked: (amenity: string, date: string, slot: string) => `${amenity} booked for ${date}, ${slot}`,
+  noSlots: 'No times left today',
 } as const;
 
 export type AmenityCategory = 'sports' | 'leisure' | 'family';
@@ -161,4 +179,105 @@ export function hoursLabel({ opens, closes }: Amenity): string {
 /** "Max 20". */
 export function capacityLabel({ capacity }: Amenity): string {
   return `Max ${capacity}`;
+}
+
+export interface Booking {
+  id: string;
+  amenityId: Amenity['id'];
+  /** "18 Oct 2026". */
+  date: string;
+  /** "10:00 - 11:00", as the cards write hours. */
+  slot: string;
+  guests: number;
+}
+
+/** The resident's upcoming bookings, soonest first. */
+export const initialBookings: readonly Booking[] = [
+  { id: 'BK-1001', amenityId: 'pool', date: '18 Oct 2026', slot: '10:00 - 11:00', guests: 2 },
+];
+
+export interface BookingForm {
+  date: string;
+  slot: string;
+  guests: string;
+}
+
+export type BookingErrors = Partial<Record<keyof BookingForm, string>>;
+
+/** At most this many people on one booking, or the amenity's capacity if lower. */
+const MAX_GUESTS = 6;
+
+/** Bookings open from today up to two weeks ahead. */
+export function bookingDates(from: Date = new Date(), days = 14): string[] {
+  return Array.from({ length: days }, (_, offset) =>
+    formatDate(new Date(from.getFullYear(), from.getMonth(), from.getDate() + offset)),
+  );
+}
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+/**
+ * One-hour slots across the amenity's opening hours, as "10:00 - 11:00".
+ * Today's list starts at the next full hour, so a slot already under way
+ * cannot be booked.
+ */
+export function slotOptions(amenity: Amenity, date: string, now: Date = new Date()): string[] {
+  const opens = Number.parseInt(amenity.opens, 10);
+  const closes = Number.parseInt(amenity.closes, 10);
+  const first = date === formatDate(now) ? Math.max(opens, now.getHours() + 1) : opens;
+  return Array.from({ length: Math.max(0, closes - first) }, (_, index) => {
+    const hour = first + index;
+    return `${pad(hour)}:00 - ${pad(hour + 1)}:00`;
+  });
+}
+
+export function guestOptions(amenity: Amenity): string[] {
+  return Array.from({ length: Math.min(MAX_GUESTS, amenity.capacity) }, (_, index) =>
+    guestsLabel(index + 1),
+  );
+}
+
+/** Frontend checks only; the backend will validate again (and check capacity). */
+export function validateBooking(
+  form: BookingForm,
+  amenity: Amenity,
+  bookings: readonly Booking[],
+): BookingErrors {
+  const errors: BookingErrors = {};
+  if (!form.date) {
+    errors.date = 'Choose a date';
+  }
+  if (!form.slot) {
+    errors.slot = 'Choose a time';
+  } else if (
+    bookings.some(
+      (booking) =>
+        booking.amenityId === amenity.id && booking.date === form.date && booking.slot === form.slot,
+    )
+  ) {
+    errors.slot = 'You already booked this time';
+  }
+  return errors;
+}
+
+/**
+ * A confirmed booking. Frontend only: it lives in the screen's state until a
+ * backend takes real ones, so its reference follows the highest so far.
+ */
+export function createBooking(
+  form: BookingForm,
+  amenity: Amenity,
+  existing: readonly Booking[],
+): Booking {
+  const last = existing.reduce(
+    (max, booking) => Math.max(max, Number.parseInt(booking.id.replace(/\D/g, ''), 10) || 0),
+    1000,
+  );
+  return {
+    id: `BK-${last + 1}`,
+    amenityId: amenity.id,
+    date: form.date,
+    slot: form.slot,
+    guests: Number.parseInt(form.guests, 10) || 1,
+  };
 }

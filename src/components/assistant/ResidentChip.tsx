@@ -18,13 +18,22 @@ export interface ResidentChipProps {
   style?: StyleProp<ViewStyle>;
 }
 
+/*
+ * After the Assistant design (assets/Screens/screen14.png), drawn a little
+ * more compact: a 38dp pill, a 26dp avatar 6dp in, the name over the unit
+ * code, and a chevron at the end.
+ */
+const HEIGHT = 38;
+const AVATAR_SIZE = 26;
+const LIGHT_SIZE = 8;
+
 /** Who the assistant is answering for, with a light for the backend's health. */
 export function ResidentChip({ name, unitCode, health, onPress, style }: ResidentChipProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const light =
     health === 'online'
-      ? theme.colors.success
+      ? theme.colors.online
       : health === 'degraded'
         ? theme.colors.warning
         : health === 'offline'
@@ -39,7 +48,12 @@ export function ResidentChip({ name, unitCode, health, onPress, style }: Residen
       style={({ pressed }) => [styles.chip, pressed && styles.pressed, style]}
     >
       <View>
-        <Avatar initials={(name ?? '?').slice(0, 1).toUpperCase()} size={26} variant="flat" labelVariant="chatMeta" />
+        <Avatar
+          initials={(name ?? '?').slice(0, 1).toUpperCase()}
+          size={AVATAR_SIZE}
+          variant="flat"
+          labelVariant="chipLabel"
+        />
         <View style={[styles.light, { backgroundColor: light }]} />
       </View>
       <View style={styles.text}>
@@ -60,29 +74,29 @@ function createStyles(theme: AppTheme) {
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
-      height: 38,
+      height: HEIGHT,
       paddingLeft: 6,
-      paddingRight: 10,
-      borderRadius: 19,
+      paddingRight: 12,
+      borderRadius: HEIGHT / 2,
       backgroundColor: theme.colors.fieldFill,
-      borderWidth: StyleSheet.hairlineWidth * 2,
-      borderColor: theme.colors.dividerSubtle,
+      borderWidth: theme.glass.strokeWidth,
+      borderColor: theme.colors.chipVioletStrokeFrom,
       flexShrink: 1,
     },
     light: {
       position: 'absolute',
       right: -1,
       bottom: -1,
-      width: 9,
-      height: 9,
-      borderRadius: 4.5,
+      width: LIGHT_SIZE,
+      height: LIGHT_SIZE,
+      borderRadius: LIGHT_SIZE / 2,
       borderWidth: 1.5,
       borderColor: theme.colors.backgroundDeep,
     },
     text: {
       flexShrink: 1,
       marginLeft: 8,
-      marginRight: 6,
+      marginRight: 10,
     },
     pressed: {
       opacity: 0.7,

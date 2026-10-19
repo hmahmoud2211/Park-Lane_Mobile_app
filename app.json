@@ -7,7 +7,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Parklane talks to smart devices and your home hub on your local network while you set them up and control them.",
+        "NSLocationWhenInUseUsageDescription": "Parklane reads the name of the Wi-Fi network you are on to check that you joined a device’s setup network. iOS shares network names only with apps allowed to use location.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +23,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.NEARBY_WIFI_DEVICES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -40,6 +52,16 @@
         }
       ],
       "expo-sharing"
+      "expo-sharing",
+      "react-native-wifi-reborn",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "backgroundColor": "#071B44"
   }

@@ -5,6 +5,7 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, View, type StyleProp
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
+import { NeonPanel } from '../ui/NeonPanel';
 import { isRtlText } from './RichText';
 
 export interface Suggestion {
@@ -25,11 +26,26 @@ const NATIVE = Platform.OS !== 'web';
 const STAGGER_MS = 55;
 const BASE_DELAY_MS = 180;
 
-/** Example questions that cascade in, one after another. */
+/*
+ * After the Assistant design (assets/Screens/screen14.png), more compact:
+ * neon cards two across, 48dp tall and 10dp apart, a cyan glyph 12dp in, the
+ * question 10dp beyond it and a chevron at the end. At Home's width (154dp
+ * cards at 390dp) that leaves 85dp for the question: "Any active alarms"
+ * still fits on a line.
+ */
+const CARD_GAP = 10;
+const MIN_HEIGHT = 48;
+const ICON_SIZE = 18;
+const CHEVRON_SIZE = 13;
+/** Cards narrower than this (small phones) drop the chevron to give the question room. */
+const NARROW_CARD = 140;
+
+/** Example questions as cards that cascade in, one after another. */
 export function SuggestionChips({ suggestions, onPick, disabled, style }: SuggestionChipsProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [progress] = useState(() => suggestions.map(() => new Animated.Value(0)));
+  const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
     const cascade = Animated.stagger(
@@ -51,7 +67,12 @@ export function SuggestionChips({ suggestions, onPick, disabled, style }: Sugges
   }, [progress]);
 
   return (
-    <View style={[styles.wrap, style]}>
+    <View
+      style={[styles.wrap, style]}
+      // Two cards share the row; the cards are still hidden by the cascade
+      // when this first runs, so dropping the chevron never shows.
+      onLayout={(event) => setNarrow(event.nativeEvent.layout.width / 2 < NARROW_CARD)}
+    >
       {suggestions.map((suggestion, index) => {
         const value = progress[index];
         const rtl = isRtlText(suggestion.text);
@@ -71,18 +92,25 @@ export function SuggestionChips({ suggestions, onPick, disabled, style }: Sugges
               onPress={() => onPick(suggestion.text)}
               accessibilityRole="button"
               accessibilityLabel={`Ask: ${suggestion.text}`}
-              style={({ pressed }) => [styles.chip, rtl && styles.chipRtl, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.fill, pressed && styles.pressed]}
             >
-              <View style={styles.icon}>
-                <Ionicons name={suggestion.icon} size={14} color={theme.colors.accent} />
-              </View>
-              <AppText
-                variant="chipLabel"
-                numberOfLines={2}
-                style={[styles.label, rtl ? styles.labelRtl : null]}
-              >
-                {suggestion.text}
-              </AppText>
+              <NeonPanel style={[styles.chip, rtl && styles.chipRtl]}>
+                <Ionicons name={suggestion.icon} size={ICON_SIZE} color={theme.colors.accent} />
+                <AppText
+                  variant="chipLabel"
+                  numberOfLines={3}
+                  style={[styles.label, rtl ? styles.labelRtl : null]}
+                >
+                  {suggestion.text}
+                </AppText>
+                {narrow ? null : (
+                  <Ionicons
+                    name={rtl ? 'chevron-back' : 'chevron-forward'}
+                    size={CHEVRON_SIZE}
+                    color={theme.colors.textSecondary}
+                  />
+                )}
+              </NeonPanel>
             </Pressable>
           </Animated.View>
         );
@@ -96,39 +124,37 @@ function createStyles(theme: AppTheme) {
     wrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      marginHorizontal: -5,
+      margin: -CARD_GAP / 2,
     },
     cell: {
       width: '50%',
-      padding: 5,
+      padding: CARD_GAP / 2,
+    },
+    fill: {
+      flex: 1,
     },
     chip: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 52,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.bubbleFill,
-      borderWidth: StyleSheet.hairlineWidth * 2,
-      borderColor: theme.colors.bubbleStroke,
+      minHeight: MIN_HEIGHT,
+      paddingLeft: 12,
+      paddingRight: 10,
+      paddingVertical: theme.spacing.sm,
     },
     chipRtl: {
       flexDirection: 'row-reverse',
-    },
-    icon: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.infoFill,
+      paddingLeft: 10,
+      paddingRight: 12,
     },
     label: {
       flex: 1,
-      marginHorizontal: 8,
+      marginLeft: 10,
+      marginRight: 6,
     },
     labelRtl: {
+      marginLeft: 6,
+      marginRight: 10,
       textAlign: 'right',
       writingDirection: 'rtl',
     },

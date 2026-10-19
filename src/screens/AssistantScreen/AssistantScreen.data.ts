@@ -9,7 +9,8 @@ export const assistantCopy = {
   title: 'Assistant',
   greeting: (name: string | null) => (name ? `Hi ${name},` : 'Hi there,'),
   headline: 'How can I help you today?',
-  intro: 'Ask about your unit, visitors, parking, the building or the weather, in Arabic or English.',
+  /** Broken as in the design (assets/Screens/screen14.png). */
+  intro: 'Ask about your unit, visitors, parking,\nthe building or the weather,\nin Arabic or English.',
   voiceIdleTitle: 'Talk to Parklane',
   voiceIdleBody: 'Tap start, then just speak. Turn the camera on and ask "what is this?" to show me something.',
   voiceLanguageNote: 'Replies are spoken in Egyptian Arabic.',
@@ -24,15 +25,12 @@ export const assistantCopy = {
   guest: 'Guest (not signed in)',
 } as const;
 
+/** The four the design shows, two across. Sent as typed, so no line breaks. */
 export const chatSuggestions: readonly Suggestion[] = [
   { id: 'installment', text: 'When is my next installment?', icon: 'wallet-outline' },
   { id: 'visitors', text: 'Do I have visitors today?', icon: 'people-outline' },
   { id: 'parking', text: 'Where is my parking slot?', icon: 'car-outline' },
   { id: 'alarms', text: 'Any active alarms in the building?', icon: 'notifications-outline' },
-  { id: 'generator', text: 'حالة المولد إيه دلوقتي؟', icon: 'flash-outline' },
-  { id: 'energy', text: 'How much energy did we use yesterday?', icon: 'stats-chart-outline' },
-  { id: 'weather', text: "What's the weather today?", icon: 'partly-sunny-outline' },
-  { id: 'community', text: 'Any community news?', icon: 'megaphone-outline' },
 ];
 
 /** Spoken examples on the idle voice screen. */

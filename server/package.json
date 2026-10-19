@@ -1,0 +1,15 @@
+{
+  "name": "parklane-device-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Holds the CUBE hub's credentials for the Parklane app, and bridges SONOFF Wi-Fi plugs to the hub over the eWeLink LAN protocol.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc -p ."
+  }
+}

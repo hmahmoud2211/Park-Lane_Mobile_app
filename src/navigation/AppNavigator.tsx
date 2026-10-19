@@ -22,7 +22,10 @@ import { ReservationDetailsScreen } from '../screens/ReservationDetailsScreen';
 import { ReservationHistoryScreen } from '../screens/ReservationHistoryScreen';
 import { ReserveParkingScreen } from '../screens/ReserveParkingScreen';
 import { SecurityConsoleScreen } from '../screens/SecurityConsoleScreen';
+import { ServicesScreen } from '../screens/ServicesScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { SmartHomeScreen } from '../screens/SmartHomeScreen';
+import { SonoffPairingScreen } from '../screens/SonoffPairingScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import type { RootStackParamList } from '../types/navigation.types';
@@ -105,7 +108,10 @@ export function AppNavigator() {
         <Stack.Screen name="Parking" component={ParkingScreen} />
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
+        <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
         <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
+        <Stack.Screen name="Services" component={ServicesScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Assistant" component={AssistantScreen} />
         <Stack.Screen name="UnderDevelopment" component={UnderDevelopmentScreen} />
         <Stack.Screen name="ReserveParking" component={ReserveParkingScreen} />

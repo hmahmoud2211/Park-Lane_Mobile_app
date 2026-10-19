@@ -75,13 +75,13 @@ export function AmenityCard({
       </View>
 
       <View style={styles.body}>
-        {/* The heading opens the amenity; "Book Now" is its own target beside it,
-            since a button may not sit inside another. */}
+        {/* The heading opens the booking form too; "Book Now" is its own target
+            beside it, since a button may not sit inside another. */}
         <Pressable
           onPress={onPress}
           accessibilityRole="button"
           accessibilityLabel={`${title}, ${location}. Open ${hours}, ${capacity} people`}
-          accessibilityHint="Shows the amenity"
+          accessibilityHint="Opens the booking form"
           style={({ pressed }) => [styles.headingRow, pressed && styles.pressed]}
         >
           <View style={styles.ring}>

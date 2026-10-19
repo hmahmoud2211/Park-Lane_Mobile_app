@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -17,9 +17,12 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useCubeDevices } from '../../hooks/useCubeDevices';
+import type { CubeDevice } from '../../services/cube/cube.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 // My Unit's own scale, so the two screens' small type is drawn at one size.
 import { statScaleFor } from '../MyUnitScreen/MyUnitScreen.styles';
+import { AddDeviceSheet } from './AddDeviceSheet';
 import { AutomationRow } from './AutomationRow';
 import { ClimateControls } from './ClimateControls';
 import { ControlCard } from './ControlCard';
@@ -30,8 +33,10 @@ import { SceneTile } from './SceneTile';
 import {
   acCard,
   activeSceneId,
+  addDeviceCopy,
   automations,
   climate,
+  cubeCategoryGlyphs,
   curtainActions,
   curtainsCard,
   deviceStatusLabel,
@@ -42,13 +47,17 @@ import {
   lightingCard,
   mediaCard,
   mediaSources,
+  previewCounts,
   rooms,
   scenes,
   smartHomeCopy as copy,
   type AcMode,
   type CurtainAction,
+  type Scene,
 } from './SmartHomeScreen.data';
 import {
+  ADD_BUTTON_SIZE,
+  ADD_ICON_SIZE,
   BANNER_BUTTON_SIZE,
   BANNER_CHEVRON_SIZE,
   BANNER_HEIGHT,
@@ -68,9 +77,48 @@ function notYetRouted() {
   // TODO(nav): route to the destination screen once it is designed.
 }
 
+/** The panels whose "View All" opens the full list in place. */
+type ExpandablePanel = 'scenes' | 'energy' | 'devices' | 'automations';
+
+const SCENES_PER_ROW = 4;
+
+/** Splits scenes into rows of four. */
+function sceneRows(items: readonly Scene[]): Scene[][] {
+  return Array.from({ length: Math.ceil(items.length / SCENES_PER_ROW) }, (_, row) =>
+    items.slice(row * SCENES_PER_ROW, (row + 1) * SCENES_PER_ROW),
+  );
+}
+
 /** Seeds a per-item on/off map from mock data. */
 function enabledMap(items: readonly { id: string; enabled: boolean }[]) {
   return Object.fromEntries(items.map((item) => [item.id, item.enabled]));
+}
+
+/** One card in the Smart Devices panel, from the hub or from the sample data. */
+interface DeviceItem {
+  id: string;
+  name: string;
+  location: string;
+  iconSet: Scene['iconSet'];
+  iconName: string;
+  online: boolean;
+  enabled: boolean;
+  onToggle?: (next: boolean) => void;
+}
+
+/** A device on the CUBE hub as a card: switchable only if it has power control. */
+function cubeDeviceItem(device: CubeDevice, setPower: (id: string, on: boolean) => void): DeviceItem {
+  const glyph = cubeCategoryGlyphs[device.display_category] ?? cubeCategoryGlyphs.chip;
+  const switchable = device.capabilities.some((entry) => entry.capability === 'power');
+  return {
+    id: device.serial_number,
+    name: device.name,
+    location: [device.manufacturer, device.model].filter(Boolean).join(' · '),
+    ...glyph,
+    online: device.online,
+    enabled: switchable ? device.state?.power?.powerState === 'on' : device.online,
+    onToggle: switchable ? (next) => setPower(device.serial_number, next) : undefined,
+  };
 }
 
 export function SmartHomeScreen() {
@@ -83,6 +131,22 @@ export function SmartHomeScreen() {
   const cellStyle = layout.controlColumns === 2 ? styles.gridCell : undefined;
   const navigation = useNavigation<RootStackScreenProps<'SmartHome'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const hub = useCubeDevices();
+
+  // Coming back from the SONOFF wizard, re-read the hub so a plug it added shows up.
+  const { refresh: refreshHub } = hub;
+  const focusedOnce = useRef(false);
+  useEffect(
+    () =>
+      navigation.addListener('focus', () => {
+        if (focusedOnce.current) {
+          void refreshHub();
+        }
+        focusedOnce.current = true;
+      }),
+    [navigation, refreshHub],
+  );
 
   // Screen-local until there is a home-automation backend to send commands to.
   // TODO(api): send each change to the unit's controller once that service exists.
@@ -101,6 +165,44 @@ export function SmartHomeScreen() {
   const [sceneId, setSceneId] = useState(activeSceneId);
   const [devicesOn, setDevicesOn] = useState(() => enabledMap(devices));
   const [automationsOn, setAutomationsOn] = useState(() => enabledMap(automations));
+  const [expanded, setExpanded] = useState<Record<ExpandablePanel, boolean>>({
+    scenes: false,
+    energy: false,
+    devices: false,
+    automations: false,
+  });
+
+  // "View All" opens the panel's full list in place; "Show Less" folds it back.
+  const viewAll = (panel: ExpandablePanel) => ({
+    actionLabel: expanded[panel] ? copy.showLess : copy.viewAll,
+    actionExpanded: expanded[panel],
+    onActionPress: () => setExpanded((current) => ({ ...current, [panel]: !current[panel] })),
+  });
+
+  const visibleScenes = expanded.scenes ? scenes : scenes.slice(0, previewCounts.scenes);
+  // The hub's devices once it answers; the design's sample devices while it cannot be reached.
+  const deviceItems: DeviceItem[] =
+    hub.status === 'connected'
+      ? hub.devices.map((device) => cubeDeviceItem(device, hub.setPower))
+      : devices.map((device) => ({
+          ...device,
+          enabled: devicesOn[device.id] ?? device.enabled,
+          onToggle: (next: boolean) => setDevicesOn((current) => ({ ...current, [device.id]: next })),
+        }));
+  const visibleDevices = expanded.devices
+    ? deviceItems
+    : deviceItems.slice(0, previewCounts.devices);
+  const deviceNote =
+    hub.status === 'connecting'
+      ? addDeviceCopy.hubConnecting
+      : hub.status === 'unreachable'
+        ? addDeviceCopy.hubUnreachable
+        : deviceItems.length === 0
+          ? addDeviceCopy.noDevices
+          : hub.error;
+  const visibleAutomations = expanded.automations
+    ? automations
+    : automations.slice(0, previewCounts.automations);
 
   const handleLogout = useCallback(() => {
     setMenuOpen(false);
@@ -116,6 +218,32 @@ export function SmartHomeScreen() {
 
   const headingIcon = (name: keyof typeof Ionicons.glyphMap, color: string) => (
     <Ionicons name={name} size={HEADING_ICON_SIZE} color={color} />
+  );
+
+  // One breakdown line: the category rows, and the per-room rows behind "View All".
+  const energyRow = (row: {
+    id: string;
+    label: string;
+    kwh: number;
+    iconSet: Scene['iconSet'];
+    iconName: string;
+    iconColor?: string;
+  }) => (
+    <GlassSurface
+      key={row.id}
+      radius={theme.borderRadius.sm}
+      stroke="gradient"
+      strokeColors={[theme.colors.avatarStroke, theme.colors.dividerSubtle]}
+      blurred={false}
+      fillOpacity={theme.glass.subtleFillOpacity}
+      style={styles.energyRow}
+    >
+      <AppIcon set={row.iconSet} name={row.iconName} size={ROOM_ICON_SIZE} color={row.iconColor} />
+      <AppText variant="statValue" style={styles.energyLabel}>
+        {row.label}
+      </AppText>
+      <AppText variant="statValue">{formatKwh(row.kwh)}</AppText>
+    </GlassSurface>
   );
 
   return (
@@ -308,21 +436,27 @@ export function SmartHomeScreen() {
                 subtitle={copy.scenesSubtitle}
                 icon={headingIcon('star-outline', theme.colors.iconWarm)}
                 iconSize={HEADING_ICON_SIZE}
-                actionLabel={copy.viewAll}
-                onActionPress={notYetRouted}
+                {...viewAll('scenes')}
                 divider={false}
               />
-              <View style={styles.sceneRow} accessibilityRole="radiogroup">
-                {scenes.map((scene) => (
-                  <SceneTile
-                    key={scene.id}
-                    label={scene.label}
-                    photo={images[scene.photo]}
-                    iconSet={scene.iconSet}
-                    iconName={scene.iconName}
-                    active={scene.id === sceneId}
-                    onPress={() => setSceneId(scene.id)}
-                  />
+              <View style={styles.sceneGrid} accessibilityRole="radiogroup">
+                {sceneRows(visibleScenes).map((row) => (
+                  <View key={row[0].id} style={styles.sceneRow}>
+                    {row.map((scene) => (
+                      <SceneTile
+                        key={scene.id}
+                        label={scene.label}
+                        photo={scene.photo ? images[scene.photo] : undefined}
+                        iconSet={scene.iconSet}
+                        iconName={scene.iconName}
+                        active={scene.id === sceneId}
+                        onPress={() => setSceneId(scene.id)}
+                      />
+                    ))}
+                    {Array.from({ length: SCENES_PER_ROW - row.length }, (_, index) => (
+                      <View key={`spacer-${index}`} style={styles.sceneSpacer} />
+                    ))}
+                  </View>
                 ))}
               </View>
             </NeonPanel>
@@ -333,8 +467,7 @@ export function SmartHomeScreen() {
                 subtitle={copy.energySubtitle}
                 icon={headingIcon('leaf-outline', theme.colors.textPrimary)}
                 iconSize={HEADING_ICON_SIZE}
-                actionLabel={copy.viewAll}
-                onActionPress={notYetRouted}
+                {...viewAll('energy')}
                 divider={false}
               />
               <View style={[styles.energyBody, layout.energyStacked && styles.energyStacked]}>
@@ -350,30 +483,34 @@ export function SmartHomeScreen() {
                   />
                 </View>
                 <View style={[styles.energyRows, layout.energyStacked && styles.energyRowsStacked]}>
-                  {energy.breakdown.map((row) => (
-                    <GlassSurface
-                      key={row.id}
-                      radius={theme.borderRadius.sm}
-                      stroke="gradient"
-                      strokeColors={[theme.colors.avatarStroke, theme.colors.dividerSubtle]}
-                      blurred={false}
-                      fillOpacity={theme.glass.subtleFillOpacity}
-                      style={styles.energyRow}
-                    >
-                      <AppIcon
-                        set={row.iconSet}
-                        name={row.iconName}
-                        size={ROOM_ICON_SIZE}
-                        color={theme.colors[row.iconColor]}
-                      />
-                      <AppText variant="statValue" style={styles.energyLabel}>
-                        {row.label}
-                      </AppText>
-                      <AppText variant="statValue">{formatKwh(row.kwh)}</AppText>
-                    </GlassSurface>
-                  ))}
+                  {energy.breakdown.map((row) =>
+                    energyRow({ ...row, iconColor: theme.colors[row.iconColor] }),
+                  )}
                 </View>
               </View>
+              {expanded.energy ? (
+                <View style={styles.energyRooms}>
+                  <AppText
+                    variant="statLabel"
+                    color={theme.colors.textSupport}
+                    style={styles.energyRoomsTitle}
+                  >
+                    {copy.energyByRoom}
+                  </AppText>
+                  {energy.byRoom.map(({ roomId, kwh }) => {
+                    const room = rooms.find((entry) => entry.id === roomId);
+                    return room
+                      ? energyRow({
+                          id: room.id,
+                          label: room.label,
+                          kwh,
+                          iconSet: room.iconSet,
+                          iconName: room.iconName,
+                        })
+                      : null;
+                  })}
+                </View>
+              ) : null}
             </NeonPanel>
 
             <NeonPanel style={styles.card}>
@@ -391,12 +528,40 @@ export function SmartHomeScreen() {
                   />
                 }
                 iconSize={HEADING_ICON_SIZE}
-                actionLabel={copy.viewAll}
-                onActionPress={notYetRouted}
+                {...viewAll('devices')}
+                trailing={
+                  <Pressable
+                    onPress={() => setAddOpen(true)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={addDeviceCopy.buttonLabel}
+                    style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+                  >
+                    <GlassSurface
+                      radius={ADD_BUTTON_SIZE / 2}
+                      stroke="gradient"
+                      strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+                      blurred={false}
+                      fillOpacity={theme.glass.subtleFillOpacity}
+                      style={styles.bannerButtonSurface}
+                    >
+                      <Ionicons name="add" size={ADD_ICON_SIZE} color={theme.colors.textPrimary} />
+                    </GlassSurface>
+                  </Pressable>
+                }
                 divider={false}
               />
               <View style={styles.deviceGrid}>
-                {devices.map((device) => (
+                {deviceNote ? (
+                  <AppText
+                    variant="tileCaption"
+                    color={theme.colors.textSupport}
+                    style={styles.deviceNote}
+                  >
+                    {deviceNote}
+                  </AppText>
+                ) : null}
+                {visibleDevices.map((device) => (
                   <View
                     key={device.id}
                     style={[styles.deviceCell, layout.deviceColumns === 1 && styles.deviceCellFull]}
@@ -408,8 +573,8 @@ export function SmartHomeScreen() {
                       iconName={device.iconName}
                       online={device.online}
                       statusLabel={device.online ? deviceStatusLabel.online : deviceStatusLabel.offline}
-                      enabled={devicesOn[device.id] ?? device.enabled}
-                      onToggle={(next) => setDevicesOn((current) => ({ ...current, [device.id]: next }))}
+                      enabled={device.enabled}
+                      onToggle={device.onToggle}
                       // TODO(nav): open the device once its detail screen is designed.
                       onPress={notYetRouted}
                     />
@@ -424,12 +589,11 @@ export function SmartHomeScreen() {
                 subtitle={copy.automationSubtitle}
                 icon={headingIcon('settings-outline', theme.colors.textPrimary)}
                 iconSize={HEADING_ICON_SIZE}
-                actionLabel={copy.viewAll}
-                onActionPress={notYetRouted}
+                {...viewAll('automations')}
                 divider={false}
               />
               <View style={styles.automationList}>
-                {automations.map((automation) => (
+                {visibleAutomations.map((automation) => (
                   <AutomationRow
                     key={automation.id}
                     title={automation.title}
@@ -452,6 +616,13 @@ export function SmartHomeScreen() {
         {/* The same empty glass bar as the other inner screens. */}
         <BottomBar />
       </View>
+
+      <AddDeviceSheet
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        refresh={hub.refresh}
+        onAddSonoff={() => navigation.navigate('SonoffPairing')}
+      />
 
       <AppMenu
         visible={menuOpen}

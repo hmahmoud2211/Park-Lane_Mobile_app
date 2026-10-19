@@ -31,6 +31,10 @@ export const BANNER_HEIGHT = 128;
 export const BANNER_BUTTON_SIZE = 26;
 const BANNER_BUTTON_TOP = 12;
 export const BANNER_CHEVRON_SIZE = 13;
+/** Not in the design: the Smart Devices "+", a ring the banner chevron's size. */
+export const ADD_BUTTON_SIZE = BANNER_BUTTON_SIZE;
+export const ADD_ICON_SIZE = 16;
+const ACTION_TO_ADD = 10;
 
 /** Room chips (FilterChip), scrolling sideways within the cards' width. */
 const BANNER_TO_ROOMS = 14;
@@ -197,12 +201,20 @@ export function createStyles(theme: AppTheme) {
       height: MEDIA_LOGO_HEIGHT,
     },
 
-    sceneRow: {
-      flexDirection: 'row',
+    // Rows of four; "View All" adds rows below the drawn one.
+    sceneGrid: {
       gap: ROW_GAP,
       paddingHorizontal: PANEL_INSET,
       paddingTop: 2,
       paddingBottom: PANEL_BOTTOM,
+    },
+    sceneRow: {
+      flexDirection: 'row',
+      gap: ROW_GAP,
+    },
+    /** Holds a short last row's empty places, so its tiles keep their width. */
+    sceneSpacer: {
+      flex: 1,
     },
 
     energyBody: {
@@ -238,6 +250,15 @@ export function createStyles(theme: AppTheme) {
       flex: 1,
       marginLeft: ENERGY_ROW_INSET,
     },
+    // "View All": today's use per room, under the gauge and breakdown.
+    energyRooms: {
+      gap: ENERGY_ROW_GAP,
+      paddingHorizontal: PANEL_INSET + 2,
+      paddingBottom: PANEL_BOTTOM,
+    },
+    energyRoomsTitle: {
+      marginBottom: 2,
+    },
 
     deviceGrid: {
       flexDirection: 'row',
@@ -253,6 +274,14 @@ export function createStyles(theme: AppTheme) {
       flexBasis: '40%',
     },
     deviceCellFull: {
+      flexBasis: '100%',
+    },
+    addButton: {
+      width: ADD_BUTTON_SIZE,
+      height: ADD_BUTTON_SIZE,
+      marginLeft: ACTION_TO_ADD,
+    },
+    deviceNote: {
       flexBasis: '100%',
     },
 

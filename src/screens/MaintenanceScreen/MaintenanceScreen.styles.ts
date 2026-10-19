@@ -162,6 +162,21 @@ export function createStyles(theme: AppTheme) {
       paddingVertical: DETAILS_VERTICAL,
     },
 
+    // "View All" / "My Requests": the other requests, under the active one's details.
+    history: {
+      paddingBottom: PANEL_INSET,
+    },
+    historyTitle: {
+      marginTop: REQUEST_TOP,
+      paddingHorizontal: PANEL_INSET,
+    },
+    historyFirstRow: {
+      marginTop: 10,
+    },
+    historyRow: {
+      marginTop: 14,
+    },
+
     actions: {
       flexDirection: 'row',
       gap: ACTION_GAP,
