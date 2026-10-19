@@ -1,12 +1,12 @@
 import type { IconBadge } from '../../components/common/AppIcon';
 import type { IconSet } from '../../components/ui/ServiceTile';
-import type { StatusTone } from '../../components/ui/StatusChip';
+import type { DashboardCounts } from '../../services/parking/selectors';
 
 /**
- * Mock content for the Parking screen. Shaped the way a real API response
- * would be, so wiring this to a backend later replaces this module rather
- * than the screen. Wording matches the Figma reference
- * (assets/Screens/screen7.png) exactly.
+ * Copy and presentation rules for the Parking screen. The figures themselves
+ * come from the parking store (services/parking), so every count on screen
+ * is derived from the same bookings, bays and chargers. Layout follows the
+ * Figma reference (assets/Screens/screen7.png).
  */
 
 export const parkingCopy = {
@@ -15,9 +15,12 @@ export const parkingCopy = {
   bannerBody: 'Seamless access, greater\nconvenience, a smarter\ncommunity.',
   myParkingTitle: 'My Parking',
   vehicleTitle: 'Registered Vehicle',
-  guestRequestTitle: 'Guest Parking Request',
+  guestRequestTitle: 'Guest Parking Requests',
+  guestRequestEmpty: 'No upcoming guest parking. Reserve a space and share the pass with your visitor.',
   activityTitle: 'Parking Activity',
+  activityEmpty: 'Entries and exits for your bookings appear here.',
   viewAll: 'View All',
+  countsNote: 'Live counts right now. When you book, availability is checked for the exact time you choose.',
 } as const;
 
 /** A glyph from either icon set, optionally badged with a ringed + or − (see AppIcon). */
@@ -29,69 +32,6 @@ export interface GlyphIcon {
 
 /** Separates the parts of a summary line, e.g. tower and level. */
 export const SEPARATOR = ' • ';
-
-/** Only the state the design shows; add others with their chip when designed. */
-export type SlotStatus = 'active';
-
-export const slotStatusDisplay: Record<SlotStatus, { label: string; tone: StatusTone }> = {
-  active: { label: 'Active', tone: 'teal' },
-};
-
-export interface ParkingSlot {
-  /** The bay's code, as painted on its pillar. */
-  code: string;
-  tower: string;
-  level: string;
-  status: SlotStatus;
-}
-
-export const mySlot: ParkingSlot = {
-  code: 'P2-148',
-  tower: 'Tower A',
-  level: 'Basement 2',
-  status: 'active',
-};
-
-export interface Vehicle {
-  make: string;
-  model: string;
-  colour: string;
-  /** Country that issued the plate, e.g. "Egypt". */
-  plateCountry: string;
-  plate: string;
-}
-
-export const myVehicle: Vehicle = {
-  make: 'BMW',
-  model: 'X5 xDrive',
-  colour: 'Black',
-  plateCountry: 'Egypt',
-  plate: 'EGY 5678',
-};
-
-/** Counts for the resident's building, as the stat tiles show them. */
-export interface ParkingCapacity {
-  available: number;
-  total: number;
-  guestAvailable: number;
-  guestTotal: number;
-  evAvailable: number;
-  evTotal: number;
-}
-
-export const capacity: ParkingCapacity = {
-  available: 42,
-  total: 120,
-  guestAvailable: 8,
-  guestTotal: 20,
-  evAvailable: 6,
-  evTotal: 12,
-};
-
-/** Share of the building's bays in use, 0-1: 78 of 120 is the design's 65%. */
-export function occupancyOf({ available, total }: ParkingCapacity): number {
-  return total > 0 ? (total - available) / total : 0;
-}
 
 /** The drawn parking sign, which no icon set has; everything else is a glyph. */
 export type StatIcon = GlyphIcon | 'parking-sign';
@@ -107,36 +47,36 @@ export interface ParkingStat {
   progress?: number;
 }
 
-export function parkingStats(counts: ParkingCapacity): ParkingStat[] {
-  const occupancy = occupancyOf(counts);
+/** The four tiles, each labelled with exactly what it counts. */
+export function parkingStats(counts: DashboardCounts): ParkingStat[] {
   return [
     {
       id: 'available',
-      label: 'Available\nSpaces',
-      value: String(counts.available),
-      total: String(counts.total),
+      label: 'Available\nnow',
+      value: String(counts.sharedAvailableNow),
+      total: String(counts.sharedTotal),
       icon: 'parking-sign',
     },
     {
       id: 'guest',
-      label: 'Guest\nParking',
-      value: String(counts.guestAvailable),
+      label: 'Guest bays\nfree now',
+      value: String(counts.guestAvailableNow),
       total: String(counts.guestTotal),
       icon: { set: 'ionicons', name: 'people-outline' },
     },
     {
       id: 'ev',
-      label: 'EV\nCharging',
-      value: String(counts.evAvailable),
-      total: String(counts.evTotal),
+      label: 'Chargers\nfree now',
+      value: String(counts.chargerFreeNow),
+      total: String(counts.chargerTotal),
       icon: { set: 'ionicons', name: 'flash-outline' },
     },
     {
       id: 'occupancy',
-      label: 'Occupancy\nRate',
-      value: `${Math.round(occupancy * 100)}%`,
+      label: 'Occupied\nnow',
+      value: `${Math.round(counts.occupancyRate * 100)}%`,
       icon: { set: 'ionicons', name: 'pie-chart-outline' },
-      progress: occupancy,
+      progress: counts.occupancyRate,
     },
   ];
 }
@@ -145,7 +85,7 @@ export function parkingStats(counts: ParkingCapacity): ParkingStat[] {
 export type ActionTone = 'blue' | 'violet' | 'glass';
 
 export interface ParkingAction {
-  id: 'navigate' | 'request-guest' | 'register-vehicle';
+  id: 'navigate' | 'reserve-guest' | 'reserve-ev';
   /** Two lines, broken where the design breaks them. */
   label: string;
   icon: GlyphIcon;
@@ -160,128 +100,15 @@ export const parkingActions: readonly ParkingAction[] = [
     tone: 'blue',
   },
   {
-    id: 'request-guest',
-    label: 'Request\nGuest Parking',
+    id: 'reserve-guest',
+    label: 'Reserve\nGuest Parking',
     icon: { set: 'ionicons', name: 'people-outline' },
     tone: 'violet',
   },
   {
-    id: 'register-vehicle',
-    label: 'Register\nNew Vehicle',
-    icon: { set: 'ionicons', name: 'car-outline', badge: 'add' },
+    id: 'reserve-ev',
+    label: 'Reserve\nEV Charging',
+    icon: { set: 'ionicons', name: 'flash-outline' },
     tone: 'glass',
-  },
-];
-
-/** Only the state the design shows; add others with their chip when designed. */
-export type GuestRequestStatus = 'approved';
-
-export const guestRequestStatusDisplay: Record<
-  GuestRequestStatus,
-  { label: string; tone: StatusTone }
-> = {
-  approved: { label: 'Approved', tone: 'teal' },
-};
-
-export interface GuestParkingRequest {
-  id: string;
-  /** Display date, e.g. "05 Oct 2026". */
-  date: string;
-  /** Display times bounding the reservation, e.g. "02:00 PM". */
-  from: string;
-  to: string;
-  guests: number;
-  status: GuestRequestStatus;
-}
-
-export const latestGuestRequest: GuestParkingRequest = {
-  id: 'GPR-2026-0311',
-  date: '05 Oct 2026',
-  from: '02:00 PM',
-  to: '08:00 PM',
-  guests: 2,
-  status: 'approved',
-};
-
-export function guestsLabel(count: number): string {
-  return count === 1 ? '1 Guest' : `${count} Guests`;
-}
-
-/** "02:00 PM – 08:00 PM". */
-export function timeRange({ from, to }: Pick<GuestParkingRequest, 'from' | 'to'>): string {
-  return `${from} – ${to}`;
-}
-
-export type ActivityKind = 'vehicle-entry' | 'guest-approval' | 'vehicle-exit';
-
-/**
- * Each kind of event keeps its icon and status colour. Entries are drawn
- * teal; approvals and exits violet, whatever their status reads.
- */
-export const activityKindDisplay: Record<
-  ActivityKind,
-  { title: string; icon: GlyphIcon; tone: StatusTone }
-> = {
-  'vehicle-entry': {
-    title: 'Car Entered',
-    icon: { set: 'ionicons', name: 'car-outline' },
-    tone: 'teal',
-  },
-  'guest-approval': {
-    title: 'Guest Parking Approved',
-    icon: { set: 'ionicons', name: 'people-outline' },
-    tone: 'violet',
-  },
-  'vehicle-exit': {
-    title: 'Vehicle Exit Logged',
-    icon: { set: 'ionicons', name: 'car-outline', badge: 'remove' },
-    tone: 'violet',
-  },
-};
-
-export type ActivityStatus = 'completed' | 'approved';
-
-export const activityStatusLabel: Record<ActivityStatus, string> = {
-  completed: 'Completed',
-  approved: 'Approved',
-};
-
-export interface ParkingActivity {
-  id: string;
-  kind: ActivityKind;
-  /** Whose car or guests, e.g. "My Vehicle", "Sara Lamees". */
-  subject: string;
-  /** The bay or the party, e.g. "P2-148", "2 Guests". */
-  detail: string;
-  /** Display time, e.g. "Today, 09:14 AM". */
-  time: string;
-  status: ActivityStatus;
-}
-
-/** Newest first, in the reference's order. */
-export const recentActivity: readonly ParkingActivity[] = [
-  {
-    id: 'act-0914',
-    kind: 'vehicle-entry',
-    subject: 'My Vehicle',
-    detail: mySlot.code,
-    time: 'Today, 09:14 AM',
-    status: 'completed',
-  },
-  {
-    id: 'act-1030',
-    kind: 'guest-approval',
-    subject: 'Sara Lamees',
-    detail: guestsLabel(2),
-    time: 'Today, 10:30 AM',
-    status: 'approved',
-  },
-  {
-    id: 'act-2045',
-    kind: 'vehicle-exit',
-    subject: 'My Vehicle',
-    detail: mySlot.code,
-    time: 'Today, 08:45 PM',
-    status: 'completed',
   },
 ];

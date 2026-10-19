@@ -14,6 +14,12 @@ export interface PageHeaderProps {
   onMenuPress?: () => void;
   /** Replaces the menu button with the screen's own control. */
   trailing?: ReactNode;
+  /** Hides the back ring, e.g. on a page a visitor opened from a link. */
+  showBack?: boolean;
+  /** Replaces the back ring's default (pop the stack), e.g. to go back a step in a flow. */
+  onBack?: () => void;
+  /** A quieter line under the title, e.g. "Step 2 of 2". */
+  subtitle?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -40,7 +46,7 @@ const MENU_ICON_SIZE = 24;
 const TITLE_GAP = 14;
 
 /** Back control and menu over the brand lockup, across the top of an inner screen. */
-export function PageHeader({ title, onMenuPress, trailing, style }: PageHeaderProps) {
+export function PageHeader({ title, onMenuPress, trailing, showBack = true, onBack, subtitle, style }: PageHeaderProps) {
   const theme = useAppTheme();
 
   const menu = onMenuPress ? (
@@ -62,7 +68,7 @@ export function PageHeader({ title, onMenuPress, trailing, style }: PageHeaderPr
         <BrandLockup />
       </View>
       <View style={styles.row} pointerEvents="box-none">
-        <BackButton />
+        {showBack ? <BackButton onPress={onBack} /> : <View />}
         {trailing ?? menu}
       </View>
       <AppText
@@ -73,6 +79,11 @@ export function PageHeader({ title, onMenuPress, trailing, style }: PageHeaderPr
       >
         {title}
       </AppText>
+      {subtitle ? (
+        <AppText variant="label" color={theme.colors.textSupport} style={styles.subtitle}>
+          {subtitle}
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -96,6 +107,10 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: TITLE_GAP,
+    marginLeft: INSET_LEFT,
+  },
+  subtitle: {
+    marginTop: 2,
     marginLeft: INSET_LEFT,
   },
   pressed: {

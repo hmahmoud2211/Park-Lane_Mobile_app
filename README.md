@@ -63,6 +63,7 @@ Defined in [`package.json`](package.json):
 | `npm run ios`   | `expo start --ios`                    | Start dev server and open iOS Simulator       |
 | `npm run web`   | `expo start --web`                    | Start dev server for web                      |
 | `npm run lint`  | `expo lint`                           | Run ESLint                                    |
+| `npm run check:parking` | `npx --yes tsx src/services/parking/run-checks.ts` | Run the parking demo's acceptance checks in Node |
 | `npm run build` | `expo export --platform web`          | Produce a static web build in `dist/`         |
 | `npm run serve` | `npx serve dist --single`             | Serve the exported web build locally (SPA mode) |
 
@@ -184,6 +185,18 @@ Current routes (`RootStackParamList`): `FirstScreen` (initial), `Login`, `Home`,
 its own header via `ScreenHeader` where needed.
 
 Docs: https://reactnavigation.org/docs/native-stack-navigator
+
+## Visitor parking, gate access and EV charging demo
+
+The Parking section includes a working demo of visitor reservations, QR
+entry and exit, directions to the exact bay and EV charging bookings, with a
+security console and demo controls (simulated clock, gates, chargers and
+bays). Residents send the guest's pass on WhatsApp and follow the
+visit on a tracker; the guest's pass works in English or Arabic and can be
+saved as an image. On web, open `/parking`; demo controls are at `/parking/demo`. Rules
+live in [`src/services/parking/`](src/services/parking/) and data is stored on
+the device only. See [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) for the demo
+script, what is simulated and where real integrations connect.
 
 ## Building & deployment
 

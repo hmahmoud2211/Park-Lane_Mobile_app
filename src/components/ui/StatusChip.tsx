@@ -10,8 +10,10 @@ import { AppText } from '../common/AppText';
 /**
  * `teal` marks arrivals and the active pass, `violet` scheduled visits, `slate`
  * entries, and `indigo` an open invitation, e.g. Community's "Register".
+ * `amber` flags something needing attention and `red` a problem, e.g. an
+ * overdue visit.
  */
-export type StatusTone = 'teal' | 'violet' | 'slate' | 'indigo';
+export type StatusTone = 'teal' | 'violet' | 'slate' | 'indigo' | 'amber' | 'red';
 
 export interface StatusChipProps {
   label: string;
@@ -91,6 +93,18 @@ function toneColors(theme: AppTheme, tone: StatusTone) {
         text: colors.textPrimary,
         fill: colors.chipIndigoFill,
         stroke: [colors.chipIndigoStrokeFrom, colors.chipIndigoStrokeTo] as const,
+      };
+    case 'amber':
+      return {
+        text: colors.chipAmberText,
+        fill: colors.chipAmberFill,
+        stroke: [colors.chipAmberStroke, colors.chipAmberStroke] as const,
+      };
+    case 'red':
+      return {
+        text: colors.chipRedText,
+        fill: colors.chipRedFill,
+        stroke: [colors.chipRedStroke, colors.chipRedStroke] as const,
       };
   }
 }

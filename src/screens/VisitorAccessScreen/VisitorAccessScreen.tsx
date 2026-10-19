@@ -407,7 +407,7 @@ export function VisitorAccessScreen() {
           ) : null}
 
           <Pressable
-            onPress={notYetRouted}
+            onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
             accessibilityRole="button"
             accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}

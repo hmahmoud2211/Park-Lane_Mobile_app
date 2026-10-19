@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { IconSet } from '../components/ui/ServiceTile';
+import type { Lang } from '../services/parking/i18n';
 
 /**
  * Only the implemented screen is registered. Later screens are added here
@@ -22,6 +23,20 @@ export type RootStackParamList = {
   Assistant: { mode?: 'chat' | 'voice' } | undefined;
   /** Placeholder for a feature still being built, named and drawn by its tile. */
   UnderDevelopment: { title: string; iconSet: IconSet; iconName: string };
+
+  /** Visitor parking and EV charging. `reservationId` edits an upcoming booking. */
+  ReserveParking: { mode: 'guest' | 'ev'; reservationId?: string };
+  ReservationDetails: { reservationId: string; justBooked?: boolean; justEdited?: boolean };
+  ReservationHistory: undefined;
+  /** The page a visitor opens from their invitation link; no account needed. `lang` picks English or Arabic. */
+  GuestPass: { invite: string; lang?: Lang; /** Demo only: the booking carried in the link (services/parking/passLink). */ d?: string };
+  /** Gate-to-bay directions for a booking, a visitor's pass, or the resident's own bay. Arabic only from a pass. */
+  ParkingMap: { reservationId?: string; invite?: string; spaceId?: string; lang?: Lang };
+  ChargingSession: { reservationId: string };
+  /** Demo only: the security desk's gate console. */
+  SecurityConsole: undefined;
+  /** Demo only: clock, simulated events and data reset. */
+  DemoControls: undefined;
 };
 
 /** Routes that can be opened without params, e.g. from data-driven tiles and tabs. */

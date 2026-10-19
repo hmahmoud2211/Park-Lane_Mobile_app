@@ -215,6 +215,32 @@ export const typography = {
     textTransform: 'uppercase',
   },
 
+  /*
+   * Parking demo screens. Larger than the inner screens' figure sizes, for
+   * reading at the gate or while driving up: body copy runs 13dp, labels 11dp.
+   */
+
+  /** Emphasised body line, e.g. a field's value or a list row's title. */
+  bodyStrong: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  /** Field and figure captions, e.g. "Arrival", "Space". */
+  label: {
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.2,
+  },
+  /** Headline figures, e.g. a bay code or energy delivered. */
+  figure: {
+    fontFamily: fontFamily.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.2,
+  },
+
   /** Bottom navigation labels, e.g. "EMS AI", "HOME". */
   navLabel: {
     fontFamily: fontFamily.semiBold,
