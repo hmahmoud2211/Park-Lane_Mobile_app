@@ -57,9 +57,6 @@ export const ACTION_RADIUS = 8;
 const ACTION_GAP = 7.5;
 export const ACTION_ICON_SIZE = 18;
 
-/** The glyphs inside the list badges. */
-export const ROW_ICON_SIZE = 16;
-const LIST_BOTTOM = 6;
 
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
@@ -86,7 +83,10 @@ export function createStyles(theme: AppTheme) {
     },
 
     slotChip: {
-      width: SLOT_CHIP_WIDTH,
+      minWidth: SLOT_CHIP_WIDTH,
+    },
+    vehicleChip: {
+      alignSelf: 'flex-start',
     },
 
     stats: {
@@ -112,8 +112,26 @@ export function createStyles(theme: AppTheme) {
       shadowColor: theme.colors.violet,
     },
 
-    list: {
-      paddingBottom: LIST_BOTTOM,
+    /** "Available now" differs from "available for your time": said under the tiles. */
+    countsNote: {
+      marginTop: 8,
+      marginBottom: CARD_GAP,
+      marginHorizontal: 2,
+    },
+
+    demoStrip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: theme.borderRadius.md,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.dividerSubtle,
+    },
+    pressed: {
+      opacity: 0.7,
     },
   });
 }

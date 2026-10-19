@@ -445,6 +445,7 @@ export function VisitorAccessScreen() {
           {/* Guest parking is booked from the Parking screen, which shows the
               free guest bays and the latest request. */}
           <Pressable
+            onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
             onPress={() => navigation.navigate('Parking')}
             accessibilityRole="button"
             accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}

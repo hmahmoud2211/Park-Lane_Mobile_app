@@ -10,6 +10,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider } from './src/context/AppContext';
+import { ParkingDemoProvider } from './src/context/ParkingDemoContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { WebViewport } from './src/components/layout/WebViewport';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -35,11 +36,13 @@ export default function App() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AppProvider>
-            {/* Every screen is dark, so light status bar content is the default. */}
-            <StatusBar style="light" />
-            <WebViewport>
-              {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
-            </WebViewport>
+            <ParkingDemoProvider>
+              {/* Every screen is dark, so light status bar content is the default. */}
+              <StatusBar style="light" />
+              <WebViewport>
+                {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
+              </WebViewport>
+            </ParkingDemoProvider>
           </AppProvider>
         </ThemeProvider>
       </SafeAreaProvider>

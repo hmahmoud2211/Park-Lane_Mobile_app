@@ -1,8 +1,9 @@
 import { createContext, useContext, useMemo, type Ref } from 'react';
-import { Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
+import { Platform, Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { TypographyVariant } from '../../theme';
+import { LayoutDirectionContext } from './DirectionView';
 
 /**
  * The figure and caption roles My Unit shrinks in step on narrower cards (see
@@ -41,6 +42,8 @@ export function AppText({
 }: AppTextProps) {
   const theme = useAppTheme();
   const typeScale = useContext(TypeScaleContext);
+  // Inside a right-to-left page every line starts at the right, even one that opens with a plate or bay code.
+  const direction = useContext(LayoutDirectionContext);
 
   const composed = useMemo<StyleProp<TextStyle>>(() => {
     const base: TextStyle = theme.typography[variant];
@@ -53,12 +56,16 @@ export function AppText({
       scaled,
       { color: color ?? theme.colors.textPrimary },
       align ? { textAlign: align } : null,
+      direction && Platform.OS !== 'web' ? { writingDirection: direction } : null,
       style,
     ];
-  }, [theme, variant, typeScale, color, align, style]);
+  }, [theme, variant, typeScale, color, align, direction, style]);
+
+  // react-native-web sets each text's direction from its first letter unless told; RN's types don't list `dir`.
+  const web = direction && Platform.OS === 'web' ? ({ dir: direction } as TextProps) : null;
 
   return (
-    <Text {...rest} style={composed}>
+    <Text {...rest} {...web} style={composed}>
       {children}
     </Text>
   );

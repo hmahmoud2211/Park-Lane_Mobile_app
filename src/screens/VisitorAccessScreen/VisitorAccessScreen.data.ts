@@ -36,7 +36,7 @@ export const visitorAccessCopy = {
   passCaption: 'Show this QR code at the gate for a smooth entry experience.',
   upcomingTitle: 'Upcoming Visitors',
   viewAll: 'View All',
-  parkingTitle: 'Guest Parking Request',
+  parkingTitle: 'Reserve Guest Parking',
   parkingSubtitle: 'Reserve a parking slot for your visitors',
   /** Not in the design: the list's link once it shows everyone. */
   showLess: 'Show Less',

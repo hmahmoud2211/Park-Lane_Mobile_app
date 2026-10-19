@@ -268,5 +268,76 @@ export const colors = {
   /** Inactive tab icon and label; the active tab is full white with a gradient label. */
   navLabel: 'rgba(255, 255, 255, 0.60)',
 
+  /**
+   * Visitor parking, gate and EV charging demo. No design exists yet, so these
+   * extend existing roles: the amber and red chips are `warning` and `error`
+   * set like the teal and violet chips (dark fill, lit rim, pale text), and
+   * the site map is drawn in the cards' navy and blue hairlines.
+   */
+  chipAmberText: '#FFD58A',
+  chipAmberFill: '#33260A',
+  chipAmberStroke: '#B88A2E',
+  chipRedText: '#FFB4AA',
+  chipRedFill: '#3A1117',
+  chipRedStroke: '#C2434F',
+  mapGround: 'rgba(0, 17, 44, 0.80)',
+  mapRoad: 'rgba(127, 160, 255, 0.20)',
+  mapBuilding: 'rgba(43, 140, 255, 0.14)',
+  mapBuildingStroke: 'rgba(127, 160, 255, 0.55)',
+  mapBasement: 'rgba(122, 77, 255, 0.10)',
+  mapBasementStroke: 'rgba(152, 111, 249, 0.55)',
+  mapBay: 'rgba(255, 255, 255, 0.08)',
+  mapBayStroke: 'rgba(255, 255, 255, 0.30)',
+  /** Bays as a lit garage: an empty bay glows green, an occupied one red around a parked car. */
+  mapBayFree: 'rgba(102, 233, 164, 0.10)',
+  mapBayFreeStroke: 'rgba(102, 233, 164, 0.95)',
+  mapBayFreeGlow: 'rgba(102, 233, 164, 0.28)',
+  mapBayTaken: 'rgba(252, 88, 72, 0.12)',
+  mapBayTakenStroke: 'rgba(252, 88, 72, 0.90)',
+  mapBayTakenGlow: 'rgba(252, 88, 72, 0.26)',
+  mapTarget: palette.electricCyan,
+  mapRoute: palette.electricCyan,
+  mapRouteDim: 'rgba(25, 215, 255, 0.35)',
+  mapRouteGlow: 'rgba(25, 215, 255, 0.22)',
+  mapGate: '#FFC861',
+  /** The compound wall, asphalt, kerbs and lane markings. */
+  mapBoundary: 'rgba(127, 160, 255, 0.50)',
+  mapAsphalt: 'rgba(14, 30, 66, 0.98)',
+  mapRoadEdge: 'rgba(169, 200, 255, 0.40)',
+  mapLaneMark: 'rgba(255, 255, 255, 0.45)',
+  mapSidewalk: 'rgba(169, 200, 255, 0.12)',
+  /** Gardens, the pool and the basement floor plates. */
+  mapGreen: 'rgba(102, 233, 164, 0.10)',
+  mapGreenStroke: 'rgba(102, 233, 164, 0.40)',
+  mapWater: 'rgba(25, 215, 255, 0.18)',
+  mapWaterStroke: 'rgba(25, 215, 255, 0.50)',
+  mapFloor: 'rgba(10, 37, 94, 0.60)',
+  mapColumn: 'rgba(169, 200, 255, 0.40)',
+  mapLift: 'rgba(122, 77, 255, 0.30)',
+  /** Zones are outlined in faint blue; bays nobody can book are barely drawn. */
+  mapZone: 'rgba(43, 140, 255, 0.07)',
+  mapZoneStroke: 'rgba(43, 140, 255, 0.50)',
+  mapBayOther: 'rgba(255, 255, 255, 0.04)',
+  mapBayOtherStroke: 'rgba(255, 255, 255, 0.16)',
+  /** A bay reserved right now, and the walking route: the system's amber and green. */
+  mapBayReserved: 'rgba(226, 232, 240, 0.06)',
+  mapBayReservedStroke: 'rgba(226, 232, 240, 0.75)',
+  /** Diagonal hatching across a reserved bay. */
+  mapBayHatch: 'rgba(226, 232, 240, 0.45)',
+  /** Parked cars seen from above: three paint shades and dark glass. */
+  mapCarLight: 'rgba(226, 232, 240, 0.95)',
+  mapCarMid: 'rgba(148, 163, 184, 0.95)',
+  mapCarDark: 'rgba(71, 85, 105, 0.98)',
+  mapCarGlass: 'rgba(7, 27, 68, 0.88)',
+  mapCarTail: 'rgba(252, 88, 72, 0.95)',
+  /** The garage's wall lights. */
+  mapLight: 'rgba(255, 214, 140, 0.95)',
+  mapLightGlow: 'rgba(255, 200, 97, 0.22)',
+  mapWalk: '#66E9A4',
+  mapWalkGlow: 'rgba(102, 233, 164, 0.24)',
+  /** The QR's quiet zone must be light for scanners. */
+  qrBackground: palette.white,
+  qrForeground: palette.deepNavy,
+
   transparent: 'transparent',
 } as const;

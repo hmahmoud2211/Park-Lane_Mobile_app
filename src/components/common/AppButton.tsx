@@ -180,7 +180,7 @@ export function AppButton({
             <ActivityIndicator color={theme.colors.textPrimary} />
           ) : (
             <View style={leadingInline && styles.inlineRow}>
-              {leadingInline ? <View style={styles.inlineIcon}>{leadingIcon}</View> : null}
+              {leadingInline ? <View>{leadingIcon}</View> : null}
               {/* Beside an inline icon the label may wrap rather than overflow a narrow button. */}
               <AppText variant={labelVariant} style={leadingInline && styles.inlineLabel}>
                 {title}
@@ -283,14 +283,13 @@ function createStyles(theme: AppTheme, height: number, trailingInset: number, ra
       alignItems: 'center',
       justifyContent: 'center',
     },
-    // Capped at the button's width, so a long label wraps inside it.
+    // Capped at the button's width, so a long label wraps inside it. A gap
+    // rather than a margin, so the pair also reads right-to-left.
     inlineRow: {
       flexDirection: 'row',
       alignItems: 'center',
       maxWidth: '100%',
-    },
-    inlineIcon: {
-      marginRight: LABEL_ICON_GAP,
+      gap: LABEL_ICON_GAP,
     },
     inlineLabel: {
       flexShrink: 1,
