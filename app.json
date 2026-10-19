@@ -51,7 +51,6 @@
           "barcodeScannerEnabled": false
         }
       ],
-      "expo-sharing"
       "expo-sharing",
       "react-native-wifi-reborn",
       [
@@ -61,7 +60,8 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "backgroundColor": "#071B44"
   }

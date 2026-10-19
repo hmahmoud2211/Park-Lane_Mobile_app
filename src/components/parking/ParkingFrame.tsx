@@ -74,7 +74,7 @@ export function ParkingFrame({
             <PageHeader
               title={title}
               subtitle={subtitle}
-              onBack={onBack}
+              onBackPress={onBack}
               showBack={showBack}
               trailing={headerTrailing}
               onMenuPress={onMenuPress}

@@ -442,11 +442,9 @@ export function VisitorAccessScreen() {
             </NeonPanel>
           ) : null}
 
-          {/* Guest parking is booked from the Parking screen, which shows the
-              free guest bays and the latest request. */}
+          {/* "Reserve Guest Parking" goes straight to the booking flow. */}
           <Pressable
             onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
-            onPress={() => navigation.navigate('Parking')}
             accessibilityRole="button"
             accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}

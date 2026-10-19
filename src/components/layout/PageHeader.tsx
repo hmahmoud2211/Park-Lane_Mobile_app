@@ -18,10 +18,6 @@ export interface PageHeaderProps {
   trailing?: ReactNode;
   /** Hides the back ring, e.g. on a page a visitor opened from a link. */
   showBack?: boolean;
-  /** Replaces the back ring's default (pop the stack), e.g. to go back a step in a flow. */
-  onBack?: () => void;
-  /** A quieter line under the title, e.g. "Step 2 of 2". */
-  subtitle?: string;
   /** Overrides the back ring, e.g. to step back through a wizard rather than leave it. */
   onBackPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -52,8 +48,7 @@ const TITLE_GAP = 14;
 const SUBTITLE_GAP = 2;
 
 /** Back control and menu over the brand lockup, across the top of an inner screen. */
-export function PageHeader({ title, onMenuPress, trailing, showBack = true, onBack, subtitle, style }: PageHeaderProps) {
-export function PageHeader({ title, subtitle, onMenuPress, trailing, onBackPress, style }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, onMenuPress, trailing, showBack = true, onBackPress, style }: PageHeaderProps) {
   const theme = useAppTheme();
 
   const menu = onMenuPress ? (
@@ -75,8 +70,7 @@ export function PageHeader({ title, subtitle, onMenuPress, trailing, onBackPress
         <BrandLockup />
       </View>
       <View style={styles.row} pointerEvents="box-none">
-        {showBack ? <BackButton onPress={onBack} /> : <View />}
-        <BackButton onPress={onBackPress} />
+        {showBack ? <BackButton onPress={onBackPress} /> : <View />}
         {trailing ?? menu}
       </View>
       <AppText
@@ -88,7 +82,6 @@ export function PageHeader({ title, subtitle, onMenuPress, trailing, onBackPress
         {title}
       </AppText>
       {subtitle ? (
-        <AppText variant="label" color={theme.colors.textSupport} style={styles.subtitle}>
         <AppText
           variant="bodySmall"
           color={theme.colors.textAccentSoft}
@@ -124,7 +117,6 @@ const styles = StyleSheet.create({
     marginLeft: INSET_LEFT,
   },
   subtitle: {
-    marginTop: 2,
     marginTop: SUBTITLE_GAP,
     marginLeft: INSET_LEFT,
   },
