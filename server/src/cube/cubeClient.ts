@@ -223,7 +223,7 @@ export interface ThirdPartyEndpoint {
 export async function syncThirdPartyDevice(endpoint: ThirdPartyEndpoint): Promise<string> {
   const payload = await thirdPartyEvent<{ endpoints?: { serial_number?: string }[] }>({
     name: 'DiscoveryRequest',
-    version: '1',
+    version: '2',
     payload: { endpoints: [endpoint] },
   });
   const serial = payload?.endpoints?.[0]?.serial_number;
@@ -236,7 +236,7 @@ export async function syncThirdPartyDevice(endpoint: ThirdPartyEndpoint): Promis
 export async function reportState(serial: string, thirdSerial: string, state: Record<string, unknown>): Promise<void> {
   await thirdPartyEvent({
     name: 'DeviceStatesChangeReport',
-    version: '1',
+    version: '2',
     endpoint: { serial_number: serial, third_serial_number: thirdSerial },
     payload: { state },
   });
@@ -245,7 +245,7 @@ export async function reportState(serial: string, thirdSerial: string, state: Re
 export async function reportOnline(serial: string, thirdSerial: string, online: boolean): Promise<void> {
   await thirdPartyEvent({
     name: 'DeviceOnlineChangeReport',
-    version: '1',
+    version: '2',
     endpoint: { serial_number: serial, third_serial_number: thirdSerial },
     payload: { online },
   });

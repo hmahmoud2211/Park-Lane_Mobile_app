@@ -149,7 +149,7 @@ interface Directive {
 function reply(header: { message_id?: string; version?: string } | undefined, name: string, payload: object) {
   return {
     event: {
-      header: { name, message_id: header?.message_id ?? '', version: header?.version ?? '1' },
+      header: { name, message_id: header?.message_id ?? '', version: header?.version ?? '2' },
       payload,
     },
   };
