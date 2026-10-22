@@ -46,7 +46,7 @@ type SelectKey = keyof BookingValues;
 /** Which list is open, and the field it hangs from. */
 interface OpenSelect {
   key: SelectKey;
-  anchor: { y: number; height: number };
+  anchor: { x: number; y: number; width: number; height: number };
   align: 'left' | 'right';
 }
 
@@ -126,8 +126,8 @@ export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: Boo
 
   const openSelect = (key: SelectKey, column: number) => {
     Keyboard.dismiss();
-    refs.current[key]?.measureInWindow((_x, y, _width, height) =>
-      setOpen({ key, anchor: { y, height }, align: column === 0 ? 'left' : 'right' }),
+    refs.current[key]?.measureInWindow((x, y, width, height) =>
+      setOpen({ key, anchor: { x, y, width, height }, align: column === 0 ? 'left' : 'right' }),
     );
   };
 

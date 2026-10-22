@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { CheckRow, ChipGroup, Field, Stepper, type ChipOption } from '../../components/parking/Controls';
 import { Notice } from '../../components/parking/Notice';
 import { Panel } from '../../components/parking/Panel';
 import { ParkingButton } from '../../components/parking/ParkingButton';
-import { ParkingFrame } from '../../components/parking/ParkingFrame';
+import { PARKING_BODY_GAP, ParkingFrame } from '../../components/parking/ParkingFrame';
 import { ListRow } from '../../components/parking/Rows';
 import { SiteMap, type BayMark } from '../../components/parking/site-map/SiteMap';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -244,182 +245,186 @@ export function ReserveParkingScreen() {
   const title = editing ? copy.editTitle : mode === 'ev' ? copy.evTitle : copy.guestTitle;
   const stepIndex = STEPS.indexOf(step);
 
+  // Who is coming beside when, on screens with room for both.
   const renderDetails = () => (
-    <>
-      <Panel title={isGuest ? 'Guest' : 'Your vehicle'} icon={isGuest ? 'person-outline' : 'car-outline'}>
-        {mine.properties.length > 1 && !editing ? (
-          <ChipGroup
-            label="Property"
-            options={mine.properties.map((p) => ({ value: p.id, label: p.label }))}
-            value={form.propertyId}
-            onChange={(propertyId) => update({ propertyId, spaceId: null })}
-          />
-        ) : null}
-        {mode === 'ev' && !editing ? (
-          <ChipGroup
-            label="Charging for"
-            options={[
-              { value: 'resident', label: 'My vehicle', icon: 'person-outline' },
-              { value: 'guest', label: 'A visitor', icon: 'people-outline' },
-            ]}
-            value={form.bookedFor}
-            onChange={(bookedFor) => update({ bookedFor })}
-          />
-        ) : null}
-
-        {isGuest ? (
-          <>
-            <Field
-              label="Guest name"
-              value={form.guestName}
-              onChangeText={(guestName) => update({ guestName })}
-              placeholder="Full name"
-              autoCapitalize="words"
-              autoComplete="name"
-              icon="person-outline"
-              error={error?.field === 'name' ? error.message : undefined}
+    <ResponsiveColumns gap={PARKING_BODY_GAP}>
+      <>
+        <Panel title={isGuest ? 'Guest' : 'Your vehicle'} icon={isGuest ? 'person-outline' : 'car-outline'}>
+          {mine.properties.length > 1 && !editing ? (
+            <ChipGroup
+              label="Property"
+              options={mine.properties.map((p) => ({ value: p.id, label: p.label }))}
+              value={form.propertyId}
+              onChange={(propertyId) => update({ propertyId, spaceId: null })}
             />
-            {showContact ? (
-              <>
-                <Field
-                  label="Mobile (optional)"
-                  value={form.guestPhone}
-                  onChangeText={(guestPhone) => update({ guestPhone })}
-                  placeholder="+20 10 1234 5678"
-                  keyboardType="phone-pad"
-                  icon="call-outline"
-                />
-                <Field
-                  label="Email (optional)"
-                  value={form.guestEmail}
-                  onChangeText={(guestEmail) => update({ guestEmail })}
-                  placeholder="name@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  icon="mail-outline"
-                />
-              </>
-            ) : (
-              <Pressable onPress={() => setShowContact(true)} accessibilityRole="button" style={styles.linkRow}>
-                <Ionicons name="add-circle-outline" size={18} color={theme.colors.accent} />
-                <AppText variant="bodyStrong" color={theme.colors.accent}>
-                  {copy.addContact}
-                </AppText>
-              </Pressable>
-            )}
-            {!form.visitorAddsVehicle ? (
+          ) : null}
+          {mode === 'ev' && !editing ? (
+            <ChipGroup
+              label="Charging for"
+              options={[
+                { value: 'resident', label: 'My vehicle', icon: 'person-outline' },
+                { value: 'guest', label: 'A visitor', icon: 'people-outline' },
+              ]}
+              value={form.bookedFor}
+              onChange={(bookedFor) => update({ bookedFor })}
+            />
+          ) : null}
+
+          {isGuest ? (
+            <>
               <Field
-                label="Plate number"
-                value={form.plate}
-                onChangeText={(plate) => update({ plate })}
-                placeholder="e.g. EGY 1234"
-                autoCapitalize="characters"
-                autoCorrect={false}
-                icon="car-outline"
-                error={error?.field === 'plate' ? error.message : undefined}
+                label="Guest name"
+                value={form.guestName}
+                onChangeText={(guestName) => update({ guestName })}
+                placeholder="Full name"
+                autoCapitalize="words"
+                autoComplete="name"
+                icon="person-outline"
+                error={error?.field === 'name' ? error.message : undefined}
               />
-            ) : null}
-            <CheckRow
-              label={copy.vehicleLater}
-              detail={copy.vehicleLaterDetail}
-              checked={form.visitorAddsVehicle}
-              onChange={(visitorAddsVehicle) => update({ visitorAddsVehicle })}
+              {showContact ? (
+                <>
+                  <Field
+                    label="Mobile (optional)"
+                    value={form.guestPhone}
+                    onChangeText={(guestPhone) => update({ guestPhone })}
+                    placeholder="+20 10 1234 5678"
+                    keyboardType="phone-pad"
+                    icon="call-outline"
+                  />
+                  <Field
+                    label="Email (optional)"
+                    value={form.guestEmail}
+                    onChangeText={(guestEmail) => update({ guestEmail })}
+                    placeholder="name@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    icon="mail-outline"
+                  />
+                </>
+              ) : (
+                <Pressable onPress={() => setShowContact(true)} accessibilityRole="button" style={styles.linkRow}>
+                  <Ionicons name="add-circle-outline" size={18} color={theme.colors.accent} />
+                  <AppText variant="bodyStrong" color={theme.colors.accent}>
+                    {copy.addContact}
+                  </AppText>
+                </Pressable>
+              )}
+              {!form.visitorAddsVehicle ? (
+                <Field
+                  label="Plate number"
+                  value={form.plate}
+                  onChangeText={(plate) => update({ plate })}
+                  placeholder="e.g. EGY 1234"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  icon="car-outline"
+                  error={error?.field === 'plate' ? error.message : undefined}
+                />
+              ) : null}
+              <CheckRow
+                label={copy.vehicleLater}
+                detail={copy.vehicleLaterDetail}
+                checked={form.visitorAddsVehicle}
+                onChange={(visitorAddsVehicle) => update({ visitorAddsVehicle })}
+              />
+            </>
+          ) : (
+            <ChipGroup
+              label="Electric vehicle"
+              options={evVehicles.map((v) => ({ value: v.id, label: `${v.make} ${v.model}`, detail: v.plate }))}
+              value={form.vehicleId}
+              onChange={(vehicleId) => {
+                const choice = evVehicles.find((v) => v.id === vehicleId);
+                update({ vehicleId, connectorType: choice?.ev?.connectors[0] ?? null });
+              }}
             />
-          </>
-        ) : (
-          <ChipGroup
-            label="Electric vehicle"
-            options={evVehicles.map((v) => ({ value: v.id, label: `${v.make} ${v.model}`, detail: v.plate }))}
-            value={form.vehicleId}
-            onChange={(vehicleId) => {
-              const choice = evVehicles.find((v) => v.id === vehicleId);
-              update({ vehicleId, connectorType: choice?.ev?.connectors[0] ?? null });
-            }}
-          />
-        )}
+          )}
 
-        {mode === 'guest' && !editing ? (
-          <ChipGroup
-            label="Parking"
-            options={[
-              { value: 'standard', label: 'Visitor bay', icon: 'car-outline' },
-              { value: 'ev', label: 'EV bay + charging', icon: 'flash-outline' },
-            ]}
-            value={form.parkingType}
-            onChange={(parkingType) => update({ parkingType, spaceId: null, stayFollowsCharging: parkingType === 'ev' })}
-          />
-        ) : null}
-      </Panel>
-
-      <Panel title="When" icon="calendar-outline" subtitle="Cairo time">
-        <ChipGroup scroll options={dateOptions} value={form.dateKey} onChange={(dateKey) => update({ dateKey, arrivalMin: Math.max(form.arrivalMin, earliestArrivalOn(dateKey)) })} />
-        <Stepper
-          label="Arrival"
-          display={formatMinuteOfDay(form.arrivalMin)}
-          detail={relativeDayLabel(form.dateKey, now)}
-          canDecrement={form.arrivalMin - slot >= minArrival}
-          canIncrement={form.arrivalMin + slot < 24 * 60}
-          onDecrement={() => update({ arrivalMin: form.arrivalMin - slot })}
-          onIncrement={() => update({ arrivalMin: form.arrivalMin + slot })}
-        />
-        {!isEv ? (
-          <ChipGroup
-            label="How long?"
-            options={STAY_PRESETS.filter((m) => m <= maxStay).map((m) => ({ value: String(m), label: formatDuration(m) }))}
-            value={STAY_PRESETS.some((m) => m === form.stayMin) ? String(form.stayMin) : null}
-            onChange={(value) => update({ stayMin: Number(value), stayFollowsCharging: false })}
-          />
-        ) : null}
-        <Stepper
-          label={isEv ? 'Parking until' : 'Departure'}
-          display={formatTime(end)}
-          detail={`${formatDuration(form.stayMin)} stay${crossesDay ? ' · ends next day' : ''}`}
-          canDecrement={form.stayMin - slot >= minStay}
-          canIncrement={form.stayMin + slot <= maxStay}
-          onDecrement={() => update({ stayMin: form.stayMin - slot, stayFollowsCharging: false })}
-          onIncrement={() => update({ stayMin: form.stayMin + slot, stayFollowsCharging: false })}
-        />
-      </Panel>
-
-      {isEv ? (
-        <Panel title="Charging" icon="flash-outline" subtitle={copy.evDeparture}>
-          <ChipGroup
-            label="Connector"
-            options={CONNECTORS.map((c) => ({
-              value: c,
-              label: c,
-              disabled: !(isGuest ? CONNECTORS : (vehicle?.ev?.connectors ?? CONNECTORS)).includes(c),
-            }))}
-            value={form.connectorType}
-            onChange={(connectorType) => update({ connectorType })}
-          />
+          {mode === 'guest' && !editing ? (
+            <ChipGroup
+              label="Parking"
+              options={[
+                { value: 'standard', label: 'Visitor bay', icon: 'car-outline' },
+                { value: 'ev', label: 'EV bay + charging', icon: 'flash-outline' },
+              ]}
+              value={form.parkingType}
+              onChange={(parkingType) => update({ parkingType, spaceId: null, stayFollowsCharging: parkingType === 'ev' })}
+            />
+          ) : null}
+        </Panel>
+      </>
+      <>
+        <Panel title="When" icon="calendar-outline" subtitle="Cairo time">
+          <ChipGroup scroll options={dateOptions} value={form.dateKey} onChange={(dateKey) => update({ dateKey, arrivalMin: Math.max(form.arrivalMin, earliestArrivalOn(dateKey)) })} />
           <Stepper
-            label="Charging starts"
-            display={formatTime(chargeStart)}
-            detail={form.chargeOffsetMin === 0 ? 'On arrival' : `${formatDuration(form.chargeOffsetMin)} after arrival`}
-            canDecrement={form.chargeOffsetMin - slot >= 0}
-            canIncrement={form.chargeOffsetMin + slot + form.chargeMin <= maxStay}
-            onDecrement={() => update({ chargeOffsetMin: form.chargeOffsetMin - slot })}
-            onIncrement={() => update({ chargeOffsetMin: form.chargeOffsetMin + slot })}
+            label="Arrival"
+            display={formatMinuteOfDay(form.arrivalMin)}
+            detail={relativeDayLabel(form.dateKey, now)}
+            canDecrement={form.arrivalMin - slot >= minArrival}
+            canIncrement={form.arrivalMin + slot < 24 * 60}
+            onDecrement={() => update({ arrivalMin: form.arrivalMin - slot })}
+            onIncrement={() => update({ arrivalMin: form.arrivalMin + slot })}
           />
+          {!isEv ? (
+            <ChipGroup
+              label="How long?"
+              options={STAY_PRESETS.filter((m) => m <= maxStay).map((m) => ({ value: String(m), label: formatDuration(m) }))}
+              value={STAY_PRESETS.some((m) => m === form.stayMin) ? String(form.stayMin) : null}
+              onChange={(value) => update({ stayMin: Number(value), stayFollowsCharging: false })}
+            />
+          ) : null}
           <Stepper
-            label="Charging ends"
-            display={formatTime(chargeEnd)}
-            detail={`${formatDuration(form.chargeMin)} of charging`}
-            canDecrement={form.chargeMin - slot >= 30}
-            canIncrement={form.chargeMin + slot <= policy.maxChargingDurationMinutes && form.chargeOffsetMin + form.chargeMin + slot <= maxStay}
-            onDecrement={() => update({ chargeMin: form.chargeMin - slot })}
-            onIncrement={() => update({ chargeMin: form.chargeMin + slot })}
-          />
-          <ChipGroup
-            label="Energy to add (optional)"
-            options={ENERGY_TARGETS.map((t) => ({ value: t, label: t === 'none' ? 'Until slot ends' : `${t} kWh` }))}
-            value={form.targetKwh}
-            onChange={(targetKwh) => update({ targetKwh })}
+            label={isEv ? 'Parking until' : 'Departure'}
+            display={formatTime(end)}
+            detail={`${formatDuration(form.stayMin)} stay${crossesDay ? ' · ends next day' : ''}`}
+            canDecrement={form.stayMin - slot >= minStay}
+            canIncrement={form.stayMin + slot <= maxStay}
+            onDecrement={() => update({ stayMin: form.stayMin - slot, stayFollowsCharging: false })}
+            onIncrement={() => update({ stayMin: form.stayMin + slot, stayFollowsCharging: false })}
           />
         </Panel>
-      ) : null}
-    </>
+
+        {isEv ? (
+          <Panel title="Charging" icon="flash-outline" subtitle={copy.evDeparture}>
+            <ChipGroup
+              label="Connector"
+              options={CONNECTORS.map((c) => ({
+                value: c,
+                label: c,
+                disabled: !(isGuest ? CONNECTORS : (vehicle?.ev?.connectors ?? CONNECTORS)).includes(c),
+              }))}
+              value={form.connectorType}
+              onChange={(connectorType) => update({ connectorType })}
+            />
+            <Stepper
+              label="Charging starts"
+              display={formatTime(chargeStart)}
+              detail={form.chargeOffsetMin === 0 ? 'On arrival' : `${formatDuration(form.chargeOffsetMin)} after arrival`}
+              canDecrement={form.chargeOffsetMin - slot >= 0}
+              canIncrement={form.chargeOffsetMin + slot + form.chargeMin <= maxStay}
+              onDecrement={() => update({ chargeOffsetMin: form.chargeOffsetMin - slot })}
+              onIncrement={() => update({ chargeOffsetMin: form.chargeOffsetMin + slot })}
+            />
+            <Stepper
+              label="Charging ends"
+              display={formatTime(chargeEnd)}
+              detail={`${formatDuration(form.chargeMin)} of charging`}
+              canDecrement={form.chargeMin - slot >= 30}
+              canIncrement={form.chargeMin + slot <= policy.maxChargingDurationMinutes && form.chargeOffsetMin + form.chargeMin + slot <= maxStay}
+              onDecrement={() => update({ chargeMin: form.chargeMin - slot })}
+              onIncrement={() => update({ chargeMin: form.chargeMin + slot })}
+            />
+            <ChipGroup
+              label="Energy to add (optional)"
+              options={ENERGY_TARGETS.map((t) => ({ value: t, label: t === 'none' ? 'Until slot ends' : `${t} kWh` }))}
+              value={form.targetKwh}
+              onChange={(targetKwh) => update({ targetKwh })}
+            />
+          </Panel>
+        ) : null}
+      </>
+    </ResponsiveColumns>
   );
 
   /* ---------------------------------------------------------- Step 2 */
@@ -632,6 +637,10 @@ export function ReserveParkingScreen() {
       onBack={back}
       scrollRef={scrollRef}
       bottomBar={false}
+      // A resident flow: the rail stays, though the pinned footer replaces the bar.
+      sideNav
+      // The details step lays out two columns of its own; the space step is one.
+      wide={step === 'details'}
       footer={footer}
     >
 

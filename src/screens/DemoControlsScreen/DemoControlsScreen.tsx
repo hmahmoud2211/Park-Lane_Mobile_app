@@ -82,81 +82,9 @@ export function DemoControlsScreen() {
   const ev = views.find((x) => x.reservation.id === evId);
   const bay = db.spaces.find((s) => s.id === bayId);
 
-  return (
-    <ParkingFrame title={copy.title} bottomBar={false}>
-      <Notice>{copy.intro}</Notice>
-      {feedback ? <Notice tone={feedback.tone}>{feedback.text}</Notice> : null}
-
-      <Panel title="Demo clock" icon="time-outline" subtitle={copy.clockNote}>
-        <AppText variant="figure">{formatDateTime(now)}</AppText>
-        <AppText variant="label" color={theme.colors.textSupport}>
-          {db.clockOffsetMs > 0 ? `${formatDuration(db.clockOffsetMs / 60_000)} ahead of real time · Cairo` : 'Real time · Cairo'}
-        </AppText>
-        <View style={styles.row}>
-          {clockSteps.map((step) => (
-            <ParkingButton
-              key={step.label}
-              compact
-              label={step.label}
-              onPress={() => void run(() => service.advanceClock(step.ms), `Clock moved ${step.label}. Expiries, overstays and charging updated.`)}
-              style={styles.quarter}
-            />
-          ))}
-        </View>
-      </Panel>
-
-      <Panel title="View as" icon="people-outline" subtitle="Switch role to present each side of the flow.">
-        <View style={styles.row}>
-          <ParkingButton label="Resident" icon="home-outline" onPress={() => navigation.navigate('Parking')} style={styles.grow} />
-          <ParkingButton label="Security" icon="shield-checkmark-outline" onPress={() => navigation.navigate('SecurityConsole')} style={styles.grow} />
-        </View>
-        <ChipGroup label="Visitor: open a guest's pass" scroll options={guestPasses.map(option)} value={visitorId} onChange={setVisitorId} />
-        <ParkingButton
-          label="Open as visitor"
-          icon="phone-portrait-outline"
-          disabled={!visitorId}
-          onPress={() => {
-            const invite = views.find((x) => x.reservation.id === visitorId)?.invitation?.inviteToken;
-            if (invite) navigation.navigate('GuestPass', { invite });
-          }}
-        />
-      </Panel>
-
-      <Panel title="Simulate gate" icon="git-merge-outline" subtitle="Scans the pass's current QR at its assigned gate.">
-        <ChipGroup scroll options={open.map(option)} value={simId} onChange={setSimId} />
-        <View style={styles.row}>
-          <ParkingButton compact label="Simulate entry" icon="log-in-outline" disabled={!simId} onPress={() => simulateGate('entry')} style={styles.grow} />
-          <ParkingButton compact label="Simulate exit" icon="log-out-outline" disabled={!simId} onPress={() => simulateGate('exit')} style={styles.grow} />
-        </View>
-      </Panel>
-
-      <Panel title="Simulate charging" icon="flash-outline">
-        <ChipGroup scroll options={evOpen.map(option)} value={evId} onChange={setEvId} />
-        {ev ? (
-          <View style={styles.row}>
-            <ParkingButton compact label="Plug in" disabled={ev.charging?.state !== 'waiting-for-plug-in'} onPress={() => void run(() => service.plugIn(ev.reservation.id, 'demo'), 'Plugged in; charging started.')} style={styles.grow} />
-            <ParkingButton compact label="Charging complete" disabled={ev.charging?.state !== 'charging'} onPress={() => void run(() => service.simulateChargingComplete(ev.reservation.id), 'Charging completed. The bay stays occupied until the car moves.')} style={styles.grow} />
-            <ParkingButton compact label="Moved out of EV bay" disabled={ev.reservation.status !== 'checked-in' || Boolean(ev.reservation.bayVacatedAt)} onPress={() => void run(() => service.markMovedOut(ev.reservation.id, 'demo', 'Simulated bay sensor'), 'Bay released; the visit is still inside the compound.')} style={styles.grow} />
-            <ParkingButton compact label="Open session" onPress={() => navigation.navigate('ChargingSession', { reservationId: ev.reservation.id })} style={styles.grow} />
-          </View>
-        ) : null}
-        {db.chargers.map((c, index) => (
-          <View key={c.id}>
-            <ListRow divided={index > 0 || Boolean(ev)} icon="flash-outline" title={c.label} lines={[`Up to ${c.maxConcurrent} car${c.maxConcurrent > 1 ? 's' : ''} at once · ${db.connectors.filter((x) => x.chargerId === c.id).map((x) => x.type).join(', ')}`]} statusLabel={c.status === 'available' ? 'In service' : 'Fault'} statusTone={c.status === 'available' ? 'teal' : 'red'} />
-            <ParkingButton
-              compact
-              label={c.status === 'available' ? 'Simulate charger fault' : 'Restore charger'}
-              tone={c.status === 'available' ? 'danger' : 'secondary'}
-              onPress={() =>
-                void (c.status === 'available'
-                  ? run(() => service.faultCharger(c.id), `${c.label} faulted. Active sessions interrupted; upcoming bookings flagged.`)
-                  : run(() => service.restoreCharger(c.id), `${c.label} back in service.`))
-              }
-            />
-          </View>
-        ))}
-      </Panel>
-
+  // Clock, roles and simulations first; bays, checks, data and policy beside them where there is room.
+  const tools = (
+    <>
       <Panel title="Simulate bays" icon="grid-outline" subtitle="Bay sensors and maintenance status.">
         <ChipGroup scroll options={db.spaces.map((s) => ({ value: s.id, label: s.label, detail: `${s.occupancy} · ${s.serviceability}` }))} value={bayId} onChange={setBayId} />
         {bay ? (
@@ -238,6 +166,83 @@ export function DemoControlsScreen() {
               {policyLabels[key][0]}
             </AppText>
             <AppText variant="bodyStrong">{`${db.policy[key]} ${policyLabels[key][1]}`}</AppText>
+          </View>
+        ))}
+      </Panel>
+    </>
+  );
+
+  return (
+    <ParkingFrame title={copy.title} bottomBar={false} aside={tools}>
+      <Notice>{copy.intro}</Notice>
+      {feedback ? <Notice tone={feedback.tone}>{feedback.text}</Notice> : null}
+
+      <Panel title="Demo clock" icon="time-outline" subtitle={copy.clockNote}>
+        <AppText variant="figure">{formatDateTime(now)}</AppText>
+        <AppText variant="label" color={theme.colors.textSupport}>
+          {db.clockOffsetMs > 0 ? `${formatDuration(db.clockOffsetMs / 60_000)} ahead of real time · Cairo` : 'Real time · Cairo'}
+        </AppText>
+        <View style={styles.row}>
+          {clockSteps.map((step) => (
+            <ParkingButton
+              key={step.label}
+              compact
+              label={step.label}
+              onPress={() => void run(() => service.advanceClock(step.ms), `Clock moved ${step.label}. Expiries, overstays and charging updated.`)}
+              style={styles.quarter}
+            />
+          ))}
+        </View>
+      </Panel>
+
+      <Panel title="View as" icon="people-outline" subtitle="Switch role to present each side of the flow.">
+        <View style={styles.row}>
+          <ParkingButton label="Resident" icon="home-outline" onPress={() => navigation.navigate('Parking')} style={styles.grow} />
+          <ParkingButton label="Security" icon="shield-checkmark-outline" onPress={() => navigation.navigate('SecurityConsole')} style={styles.grow} />
+        </View>
+        <ChipGroup label="Visitor: open a guest's pass" scroll options={guestPasses.map(option)} value={visitorId} onChange={setVisitorId} />
+        <ParkingButton
+          label="Open as visitor"
+          icon="phone-portrait-outline"
+          disabled={!visitorId}
+          onPress={() => {
+            const invite = views.find((x) => x.reservation.id === visitorId)?.invitation?.inviteToken;
+            if (invite) navigation.navigate('GuestPass', { invite });
+          }}
+        />
+      </Panel>
+
+      <Panel title="Simulate gate" icon="git-merge-outline" subtitle="Scans the pass's current QR at its assigned gate.">
+        <ChipGroup scroll options={open.map(option)} value={simId} onChange={setSimId} />
+        <View style={styles.row}>
+          <ParkingButton compact label="Simulate entry" icon="log-in-outline" disabled={!simId} onPress={() => simulateGate('entry')} style={styles.grow} />
+          <ParkingButton compact label="Simulate exit" icon="log-out-outline" disabled={!simId} onPress={() => simulateGate('exit')} style={styles.grow} />
+        </View>
+      </Panel>
+
+      <Panel title="Simulate charging" icon="flash-outline">
+        <ChipGroup scroll options={evOpen.map(option)} value={evId} onChange={setEvId} />
+        {ev ? (
+          <View style={styles.row}>
+            <ParkingButton compact label="Plug in" disabled={ev.charging?.state !== 'waiting-for-plug-in'} onPress={() => void run(() => service.plugIn(ev.reservation.id, 'demo'), 'Plugged in; charging started.')} style={styles.grow} />
+            <ParkingButton compact label="Charging complete" disabled={ev.charging?.state !== 'charging'} onPress={() => void run(() => service.simulateChargingComplete(ev.reservation.id), 'Charging completed. The bay stays occupied until the car moves.')} style={styles.grow} />
+            <ParkingButton compact label="Moved out of EV bay" disabled={ev.reservation.status !== 'checked-in' || Boolean(ev.reservation.bayVacatedAt)} onPress={() => void run(() => service.markMovedOut(ev.reservation.id, 'demo', 'Simulated bay sensor'), 'Bay released; the visit is still inside the compound.')} style={styles.grow} />
+            <ParkingButton compact label="Open session" onPress={() => navigation.navigate('ChargingSession', { reservationId: ev.reservation.id })} style={styles.grow} />
+          </View>
+        ) : null}
+        {db.chargers.map((c, index) => (
+          <View key={c.id}>
+            <ListRow divided={index > 0 || Boolean(ev)} icon="flash-outline" title={c.label} lines={[`Up to ${c.maxConcurrent} car${c.maxConcurrent > 1 ? 's' : ''} at once · ${db.connectors.filter((x) => x.chargerId === c.id).map((x) => x.type).join(', ')}`]} statusLabel={c.status === 'available' ? 'In service' : 'Fault'} statusTone={c.status === 'available' ? 'teal' : 'red'} />
+            <ParkingButton
+              compact
+              label={c.status === 'available' ? 'Simulate charger fault' : 'Restore charger'}
+              tone={c.status === 'available' ? 'danger' : 'secondary'}
+              onPress={() =>
+                void (c.status === 'available'
+                  ? run(() => service.faultCharger(c.id), `${c.label} faulted. Active sessions interrupted; upcoming bookings flagged.`)
+                  : run(() => service.restoreCharger(c.id), `${c.label} back in service.`))
+              }
+            />
           </View>
         ))}
       </Panel>

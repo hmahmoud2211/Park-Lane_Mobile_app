@@ -249,8 +249,63 @@ export function GuestPassScreen() {
       </Panel>
     ) : null;
 
+  // Getting there and help: beside the pass where there is room, under it on phones.
+  const visit = (
+    <>
+      {/* Inside, charging matters more than the way in. */}
+      {inside ? charging : null}
+      {r.status === 'confirmed' || inside ? directions : null}
+      {!inside ? charging : null}
+
+      <Panel title={t.help} icon="help-buoy-outline">
+        <View style={styles.buttonRow}>
+          <ParkingButton compact label={t.contactSecurity} icon="call-outline" onPress={() => setShowSecurity((v) => !v)} style={styles.flex} />
+          {!fromLink ? (
+            <ParkingButton
+              compact
+              label={t.spaceOccupied}
+              icon="alert-circle-outline"
+              loading={busy === 'occupied'}
+              onPress={() => void run('occupied', () => service.requestHelp(params.invite, 'space-occupied'), t.helpSent)}
+              style={styles.flex}
+            />
+          ) : null}
+        </View>
+        {showSecurity ? (
+          <View style={styles.security}>
+            {/* Isolated left to right, so the number's groups keep their order inside Arabic. */}
+            <InfoRow icon="shield-checkmark-outline" label={t.securityDesk} value={`⁦${siteInfo.securityPhone}⁩`} />
+            <View style={styles.buttonRow}>
+              <ParkingButton
+                compact
+                label={t.call}
+                icon="call-outline"
+                onPress={() => void openExternal(`tel:${siteInfo.securityPhone.replace(/\s/g, '')}`)}
+                style={styles.flex}
+              />
+              {!fromLink ? (
+                <ParkingButton
+                  compact
+                  label={t.askCall}
+                  icon="chatbubble-outline"
+                  loading={busy === 'contact'}
+                  onPress={() => void run('contact', () => service.requestHelp(params.invite, 'contact'), t.helpSent)}
+                  style={styles.flex}
+                />
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+      </Panel>
+
+      <AppText variant="label" color={theme.colors.textMuted} style={styles.footer}>
+        {`${fromLink ? `${t.linkNote} ` : ''}${siteInfo.compoundName} · ${t.footer(r.reference, lang === 'ar' ? `${dateIn(now, 'ar', false)}، ${timeIn(now, 'ar')}` : formatDateTime(now))}. ${t.fictionalGates}`}
+      </AppText>
+    </>
+  );
+
   return (
-    <ParkingFrame {...frame}>
+    <ParkingFrame {...frame} aside={visit}>
       {alerts.map((n) => {
         const alert = alertText(n);
         return (
@@ -324,56 +379,6 @@ export function GuestPassScreen() {
           </>
         ) : null}
       </Panel>
-
-      {/* Inside, charging matters more than the way in. */}
-      {inside ? charging : null}
-      {r.status === 'confirmed' || inside ? directions : null}
-      {!inside ? charging : null}
-
-      <Panel title={t.help} icon="help-buoy-outline">
-        <View style={styles.buttonRow}>
-          <ParkingButton compact label={t.contactSecurity} icon="call-outline" onPress={() => setShowSecurity((v) => !v)} style={styles.flex} />
-          {!fromLink ? (
-            <ParkingButton
-              compact
-              label={t.spaceOccupied}
-              icon="alert-circle-outline"
-              loading={busy === 'occupied'}
-              onPress={() => void run('occupied', () => service.requestHelp(params.invite, 'space-occupied'), t.helpSent)}
-              style={styles.flex}
-            />
-          ) : null}
-        </View>
-        {showSecurity ? (
-          <View style={styles.security}>
-            {/* Isolated left to right, so the number's groups keep their order inside Arabic. */}
-            <InfoRow icon="shield-checkmark-outline" label={t.securityDesk} value={`⁦${siteInfo.securityPhone}⁩`} />
-            <View style={styles.buttonRow}>
-              <ParkingButton
-                compact
-                label={t.call}
-                icon="call-outline"
-                onPress={() => void openExternal(`tel:${siteInfo.securityPhone.replace(/\s/g, '')}`)}
-                style={styles.flex}
-              />
-              {!fromLink ? (
-                <ParkingButton
-                  compact
-                  label={t.askCall}
-                  icon="chatbubble-outline"
-                  loading={busy === 'contact'}
-                  onPress={() => void run('contact', () => service.requestHelp(params.invite, 'contact'), t.helpSent)}
-                  style={styles.flex}
-                />
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-      </Panel>
-
-      <AppText variant="label" color={theme.colors.textMuted} style={styles.footer}>
-        {`${fromLink ? `${t.linkNote} ` : ''}${siteInfo.compoundName} · ${t.footer(r.reference, lang === 'ar' ? `${dateIn(now, 'ar', false)}، ${timeIn(now, 'ar')}` : formatDateTime(now))}. ${t.fictionalGates}`}
-      </AppText>
     </ParkingFrame>
   );
 }

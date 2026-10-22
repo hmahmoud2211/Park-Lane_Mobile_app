@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
@@ -56,6 +57,12 @@ const INDICATOR_ACTIVE_WIDTH = 18;
 const INDICATOR_HEIGHT = 2.5;
 /** Fraction of the photo, from its left edge, over which it fades in. */
 const FADE_END = 0.5;
+/**
+ * On tablets and desktops the banner runs far wider than its photo; the
+ * photo then covers this share of it, cropped top and bottom, so the banner
+ * does not read as an empty strip.
+ */
+const WIDE_PHOTO_SHARE = '45%';
 
 /** The photo banner that opens the inner service screens. */
 export function FeatureBanner({
@@ -72,6 +79,7 @@ export function FeatureBanner({
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme, height), [theme, height]);
   const photoWidth = Math.round(height * photoAspect);
+  const { isWide } = useScreenLayout();
 
   return (
     <NeonPanel
@@ -81,7 +89,12 @@ export function FeatureBanner({
     >
       {/* Reversed, so the photo is anchored right and the wash fills the rest. */}
       <View style={styles.media} pointerEvents="none">
-        <View style={[styles.photo, { width: photoWidth }]}>
+        <View
+          style={[
+            styles.photo,
+            isWide ? { width: WIDE_PHOTO_SHARE, minWidth: photoWidth } : { width: photoWidth },
+          ]}
+        >
           <Image
             source={photo}
             style={styles.photoImage}

@@ -1,9 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Fragment, useMemo } from 'react';
+import { Fragment, useContext, useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ShellContext } from '../../context/ShellContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { GlassSurface } from '../common/GlassSurface';
@@ -25,13 +27,21 @@ export interface AppMenuProps {
   /**
    * Window position of the control that opened the menu. When given, the
    * panel hangs just below it, or sits just above it when there is more room
-   * there, and `offsetTop` is ignored.
+   * there, and `offsetTop` is ignored. With `x` and `width` it also lines up
+   * with the control's edge (per `align`) on wide layouts, where a field may
+   * sit in either page column; phones keep to the page edge as designed.
    */
-  anchor?: { y: number; height: number };
+  anchor?: { y: number; height: number; x?: number; width?: number };
   /** Screen edge the panel hangs from, matching the button that opened it. */
   align?: 'left' | 'right';
   /** Marks the current choice with a check, when the menu is a picker. */
   selectedId?: string;
+  /**
+   * Tablets and desktops: the column the opening button sits in, for screens
+   * that cap their page their own way. Defaults to the shared wide layout
+   * (useScreenLayout's `contentStyle`).
+   */
+  column?: { maxWidth: number; gutter: number };
 }
 
 const PANEL_WIDTH = 190;
@@ -56,11 +66,32 @@ export function AppMenu({
   anchor,
   align = 'left',
   selectedId,
+  column,
 }: AppMenuProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const railReserve = useContext(ShellContext)?.railReserve ?? 0;
+  const { isWide, frameWidth, contentMaxWidth, gutter } = useScreenLayout();
+
+  // The modal spans the window, but on wide layouts the header sits in a
+  // centred column beside the side rail: hang the panel from that column's
+  // edge, under the button, rather than from the window's.
+  const sideOffset = useMemo(() => {
+    if (isWide && anchor?.x !== undefined && anchor.width !== undefined) {
+      return align === 'right'
+        ? { right: Math.max(0, windowWidth - anchor.x - anchor.width) }
+        : { left: Math.max(0, Math.min(anchor.x, windowWidth - PANEL_WIDTH)) };
+    }
+    if (!isWide) {
+      return null;
+    }
+    const pageGutter = column?.gutter ?? gutter;
+    const outer = Math.min(frameWidth, column?.maxWidth ?? contentMaxWidth + 2 * gutter);
+    const edge = (frameWidth - outer) / 2 + pageGutter;
+    return align === 'right' ? { right: edge } : { left: railReserve + edge };
+  }, [anchor, windowWidth, isWide, column, gutter, frameWidth, contentMaxWidth, align, railReserve]);
 
   const placement = useMemo(() => {
     const topBelow = anchor ? anchor.y + anchor.height + ANCHOR_GAP : insets.top + offsetTop;
@@ -82,6 +113,7 @@ export function AppMenu({
           style={[
             styles.anchor,
             align === 'right' ? styles.anchorRight : styles.anchorLeft,
+            sideOffset,
             placement.position,
           ]}
           onPress={(event) => event.stopPropagation()}

@@ -15,11 +15,13 @@ import { images } from '../../constants/images';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useAssistantChat } from '../../hooks/useAssistantChat';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
+import { useSideNav } from '../../hooks/useSideNav';
 import type { AssistantResident } from '../../services/assistant/assistant.types';
 import { fetchHealth, fetchResidents } from '../../services/assistant/assistantApi';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { assistantCopy as copy } from './AssistantScreen.data';
-import { createStyles } from './AssistantScreen.styles';
+import { ASSISTANT_MENU_COLUMN, createStyles } from './AssistantScreen.styles';
 import { ChatPanel } from './ChatPanel';
 import { VoicePanel } from './VoicePanel';
 
@@ -37,6 +39,10 @@ const PANE_SHIFT = 24;
 export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Assistant'>) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  // No bottom bar on phones, so chat gets the full height; tablets and
+  // desktops still get the side rail beside it.
+  useSideNav();
+  const { isWide } = useScreenLayout();
   const { residentId, setResidentId } = useAppContext();
   const [mode, setMode] = useState<AssistantMode>(route.params?.mode ?? 'chat');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -120,7 +126,7 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
     <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
       <StatusBar style="light" />
 
-      <View style={styles.page}>
+      <View style={[styles.page, isWide && styles.pageWide]}>
         <View style={styles.header}>
           <PageHeader title={copy.title} onMenuPress={openResidentMenu} />
         </View>
@@ -186,6 +192,7 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
         items={menuItems}
         align="right"
         selectedId={residentId != null ? residentItemId(residentId) : GUEST_ID}
+        column={ASSISTANT_MENU_COLUMN}
       />
     </ScreenWrapper>
   );

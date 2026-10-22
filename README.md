@@ -98,15 +98,15 @@ Park-Lane_Mobile_app/
     │   ├── common/               # Reusable primitives: AppButton, AppInput, AppText,
     │   │                         #   BackButton, GradientText, AppBackground, GlassSurface
     │   ├── layout/                # Structural components: ScreenWrapper, ScreenHeader,
-    │   │                          #   BottomBar, WebViewport (constrains web layout to a
-    │   │                          #   mobile-sized viewport)
+    │   │                          #   PageHeader, BottomBar, AppShell + SideNav (tablet and
+    │   │                          #   desktop navigation), ResponsiveColumns, ResponsiveGrid
     │   └── ui/                    # Feature-specific pieces: AppMenu, Avatar, PromoCard,
     │                              #   ServiceTile, UnitSummaryCard, WeatherPill, icons, etc.
     ├── constants/                 # appConfig.ts, images.ts (static config & image maps)
     ├── context/
     │   ├── AppContext.tsx         # App-wide state (e.g. onboarding completion)
     │   └── ThemeContext.tsx       # Resolves the active theme (see src/theme/)
-    ├── hooks/                     # useAppContext, useAppTheme, useResponsive
+    ├── hooks/                     # useAppContext, useAppTheme, useScreenLayout, useSideNav, …
     ├── navigation/
     │   └── AppNavigator.tsx       # Native-stack navigator; registers all screens
     ├── screens/
@@ -121,6 +121,9 @@ Park-Lane_Mobile_app/
     │   ├── borderRadius.ts        # Corner radius scale
     │   ├── shadows.ts             # Shadow/elevation presets
     │   ├── glass.ts                # "Glass" frame spec (blur intensity, gradient, stroke)
+    │   ├── breakpoints.ts          # mobile / tablet / laptop / desktop device classes
+    │   ├── layout.ts               # Content widths, gutters, columns, side rail per class
+    │   ├── motion.ts               # Animation durations, offsets, pressed state
     │   └── index.ts                # Barrel export + parklaneTheme object
     ├── types/                     # navigation.types.ts, theme.types.ts
     └── utils/                     # responsive.ts, webFormStyles.ts
@@ -168,9 +171,21 @@ folder** — components consume tokens via `useAppTheme()`.
 - **Theming** — `ThemeContext` resolves the active theme by name; today only
   `parklaneTheme` (dark) exists, but the indirection lets a second palette be added
   without touching any component. Access it via `useAppTheme()`.
-- **Responsive/web layout** — `WebViewport` (in `src/components/layout/`) constrains
-  the app to a phone-sized viewport when running in a browser, and `useResponsive`/
-  `src/utils/responsive.ts` provide scaling helpers.
+- **Responsive layout** — four device classes (`src/theme/breakpoints.ts`):
+  mobile (< 768), tablet (768–1023), laptop (1024–1439) and desktop (1440+).
+  Phones keep the Figma-measured layouts exactly. From tablet up, `AppShell`
+  replaces each screen's bottom bar with a side rail (`SideNav`, built from the
+  same tab list in `src/navigation/navTabs.ts`), and pages reflow:
+  - `useScreenLayout()` gives a screen its frame width (window minus the rail),
+    gutter, column count and `contentStyle` to lay over its scroll content. Use it
+    instead of `useWindowDimensions()`; pass `columnFrameWidth` to scale helpers.
+  - `ResponsiveColumns` sets a page's sections side by side when there is room for
+    two phone-width columns, and stacks them in order otherwise.
+  - `ResponsiveGrid` fits as many tiles per row as the width allows, never fewer
+    than the phone design's count.
+  - A focused screen with app navigation calls `useSideNav()` (BottomBar does it
+    for you); screens without navigation (onboarding, login, a visitor's pass)
+    get no rail.
 
 ## Navigation
 

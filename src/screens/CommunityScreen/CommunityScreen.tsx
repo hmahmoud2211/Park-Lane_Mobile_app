@@ -16,6 +16,7 @@ import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
@@ -30,6 +31,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   announcements,
@@ -79,6 +81,9 @@ const ALERT_ICON: Record<AlertLevel, 'warning-outline' | 'information-circle-out
 export function CommunityScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const layout = useScreenLayout();
+  const sideBySide = layout.columns > 1;
+  const columnsY = useRef(0);
   const navigation = useNavigation<RootStackScreenProps<'Community'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -193,6 +198,22 @@ export function CommunityScreen() {
     );
   };
 
+  // Opened from the Resident Feedback card: under it, which beside two columns
+  // means inside the second one. Offsets there start from the columns' top.
+  const feedbackForm = feedbackOpen ? (
+    <View
+      onLayout={(event) => {
+        if (scrollToFeedback.current) {
+          scrollToFeedback.current = false;
+          const y = (sideBySide ? columnsY.current : 0) + event.nativeEvent.layout.y;
+          scroll.current?.scrollTo({ y: Math.max(0, y - SCROLL_MARGIN), animated: true });
+        }
+      }}
+    >
+      <FeedbackForm onSubmit={sendFeedback} onClose={() => setFeedbackOpen(false)} style={styles.card} />
+    </View>
+  ) : null;
+
   return (
     <ScreenWrapper
       backgroundSource={images.homeBackground}
@@ -208,7 +229,7 @@ export function CommunityScreen() {
       >
         <ScrollView
           ref={scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, layout.contentStyle]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -227,259 +248,257 @@ export function CommunityScreen() {
             style={styles.card}
           />
 
-          <NeonPanel style={[styles.card, styles.list]}>
-            <PanelHeading
-              title={copy.announcementsTitle}
-              iconSet="ionicons"
-              iconName="megaphone-outline"
-              iconSize={HEADING_ICON_SIZE}
-              {...viewAll('announcements')}
-            />
-            {shown(announcements, 'announcements').map((item, index) => (
-              <MediaRow
-                key={item.id}
-                divided={index > 0}
-                photo={item.photo ? images[item.photo] : undefined}
-                icon={item.icon}
-                photoWidth={ANNOUNCEMENT_PHOTO.width}
-                photoHeight={ANNOUNCEMENT_PHOTO.height}
-                title={item.title}
-                details={[item.body]}
-                time={item.postedAgo}
-                {...rowProps(item.id, item.fullText)}
-                accessibilityHint="Shows the full announcement"
-              />
-            ))}
-          </NeonPanel>
-
-          <NeonPanel style={[styles.card, styles.list]}>
-            <PanelHeading
-              title={copy.eventsTitle}
-              iconSet="material"
-              iconName="calendar-month-outline"
-              iconSize={HEADING_ICON_SIZE}
-              {...viewAll('events')}
-            />
-            {shown(upcomingEvents, 'events').map((event, index) => (
-              <MediaRow
-                key={event.id}
-                divided={index > 0}
-                dividerInsetLeft={EVENT_DIVIDER_INSET}
-                leading={renderDate(event.date)}
-                photo={event.photo ? images[event.photo] : undefined}
-                icon={event.icon}
-                photoWidth={EVENT_PHOTO.width}
-                photoHeight={EVENT_PHOTO.height}
-                title={event.title}
-                details={[timeRange(event), event.venue]}
-                action={renderRsvp(event)}
-                {...rowProps(event.id, event.description)}
-                accessibilityHint="Shows the event's details"
-              />
-            ))}
-          </NeonPanel>
-
-          <NeonPanel style={[styles.card, styles.list]}>
-            <PanelHeading
-              title={copy.alertsTitle}
-              iconSet="ionicons"
-              iconName="notifications-outline"
-              iconSize={HEADING_ICON_SIZE}
-              {...viewAll('alerts')}
-            />
-            {shown(communityAlerts, 'alerts').map((alert, index) => (
-              <MediaRow
-                key={alert.id}
-                divided={index > 0}
-                photo={alert.photo ? images[alert.photo] : undefined}
-                icon={alert.icon}
-                photoWidth={ALERT_PHOTO.width}
-                photoHeight={ALERT_PHOTO.height}
-                photoBadge={
-                  <View
-                    style={[
-                      styles.alertBadge,
-                      alert.level === 'warning' ? styles.alertBadgeWarning : styles.alertBadgeInfo,
-                    ]}
-                  >
-                    <Ionicons
-                      name={ALERT_ICON[alert.level]}
-                      size={ALERT_BADGE_ICON_SIZE}
-                      color={theme.colors.textPrimary}
+          {/* News down one side, the poll and feedback down the other, when wide. */}
+          {/* The cards carry their own spacing, so the columns add none. */}
+          <View
+            onLayout={(event) => {
+              columnsY.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <ResponsiveColumns gap={0}>
+              <>
+                <NeonPanel style={[styles.card, styles.list]}>
+                  <PanelHeading
+                    title={copy.announcementsTitle}
+                    iconSet="ionicons"
+                    iconName="megaphone-outline"
+                    iconSize={HEADING_ICON_SIZE}
+                    {...viewAll('announcements')}
+                  />
+                  {shown(announcements, 'announcements').map((item, index) => (
+                    <MediaRow
+                      key={item.id}
+                      divided={index > 0}
+                      photo={item.photo ? images[item.photo] : undefined}
+                      icon={item.icon}
+                      photoWidth={ANNOUNCEMENT_PHOTO.width}
+                      photoHeight={ANNOUNCEMENT_PHOTO.height}
+                      title={item.title}
+                      details={[item.body]}
+                      time={item.postedAgo}
+                      {...rowProps(item.id, item.fullText)}
+                      accessibilityHint="Shows the full announcement"
                     />
-                  </View>
-                }
-                title={alert.title}
-                details={[alert.body]}
-                time={alert.postedAgo}
-                {...rowProps(alert.id, alert.fullText)}
-                accessibilityHint="Shows the full alert"
-              />
-            ))}
-          </NeonPanel>
+                  ))}
+                </NeonPanel>
 
-          <NeonPanel style={[styles.card, styles.poll]}>
-            <PanelHeading
-              title={copy.pollTitle}
-              subtitle={copy.pollSubtitle}
-              iconSet="ionicons"
-              iconName="stats-chart-outline"
-              iconSize={HEADING_ICON_SIZE}
-              {...viewAll('polls')}
-              divider={false}
-            />
-            <View accessibilityRole="radiogroup">
-              {currentPoll.options.map((option) => (
-                <PollOptionRow
-                  key={option.id}
-                  label={option.label}
-                  photo={images[option.photo]}
-                  share={shares[option.id] ?? 0}
-                  selected={vote === option.id}
-                  onSelect={() => setVote(option.id)}
-                />
-              ))}
-            </View>
-            {expanded.polls ? (
-              <View style={styles.pastPolls}>
-                <AppText
-                  variant="statLabel"
-                  color={theme.colors.textSupport}
-                  style={styles.pastPollsTitle}
-                >
-                  {copy.pastPollsTitle}
-                </AppText>
-                {pastPolls.map((poll) => {
-                  const total = poll.options.reduce((sum, option) => sum + option.votes, 0);
-                  return (
-                    <View key={poll.id}>
-                      <AppText variant="statValue">{poll.question}</AppText>
+                <NeonPanel style={[styles.card, styles.list]}>
+                  <PanelHeading
+                    title={copy.eventsTitle}
+                    iconSet="material"
+                    iconName="calendar-month-outline"
+                    iconSize={HEADING_ICON_SIZE}
+                    {...viewAll('events')}
+                  />
+                  {shown(upcomingEvents, 'events').map((event, index) => (
+                    <MediaRow
+                      key={event.id}
+                      divided={index > 0}
+                      dividerInsetLeft={EVENT_DIVIDER_INSET}
+                      leading={renderDate(event.date)}
+                      photo={event.photo ? images[event.photo] : undefined}
+                      icon={event.icon}
+                      photoWidth={EVENT_PHOTO.width}
+                      photoHeight={EVENT_PHOTO.height}
+                      title={event.title}
+                      details={[timeRange(event), event.venue]}
+                      action={renderRsvp(event)}
+                      {...rowProps(event.id, event.description)}
+                      accessibilityHint="Shows the event's details"
+                    />
+                  ))}
+                </NeonPanel>
+
+                <NeonPanel style={[styles.card, styles.list]}>
+                  <PanelHeading
+                    title={copy.alertsTitle}
+                    iconSet="ionicons"
+                    iconName="notifications-outline"
+                    iconSize={HEADING_ICON_SIZE}
+                    {...viewAll('alerts')}
+                  />
+                  {shown(communityAlerts, 'alerts').map((alert, index) => (
+                    <MediaRow
+                      key={alert.id}
+                      divided={index > 0}
+                      photo={alert.photo ? images[alert.photo] : undefined}
+                      icon={alert.icon}
+                      photoWidth={ALERT_PHOTO.width}
+                      photoHeight={ALERT_PHOTO.height}
+                      photoBadge={
+                        <View
+                          style={[
+                            styles.alertBadge,
+                            alert.level === 'warning' ? styles.alertBadgeWarning : styles.alertBadgeInfo,
+                          ]}
+                        >
+                          <Ionicons
+                            name={ALERT_ICON[alert.level]}
+                            size={ALERT_BADGE_ICON_SIZE}
+                            color={theme.colors.textPrimary}
+                          />
+                        </View>
+                      }
+                      title={alert.title}
+                      details={[alert.body]}
+                      time={alert.postedAgo}
+                      {...rowProps(alert.id, alert.fullText)}
+                      accessibilityHint="Shows the full alert"
+                    />
+                  ))}
+                </NeonPanel>
+              </>
+              <>
+                <NeonPanel style={[styles.card, styles.poll]}>
+                  <PanelHeading
+                    title={copy.pollTitle}
+                    subtitle={copy.pollSubtitle}
+                    iconSet="ionicons"
+                    iconName="stats-chart-outline"
+                    iconSize={HEADING_ICON_SIZE}
+                    {...viewAll('polls')}
+                    divider={false}
+                  />
+                  <View accessibilityRole="radiogroup">
+                    {currentPoll.options.map((option) => (
+                      <PollOptionRow
+                        key={option.id}
+                        label={option.label}
+                        photo={images[option.photo]}
+                        share={shares[option.id] ?? 0}
+                        selected={vote === option.id}
+                        onSelect={() => setVote(option.id)}
+                      />
+                    ))}
+                  </View>
+                  {expanded.polls ? (
+                    <View style={styles.pastPolls}>
                       <AppText
-                        variant="tileCaption"
+                        variant="statLabel"
                         color={theme.colors.textSupport}
-                        style={styles.pastPollMeta}
+                        style={styles.pastPollsTitle}
                       >
-                        {`${copy.pollClosed(poll.closedOn)} · ${copy.pollVotes(total)}`}
+                        {copy.pastPollsTitle}
                       </AppText>
-                      {poll.options.map((option) => {
-                        const share = total > 0 ? option.votes / total : 0;
-                        const percent = `${Math.round(share * 100)}%`;
+                      {pastPolls.map((poll) => {
+                        const total = poll.options.reduce((sum, option) => sum + option.votes, 0);
                         return (
-                          <View
-                            key={option.id}
-                            style={styles.pastOption}
-                            accessible
-                            accessibilityLabel={`${option.label}, ${percent}`}
-                          >
+                          <View key={poll.id}>
+                            <AppText variant="statValue">{poll.question}</AppText>
                             <AppText
                               variant="tileCaption"
-                              numberOfLines={1}
-                              style={styles.pastOptionLabel}
+                              color={theme.colors.textSupport}
+                              style={styles.pastPollMeta}
                             >
-                              {option.label}
+                              {`${copy.pollClosed(poll.closedOn)} · ${copy.pollVotes(total)}`}
                             </AppText>
-                            <ProgressBar
-                              progress={share}
-                              height={6}
-                              accessibilityLabel={percent}
-                              style={styles.pastOptionBar}
-                            />
-                            <AppText variant="tileCaption" style={styles.pastOptionShare}>
-                              {percent}
-                            </AppText>
+                            {poll.options.map((option) => {
+                              const share = total > 0 ? option.votes / total : 0;
+                              const percent = `${Math.round(share * 100)}%`;
+                              return (
+                                <View
+                                  key={option.id}
+                                  style={styles.pastOption}
+                                  accessible
+                                  accessibilityLabel={`${option.label}, ${percent}`}
+                                >
+                                  <AppText
+                                    variant="tileCaption"
+                                    numberOfLines={1}
+                                    style={styles.pastOptionLabel}
+                                  >
+                                    {option.label}
+                                  </AppText>
+                                  <ProgressBar
+                                    progress={share}
+                                    height={6}
+                                    accessibilityLabel={percent}
+                                    style={styles.pastOptionBar}
+                                  />
+                                  <AppText variant="tileCaption" style={styles.pastOptionShare}>
+                                    {percent}
+                                  </AppText>
+                                </View>
+                              );
+                            })}
                           </View>
                         );
                       })}
                     </View>
-                  );
-                })}
-              </View>
-            ) : null}
-          </NeonPanel>
+                  ) : null}
+                </NeonPanel>
 
-          <NeonPanel style={[styles.card, styles.feedback]}>
-            <View style={styles.feedbackPhoto}>
-              <Image
-                source={images.communityFeedback}
-                style={styles.photoImage}
-                resizeMode="cover"
-                fadeDuration={0}
-                accessibilityIgnoresInvertColors
-              />
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={FEEDBACK_ICON_SIZE}
-                color={theme.colors.textPrimary}
-                style={styles.feedbackIcon}
-              />
-            </View>
+                <NeonPanel style={[styles.card, styles.feedback]}>
+                  <View style={styles.feedbackPhoto}>
+                    <Image
+                      source={images.communityFeedback}
+                      style={styles.photoImage}
+                      resizeMode="cover"
+                      fadeDuration={0}
+                      accessibilityIgnoresInvertColors
+                    />
+                    <Ionicons
+                      name="chatbubble-ellipses-outline"
+                      size={FEEDBACK_ICON_SIZE}
+                      color={theme.colors.textPrimary}
+                      style={styles.feedbackIcon}
+                    />
+                  </View>
 
-            <View style={styles.feedbackText}>
-              <AppText variant="sectionTitle" accessibilityRole="header">
-                {copy.feedbackTitle}
-              </AppText>
-              <AppText
-                variant="tileCaption"
-                color={theme.colors.textSupport}
-                style={styles.feedbackBody}
-              >
-                {copy.feedbackBody}
-              </AppText>
-              {feedbackSent ? (
-                <AppText
-                  variant="tileCaption"
-                  color={theme.colors.success}
-                  accessibilityLiveRegion="polite"
-                  style={styles.feedbackThanks}
-                >
-                  {copy.feedbackThanks}
-                </AppText>
-              ) : null}
-            </View>
+                  <View style={styles.feedbackText}>
+                    <AppText variant="sectionTitle" accessibilityRole="header">
+                      {copy.feedbackTitle}
+                    </AppText>
+                    <AppText
+                      variant="tileCaption"
+                      color={theme.colors.textSupport}
+                      style={styles.feedbackBody}
+                    >
+                      {copy.feedbackBody}
+                    </AppText>
+                    {feedbackSent ? (
+                      <AppText
+                        variant="tileCaption"
+                        color={theme.colors.success}
+                        accessibilityLiveRegion="polite"
+                        style={styles.feedbackThanks}
+                      >
+                        {copy.feedbackThanks}
+                      </AppText>
+                    ) : null}
+                  </View>
 
-            <Pressable
-              onPress={openFeedback}
-              hitSlop={9}
-              accessibilityRole="button"
-              accessibilityLabel={copy.feedbackCta}
-              style={({ pressed }) => [styles.feedbackButton, pressed && styles.pillPressed]}
-            >
-              {/* Laid on the panel's glass, so it skips its own blur. */}
-              <GlassSurface
-                radius={theme.borderRadius.sm}
-                glow
-                blurred={false}
-                strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-                fillOpacity={theme.glass.subtleFillOpacity}
-                style={styles.feedbackButtonSurface}
-              >
-                <AppText variant="statValue">{copy.feedbackCta}</AppText>
-                <Ionicons
-                  name="chevron-forward"
-                  size={FEEDBACK_CHEVRON_SIZE}
-                  color={theme.colors.textPrimary}
-                />
-              </GlassSurface>
-            </Pressable>
-          </NeonPanel>
+                  <Pressable
+                    onPress={openFeedback}
+                    hitSlop={9}
+                    accessibilityRole="button"
+                    accessibilityLabel={copy.feedbackCta}
+                    style={({ pressed }) => [styles.feedbackButton, pressed && styles.pillPressed]}
+                  >
+                    {/* Laid on the panel's glass, so it skips its own blur. */}
+                    <GlassSurface
+                      radius={theme.borderRadius.sm}
+                      glow
+                      blurred={false}
+                      strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+                      fillOpacity={theme.glass.subtleFillOpacity}
+                      style={styles.feedbackButtonSurface}
+                    >
+                      <AppText variant="statValue">{copy.feedbackCta}</AppText>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={FEEDBACK_CHEVRON_SIZE}
+                        color={theme.colors.textPrimary}
+                      />
+                    </GlassSurface>
+                  </Pressable>
+                </NeonPanel>
+                {sideBySide ? feedbackForm : null}
+              </>
+            </ResponsiveColumns>
+          </View>
 
-          {feedbackOpen ? (
-            <View
-              onLayout={(event) => {
-                if (scrollToFeedback.current) {
-                  scrollToFeedback.current = false;
-                  const { y } = event.nativeEvent.layout;
-                  scroll.current?.scrollTo({ y: Math.max(0, y - SCROLL_MARGIN), animated: true });
-                }
-              }}
-            >
-              <FeedbackForm
-                onSubmit={sendFeedback}
-                onClose={() => setFeedbackOpen(false)}
-                style={styles.card}
-              />
-            </View>
-          ) : null}
+          {sideBySide ? null : feedbackForm}
         </ScrollView>
 
         {/* The same empty glass bar as Visitor Access, Maintenance and Parking. */}

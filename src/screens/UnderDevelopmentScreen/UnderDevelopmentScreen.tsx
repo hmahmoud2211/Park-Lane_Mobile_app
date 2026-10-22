@@ -13,6 +13,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { underDevelopmentCopy } from './UnderDevelopmentScreen.data';
 import { ICON_SIZE, createStyles } from './UnderDevelopmentScreen.styles';
@@ -27,6 +28,7 @@ type Props = RootStackScreenProps<'UnderDevelopment'>;
 export function UnderDevelopmentScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const layout = useScreenLayout();
   const navigation = useNavigation<Props['navigation']>();
   const { title, iconSet, iconName } = useRoute<Props['route']>().params;
 
@@ -35,7 +37,7 @@ export function UnderDevelopmentScreen() {
       <StatusBar style="light" />
 
       <View style={styles.flex}>
-        <View style={styles.content}>
+        <View style={[styles.content, layout.contentStyle]}>
           <PageHeader title={title} style={styles.header} />
 
           <View style={styles.body}>
@@ -43,7 +45,8 @@ export function UnderDevelopmentScreen() {
               radius={theme.borderRadius.xl}
               stroke="gradient"
               strokeColors={[theme.colors.featureStrokeFrom, theme.colors.featureStrokeTo]}
-              style={styles.card}
+              // The header spans a wide page; the notice keeps a phone card's width.
+              style={[styles.card, layout.isWide && styles.cardWide]}
             >
               <View style={styles.iconGlow}>
                 <LinearGradient

@@ -9,6 +9,8 @@ const HEADER_TO_IDENTITY = 24;
 const IDENTITY_TO_PASS = 18;
 const PASS_TO_MENU = 22;
 const MENU_ROW_GAP = 10;
+/** The other inner screens' 16dp card gutter, which wide layouts widen alike. */
+const CARD_GUTTER = 16;
 
 /** The QR needs a light card to stay scannable, whatever the surrounding theme. */
 export const PASS_SIZE = 168;
@@ -31,6 +33,12 @@ export function createStyles(theme: AppTheme) {
     header: {
       marginHorizontal: HEADER_GUTTER - theme.spacing.screenGutter,
       marginBottom: HEADER_TO_IDENTITY,
+    },
+
+    // Wide layouts set every page's gutter, so the header sits where the
+    // other inner screens put theirs.
+    headerWide: {
+      marginHorizontal: HEADER_GUTTER - CARD_GUTTER,
     },
 
     identity: {

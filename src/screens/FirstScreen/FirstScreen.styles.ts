@@ -5,6 +5,8 @@ import type { AppTheme } from '../../types/theme.types';
 interface StyleOptions {
   /** Short devices tighten up vertically so the CTA stays above the fold. */
   isCompact: boolean;
+  /** Tablet and up: the headline and CTA keep to a left-hand block. */
+  isWide: boolean;
   headlineFontSize: number;
   headlineLineHeight: number;
   /** Diameter of the decorative corner arc. */
@@ -29,8 +31,17 @@ const EYEBROW_RULE_WIDTH = 32;
 const HEADLINE_TO_CTA = 36;
 const BOTTOM_INSET = 68;
 
+/**
+ * Tablets and desktops: the headline grows with the device class and, with
+ * the CTA, keeps to a block at the lower left rather than spanning the window.
+ */
+export const HEADLINE_SCALE = { mobile: 1, tablet: 1.35, laptop: 1.55, desktop: 1.75 };
+/** Shorter than this, a wide window keeps the phone's headline size. */
+export const WIDE_MIN_HEIGHT = 600;
+const WIDE_BLOCK_WIDTH = 440;
+
 export function createStyles(theme: AppTheme, options: StyleOptions) {
-  const { isCompact, headlineFontSize, headlineLineHeight, arcSize } = options;
+  const { isCompact, isWide, headlineFontSize, headlineLineHeight, arcSize } = options;
   const arcOffset = -arcSize * ARC_OFFSET_RATIO;
 
   return StyleSheet.create({
@@ -39,6 +50,7 @@ export function createStyles(theme: AppTheme, options: StyleOptions) {
       justifyContent: 'space-between',
       paddingTop: isCompact ? theme.spacing.md : EYEBROW_TOP,
       paddingBottom: isCompact ? theme.spacing.xl : BOTTOM_INSET,
+      ...(isWide && { paddingHorizontal: theme.spacing.lg }),
     },
 
     // Top-left eyebrow
@@ -55,6 +67,7 @@ export function createStyles(theme: AppTheme, options: StyleOptions) {
     // Bottom block: headline + CTA
     bottomBlock: {
       width: '100%',
+      ...(isWide && { maxWidth: WIDE_BLOCK_WIDTH }),
     },
     headline: {
       marginBottom: isCompact ? theme.spacing.xxl : HEADLINE_TO_CTA,

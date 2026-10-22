@@ -15,7 +15,9 @@ const GUTTER = 16;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
 const HEADER_GUTTER = 35;
 const HEADER_TO_LIST = 30;
-const CARD_GAP = 12;
+export const CARD_GAP = 12;
+/** Narrowest a card gets beside another; a phone's 358dp card stands alone. */
+export const MIN_CARD_WIDTH = 300;
 
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
@@ -35,9 +37,6 @@ export function createStyles(theme: AppTheme) {
     header: {
       marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_LIST,
-    },
-    list: {
-      gap: CARD_GAP,
     },
   });
 }

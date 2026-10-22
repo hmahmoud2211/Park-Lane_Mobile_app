@@ -52,7 +52,7 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [form, setForm] = useState<FeedbackValues>({ topic: '', message: '' });
   const [errors, setErrors] = useState<FeedbackErrors>({});
-  const [anchor, setAnchor] = useState<{ y: number; height: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const topicRef = useRef<View>(null);
 
   const update = (key: keyof FeedbackValues, value: string) => {
@@ -62,7 +62,7 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
 
   const openTopics = () => {
     Keyboard.dismiss();
-    topicRef.current?.measureInWindow((_x, y, _width, height) => setAnchor({ y, height }));
+    topicRef.current?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }));
   };
 
   const submit = () => {

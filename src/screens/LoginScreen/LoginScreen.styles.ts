@@ -29,7 +29,28 @@ export const BACK_BUTTON_SIZE = 36;
 export const FIELD_HEIGHT = 40;
 export const SUBMIT_HEIGHT = 34;
 
-export function createStyles(theme: AppTheme) {
+/**
+ * Tablets and desktops: the form sits on a glass card, centred and capped,
+ * with the fields filling it and the controls a size up from the phone's.
+ */
+const CARD_MAX_WIDTH = 440;
+/**
+ * The login photo (941 x 1672) is portrait, with the Park Lane gate along its
+ * bottom. Tablets and desktops pin that edge to the screen's so the gate shows
+ * behind the card, rather than the centre crop's empty sky.
+ */
+export const BACKGROUND_ASPECT = 941 / 1672;
+/** The lit sign then sits behind the card; a light dimming keeps the form legible. */
+export const BACKGROUND_OVERLAY_WIDE = 0.3;
+const CARD_PADDING = 40;
+export const FIELD_HEIGHT_WIDE = 48;
+export const SUBMIT_HEIGHT_WIDE = 46;
+const METHOD_CARD_SIZE_WIDE = 76;
+
+export function createStyles(theme: AppTheme, isWide: boolean) {
+  const formWidth = isWide ? '100%' : FORM_WIDTH;
+  const methodSize = isWide ? METHOD_CARD_SIZE_WIDE : METHOD_CARD_SIZE;
+
   return StyleSheet.create({
     flex: {
       flex: 1,
@@ -39,6 +60,19 @@ export function createStyles(theme: AppTheme) {
       alignItems: 'center',
       paddingTop: LOCKUP_TOP,
       paddingBottom: theme.spacing.xxl,
+      ...(isWide && { width: '100%', maxWidth: theme.layout.contentMaxWidth.laptop, alignSelf: 'center' }),
+    },
+    card: {
+      width: '100%',
+      maxWidth: CARD_MAX_WIDTH,
+      padding: CARD_PADDING,
+      alignItems: 'center',
+      borderRadius: theme.borderRadius.xl,
+      borderWidth: theme.glass.strokeWidth,
+      borderColor: theme.colors.frameStroke,
+      backgroundColor: theme.colors.bubbleFill,
+      // Centred in the room left under the lockup.
+      marginVertical: 'auto',
     },
 
     lockupRow: {
@@ -47,7 +81,7 @@ export function createStyles(theme: AppTheme) {
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
-      marginBottom: LOCKUP_TO_HEADING,
+      marginBottom: isWide ? theme.spacing.xl : LOCKUP_TO_HEADING,
     },
     lockup: {
       width: LOCKUP_WIDTH,
@@ -72,7 +106,7 @@ export function createStyles(theme: AppTheme) {
     },
 
     form: {
-      width: FORM_WIDTH,
+      width: formWidth,
       maxWidth: '100%',
     },
     fieldGap: {
@@ -91,7 +125,7 @@ export function createStyles(theme: AppTheme) {
     dividerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      width: FORM_WIDTH,
+      width: formWidth,
       maxWidth: '100%',
       marginTop: SUBMIT_TO_DIVIDER,
     },
@@ -110,8 +144,8 @@ export function createStyles(theme: AppTheme) {
       marginTop: DIVIDER_TO_METHODS,
     },
     methodCard: {
-      width: METHOD_CARD_SIZE,
-      height: METHOD_CARD_SIZE,
+      width: methodSize,
+      height: methodSize,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 2,

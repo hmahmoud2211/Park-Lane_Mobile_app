@@ -17,7 +17,7 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 const GUTTER = 16;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
 const HEADER_GUTTER = 35;
-const CARD_GAP = 18;
+export const CARD_GAP = 18;
 
 const HEADER_TO_BANNER = 30;
 
@@ -91,6 +91,16 @@ export function layoutFor(windowWidth: number): SmartHomeLayout {
     energyStacked: panel - 4 - GAUGE_SIZE - GAUGE_TO_ROWS < MIN_ENERGY_ROWS,
   };
 }
+/**
+ * Smart Devices across a wide page column: three where each card still gets
+ * the room it has on a phone frame, otherwise two.
+ */
+const WIDE_DEVICE_COLUMN = 180;
+export function wideDeviceColumns(columnWidth: number): 2 | 3 {
+  const panel = columnWidth - 2 * PANEL_INSET;
+  return (panel - 2 * DEVICE_GAP) / 3 >= WIDE_DEVICE_COLUMN ? 3 : 2;
+}
+
 /** Breakdown rows, drawn 20dp tall and 3.5dp apart. */
 const ENERGY_ROW_HEIGHT = 25;
 const ENERGY_ROW_GAP = 5;
@@ -122,7 +132,9 @@ export function createStyles(theme: AppTheme) {
       marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_BANNER,
     },
-    card: {
+    // The page's sections, CARD_GAP apart (see ResponsiveColumns), with the
+    // same space again under the last.
+    sections: {
       marginBottom: CARD_GAP,
     },
 
@@ -155,7 +167,7 @@ export function createStyles(theme: AppTheme) {
       marginBottom: GRID_GAP,
     },
     gridLast: {
-      marginBottom: CARD_GAP,
+      marginBottom: 0,
     },
     gridStacked: {
       flexDirection: 'column',
@@ -275,6 +287,9 @@ export function createStyles(theme: AppTheme) {
     },
     deviceCellFull: {
       flexBasis: '100%',
+    },
+    deviceCellThird: {
+      flexBasis: '28%',
     },
     addButton: {
       width: ADD_BUTTON_SIZE,

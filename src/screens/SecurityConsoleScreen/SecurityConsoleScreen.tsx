@@ -129,108 +129,9 @@ export function SecurityConsoleScreen() {
   const manualView = manual ? reservationView(db, manual, now) : null;
   const bay = db.spaces.find((s) => s.id === bayId);
 
-  return (
-    <ParkingFrame title={copy.title} bottomBar={false}>
-      <Notice>{copy.roleNote}</Notice>
-
-      <Panel title="Gate" icon="git-merge-outline">
-        <ChipGroup
-          options={db.gates.map((g) => ({ value: g.id, label: g.name, detail: g.direction === 'both' ? 'Entry and exit' : 'Exit only' }))}
-          value={gateId}
-          onChange={setGateId}
-        />
-        <ChipGroup
-          label="Lane"
-          options={[
-            { value: 'entry', label: 'Entry', icon: 'log-in-outline', disabled: gate?.direction === 'exit' },
-            { value: 'exit', label: 'Exit', icon: 'log-out-outline', disabled: gate?.direction === 'entry' },
-          ]}
-          value={effectiveDirection}
-          onChange={setDirection}
-        />
-      </Panel>
-
-      <Panel title="Scan a pass" icon="scan-outline" subtitle={`${gate?.name} · ${effectiveDirection === 'entry' ? 'entry lane' : 'exit lane'}`}>
-        {camera ? (
-          <QrScanner onScan={(data) => void scan(data)} onClose={() => setCamera(false)} />
-        ) : (
-          <ParkingButton label="Scan with camera" icon="camera-outline" tone="primary" onPress={() => setCamera(true)} />
-        )}
-        <Field
-          label="Or paste a code or link"
-          value={pasted}
-          onChangeText={setPasted}
-          placeholder="plq_…"
-          autoCapitalize="none"
-          autoCorrect={false}
-          icon="clipboard-outline"
-        />
-        <ParkingButton label="Validate pasted code" icon="checkmark-done-outline" disabled={!pasted.trim()} onPress={() => void scan(pasted.trim())} />
-      </Panel>
-
-      {result ? (
-        <Notice tone={resultTone(result)} title={result.title}>
-          <View style={styles.result}>
-            <Ionicons
-              name={result.gateOpened ? 'lock-open-outline' : result.outcome === 'already-processed' ? 'information-circle-outline' : 'lock-closed-outline'}
-              size={36}
-              color={result.gateOpened ? theme.colors.success : result.outcome === 'already-processed' ? theme.colors.warning : theme.colors.error}
-            />
-            <AppText variant="bodyStrong" align="center">
-              {result.gateOpened ? 'Barrier opened (simulated)' : 'Barrier stays closed'}
-            </AppText>
-            <AppText variant="caption" align="center" color={theme.colors.textSecondary}>
-              {result.message}
-            </AppText>
-          </View>
-        </Notice>
-      ) : null}
-      {feedback ? <Notice tone={feedback.tone}>{feedback.text}</Notice> : null}
-      {arrival ? (
-        <Notice
-          title={`${arrival.name} · ${arrival.plate ?? copy.plateToCome}`}
-          actions={
-            <>
-              <ParkingButton
-                compact
-                tone="primary"
-                icon="qr-code-outline"
-                label={arrivalScan(gateShort(arrival.gateId))}
-                onPress={() => scanArrival(arrival)}
-              />
-              <ParkingButton compact label="Not now" onPress={() => setArrivalId(null)} />
-            </>
-          }
-        >
-          {arrivalPicked(gateShort(arrival.gateId))}
-        </Notice>
-      ) : null}
-
-      <Panel title={`Expected arrivals (${arrivals.length})`} icon="time-outline" subtitle={copy.arrivalsNote}>
-        {arrivals.length === 0 ? (
-          <AppText variant="caption" color={theme.colors.textSecondary}>
-            {copy.noArrivals}
-          </AppText>
-        ) : (
-          arrivals.map((a, index) => {
-            const chip = a.needsBay ? needsBayChip : arrivalChip[a.phase];
-            return (
-              <ListRow
-                key={a.reservationId}
-                divided={index > 0}
-                icon={a.ev ? 'flash-outline' : 'car-outline'}
-                title={`${a.name} · ${a.plate ?? copy.plateToCome}`}
-                lines={[keepTogether(`${a.spaceLabel} · ${a.zoneName} · ${gateShort(a.gateId)}`), keepTogether(a.when)]}
-                statusLabel={chip.label}
-                statusTone={chip.tone}
-                onPress={() => prepareArrival(a)}
-                accessibilityHint={copy.arrivalHint}
-              />
-            );
-          })
-        )}
-      </Panel>
-
+  // The desk on wide screens: the gate and arrivals on the left, tools and logs on the right.
+  const tools = (
+    <>
       <Panel title="Simulate a scan" icon="phone-portrait-outline" subtitle="Pick any demo pass and scan it at the gate above.">
         <ChipGroup scroll options={passOptions} value={pickedId} onChange={setPickedId} />
         <View style={styles.row}>
@@ -346,6 +247,110 @@ export function SecurityConsoleScreen() {
         <AppText variant="label" color={theme.colors.textMuted}>
           {copy.entryNote}
         </AppText>
+      </Panel>
+    </>
+  );
+
+  return (
+    <ParkingFrame title={copy.title} bottomBar={false} aside={tools}>
+      <Notice>{copy.roleNote}</Notice>
+
+      <Panel title="Gate" icon="git-merge-outline">
+        <ChipGroup
+          options={db.gates.map((g) => ({ value: g.id, label: g.name, detail: g.direction === 'both' ? 'Entry and exit' : 'Exit only' }))}
+          value={gateId}
+          onChange={setGateId}
+        />
+        <ChipGroup
+          label="Lane"
+          options={[
+            { value: 'entry', label: 'Entry', icon: 'log-in-outline', disabled: gate?.direction === 'exit' },
+            { value: 'exit', label: 'Exit', icon: 'log-out-outline', disabled: gate?.direction === 'entry' },
+          ]}
+          value={effectiveDirection}
+          onChange={setDirection}
+        />
+      </Panel>
+
+      <Panel title="Scan a pass" icon="scan-outline" subtitle={`${gate?.name} · ${effectiveDirection === 'entry' ? 'entry lane' : 'exit lane'}`}>
+        {camera ? (
+          <QrScanner onScan={(data) => void scan(data)} onClose={() => setCamera(false)} />
+        ) : (
+          <ParkingButton label="Scan with camera" icon="camera-outline" tone="primary" onPress={() => setCamera(true)} />
+        )}
+        <Field
+          label="Or paste a code or link"
+          value={pasted}
+          onChangeText={setPasted}
+          placeholder="plq_…"
+          autoCapitalize="none"
+          autoCorrect={false}
+          icon="clipboard-outline"
+        />
+        <ParkingButton label="Validate pasted code" icon="checkmark-done-outline" disabled={!pasted.trim()} onPress={() => void scan(pasted.trim())} />
+      </Panel>
+
+      {result ? (
+        <Notice tone={resultTone(result)} title={result.title}>
+          <View style={styles.result}>
+            <Ionicons
+              name={result.gateOpened ? 'lock-open-outline' : result.outcome === 'already-processed' ? 'information-circle-outline' : 'lock-closed-outline'}
+              size={36}
+              color={result.gateOpened ? theme.colors.success : result.outcome === 'already-processed' ? theme.colors.warning : theme.colors.error}
+            />
+            <AppText variant="bodyStrong" align="center">
+              {result.gateOpened ? 'Barrier opened (simulated)' : 'Barrier stays closed'}
+            </AppText>
+            <AppText variant="caption" align="center" color={theme.colors.textSecondary}>
+              {result.message}
+            </AppText>
+          </View>
+        </Notice>
+      ) : null}
+      {feedback ? <Notice tone={feedback.tone}>{feedback.text}</Notice> : null}
+      {arrival ? (
+        <Notice
+          title={`${arrival.name} · ${arrival.plate ?? copy.plateToCome}`}
+          actions={
+            <>
+              <ParkingButton
+                compact
+                tone="primary"
+                icon="qr-code-outline"
+                label={arrivalScan(gateShort(arrival.gateId))}
+                onPress={() => scanArrival(arrival)}
+              />
+              <ParkingButton compact label="Not now" onPress={() => setArrivalId(null)} />
+            </>
+          }
+        >
+          {arrivalPicked(gateShort(arrival.gateId))}
+        </Notice>
+      ) : null}
+
+      <Panel title={`Expected arrivals (${arrivals.length})`} icon="time-outline" subtitle={copy.arrivalsNote}>
+        {arrivals.length === 0 ? (
+          <AppText variant="caption" color={theme.colors.textSecondary}>
+            {copy.noArrivals}
+          </AppText>
+        ) : (
+          arrivals.map((a, index) => {
+            const chip = a.needsBay ? needsBayChip : arrivalChip[a.phase];
+            return (
+              <ListRow
+                key={a.reservationId}
+                divided={index > 0}
+                icon={a.ev ? 'flash-outline' : 'car-outline'}
+                title={`${a.name} · ${a.plate ?? copy.plateToCome}`}
+                lines={[keepTogether(`${a.spaceLabel} · ${a.zoneName} · ${gateShort(a.gateId)}`), keepTogether(a.when)]}
+                statusLabel={chip.label}
+                statusTone={chip.tone}
+                onPress={() => prepareArrival(a)}
+                accessibilityHint={copy.arrivalHint}
+              />
+            );
+          })
+        )}
       </Panel>
     </ParkingFrame>
   );

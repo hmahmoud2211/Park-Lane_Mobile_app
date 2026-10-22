@@ -70,8 +70,25 @@ export function ChargingSessionScreen() {
     }
   };
 
+  // The session's details sit beside the live figures where there is room.
+  const details = (
+    <>
+      <Panel title="Details" icon="information-circle-outline">
+        <InfoRow icon="time-outline" label="Charging slot" value={`${formatTime(allocation.start)}–${formatTime(allocation.end)}`} detail={formatDuration((ms(allocation.end) - ms(allocation.start)) / 60_000)} />
+        <InfoRow icon="car-outline" label="Bay reserved" value={`${formatTime(r.scheduledStart)}–${formatTime(r.scheduledEnd)}`} detail={r.bayVacatedAt ? `Left the bay at ${formatTime(r.bayVacatedAt)}` : undefined} />
+        {charging.startedAt ? <InfoRow icon="play-outline" label="Started" value={formatTime(charging.startedAt)} /> : null}
+        {charging.endedAt ? <InfoRow icon="stop-outline" label="Ended" value={formatTime(charging.endedAt)} detail={charging.endReason} /> : null}
+        {remainingKwh !== null && charging.state === 'charging' ? (
+          <InfoRow icon="hourglass-outline" label="Remaining (estimate)" value={`${remainingKwh.toFixed(1)} kWh · about ${formatDuration((remainingKwh / Math.max(rate, 0.1)) * 60)}`} />
+        ) : null}
+      </Panel>
+
+      <Notice>{copy.estimate}</Notice>
+    </>
+  );
+
   return (
-    <ParkingFrame title={copy.title}>
+    <ParkingFrame title={copy.title} aside={details}>
       <Panel
         title={`${space.label} · ${charger?.label ?? ''}`}
         subtitle={`${view.title} · ${connector?.type ?? ''}`}
@@ -139,18 +156,6 @@ export function ChargingSessionScreen() {
           {`${charging.endReason ? `${charging.endReason}. ` : ''}Move the car out of ${space.label}${moveOutBy ? ` by ${formatTime(moveOutBy)}` : ''} so the next driver can charge. ${copy.bayNote}`}
         </Notice>
       ) : null}
-
-      <Panel title="Details" icon="information-circle-outline">
-        <InfoRow icon="time-outline" label="Charging slot" value={`${formatTime(allocation.start)}–${formatTime(allocation.end)}`} detail={formatDuration((ms(allocation.end) - ms(allocation.start)) / 60_000)} />
-        <InfoRow icon="car-outline" label="Bay reserved" value={`${formatTime(r.scheduledStart)}–${formatTime(r.scheduledEnd)}`} detail={r.bayVacatedAt ? `Left the bay at ${formatTime(r.bayVacatedAt)}` : undefined} />
-        {charging.startedAt ? <InfoRow icon="play-outline" label="Started" value={formatTime(charging.startedAt)} /> : null}
-        {charging.endedAt ? <InfoRow icon="stop-outline" label="Ended" value={formatTime(charging.endedAt)} detail={charging.endReason} /> : null}
-        {remainingKwh !== null && charging.state === 'charging' ? (
-          <InfoRow icon="hourglass-outline" label="Remaining (estimate)" value={`${remainingKwh.toFixed(1)} kWh · about ${formatDuration((remainingKwh / Math.max(rate, 0.1)) * 60)}`} />
-        ) : null}
-      </Panel>
-
-      <Notice>{copy.estimate}</Notice>
     </ParkingFrame>
   );
 }

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { AssistantOrb } from '../../components/assistant/AssistantOrb';
 import { ChatBubble } from '../../components/assistant/ChatBubble';
@@ -13,6 +13,7 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { ChatMessage } from '../../hooks/useAssistantChat';
 import { useReduceMotion } from '../../hooks/useReduceMotion';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { assistantCopy as copy, chatSuggestions } from './AssistantScreen.data';
 import { createStyles, emptyOrbSizeFor } from './AssistantScreen.styles';
 
@@ -41,8 +42,9 @@ export function ChatPanel({
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const reduceMotion = useReduceMotion();
-  const { width } = useWindowDimensions();
-  const orbSize = emptyOrbSizeFor(width);
+  // The frame, not the window: beside the side rail the two differ.
+  const { frameWidth } = useScreenLayout();
+  const orbSize = emptyOrbSizeFor(frameWidth);
   const scroll = useRef<ScrollView>(null);
   // Messages already present when the panel opens are history: no entrance.
   const [history] = useState(() => new Set(messages.map((message) => message.id)));

@@ -5,20 +5,23 @@ import { ScrollView, View } from 'react-native';
 
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { LinkCard } from '../../components/ui/LinkCard';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { servicesCopy as copy, services } from './ServicesScreen.data';
-import { createStyles } from './ServicesScreen.styles';
+import { CARD_GAP, MIN_CARD_WIDTH, createStyles } from './ServicesScreen.styles';
 
 export function ServicesScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'Services'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
+  const layout = useScreenLayout();
 
   const handleLogout = useCallback(() => {
     setMenuOpen(false);
@@ -41,7 +44,10 @@ export function ServicesScreen() {
       <StatusBar style="light" />
 
       <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.content, layout.contentStyle]}
+          showsVerticalScrollIndicator={false}
+        >
           <PageHeader
             title={copy.title}
             subtitle={copy.subtitle}
@@ -49,10 +55,16 @@ export function ServicesScreen() {
             style={styles.header}
           />
 
-          <View style={styles.list}>
-            {services.map((service) => (
+          {/* One column on phones; two or three side by side on wider screens. */}
+          <ResponsiveGrid
+            data={services}
+            keyExtractor={(service) => service.id}
+            minItemWidth={MIN_CARD_WIDTH}
+            maxColumns={3}
+            gap={CARD_GAP}
+            renderItem={(service) => (
               <LinkCard
-                key={service.id}
+                fill
                 title={service.title}
                 description={service.description}
                 icon={{ image: images[service.icon] }}
@@ -67,8 +79,8 @@ export function ServicesScreen() {
                   })
                 }
               />
-            ))}
-          </View>
+            )}
+          />
         </ScrollView>
 
         {/* The same glass bar as the other inner screens, with Services lit. */}

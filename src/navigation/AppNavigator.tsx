@@ -1,8 +1,15 @@
-import { NavigationContainer, type LinkingOptions, type Theme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  StackActions,
+  createNavigationContainerRef,
+  type LinkingOptions,
+  type Theme,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { AppShell } from '../components/layout/AppShell';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
@@ -29,8 +36,12 @@ import { SonoffPairingScreen } from '../screens/SonoffPairingScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import type { RootStackParamList } from '../types/navigation.types';
+import type { CurrentRoute, NavTab } from './navTabs';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/** Lets the side rail, which sits outside the stack, navigate it and see where it is. */
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 /**
  * Web only: gives the visitor's invitation its own address, /pass/<token>,
@@ -66,6 +77,32 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export function AppNavigator() {
   const theme = useAppTheme();
+  const [current, setCurrent] = useState<CurrentRoute>();
+
+  const trackRoute = useCallback(() => {
+    const route = navigationRef.getCurrentRoute();
+    if (route) {
+      setCurrent({ name: route.name, params: route.params });
+    }
+  }, []);
+
+  // The same moves the bottom bar makes, for the rail.
+  const navigateTab = useCallback((tab: NavTab) => {
+    if (!navigationRef.isReady()) {
+      return;
+    }
+    if (tab.route === 'Home') {
+      navigationRef.dispatch(StackActions.popTo('Home'));
+    } else if (tab.route) {
+      navigationRef.navigate(tab.route);
+    } else if (tab.underDevelopment) {
+      navigationRef.navigate('UnderDevelopment', {
+        title: tab.label,
+        iconSet: tab.iconSet,
+        iconName: tab.iconName,
+      });
+    }
+  }, []);
 
   // Keeps the navigator's own surfaces from flashing white between screens.
   const navigationTheme = useMemo<Theme>(
@@ -90,40 +127,48 @@ export function AppNavigator() {
   );
 
   return (
-    <NavigationContainer theme={navigationTheme} linking={linking}>
-      <Stack.Navigator
-        initialRouteName="FirstScreen"
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.colors.background },
-        }}
-      >
-        <Stack.Screen name="FirstScreen" component={FirstScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="MyUnit" component={MyUnitScreen} />
-        <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
-        <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
-        <Stack.Screen name="Parking" component={ParkingScreen} />
-        <Stack.Screen name="Community" component={CommunityScreen} />
-        <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
-        <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
-        <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
-        <Stack.Screen name="Services" component={ServicesScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="Assistant" component={AssistantScreen} />
-        <Stack.Screen name="UnderDevelopment" component={UnderDevelopmentScreen} />
-        <Stack.Screen name="ReserveParking" component={ReserveParkingScreen} />
-        <Stack.Screen name="ReservationDetails" component={ReservationDetailsScreen} />
-        <Stack.Screen name="ReservationHistory" component={ReservationHistoryScreen} />
-        <Stack.Screen name="GuestPass" component={GuestPassScreen} />
-        <Stack.Screen name="ParkingMap" component={ParkingMapScreen} />
-        <Stack.Screen name="ChargingSession" component={ChargingSessionScreen} />
-        <Stack.Screen name="SecurityConsole" component={SecurityConsoleScreen} />
-        <Stack.Screen name="DemoControls" component={DemoControlsScreen} />
-        {/* Register later screens here as their designs land. */}
-      </Stack.Navigator>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navigationTheme}
+      linking={linking}
+      onReady={trackRoute}
+      onStateChange={trackRoute}
+    >
+      <AppShell current={current} onNavigate={navigateTab}>
+        <Stack.Navigator
+          initialRouteName="FirstScreen"
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+        >
+          <Stack.Screen name="FirstScreen" component={FirstScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="MyUnit" component={MyUnitScreen} />
+          <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
+          <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
+          <Stack.Screen name="Parking" component={ParkingScreen} />
+          <Stack.Screen name="Community" component={CommunityScreen} />
+          <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
+          <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
+          <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
+          <Stack.Screen name="Services" component={ServicesScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="Assistant" component={AssistantScreen} />
+          <Stack.Screen name="UnderDevelopment" component={UnderDevelopmentScreen} />
+          <Stack.Screen name="ReserveParking" component={ReserveParkingScreen} />
+          <Stack.Screen name="ReservationDetails" component={ReservationDetailsScreen} />
+          <Stack.Screen name="ReservationHistory" component={ReservationHistoryScreen} />
+          <Stack.Screen name="GuestPass" component={GuestPassScreen} />
+          <Stack.Screen name="ParkingMap" component={ParkingMapScreen} />
+          <Stack.Screen name="ChargingSession" component={ChargingSessionScreen} />
+          <Stack.Screen name="SecurityConsole" component={SecurityConsoleScreen} />
+          <Stack.Screen name="DemoControls" component={DemoControlsScreen} />
+          {/* Register later screens here as their designs land. */}
+        </Stack.Navigator>
+      </AppShell>
     </NavigationContainer>
   );
 }

@@ -23,6 +23,13 @@ export interface AppBackgroundProps extends PropsWithChildren {
   withScrim?: boolean;
   /** Flat darkening over the whole photo, 0-1, for content-dense screens. */
   overlay?: number;
+  /**
+   * Pins the photo's bottom edge to the screen's, at full width, instead of
+   * cropping it about the centre. For a portrait photo whose subject sits at
+   * the bottom, on a screen wider than the photo: a landscape tablet would
+   * otherwise show only the sky. Pass the photo's width over its height.
+   */
+  bottomAnchorAspect?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -43,6 +50,7 @@ export function AppBackground({
   resizeMode = 'cover',
   withScrim = true,
   overlay = 0,
+  bottomAnchorAspect,
   style,
   children,
 }: AppBackgroundProps) {
@@ -70,7 +78,11 @@ export function AppBackground({
             fadeDuration={0}
             source={source}
             resizeMode={resizeMode}
-            style={styles.image}
+            style={
+              bottomAnchorAspect
+                ? [styles.imageBottom, { aspectRatio: bottomAnchorAspect }]
+                : styles.image
+            }
             accessibilityIgnoresInvertColors
           />
         ) : null}
@@ -110,5 +122,14 @@ const styles = StyleSheet.create({
     // onto the element, which would otherwise win over inset-0 alone.
     width: '100%',
     height: '100%',
+  },
+  imageBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    // Never shorter than the screen, so no band shows above a short photo.
+    minHeight: '100%',
   },
 });

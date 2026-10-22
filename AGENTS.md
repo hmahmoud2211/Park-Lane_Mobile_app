@@ -53,3 +53,8 @@ Docs: https://docs.expo.dev/eas/index.md
 - Screens are measured against their Figma export in `assets/Screens/`. Values in
   a screen's `.styles.ts` are real measurements, so change them against the
   reference, not by eye.
+- Responsive: the Figma layouts are the phone (< 768dp) layouts and must stay as
+  drawn. Wider device classes reflow through `useScreenLayout()`,
+  `ResponsiveColumns` and `ResponsiveGrid` (see README, "Responsive layout"), with
+  breakpoints, widths and gutters from `src/theme/breakpoints.ts` and
+  `src/theme/layout.ts`. Size from `useScreenLayout()`, never from the window.

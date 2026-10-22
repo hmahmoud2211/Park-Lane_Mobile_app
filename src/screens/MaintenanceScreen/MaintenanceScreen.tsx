@@ -11,7 +11,6 @@ import {
   Pressable,
   ScrollView,
   View,
-  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -21,6 +20,7 @@ import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { DividedRow } from '../../components/ui/DividedRow';
@@ -33,6 +33,7 @@ import { StatItem } from '../../components/ui/StatItem';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   CATEGORIES_SHOWN,
@@ -135,8 +136,9 @@ function RequestRow({ item, onPress, hint, style }: RequestRowProps) {
 export function MaintenanceScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { width } = useWindowDimensions();
-  const scale = contentScaleFor(width);
+  const layout = useScreenLayout();
+  // Fitted to the column the panels sit in, not the window.
+  const scale = contentScaleFor(layout.columnFrameWidth);
   const navigation = useNavigation<RootStackScreenProps<'Maintenance'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -165,6 +167,13 @@ export function MaintenanceScreen() {
   const formY = useRef(0);
   const activeY = useRef(0);
   const scrollToForm = useRef(false);
+  // The panels sit in page columns, so their offsets are measured within a
+  // column and placed on the page from where the columns sit.
+  const columnsY = useRef(0);
+  const firstColumnHeight = useRef(0);
+  const formTop = () => columnsY.current + formY.current;
+  const activeTop = () =>
+    columnsY.current + (layout.columns > 1 ? 0 : firstColumnHeight.current) + activeY.current;
 
   const request = requests.find((item) => item.id === activeId) ?? requests[0];
   const history = requests.filter((item) => item.id !== request.id);
@@ -192,7 +201,7 @@ export function MaintenanceScreen() {
       // Scrolled to once it has laid out (see the form's onLayout).
       scrollToForm.current = true;
     } else {
-      scrollTo(formY.current);
+      scrollTo(formTop());
     }
     setFormCategory(categoryTitle);
   };
@@ -205,18 +214,18 @@ export function MaintenanceScreen() {
     setShowHistory(false);
     AccessibilityInfo.announceForAccessibility(copy.submitted(created.id));
     // The form folds away; the new request takes the Active Request panel.
-    requestAnimationFrame(() => scrollTo(activeY.current));
+    requestAnimationFrame(() => scrollTo(activeTop()));
   };
 
   const showRequest = (id: string) => {
     setActiveId(id);
     setShowHistory(false);
-    scrollTo(activeY.current);
+    scrollTo(activeTop());
   };
 
   const openHistory = () => {
     setShowHistory(true);
-    scrollTo(activeY.current);
+    scrollTo(activeTop());
   };
 
   return (
@@ -234,7 +243,7 @@ export function MaintenanceScreen() {
       >
         <ScrollView
           ref={scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, layout.contentStyle]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -252,256 +261,276 @@ export function MaintenanceScreen() {
             style={styles.card}
           />
 
-          <NeonPanel style={[styles.card, styles.categories]}>
-            <PanelHeading
-              title={copy.categoriesTitle}
-              iconSet="ionicons"
-              iconName="grid-outline"
-              iconSize={19}
-              actionLabel={showAllCategories ? copy.showLess : copy.viewAll}
-              actionExpanded={showAllCategories}
-              onActionPress={() => setShowAllCategories((current) => !current)}
-              divider={false}
-            />
-            <View style={styles.grid}>
-              {rowsOfThree(shownCategories).map((row) => (
-                <View key={row[0].id} style={styles.gridRow}>
-                  {row.map((item) => (
-                    <ServiceTile
-                      key={item.id}
-                      layout="stacked"
-                      title={item.title}
-                      subtitle={item.subtitle}
-                      iconSet={item.iconSet}
-                      iconName={item.iconName}
-                      nested
-                      glow
-                      scale={scale}
-                      onPress={() => openForm(item.title)}
-                      style={styles.tile}
-                    />
-                  ))}
-                  {/* Keeps a short last row's tiles at a third of the width. */}
-                  {Array.from({ length: 3 - row.length }, (_, index) => (
-                    <View key={`spacer-${index}`} style={styles.tile} />
-                  ))}
-                </View>
-              ))}
-            </View>
-          </NeonPanel>
-
-          {formCategory !== undefined ? (
-            <View
-              onLayout={(event) => {
-                formY.current = event.nativeEvent.layout.y;
-                if (scrollToForm.current) {
-                  scrollToForm.current = false;
-                  scrollTo(formY.current);
-                }
-              }}
-            >
-              <RequestForm
-                categoryTitle={formCategory || undefined}
-                onSubmit={submitRequest}
-                onClose={() => setFormCategory(undefined)}
-                style={styles.card}
-              />
-            </View>
-          ) : null}
-
+          {/*
+            Ways to ask for help on the left, the request in hand on the right.
+            Cards keep their own bottom margins, so the columns add no gap.
+          */}
           <View
             onLayout={(event) => {
-              activeY.current = event.nativeEvent.layout.y;
+              columnsY.current = event.nativeEvent.layout.y;
             }}
           >
-            <NeonPanel style={styles.card}>
-              <PanelHeading
-                title={copy.activeTitle}
-                iconSet="ionicons"
-                iconName="document-text-outline"
-                iconSize={19}
-                actionLabel={history.length > 0 ? (showHistory ? copy.showLess : copy.viewAll) : undefined}
-                actionExpanded={history.length > 0 ? showHistory : undefined}
-                onActionPress={() => setShowHistory((current) => !current)}
-              />
-
-              <RequestRow
-                item={request}
-                onPress={() => setShowHistory((current) => !current)}
-                hint="Shows your other requests"
-              />
-
-              <ProgressStepper steps={steps} currentIndex={currentStep} style={styles.stepper} />
-
-              <View style={styles.detailsDivider} />
-
-              <DividedRow weights={DETAILS_WEIGHTS} gap={DETAILS_GAP * scale} style={styles.details}>
-                <StatItem
-                  label="Technician"
-                  value={request.technician}
-                  iconSet="ionicons"
-                  iconName="person-outline"
-                  iconSize={DETAILS_ICON_SIZE}
-                  iconGap={DETAILS_ICON_GAP}
-                  scale={DETAILS_SCALE * scale}
-                />
-                <StatItem
-                  label="Visit Date"
-                  value={request.visitDate}
-                  caption={request.visitWindow}
-                  iconSet="ionicons"
-                  iconName="calendar-outline"
-                  iconSize={DETAILS_ICON_SIZE}
-                  iconGap={DETAILS_ICON_GAP}
-                  scale={DETAILS_SCALE * scale}
-                />
-                {/* Dials the technician; a new request has no one to call yet. */}
-                <Pressable
-                  onPress={() => dial(request.contactPhone)}
-                  disabled={!request.contactPhone}
-                  accessibilityRole="button"
-                  accessibilityHint="Calls the technician"
-                  accessibilityState={{ disabled: !request.contactPhone }}
-                  style={({ pressed }) => pressed && styles.pressed}
-                >
-                  <StatItem
-                    label="Contact"
-                    value={request.contactPhone ?? copy.contactPending}
-                    iconSet="ionicons"
-                    iconName="call-outline"
-                    iconSize={DETAILS_ICON_SIZE}
-                    iconGap={DETAILS_ICON_GAP}
-                    scale={DETAILS_SCALE * scale}
-                  />
-                </Pressable>
-              </DividedRow>
-
-              {showHistory && history.length > 0 ? (
-                <View style={styles.history}>
-                  <View style={styles.detailsDivider} />
-                  <AppText
-                    variant="statLabel"
-                    color={theme.colors.textSupport}
-                    style={styles.historyTitle}
-                  >
-                    {copy.historyTitle}
-                  </AppText>
-                  {history.map((item, index) => (
-                    <RequestRow
-                      key={item.id}
-                      item={item}
-                      onPress={() => showRequest(item.id)}
-                      hint="Shows this request"
-                      style={index === 0 ? styles.historyFirstRow : styles.historyRow}
-                    />
-                  ))}
-                </View>
-              ) : null}
-            </NeonPanel>
-          </View>
-
-          <View style={[styles.card, styles.actions]}>
-            <AppButton
-              title={copy.newRequest}
-              variant="gradient"
-              gradientColors={[
-                theme.colors.ctaSky,
-                theme.colors.ctaRoyal,
-                theme.colors.ctaViolet,
-                theme.colors.ctaPink,
-              ]}
-              height={ACTION_HEIGHT}
-              radius={ACTION_RADIUS}
-              labelVariant="statValue"
-              leadingIcon={
-                <Ionicons name="add" size={ACTION_ICON_SIZE} color={theme.colors.textPrimary} />
-              }
-              leadingPlacement="inline"
-              onPress={() => openForm('')}
-              style={styles.newRequest}
-            />
-            <Pressable
-              onPress={openHistory}
-              accessibilityRole="button"
-              accessibilityLabel={copy.myRequests}
-              style={({ pressed }) => [styles.myRequests, pressed && styles.pressed]}
-            >
-              <NeonPanel style={styles.myRequestsPanel}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={ACTION_ICON_SIZE}
-                  color={theme.colors.textPrimary}
-                />
-                <AppText variant="statValue" style={styles.myRequestsLabel}>
-                  {copy.myRequests}
-                </AppText>
-              </NeonPanel>
-            </Pressable>
-          </View>
-
-          {/* Not itself a button: "Call Now" is, and web cannot nest buttons.
-              TODO(nav): make the card open emergency support once that screen exists. */}
-          <View style={styles.card}>
-            <NeonPanel
-              // The warm corner glow of the design's emergency card.
-              glowBottomColors={[theme.colors.emergencyStroke, theme.colors.featureStrokeTo]}
-              style={styles.emergency}
-            >
-              <View style={styles.emergencyWashClip} pointerEvents="none">
-                <LinearGradient
-                  colors={[theme.colors.emergencyWash, theme.colors.transparent]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.emergencyWash}
-                />
-              </View>
-
-              <Ionicons
-                name="warning-outline"
-                size={EMERGENCY_ICON_SIZE}
-                color={theme.colors.emergencyIcon}
-                style={styles.emergencyIcon}
-              />
-              <View style={styles.emergencyText}>
-                <AppText variant="statValue">{copy.emergencyTitle}</AppText>
-                <AppText
-                  variant="tileCaption"
-                  color={theme.colors.textSupport}
-                  numberOfLines={2}
-                  style={styles.emergencyBody}
-                >
-                  {copy.emergencyBody}
-                </AppText>
-              </View>
-
-              <Pressable
-                onPress={() => dial(emergencyPhone)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={copy.callNow}
-                accessibilityHint="Opens the phone to call emergency support"
-                style={({ pressed }) => [styles.callNow, pressed && styles.pressed]}
+            <ResponsiveColumns gap={0}>
+              <View
+                onLayout={(event) => {
+                  firstColumnHeight.current = event.nativeEvent.layout.height;
+                }}
               >
-                <Ionicons
-                  name="call-outline"
-                  size={CALL_ICON_SIZE}
-                  color={theme.colors.emergencyIcon}
-                />
-                <AppText
-                  variant="statLabel"
-                  color={theme.colors.emergencyText}
-                  style={styles.callNowLabel}
+                <NeonPanel style={[styles.card, styles.categories]}>
+                  <PanelHeading
+                    title={copy.categoriesTitle}
+                    iconSet="ionicons"
+                    iconName="grid-outline"
+                    iconSize={19}
+                    actionLabel={showAllCategories ? copy.showLess : copy.viewAll}
+                    actionExpanded={showAllCategories}
+                    onActionPress={() => setShowAllCategories((current) => !current)}
+                    divider={false}
+                  />
+                  <View style={styles.grid}>
+                    {rowsOfThree(shownCategories).map((row) => (
+                      <View key={row[0].id} style={styles.gridRow}>
+                        {row.map((item) => (
+                          <ServiceTile
+                            key={item.id}
+                            layout="stacked"
+                            title={item.title}
+                            subtitle={item.subtitle}
+                            iconSet={item.iconSet}
+                            iconName={item.iconName}
+                            nested
+                            glow
+                            scale={scale}
+                            onPress={() => openForm(item.title)}
+                            style={styles.tile}
+                          />
+                        ))}
+                        {/* Keeps a short last row's tiles at a third of the width. */}
+                        {Array.from({ length: 3 - row.length }, (_, index) => (
+                          <View key={`spacer-${index}`} style={styles.tile} />
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </NeonPanel>
+
+                {formCategory !== undefined ? (
+                  <View
+                    onLayout={(event) => {
+                      formY.current = event.nativeEvent.layout.y;
+                      if (scrollToForm.current) {
+                        scrollToForm.current = false;
+                        scrollTo(formTop());
+                      }
+                    }}
+                  >
+                    <RequestForm
+                      categoryTitle={formCategory || undefined}
+                      onSubmit={submitRequest}
+                      onClose={() => setFormCategory(undefined)}
+                      style={styles.card}
+                    />
+                  </View>
+                ) : null}
+              </View>
+
+              <View>
+                <View
+                  onLayout={(event) => {
+                    activeY.current = event.nativeEvent.layout.y;
+                  }}
                 >
-                  {copy.callNow}
-                </AppText>
-              </Pressable>
-              <Ionicons
-                name="chevron-forward"
-                size={ROW_CHEVRON_SIZE}
-                color={theme.colors.textPrimary}
-                style={styles.emergencyChevron}
-              />
-            </NeonPanel>
+                  <NeonPanel style={styles.card}>
+                    <PanelHeading
+                      title={copy.activeTitle}
+                      iconSet="ionicons"
+                      iconName="document-text-outline"
+                      iconSize={19}
+                      actionLabel={history.length > 0 ? (showHistory ? copy.showLess : copy.viewAll) : undefined}
+                      actionExpanded={history.length > 0 ? showHistory : undefined}
+                      onActionPress={() => setShowHistory((current) => !current)}
+                    />
+
+                    <RequestRow
+                      item={request}
+                      onPress={() => setShowHistory((current) => !current)}
+                      hint="Shows your other requests"
+                    />
+
+                    <ProgressStepper steps={steps} currentIndex={currentStep} style={styles.stepper} />
+
+                    <View style={styles.detailsDivider} />
+
+                    <DividedRow weights={DETAILS_WEIGHTS} gap={DETAILS_GAP * scale} style={styles.details}>
+                      <StatItem
+                        label="Technician"
+                        value={request.technician}
+                        iconSet="ionicons"
+                        iconName="person-outline"
+                        iconSize={DETAILS_ICON_SIZE}
+                        iconGap={DETAILS_ICON_GAP}
+                        scale={DETAILS_SCALE * scale}
+                      />
+                      <StatItem
+                        label="Visit Date"
+                        value={request.visitDate}
+                        caption={request.visitWindow}
+                        iconSet="ionicons"
+                        iconName="calendar-outline"
+                        iconSize={DETAILS_ICON_SIZE}
+                        iconGap={DETAILS_ICON_GAP}
+                        scale={DETAILS_SCALE * scale}
+                      />
+                      {/* Dials the technician; a new request has no one to call yet. */}
+                      <Pressable
+                        onPress={() => dial(request.contactPhone)}
+                        disabled={!request.contactPhone}
+                        accessibilityRole="button"
+                        accessibilityHint="Calls the technician"
+                        accessibilityState={{ disabled: !request.contactPhone }}
+                        style={({ pressed }) => pressed && styles.pressed}
+                      >
+                        <StatItem
+                          label="Contact"
+                          value={request.contactPhone ?? copy.contactPending}
+                          iconSet="ionicons"
+                          iconName="call-outline"
+                          iconSize={DETAILS_ICON_SIZE}
+                          iconGap={DETAILS_ICON_GAP}
+                          scale={DETAILS_SCALE * scale}
+                        />
+                      </Pressable>
+                    </DividedRow>
+
+                    {showHistory && history.length > 0 ? (
+                      <View style={styles.history}>
+                        <View style={styles.detailsDivider} />
+                        <AppText
+                          variant="statLabel"
+                          color={theme.colors.textSupport}
+                          style={styles.historyTitle}
+                        >
+                          {copy.historyTitle}
+                        </AppText>
+                        {history.map((item, index) => (
+                          <RequestRow
+                            key={item.id}
+                            item={item}
+                            onPress={() => showRequest(item.id)}
+                            hint="Shows this request"
+                            style={index === 0 ? styles.historyFirstRow : styles.historyRow}
+                          />
+                        ))}
+                      </View>
+                    ) : null}
+                  </NeonPanel>
+                </View>
+
+                <View style={[styles.card, styles.actions]}>
+                  <AppButton
+                    title={copy.newRequest}
+                    variant="gradient"
+                    gradientColors={[
+                      theme.colors.ctaSky,
+                      theme.colors.ctaRoyal,
+                      theme.colors.ctaViolet,
+                      theme.colors.ctaPink,
+                    ]}
+                    height={ACTION_HEIGHT}
+                    radius={ACTION_RADIUS}
+                    labelVariant="statValue"
+                    leadingIcon={
+                      <Ionicons name="add" size={ACTION_ICON_SIZE} color={theme.colors.textPrimary} />
+                    }
+                    leadingPlacement="inline"
+                    onPress={() => openForm('')}
+                    style={styles.newRequest}
+                  />
+                  <Pressable
+                    onPress={openHistory}
+                    accessibilityRole="button"
+                    accessibilityLabel={copy.myRequests}
+                    style={({ pressed }) => [styles.myRequests, pressed && styles.pressed]}
+                  >
+                    <NeonPanel style={styles.myRequestsPanel}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={ACTION_ICON_SIZE}
+                        color={theme.colors.textPrimary}
+                      />
+                      <AppText variant="statValue" style={styles.myRequestsLabel}>
+                        {copy.myRequests}
+                      </AppText>
+                    </NeonPanel>
+                  </Pressable>
+                </View>
+
+                {/* Not itself a button: "Call Now" is, and web cannot nest buttons.
+                    TODO(nav): make the card open emergency support once that screen exists. */}
+                <View style={styles.card}>
+                  <NeonPanel
+                    // The warm corner glow of the design's emergency card.
+                    glowBottomColors={[theme.colors.emergencyStroke, theme.colors.featureStrokeTo]}
+                    style={styles.emergency}
+                  >
+                    <View style={styles.emergencyWashClip} pointerEvents="none">
+                      <LinearGradient
+                        colors={[theme.colors.emergencyWash, theme.colors.transparent]}
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        style={styles.emergencyWash}
+                      />
+                    </View>
+
+                    <Ionicons
+                      name="warning-outline"
+                      size={EMERGENCY_ICON_SIZE}
+                      color={theme.colors.emergencyIcon}
+                      style={styles.emergencyIcon}
+                    />
+                    <View style={styles.emergencyText}>
+                      <AppText variant="statValue">{copy.emergencyTitle}</AppText>
+                      <AppText
+                        variant="tileCaption"
+                        color={theme.colors.textSupport}
+                        numberOfLines={2}
+                        style={styles.emergencyBody}
+                      >
+                        {copy.emergencyBody}
+                      </AppText>
+                    </View>
+
+                    <Pressable
+                      onPress={() => dial(emergencyPhone)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={copy.callNow}
+                      accessibilityHint="Opens the phone to call emergency support"
+                      style={({ pressed }) => [styles.callNow, pressed && styles.pressed]}
+                    >
+                      <Ionicons
+                        name="call-outline"
+                        size={CALL_ICON_SIZE}
+                        color={theme.colors.emergencyIcon}
+                      />
+                      <AppText
+                        variant="statLabel"
+                        color={theme.colors.emergencyText}
+                        style={styles.callNowLabel}
+                      >
+                        {copy.callNow}
+                      </AppText>
+                    </Pressable>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={ROW_CHEVRON_SIZE}
+                      color={theme.colors.textPrimary}
+                      style={styles.emergencyChevron}
+                    />
+                  </NeonPanel>
+                </View>
+              </View>
+            </ResponsiveColumns>
           </View>
         </ScrollView>
 

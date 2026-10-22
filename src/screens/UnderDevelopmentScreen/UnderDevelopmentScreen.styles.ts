@@ -37,6 +37,11 @@ export function createStyles(theme: AppTheme) {
       flex: 1,
       justifyContent: 'center',
     },
+    cardWide: {
+      width: '100%',
+      maxWidth: MAX_CONTENT_WIDTH,
+      alignSelf: 'center',
+    },
     card: {
       alignItems: 'center',
       paddingVertical: theme.spacing.xl,

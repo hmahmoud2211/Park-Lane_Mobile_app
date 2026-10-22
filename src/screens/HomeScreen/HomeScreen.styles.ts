@@ -8,13 +8,15 @@ import type { AppTheme } from '../../types/theme.types';
  * whose frame is 390 x 818 with a 36dp gutter.
  */
 const HEADER_TO_GREETING = 26;
-const GREETING_TO_UNIT = 30;
+export const GREETING_TO_UNIT = 30;
 const UNIT_TO_GRID = 31;
 const PROMO_TOP = 16;
 
 /** Two columns inside a 36dp gutter: 150 + 18 + 150 = 318. */
 export const TILE_GAP = 18;
 export const TILE_ROW_GAP = 10;
+/** Two tiles fit a phone; tablets and desktops fit up to four. */
+export const MIN_TILE_WIDTH = 140;
 
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
@@ -36,6 +38,8 @@ export function createStyles(theme: AppTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+    },
+    greetingSpacing: {
       marginBottom: GREETING_TO_UNIT,
     },
     greetingText: {
@@ -51,16 +55,11 @@ export function createStyles(theme: AppTheme) {
     },
 
     grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      // Negative outer margins let each tile carry its own gap.
-      marginHorizontal: -TILE_GAP / 2,
-      marginBottom: PROMO_TOP,
+      // The last row's gap, then the promo's own space above it.
+      marginBottom: TILE_ROW_GAP + PROMO_TOP,
     },
-    gridItem: {
-      width: '50%',
-      paddingHorizontal: TILE_GAP / 2,
-      marginBottom: TILE_ROW_GAP,
+    wideTop: {
+      marginBottom: UNIT_TO_GRID,
     },
   });
 }

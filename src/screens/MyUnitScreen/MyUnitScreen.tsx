@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, View, useWindowDimensions } from 'react-n
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { DividedRow } from '../../components/ui/DividedRow';
@@ -16,6 +17,7 @@ import { StatItem, type StatItemData, type StatItemProps } from '../../component
 import { UnitHeroCard } from '../../components/ui/UnitHeroCard';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { downloadPdf, viewPdf } from '../../services/documents/exportPdf';
 import {
   documents,
@@ -32,6 +34,7 @@ import { buildUnitDocument } from './MyUnitScreen.documents';
 import {
   UTILITY_ICON_GAP,
   UTILITY_ICON_SIZE,
+  CARD_GAP,
   columns,
   createStyles,
   statScaleFor,
@@ -58,9 +61,14 @@ interface DocumentMenu {
 
 export function MyUnitScreen() {
   const theme = useAppTheme();
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const layout = useScreenLayout();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const scale = statScaleFor(width, theme);
+  // Fitted to the column the cards sit in, which beside a side rail or in a
+  // two-column page is narrower than the window.
+  const scale = statScaleFor(layout.columnFrameWidth, theme);
+  // The page's middle on screen: the side rail, if any, takes the window's left edge.
+  const pageCenter = windowWidth - layout.frameWidth / 2;
   const [documentMenu, setDocumentMenu] = useState<DocumentMenu | null>(null);
   const [preparing, setPreparing] = useState<DocumentId | null>(null);
   const documentTiles = useRef<Partial<Record<DocumentId, View | null>>>({});
@@ -72,11 +80,11 @@ export function MyUnitScreen() {
         setDocumentMenu({
           id,
           anchor: { y, height: tileHeight },
-          align: x + tileWidth / 2 < width / 2 ? 'left' : 'right',
+          align: x + tileWidth / 2 < pageCenter ? 'left' : 'right',
         });
       });
     },
-    [width],
+    [pageCenter],
   );
 
   // The PDF is built from the screen's own data, on the device (frontend only).
@@ -128,7 +136,10 @@ export function MyUnitScreen() {
       <StatusBar style="light" />
 
       <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.content, layout.contentStyle]}
+          showsVerticalScrollIndicator={false}
+        >
           <PageHeader
             title={myUnitCopy.title}
             style={styles.header}
@@ -153,98 +164,96 @@ export function MyUnitScreen() {
             stats={unitHero.stats}
             statWeights={columns.hero.weights}
             statScale={scale}
-            style={styles.card}
+            style={styles.hero}
           />
 
-          <SectionCard {...sections.overview} onPress={notYetRouted} style={styles.card}>
-            <DividedRow weights={columns.overview.weights} gap={columns.overview.gap * scale}>
-              {overviewColumns.map((column) => (
-                <View key={column[0].id} style={styles.overviewColumn}>
-                  {renderStats(column, { scale })}
+          {/* Unit and money on the left, running costs and papers on the right. */}
+          <ResponsiveColumns gap={CARD_GAP}>
+            <>
+              <SectionCard {...sections.overview} onPress={notYetRouted}>
+                <DividedRow weights={columns.overview.weights} gap={columns.overview.gap * scale}>
+                  {overviewColumns.map((column) => (
+                    <View key={column[0].id} style={styles.overviewColumn}>
+                      {renderStats(column, { scale })}
+                    </View>
+                  ))}
+                </DividedRow>
+              </SectionCard>
+
+              <SectionCard {...sections.financial} onPress={notYetRouted}>
+                <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
+                  {renderStats(financial.summary, { size: 'large', scale })}
+                </DividedRow>
+
+                <View style={styles.progressRow}>
+                  <ProgressBar
+                    progress={financial.paidRatio}
+                    accessibilityLabel={financial.paidLabel}
+                    style={styles.progressBar}
+                  />
+                  <AppText variant="statValue" color={theme.colors.textPrimary}>
+                    {financial.paidLabel}
+                  </AppText>
                 </View>
-              ))}
-            </DividedRow>
-          </SectionCard>
 
-          <SectionCard {...sections.financial} onPress={notYetRouted} style={styles.card}>
-            <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
-              {renderStats(financial.summary, { size: 'large', scale })}
-            </DividedRow>
+                <View style={styles.financialDivider} />
 
-            <View style={styles.progressRow}>
-              <ProgressBar
-                progress={financial.paidRatio}
-                accessibilityLabel={financial.paidLabel}
-                style={styles.progressBar}
-              />
-              <AppText variant="statValue" color={theme.colors.textPrimary}>
-                {financial.paidLabel}
-              </AppText>
-            </View>
+                <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
+                  {renderStats(financial.schedule, { scale })}
+                </DividedRow>
+              </SectionCard>
+            </>
 
-            <View style={styles.financialDivider} />
+            <>
+              <SectionCard {...sections.maintenance} onPress={notYetRouted}>
+                <DividedRow weights={columns.maintenance.weights} gap={columns.maintenance.gap * scale}>
+                  {renderStats(maintenanceFees, { scale })}
+                </DividedRow>
+              </SectionCard>
 
-            <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
-              {renderStats(financial.schedule, { scale })}
-            </DividedRow>
-          </SectionCard>
+              <SectionCard {...sections.utilities} onPress={notYetRouted}>
+                <DividedRow weights={columns.utilities.weights} gap={columns.utilities.gap * scale}>
+                  {renderStats(utilities, {
+                    iconSize: UTILITY_ICON_SIZE,
+                    iconGap: UTILITY_ICON_GAP,
+                    trendOverhang: columns.utilities.gap,
+                    scale,
+                  })}
+                </DividedRow>
+              </SectionCard>
 
-          <SectionCard
-            {...sections.maintenance}
-            onPress={notYetRouted}
-            style={styles.card}
-          >
-            <DividedRow weights={columns.maintenance.weights} gap={columns.maintenance.gap * scale}>
-              {renderStats(maintenanceFees, { scale })}
-            </DividedRow>
-          </SectionCard>
-
-          <SectionCard
-            {...sections.utilities}
-            onPress={notYetRouted}
-            style={styles.card}
-          >
-            <DividedRow weights={columns.utilities.weights} gap={columns.utilities.gap * scale}>
-              {renderStats(utilities, {
-                iconSize: UTILITY_ICON_SIZE,
-                iconGap: UTILITY_ICON_GAP,
-                trendOverhang: columns.utilities.gap,
-                scale,
-              })}
-            </DividedRow>
-          </SectionCard>
-
-          <SectionCard
-            {...sections.documents}
-            onPress={notYetRouted}
-            divider={false}
-            style={styles.card}
-            contentStyle={styles.documentsBody}
-          >
-            {documents.map((doc) => (
-              // Wrapped so the menu can measure where the tile sits.
-              <View
-                key={doc.id}
-                ref={(node) => {
-                  documentTiles.current[doc.id] = node;
-                }}
-                collapsable={false}
-                style={styles.documentTile}
+              <SectionCard
+                {...sections.documents}
+                onPress={notYetRouted}
+                divider={false}
+                contentStyle={styles.documentsBody}
               >
-                <ServiceTile
-                  title={doc.title}
-                  subtitle={preparing === doc.id ? myUnitCopy.preparingDocument : doc.subtitle}
-                  iconSet={doc.iconSet}
-                  iconName={doc.iconName}
-                  compact
-                  nested
-                  glow
-                  scale={scale}
-                  onPress={() => openDocumentMenu(doc.id)}
-                />
-              </View>
-            ))}
-          </SectionCard>
+                {documents.map((doc) => (
+                  // Wrapped so the menu can measure where the tile sits.
+                  <View
+                    key={doc.id}
+                    ref={(node) => {
+                      documentTiles.current[doc.id] = node;
+                    }}
+                    collapsable={false}
+                    style={styles.documentTile}
+                  >
+                    <ServiceTile
+                      title={doc.title}
+                      subtitle={preparing === doc.id ? myUnitCopy.preparingDocument : doc.subtitle}
+                      iconSet={doc.iconSet}
+                      iconName={doc.iconName}
+                      compact
+                      nested
+                      glow
+                      scale={scale}
+                      onPress={() => openDocumentMenu(doc.id)}
+                    />
+                  </View>
+                ))}
+              </SectionCard>
+            </>
+          </ResponsiveColumns>
         </ScrollView>
 
         {/* The same empty glass bar as the home screen. */}

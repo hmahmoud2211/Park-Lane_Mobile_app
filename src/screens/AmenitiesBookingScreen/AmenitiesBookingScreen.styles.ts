@@ -34,6 +34,9 @@ const MORE_HEIGHT = 36;
 const MORE_INSET = 18;
 export const MORE_CHEVRON_SIZE = 12;
 
+/** Wide layouts: the amenity list, with My Bookings in a narrower column beside it. */
+export const WIDE_COLUMN_WEIGHTS = [3, 2] as const;
+
 /** My Bookings rows: the amenity's glyph in a ring, as on its card, then a cancel button. */
 const BOOKING_RING = 32;
 export const BOOKING_ICON_SIZE = 17;
@@ -105,6 +108,14 @@ export function createStyles(theme: AppTheme) {
     bookings: {
       marginTop: LIST_TO_MORE,
       paddingBottom: 6,
+    },
+    // Beside the list, level with its first card.
+    bookingsBeside: {
+      marginTop: 0,
+    },
+    bookingsEmpty: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
     },
     booking: {
       flexDirection: 'row',

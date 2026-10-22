@@ -216,50 +216,9 @@ export function ReservationDetailsScreen() {
   // Until the pass is out, sending it is the one job left, so it leads.
   const sendFirst = r.status === 'confirmed' && !db.audit.some((a) => a.entityId === r.id && a.action === 'pass.shared');
 
-  return (
-    <ParkingFrame title={copy.title}>
-      {statusNotice()}
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
-      {sendFirst ? sendCard : null}
-
-      <Panel
-        title={view.title}
-        subtitle={`${r.reference} · ${view.property.label}`}
-        icon={r.parkingType === 'ev' ? 'flash-outline' : 'people-outline'}
-        trailing={<StatusChip label={view.status.label} tone={view.status.tone} glow />}
-      >
-        <FactGrid facts={facts} />
-        {isGuest ? (
-          <View style={styles.divided}>
-            <GuestTrackerStrip tracker={guestTracker(db, r, now)} />
-          </View>
-        ) : null}
-        <View style={styles.row}>
-          <ParkingButton
-            compact
-            label={copy.directions}
-            icon="map-outline"
-            onPress={() => navigation.navigate('ParkingMap', { reservationId: r.id })}
-            style={styles.grow}
-          />
-          {timeline.length > 0 ? (
-            <ParkingButton
-              compact
-              label={showActivity ? 'Hide activity' : `Activity (${timeline.length})`}
-              icon={showActivity ? 'chevron-up' : 'list-outline'}
-              onPress={() => setShowActivity((v) => !v)}
-              style={styles.grow}
-            />
-          ) : null}
-        </View>
-        {showActivity ? <Timeline items={timeline} /> : null}
-        {isGuest ? (
-          <AppText variant="label" color={theme.colors.textMuted}>
-            {copy.trackerNote}
-          </AppText>
-        ) : null}
-      </Panel>
-
+  // Sharing, charging and managing the booking: beside the booking itself on wide screens.
+  const actions = (
+    <>
       {!sendFirst ? sendCard : null}
 
       {view.allocation && view.charging ? (
@@ -362,6 +321,52 @@ export function ReservationDetailsScreen() {
           />
         </>
       )}
+    </>
+  );
+
+  return (
+    <ParkingFrame title={copy.title} aside={actions}>
+      {statusNotice()}
+      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
+      {sendFirst ? sendCard : null}
+
+      <Panel
+        title={view.title}
+        subtitle={`${r.reference} · ${view.property.label}`}
+        icon={r.parkingType === 'ev' ? 'flash-outline' : 'people-outline'}
+        trailing={<StatusChip label={view.status.label} tone={view.status.tone} glow />}
+      >
+        <FactGrid facts={facts} />
+        {isGuest ? (
+          <View style={styles.divided}>
+            <GuestTrackerStrip tracker={guestTracker(db, r, now)} />
+          </View>
+        ) : null}
+        <View style={styles.row}>
+          <ParkingButton
+            compact
+            label={copy.directions}
+            icon="map-outline"
+            onPress={() => navigation.navigate('ParkingMap', { reservationId: r.id })}
+            style={styles.grow}
+          />
+          {timeline.length > 0 ? (
+            <ParkingButton
+              compact
+              label={showActivity ? 'Hide activity' : `Activity (${timeline.length})`}
+              icon={showActivity ? 'chevron-up' : 'list-outline'}
+              onPress={() => setShowActivity((v) => !v)}
+              style={styles.grow}
+            />
+          ) : null}
+        </View>
+        {showActivity ? <Timeline items={timeline} /> : null}
+        {isGuest ? (
+          <AppText variant="label" color={theme.colors.textMuted}>
+            {copy.trackerNote}
+          </AppText>
+        ) : null}
+      </Panel>
     </ParkingFrame>
   );
 }

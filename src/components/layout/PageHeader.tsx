@@ -67,7 +67,7 @@ export function PageHeader({ title, subtitle, onMenuPress, trailing, showBack = 
     <View style={style}>
       {/* Backdrop layer: never takes touches, so the controls above stay tappable. */}
       <View style={styles.lockupLayer} pointerEvents="none">
-        <BrandLockup />
+        <BrandLockup yieldsToRail />
       </View>
       <View style={styles.row} pointerEvents="box-none">
         {showBack ? <BackButton onPress={onBackPress} /> : <View />}

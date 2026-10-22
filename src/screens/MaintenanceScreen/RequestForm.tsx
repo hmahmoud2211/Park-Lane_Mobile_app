@@ -46,7 +46,7 @@ type SelectKey = Extract<RequestFormKey, 'category' | 'date' | 'window'>;
 
 interface OpenSelect {
   key: SelectKey;
-  anchor: { y: number; height: number };
+  anchor: { x: number; y: number; width: number; height: number };
   align: 'left' | 'right';
 }
 
@@ -104,8 +104,8 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
 
   const open = (key: SelectKey, column: number) => {
     Keyboard.dismiss();
-    selectRefs.current[key]?.measureInWindow((_x, y, _width, height) => {
-      setOpenSelect({ key, anchor: { y, height }, align: column === 0 ? 'left' : 'right' });
+    selectRefs.current[key]?.measureInWindow((x, y, width, height) => {
+      setOpenSelect({ key, anchor: { x, y, width, height }, align: column === 0 ? 'left' : 'right' });
     });
   };
 

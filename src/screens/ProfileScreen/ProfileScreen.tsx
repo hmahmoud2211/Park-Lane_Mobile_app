@@ -8,11 +8,13 @@ import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Avatar } from '../../components/ui/Avatar';
 import { ServiceTile } from '../../components/ui/ServiceTile';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { initialsOf, resident } from '../HomeScreen/HomeScreen.data';
 import { accessPassPayload, profileCopy, profileMenu } from './ProfileScreen.data';
 import { PASS_SIZE, createStyles } from './ProfileScreen.styles';
@@ -20,6 +22,7 @@ import { PASS_SIZE, createStyles } from './ProfileScreen.styles';
 export function ProfileScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const layout = useScreenLayout();
 
   const fullName = `${resident.firstName} ${resident.lastName}`;
 
@@ -32,56 +35,69 @@ export function ProfileScreen() {
       <StatusBar style="light" />
 
       <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <PageHeader title={profileCopy.title} style={styles.header} />
+        <ScrollView
+          contentContainerStyle={[styles.content, layout.contentStyle]}
+          showsVerticalScrollIndicator={false}
+        >
+          <PageHeader title={profileCopy.title} style={[styles.header, layout.isWide && styles.headerWide]} />
 
-          <GlassSurface
-            radius={theme.borderRadius.xl}
-            stroke="gradient"
-            strokeColors={[theme.colors.featureStrokeFrom, theme.colors.featureStrokeTo]}
-            style={styles.identity}
-          >
-            <Avatar initials={initialsOf(resident)} size={36} variant="flat" />
-            <View style={styles.identityText}>
-              <AppText variant="sectionTitle">{fullName}</AppText>
-            </View>
-            <Ionicons name="chevron-forward" size={15} color={theme.colors.textSecondary} />
-          </GlassSurface>
+          {/*
+            Who and the access pass on the left, the account menu on the
+            right. Cards keep their own bottom margins, so no column gap.
+          */}
+          <ResponsiveColumns gap={0}>
+            <>
+              <GlassSurface
+                radius={theme.borderRadius.xl}
+                stroke="gradient"
+                strokeColors={[theme.colors.featureStrokeFrom, theme.colors.featureStrokeTo]}
+                style={styles.identity}
+              >
+                <Avatar initials={initialsOf(resident)} size={36} variant="flat" />
+                <View style={styles.identityText}>
+                  <AppText variant="sectionTitle">{fullName}</AppText>
+                </View>
+                <Ionicons name="chevron-forward" size={15} color={theme.colors.textSecondary} />
+              </GlassSurface>
 
-          <GlassSurface
-            radius={theme.borderRadius.lg}
-            stroke="gradient"
-            style={styles.passCard}
-          >
-            <View style={styles.passSurface}>
-              <QRCode
-                value={accessPassPayload}
-                size={PASS_SIZE}
-                color={theme.colors.deepNavy}
-                backgroundColor={theme.colors.white}
-              />
-            </View>
-            <AppText
-              variant="tileCaption"
-              color={theme.colors.textSecondary}
-              style={styles.passCaption}
-            >
-              {profileCopy.passCaption}
-            </AppText>
-          </GlassSurface>
+              <GlassSurface
+                radius={theme.borderRadius.lg}
+                stroke="gradient"
+                style={styles.passCard}
+              >
+                <View style={styles.passSurface}>
+                  <QRCode
+                    value={accessPassPayload}
+                    size={PASS_SIZE}
+                    color={theme.colors.deepNavy}
+                    backgroundColor={theme.colors.white}
+                  />
+                </View>
+                <AppText
+                  variant="tileCaption"
+                  color={theme.colors.textSecondary}
+                  style={styles.passCaption}
+                >
+                  {profileCopy.passCaption}
+                </AppText>
+              </GlassSurface>
+            </>
 
-          {profileMenu.map((item) => (
-            <ServiceTile
-              key={item.id}
-              title={item.title}
-              iconSet={item.iconSet}
-              iconName={item.iconName}
-              style={styles.menuRow}
-              onPress={() => {
-                // TODO(nav): route to the `item.id` screen once it is designed.
-              }}
-            />
-          ))}
+            <>
+              {profileMenu.map((item) => (
+                <ServiceTile
+                  key={item.id}
+                  title={item.title}
+                  iconSet={item.iconSet}
+                  iconName={item.iconName}
+                  style={styles.menuRow}
+                  onPress={() => {
+                    // TODO(nav): route to the `item.id` screen once it is designed.
+                  }}
+                />
+              ))}
+            </>
+          </ResponsiveColumns>
         </ScrollView>
 
         <BottomBar inset={theme.spacing.screenGutter} />
