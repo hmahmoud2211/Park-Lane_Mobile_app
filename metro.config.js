@@ -1,5 +1,6 @@
 // Learn more https://docs.expo.dev/guides/customizing-metro
 const http = require('http');
+const https = require('https');
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
@@ -11,12 +12,13 @@ const config = getDefaultConfig(__dirname);
  */
 const CUBE_PREFIX = '/cube/';
 const cubeUrl = new URL(process.env.EXPO_PUBLIC_CUBE_URL || 'http://192.168.1.119');
+const cubeIsHttps = cubeUrl.protocol === 'https:';
 
 function proxyToCube(req, res) {
-  const upstream = http.request(
+  const upstream = (cubeIsHttps ? https : http).request(
     {
       hostname: cubeUrl.hostname,
-      port: cubeUrl.port || 80,
+      port: cubeUrl.port || (cubeIsHttps ? 443 : 80),
       method: req.method,
       path: req.url.slice(CUBE_PREFIX.length - 1),
       headers: { ...req.headers, host: cubeUrl.host },
