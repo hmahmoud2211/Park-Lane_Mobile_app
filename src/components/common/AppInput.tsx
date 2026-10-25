@@ -4,6 +4,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextInputInstance,
   type TextInputProps,
   type TextStyle,
   type ViewStyle,
@@ -50,7 +51,7 @@ const FIELD_TRAILING_INSET = 7;
  * a hairline, then a stacked label and value. Reusable for registration,
  * password recovery and profile screens.
  */
-export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
+export const AppInput = forwardRef<TextInputInstance, AppInputProps>(function AppInput(
   {
     label,
     value,

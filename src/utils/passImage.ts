@@ -21,7 +21,7 @@ export async function savePassImage({ qr, fileName, title }: PassImageContent): 
       file.delete();
     }
     file.create();
-    file.write(base64, { encoding: 'base64' });
+    await file.write(base64, { encoding: 'base64' });
     await Sharing.shareAsync(file.uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: title });
     return 'shared';
   } catch {

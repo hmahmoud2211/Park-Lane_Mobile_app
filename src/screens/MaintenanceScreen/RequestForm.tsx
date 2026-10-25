@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
@@ -74,7 +74,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
   }));
   const [errors, setErrors] = useState<RequestFormErrors>({});
   const [openSelect, setOpenSelect] = useState<OpenSelect | null>(null);
-  const selectRefs = useRef<Partial<Record<SelectKey, View | null>>>({});
+  const selectRefs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
   // Another tile tapped while the form is open picks that category instead.
   // Adjusted during render, as React recommends for state that follows a prop.

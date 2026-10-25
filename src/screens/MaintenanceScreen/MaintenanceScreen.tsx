@@ -11,6 +11,7 @@ import {
   Pressable,
   ScrollView,
   View,
+  type ScrollViewInstance,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -163,7 +164,7 @@ export function MaintenanceScreen() {
   /** `undefined` while the form is closed; a category title, or '', while open. */
   const [formCategory, setFormCategory] = useState<string | undefined>(undefined);
 
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const formY = useRef(0);
   const activeY = useRef(0);
   const scrollToForm = useRef(false);

@@ -3,7 +3,7 @@ import {
   StyleSheet,
   View,
   type StyleProp,
-  type Text,
+  type TextInstance,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
@@ -35,7 +35,7 @@ export function GradientText({ children, variant = 'heading', colors, style }: G
   const rawId = useId();
   const id = useMemo(() => `grad-${rawId.replace(/:/g, '')}`, [rawId]);
   // Measured before the first paint, so the gradient text shows on the first frame.
-  const { ref, size: box, onLayout } = useLayoutSize<Text>();
+  const { ref, size: box, onLayout } = useLayoutSize<TextInstance>();
 
   const [from, to] = colors ?? [theme.colors.electricCyan, theme.colors.frameGradientEnd];
   const textStyle = theme.typography[variant] as TextStyle;

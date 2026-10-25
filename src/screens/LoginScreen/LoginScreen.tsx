@@ -12,7 +12,7 @@ import {
   Pressable,
   ScrollView,
   View,
-  type TextInput,
+  type TextInputInstance,
   type ViewStyle,
 } from 'react-native';
 
@@ -92,7 +92,7 @@ export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<LoginErrors>({});
 
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   const handleSubmit = useCallback(() => {
     const nextErrors = validateLogin(email, password);

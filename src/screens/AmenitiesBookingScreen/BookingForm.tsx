@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
@@ -103,7 +103,7 @@ export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: Boo
   const [form, setForm] = useState<BookingValues>({ date: '', slot: '', guests: '1 Guest' });
   const [errors, setErrors] = useState<BookingErrors>({});
   const [open, setOpen] = useState<OpenSelect | null>(null);
-  const refs = useRef<Partial<Record<SelectKey, View | null>>>({});
+  const refs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
   const options: Record<SelectKey, readonly string[]> = {
     date: bookingDates(),

@@ -11,7 +11,8 @@ import {
   Pressable,
   ScrollView,
   View,
-  type TextInput,
+  type TextInputInstance,
+  type ViewInstance,
 } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
@@ -97,8 +98,8 @@ export function VisitorAccessScreen() {
   const [openMenu, setOpenMenu] = useState<OpenMenu | null>(null);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
-  const inputRefs = useRef<Partial<Record<FormFieldKey, TextInput | null>>>({});
-  const selectRefs = useRef<Partial<Record<SelectKey, View | null>>>({});
+  const inputRefs = useRef<Partial<Record<FormFieldKey, TextInputInstance | null>>>({});
+  const selectRefs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
   const activePass = visitors.find((visitor) => visitor.id === activeId) ?? null;
   const allUpcoming = visitors.filter((visitor) => visitor.id !== activeId);

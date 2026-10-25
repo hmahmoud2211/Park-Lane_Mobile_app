@@ -8,6 +8,7 @@ import {
   type ImageResizeMode,
   type ImageSourcePropType,
   type StyleProp,
+  type ViewInstance,
   type ViewStyle,
 } from 'react-native';
 
@@ -55,7 +56,7 @@ export function AppBackground({
   children,
 }: AppBackgroundProps) {
   const theme = useAppTheme();
-  const blurTarget = useRef<View>(null);
+  const blurTarget = useRef<ViewInstance>(null);
 
   // Fading between two alphas of the same colour, rather than to `transparent`,
   // avoids the grey midpoint Android interpolates through.

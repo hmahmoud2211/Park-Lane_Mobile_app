@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useMemo, type ReactNode, type Ref } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -22,7 +22,7 @@ export interface ParkingFrameProps {
   showBack?: boolean;
   headerTrailing?: ReactNode;
   onMenuPress?: () => void;
-  scrollRef?: Ref<ScrollView>;
+  scrollRef?: Ref<ScrollViewInstance>;
   /** Lays the page out right-to-left, for Arabic. The header keeps its place. */
   rtl?: boolean;
   /** A quieter line under the title, e.g. "Step 2 of 2". */

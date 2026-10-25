@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
@@ -53,7 +53,7 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
   const [form, setForm] = useState<FeedbackValues>({ topic: '', message: '' });
   const [errors, setErrors] = useState<FeedbackErrors>({});
   const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const topicRef = useRef<View>(null);
+  const topicRef = useRef<ViewInstance>(null);
 
   const update = (key: keyof FeedbackValues, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));

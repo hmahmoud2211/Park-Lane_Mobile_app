@@ -10,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   View,
+  type ScrollViewInstance,
 } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
@@ -106,7 +107,7 @@ export function CommunityScreen() {
   // TODO(api): send feedback to management once the community service exists.
   const [feedbackSent, setFeedbackSent] = useState(false);
 
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const scrollToFeedback = useRef(false);
 
   // "View All" opens the panel's full list in place; "Show Less" folds it back.

@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View, type ScrollViewInstance } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
@@ -61,7 +61,7 @@ export function ReserveParkingScreen() {
   const navigation = useNavigation<RootStackScreenProps<'ReserveParking'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'ReserveParking'>['route']>();
   const { db, now, residentId, service } = useParking();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const editing = useMemo(() => findReservation(db, params.reservationId), [db, params.reservationId]);
   // The version the edit started from: a change elsewhere in the meantime is refused, not overwritten.

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
 import { AssistantOrb } from '../../components/assistant/AssistantOrb';
 import { ChatBubble } from '../../components/assistant/ChatBubble';
@@ -45,7 +45,7 @@ export function ChatPanel({
   // The frame, not the window: beside the side rail the two differ.
   const { frameWidth } = useScreenLayout();
   const orbSize = emptyOrbSizeFor(frameWidth);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   // Messages already present when the panel opens are history: no entrance.
   const [history] = useState(() => new Set(messages.map((message) => message.id)));
   const empty = messages.length === 0 && !pending;

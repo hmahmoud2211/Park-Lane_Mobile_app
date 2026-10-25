@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, View } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
@@ -68,7 +68,7 @@ export function AmenitiesBookingScreen() {
   /** The amenity whose booking form is open under its card, if any. */
   const [bookingFor, setBookingFor] = useState<Amenity['id'] | null>(null);
 
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const layout = useScreenLayout();
   // Beside My Bookings, the list sits in a column: offsets inside it start from the columns' top.
   const sideBySide = layout.columns > 1;

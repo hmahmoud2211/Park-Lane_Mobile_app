@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Platform, ScrollView, StyleSheet, View, type ScrollViewInstance, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { VoiceQueryResult, VoiceTurn } from '../../hooks/useVoiceSession';
@@ -24,7 +24,7 @@ const NATIVE = Platform.OS !== 'web';
 export function VoiceTranscript({ turns, onOpenRoute, onSignIn, style }: VoiceTranscriptProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   return (
     <ScrollView

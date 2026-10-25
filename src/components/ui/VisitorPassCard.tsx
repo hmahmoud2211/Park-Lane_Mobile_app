@@ -6,6 +6,7 @@ import {
   View,
   type LayoutRectangle,
   type StyleProp,
+  type ViewInstance,
   type ViewStyle,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -72,7 +73,7 @@ export function VisitorPassCard({
 }: VisitorPassCardProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const moreRef = useRef<View>(null);
+  const moreRef = useRef<ViewInstance>(null);
 
   const handleMorePress = () => {
     moreRef.current?.measureInWindow((x, y, width, height) => {

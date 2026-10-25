@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Alert, Pressable, ScrollView, useWindowDimensions, View, type ViewInstance } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
@@ -71,7 +71,7 @@ export function MyUnitScreen() {
   const pageCenter = windowWidth - layout.frameWidth / 2;
   const [documentMenu, setDocumentMenu] = useState<DocumentMenu | null>(null);
   const [preparing, setPreparing] = useState<DocumentId | null>(null);
-  const documentTiles = useRef<Partial<Record<DocumentId, View | null>>>({});
+  const documentTiles = useRef<Partial<Record<DocumentId, ViewInstance | null>>>({});
 
   // Hangs the View / Download menu off the tapped tile, on its side of the screen.
   const openDocumentMenu = useCallback(

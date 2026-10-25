@@ -1,7 +1,7 @@
 import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, type ScrollViewInstance } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -35,7 +35,7 @@ export function SonoffPairingScreen() {
     : undefined;
   const navigation = useNavigation<RootStackScreenProps<'SonoffPairing'>['navigation']>();
   const pairing = useSonoffPairing();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [leaving, setLeaving] = useState(false);
 
   const stepIndex = wizardSteps.findIndex((entry) => entry.id === pairing.step);

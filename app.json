@@ -61,7 +61,8 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-status-bar"
     ],
     "backgroundColor": "#071B44"
   }
