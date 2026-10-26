@@ -16,6 +16,7 @@ export type ApiErrorCode =
   | 'hub_auth'
   | 'ha_rejected'
   | 'not_configured'
+  | 'flow_expired'
   | 'internal';
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -32,6 +33,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   hub_auth: 502,
   ha_rejected: 502,
   not_configured: 503,
+  flow_expired: 410,
   internal: 500,
 };
 

@@ -682,7 +682,7 @@ export function SmartHomeScreen() {
                     {...viewAll('devices')}
                     trailing={
                       <Pressable
-                        onPress={() => navigation.navigate('EmsDevices')}
+                        onPress={() => navigation.navigate('ConnectAccount')}
                         hitSlop={10}
                         accessibilityRole="button"
                         accessibilityLabel={addDeviceCopy.buttonLabel}

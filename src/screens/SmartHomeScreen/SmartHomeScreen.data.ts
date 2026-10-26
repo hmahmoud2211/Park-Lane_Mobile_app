@@ -235,7 +235,7 @@ export const deviceStatusLabel = { online: 'Online', offline: 'Offline' } as con
 
 /** Not in the design: the "+" in the Smart Devices heading. */
 export const addDeviceCopy = {
-  buttonLabel: 'Manage devices',
+  buttonLabel: 'Connect devices',
 } as const;
 
 /** Not in the design: what the live screen says about the resident's own home. */

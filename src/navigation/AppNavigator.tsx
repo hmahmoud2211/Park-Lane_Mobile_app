@@ -15,6 +15,7 @@ import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
+import { ConnectAccountScreen } from '../screens/ConnectAccountScreen';
 import { DemoControlsScreen } from '../screens/DemoControlsScreen';
 import { DeviceDetailScreen } from '../screens/DeviceDetailScreen';
 import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
@@ -155,6 +156,7 @@ export function AppNavigator() {
           <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
           <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
           <Stack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
+          <Stack.Screen name="ConnectAccount" component={ConnectAccountScreen} />
           <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />

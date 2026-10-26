@@ -19,8 +19,8 @@ import type { CommandRequest, Device, HaArea, HaDevice, HaEntity, HaState, HubSt
  *
  * The runtime keeps everything current from HA's own pushes
  * (subscribe_entities, registry events), so reads never wait on HA and
- * residents' open apps get `device`, `device_removed`, `rooms` and
- * `hub_status` events. Changes are coalesced for 250 ms and a device is only
+ * residents' open apps get `device`, `device_removed`, `rooms`,
+ * `hub_status` and `accounts` events. Changes are coalesced for 250 ms and a device is only
  * pushed when what the app sees actually changed.
  */
 
@@ -78,6 +78,15 @@ function hubRow(where: string, value: string): HubRow | undefined {
 export function getHubForUnit(unitId: string): Hub | null {
   const row = hubRow('unit_id', unitId);
   return row ? toHub(row) : null;
+}
+
+/** The hub's address and token, for the REST calls the WebSocket API has no command for. */
+export function hubCredentials(id: string): { baseUrl: string; token: string } {
+  const row = hubRow('id', id);
+  if (!row?.base_url || !row.token_sealed) {
+    throw new ApiError('provisioning', 'Your smart home is still being set up. Try again in a few minutes.');
+  }
+  return { baseUrl: row.base_url, token: unseal(row.token_sealed) };
 }
 
 /** Whether the backend holds a token for the hub (provisioning finished onboarding). */
@@ -361,6 +370,15 @@ export class HubRuntime {
     for (const [eventType, registry] of Object.entries(REGISTRY_EVENTS)) {
       await connection.subscribe({ type: 'subscribe_events', event_type: eventType }, () => this.scheduleRegistry(registry));
     }
+    // Linked accounts: the first message lists them all; later ones are changes the app should re-read.
+    let initialEntries = true;
+    await connection.subscribe({ type: 'config_entries/subscribe' }, () => {
+      if (initialEntries) {
+        initialEntries = false;
+        return;
+      }
+      membersOfHub(this.hubId).forEach((userId) => publish(userId, { type: 'accounts' }));
+    });
     // HA sends every current state as the subscription's first event.
     await initial;
     this.loaded = true;

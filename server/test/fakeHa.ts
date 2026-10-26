@@ -6,8 +6,10 @@ import type { Duplex } from 'node:stream';
 /**
  * A stand-in for one Home Assistant instance: its WebSocket API (auth,
  * registries, subscribe_entities, subscribe_events, call_service and the
- * registry updates the facade uses) and the onboarding REST calls the
- * provisioner makes. State lives in memory and changes the way HA reports
+ * registry updates the facade uses), the onboarding REST calls the
+ * provisioner makes, and config flows for three scripted brands:
+ * switchbot_cloud (a form), tuya (a form, then a QR code) and smartthings
+ * (OAuth through an external step and /auth/external/callback). State lives in memory and changes the way HA reports
  * it, so tests can drive the backend end to end without a real hub.
  */
 
@@ -35,6 +37,34 @@ export interface FakeDevice {
   config_entry_id?: string | null;
   entry_type?: string | null;
 }
+
+export interface FakeEntry {
+  entry_id: string;
+  domain: string;
+  title: string;
+  state: string;
+  disabled_by: string | null;
+  reason: string | null;
+}
+
+interface FakeFlow {
+  flow_id: string;
+  handler: string;
+  step: string;
+  context: { source: string; entry_id?: string };
+  externalDone?: boolean;
+}
+
+/** What frontend/get_translations answers for the scripted brands. */
+const TRANSLATIONS: Record<string, string> = {
+  'component.switchbot_cloud.config.step.user.title': 'Connect SwitchBot',
+  'component.switchbot_cloud.config.step.user.data.api_token': 'Token',
+  'component.switchbot_cloud.config.step.user.data.api_key': 'Secret',
+  'component.switchbot_cloud.config.error.invalid_auth': 'Invalid authentication',
+  'component.tuya.config.step.user.data.user_code': 'User code',
+  'component.tuya.config.step.scan.description': 'Scan this code with the {app} app.',
+  'component.smartthings.config.abort.already_configured': 'Account is already configured',
+};
 
 export interface FakeSetup {
   areas: { area_id: string; name: string; icon?: string | null }[];
@@ -125,6 +155,11 @@ export class FakeHa {
   private readonly raw = new Set<Duplex>();
   private refusing = false;
   private setup: FakeSetup;
+  readonly entries: FakeEntry[] = [];
+  readonly flows = new Map<string, FakeFlow>();
+  /** The HA-Frontend-Base header of the last flow request, which OAuth redirects are built from. */
+  lastFrontendBase: string | null = null;
+  private flowCounter = 0;
   private states: Record<string, { s: string; a: Record<string, unknown>; lc: number }> = {};
 
   constructor(setup: FakeSetup, token = 'fake-ha-token-0123456789') {
@@ -257,6 +292,27 @@ export class FakeHa {
         this.tokens.add(token);
         return this.result(socket, id, token);
       }
+      case 'frontend/get_translations': {
+        const wanted = (message.integration as string[] | undefined) ?? [];
+        const resources = Object.fromEntries(
+          Object.entries(TRANSLATIONS).filter(([key]) => wanted.some((domain) => key.startsWith(`component.${domain}.`))),
+        );
+        return this.result(socket, id, { resources });
+      }
+      case 'config_entries/get':
+        return this.result(socket, id, this.entries);
+      case 'config_entries/flow/progress':
+        return this.result(
+          socket,
+          id,
+          [...this.flows.values()]
+            .filter((flow) => flow.context.source !== 'user')
+            .map((flow) => ({ flow_id: flow.flow_id, handler: flow.handler, step_id: flow.step, context: flow.context })),
+        );
+      case 'config_entries/subscribe':
+        socket.subscriptions.set(Number(id), 'entries');
+        this.result(socket, id);
+        return socket.send({ id, type: 'event', event: this.entries.map((entry) => ({ type: null, entry })) });
       case 'application_credentials/create':
         return this.result(socket, id, { id: String(message.domain) });
       case 'config/area_registry/list':
@@ -388,6 +444,144 @@ export class FakeHa {
       const token = `access-${randomBytes(8).toString('hex')}`;
       this.tokens.add(token);
       return json(200, { access_token: token, token_type: 'Bearer', refresh_token: 'refresh', expires_in: 1800 });
+    }
+    if (req.url?.startsWith('/auth/external/callback') && req.method === 'GET') {
+      const query = new URL(req.url, 'http://ha').searchParams;
+      const state = this.decodeState(query.get('state') ?? '');
+      const flow = state ? this.flows.get(state.flow_id) : undefined;
+      if (!flow || !query.get('code')) return json(400, { message: 'Invalid state' });
+      flow.externalDone = true;
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end('<script>window.close()</script>');
+    }
+    if (req.url?.startsWith('/api/config/')) {
+      if (!this.tokens.has(String(req.headers.authorization ?? '').replace(/^Bearer /, ''))) return json(401, { message: 'Unauthorized' });
+      this.lastFrontendBase = (req.headers['ha-frontend-base'] as string | undefined) ?? null;
+      return this.configRest(req.method ?? 'GET', new URL(req.url, 'http://ha').pathname, text ? JSON.parse(text) : {}, json);
+    }
+    return json(404, { message: 'Not found' });
+  }
+
+  /** Adds a linked account, as a finished flow or a test's setup does, and tells subscribers. */
+  addEntry(domain: string, title: string, state = 'loaded'): FakeEntry {
+    const entry: FakeEntry = { entry_id: `entry-${domain}-${this.entries.length + 1}`, domain, title, state, disabled_by: null, reason: null };
+    this.entries.push(entry);
+    this.fireEntries('added', entry);
+    return entry;
+  }
+
+  /** A flow HA started itself, e.g. a brand asking the resident to sign in again. */
+  startReauth(entry: FakeEntry): string {
+    const flow: FakeFlow = { flow_id: `flow-${++this.flowCounter}`, handler: entry.domain, step: 'reauth_confirm', context: { source: 'reauth', entry_id: entry.entry_id } };
+    this.flows.set(flow.flow_id, flow);
+    return flow.flow_id;
+  }
+
+  private fireEntries(type: string, entry: FakeEntry) {
+    for (const socket of this.sockets) {
+      for (const [id, kind] of socket.subscriptions) {
+        if (kind === 'entries') socket.send({ id, type: 'event', event: [{ type, entry }] });
+      }
+    }
+  }
+
+  private encodeState(flowId: string): string {
+    const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    return `${part({ alg: 'HS256', typ: 'JWT' })}.${part({ flow_id: flowId, redirect_uri: `${this.lastFrontendBase}/auth/external/callback` })}.signature`;
+  }
+
+  private decodeState(state: string): { flow_id: string } | null {
+    try {
+      const [, payload, signature] = state.split('.');
+      return signature === 'signature' ? JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private stepResult(flow: FakeFlow, errors: Record<string, string> | null = null): Record<string, unknown> {
+    const base = { flow_id: flow.flow_id, handler: flow.handler, step_id: flow.step, errors, description_placeholders: null };
+    switch (`${flow.handler}:${flow.step}`) {
+      case 'switchbot_cloud:user':
+        return {
+          ...base,
+          type: 'form',
+          data_schema: [
+            { name: 'api_token', required: true, type: 'string' },
+            { name: 'api_key', required: true, selector: { text: { type: 'password' } } },
+          ],
+        };
+      case 'tuya:user':
+        return { ...base, type: 'form', data_schema: [{ name: 'user_code', required: true, type: 'string' }] };
+      case 'tuya:scan':
+        return {
+          ...base,
+          type: 'form',
+          description_placeholders: { app: 'Smart Life' },
+          data_schema: [{ name: 'QR', optional: true, selector: { qr_code: { data: 'tuyaSmart--qrLogin?token=abc123', scale: 5 } } }],
+        };
+      case 'smartthings:auth':
+        return flow.externalDone
+          ? { ...base, type: 'external_done' }
+          : { ...base, type: 'external', url: `https://api.smartthings.com/oauth/authorize?redirect_uri=${encodeURIComponent(`${this.lastFrontendBase}/auth/external/callback`)}&state=${this.encodeState(flow.flow_id)}` };
+      default:
+        return { ...base, type: 'form', data_schema: [] };
+    }
+  }
+
+  private finish(flow: FakeFlow, title: string) {
+    this.flows.delete(flow.flow_id);
+    const entry = this.addEntry(flow.handler, title);
+    return { flow_id: flow.flow_id, handler: flow.handler, type: 'create_entry', title, result: { entry_id: entry.entry_id } };
+  }
+
+  private configRest(method: string, path: string, body: Record<string, unknown>, json: (status: number, body: unknown) => void) {
+    if (path === '/api/config/config_entries/flow' && method === 'POST') {
+      const handler = String(body.handler);
+      if (!['switchbot_cloud', 'tuya', 'smartthings'].includes(handler)) return json(404, { message: 'Invalid handler specified' });
+      const flow: FakeFlow = { flow_id: `flow-${++this.flowCounter}`, handler, step: handler === 'smartthings' ? 'auth' : 'user', context: { source: 'user' } };
+      this.flows.set(flow.flow_id, flow);
+      return json(200, this.stepResult(flow));
+    }
+    const flowMatch = /^\/api\/config\/config_entries\/flow\/([^/]+)$/.exec(path);
+    if (flowMatch) {
+      const flow = this.flows.get(flowMatch[1]);
+      if (!flow) return json(404, { message: 'Flow not found' });
+      if (method === 'GET') return json(200, this.stepResult(flow));
+      if (method === 'DELETE') {
+        this.flows.delete(flow.flow_id);
+        return json(200, { message: 'Flow aborted' });
+      }
+      switch (`${flow.handler}:${flow.step}`) {
+        case 'switchbot_cloud:user':
+          if (body.api_token === 'bad') return json(200, this.stepResult(flow, { base: 'invalid_auth' }));
+          return json(200, this.finish(flow, 'SwitchBot'));
+        case 'tuya:user':
+          flow.step = 'scan';
+          return json(200, this.stepResult(flow));
+        case 'tuya:scan':
+          return json(200, this.finish(flow, 'Smart Life'));
+        case 'smartthings:auth':
+          if (!flow.externalDone) return json(200, this.stepResult(flow));
+          return json(200, this.finish(flow, 'SmartThings'));
+        default:
+          if (flow.context.source === 'reauth') {
+            this.flows.delete(flow.flow_id);
+            return json(200, { flow_id: flow.flow_id, handler: flow.handler, type: 'abort', reason: 'reauth_successful' });
+          }
+          return json(400, { message: 'Unexpected step' });
+      }
+    }
+    const entryMatch = /^\/api\/config\/config_entries\/entry\/([^/]+)(\/reload)?$/.exec(path);
+    if (entryMatch) {
+      const index = this.entries.findIndex((entry) => entry.entry_id === entryMatch[1]);
+      if (index === -1) return json(404, { message: 'Entry not found' });
+      if (entryMatch[2] && method === 'POST') return json(200, { require_restart: false });
+      if (!entryMatch[2] && method === 'DELETE') {
+        const [entry] = this.entries.splice(index, 1);
+        this.fireEntries('removed', entry);
+        return json(200, { require_restart: false });
+      }
     }
     return json(404, { message: 'Not found' });
   }

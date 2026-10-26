@@ -6,13 +6,26 @@ import { createSession, createUser, requireUser, revokeToken, bearerOf, verifyCr
 import { clientIp, limit } from './ems/rateLimit.ts';
 import { attachRealtime } from './ems/realtime.ts';
 import { ApiError } from './errors.ts';
+import {
+  cancelFlow,
+  getFlow,
+  listAccounts,
+  oauthCallback,
+  reconnectAccount,
+  reloadAccount,
+  removeAccount,
+  startFlow,
+  stepFlow,
+} from './ha/accounts.ts';
 import { attachHub } from './ha/admin.ts';
 import { parseCommand } from './ha/commands.ts';
 import { homeFor } from './ha/home.ts';
+import { OAUTH_BASE_PATH } from './ha/haRest.ts';
 import { getHubForUnit, listHubs, runtimeForUser } from './ha/hubs.ts';
+import { listIntegrations } from './ha/integrations.ts';
 import { deprovisionUnit, provisionUnit } from './ha/provisioner.ts';
 import { addMember, createUnit, deleteUnit, getUnit, listUnits } from './ha/units.ts';
-import { ok, readJson, send } from './http.ts';
+import { ok, readJson, redirect, send } from './http.ts';
 import { log } from './log.ts';
 
 /**
@@ -27,6 +40,12 @@ import { log } from './log.ts';
  *   GET  /api/devices                              GET | PATCH /api/devices/:id
  *   POST /api/devices/:id/commands { capability, action, value?, entityId? }
  *   GET  /api/rooms                                POST /api/rooms { name }
+ *
+ * Linking brand accounts (Home Assistant config flows on the unit's hub):
+ *   GET  /api/accounts/integrations                GET /api/accounts
+ *   POST /api/accounts/flows { integration }       GET | POST { data } | DELETE /api/accounts/flows/:id
+ *   POST /api/accounts/:id/reconnect | /reload     DELETE /api/accounts/:id
+ *   GET  /api/accounts/oauth/auth/external/callback (brand sign-in pages return here)
  *
  * Operations and admin (ADMIN_API_KEY):
  *   GET  /api/health
@@ -117,6 +136,59 @@ async function homeRoute(req: IncomingMessage, res: ServerResponse, path: string
       return true;
     }
   }
+  if (path === '/api/accounts/integrations' && method === 'GET') {
+    requireUser(req);
+    ok(res, listIntegrations());
+    return true;
+  }
+  if (path === '/api/accounts' && method === 'GET') {
+    ok(res, await listAccounts(requireUser(req).id));
+    return true;
+  }
+  if (path === '/api/accounts/flows' && method === 'POST') {
+    const user = requireUser(req);
+    limit('account-flow', user.id, 20, 60_000);
+    ok(res, await startFlow(user.id, (await readJson(req)).integration));
+    return true;
+  }
+  const flow = /^\/api\/accounts\/flows\/([^/]+)$/.exec(path);
+  if (flow) {
+    const user = requireUser(req);
+    const flowId = decodeURIComponent(flow[1]);
+    if (method === 'GET') {
+      ok(res, await getFlow(user.id, flowId));
+      return true;
+    }
+    if (method === 'POST') {
+      limit('account-flow-step', user.id, 60, 60_000);
+      ok(res, await stepFlow(user.id, flowId, (await readJson(req)).data));
+      return true;
+    }
+    if (method === 'DELETE') {
+      await cancelFlow(user.id, flowId);
+      ok(res, { cancelled: true });
+      return true;
+    }
+  }
+  const account = /^\/api\/accounts\/([^/]+?)(\/reconnect|\/reload)?$/.exec(path);
+  if (account && account[1] !== 'flows' && account[1] !== 'integrations') {
+    const user = requireUser(req);
+    const accountId = decodeURIComponent(account[1]);
+    if (account[2] === '/reconnect' && method === 'POST') {
+      ok(res, { step: await reconnectAccount(user.id, accountId) });
+      return true;
+    }
+    if (account[2] === '/reload' && method === 'POST') {
+      await reloadAccount(user.id, accountId);
+      ok(res, { reloaded: true });
+      return true;
+    }
+    if (!account[2] && method === 'DELETE') {
+      await removeAccount(user.id, accountId);
+      ok(res, { removed: true });
+      return true;
+    }
+  }
   if (path === '/api/rooms') {
     const user = requireUser(req);
     if (method === 'GET') {
@@ -188,6 +260,11 @@ async function opsRoute(req: IncomingMessage, res: ServerResponse, path: string)
 
 async function route(req: IncomingMessage, res: ServerResponse, url: URL) {
   const path = url.pathname;
+  // Brand sign-in pages send the browser here; it carries no EMS token, the hub checks the state.
+  if (path === `${OAUTH_BASE_PATH}/auth/external/callback` && req.method === 'GET') {
+    redirect(res, await oauthCallback(url));
+    return;
+  }
   if (
     path.startsWith('/api/') &&
     ((await emsRoute(req, res, path)) || (await homeRoute(req, res, path)) || (await opsRoute(req, res, path)))

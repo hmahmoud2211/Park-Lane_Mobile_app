@@ -22,6 +22,8 @@ export type RootStackParamList = {
   EmsDevices: undefined;
   /** One device's controls, name and room. */
   DeviceDetail: { deviceId: string };
+  /** Linking a brand account (Tuya, SmartThings, …) to bring its devices in; optionally a brand or flow to open. */
+  ConnectAccount: { integration?: string; flowId?: string } | undefined;
   AmenitiesBooking: undefined;
   Services: undefined;
   Settings: undefined;

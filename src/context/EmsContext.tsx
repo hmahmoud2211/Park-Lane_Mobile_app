@@ -47,6 +47,8 @@ interface EmsContextValue {
   refreshHome: () => Promise<void>;
   /** Puts a device the API returned (or an optimistic copy) into the list. */
   upsertDevice: (device: Device) => void;
+  /** Bumped when the resident's linked accounts change, so screens showing them re-read. */
+  accountsVersion: number;
 }
 
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
@@ -68,6 +70,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [devicesLoaded, setDevicesLoaded] = useState(false);
   const [realtime, setRealtime] = useState<RealtimeState>('offline');
+  const [accountsVersion, setAccountsVersion] = useState(0);
   const channel = useRef<EmsRealtime | null>(null);
 
   const endSession = useCallback(async (notice: string | null) => {
@@ -185,6 +188,8 @@ export function EmsProvider({ children }: PropsWithChildren) {
         upsertDevice(event.device);
       } else if (event.type === 'device_removed') {
         dropDevice(event.id);
+      } else if (event.type === 'accounts') {
+        setAccountsVersion((version) => version + 1);
       } else if (event.type === 'rooms') {
         setRooms(event.rooms);
       } else if (event.type === 'hub_status') {
@@ -246,6 +251,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       realtime,
       refreshHome,
       upsertDevice,
+      accountsVersion,
     }),
     [
       status,
@@ -262,6 +268,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       realtime,
       refreshHome,
       upsertDevice,
+      accountsVersion,
     ],
   );
 

@@ -118,3 +118,67 @@ export interface Command {
   value?: unknown;
   entityId?: string;
 }
+
+// ---- Linking brand accounts (server/src/ha/integrations.ts, flows.ts, accounts.ts) ----------
+
+export type LinkMethod = 'credentials' | 'qr' | 'oauth';
+
+export interface Integration {
+  id: string;
+  name: string;
+  method: LinkMethod;
+  hint: string;
+  /** False for brands the building has not enabled yet. */
+  available: boolean;
+}
+
+export interface LinkedAccount {
+  id: string;
+  integration: string;
+  brand: string;
+  title: string;
+  state: string;
+  /** The brand wants the resident to sign in again. */
+  needsReconnect: boolean;
+  deviceCount: number;
+  problem: string | null;
+}
+
+export type FlowFieldKind = 'string' | 'password' | 'email' | 'number' | 'boolean' | 'select' | 'qr' | 'constant';
+
+export interface FlowField {
+  name: string;
+  section: string | null;
+  kind: FlowFieldKind;
+  label: string;
+  description: string | null;
+  required: boolean;
+  default: unknown;
+  options: { value: string; label: string }[];
+  multiple: boolean;
+  min: number | null;
+  max: number | null;
+  step: number | null;
+  multiline: boolean;
+  /** A QR code's content, or a constant's text. */
+  data: string | null;
+}
+
+export type FlowStepType = 'form' | 'menu' | 'external' | 'progress' | 'done' | 'abort';
+
+/** One step of linking an account, as the backend normalizes Home Assistant's config flow. */
+export interface FlowStep {
+  flowId: string;
+  integration: string;
+  type: FlowStepType;
+  stepId: string | null;
+  title: string | null;
+  description: string | null;
+  fields: FlowField[];
+  /** Field name, or `base` for the whole form, → message. */
+  errors: Record<string, string>;
+  menu: { id: string; label: string }[];
+  url: string | null;
+  accountId: string | null;
+  message: string | null;
+}

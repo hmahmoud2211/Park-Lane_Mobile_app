@@ -16,4 +16,5 @@ export type EmsEvent =
   | { type: 'device_removed'; id: string }
   | { type: 'rooms'; rooms: Room[] }
   | { type: 'hub_status'; status: HubStatus; haVersion: string | null }
+  | { type: 'accounts' }
   | { type: 'error'; code: string };

@@ -18,18 +18,20 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHomeDevices } from '../../hooks/useHomeDevices';
+import { useLinkedAccounts } from '../../hooks/useLinkedAccounts';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { toggleCommand } from '../../services/home/capabilities';
-import type { Device } from '../../types/home.types';
+import type { Device, LinkedAccount } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { devicesCopy as copy } from './EmsDevicesScreen.data';
-import { CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
+import { BUTTON_HEIGHT, CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
 
 /**
  * The resident's devices, from their unit's hub. Switching goes through the
  * backend, so a card settles on the state the hub reports, and changes made
  * from another phone or on the device arrive live. A card opens the
- * device's own screen with all its controls.
+ * device's own screen with all its controls. Below them, the brand accounts
+ * the devices come from, and the way to link another.
  */
 export function EmsDevicesScreen() {
   const theme = useAppTheme();
@@ -39,12 +41,70 @@ export function EmsDevicesScreen() {
   const ems = useHomeDevices();
   const { status, home, homeProblem, devices, devicesLoaded, realtime, refreshHome, busy, errors } = ems;
   const [refreshing, setRefreshing] = useState(false);
+  const linked = useLinkedAccounts();
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshHome();
     setRefreshing(false);
   }, [refreshHome]);
+
+  const reconnect = async (account: LinkedAccount) => {
+    const step = await linked.reconnect(account);
+    if (step) {
+      navigation.navigate('ConnectAccount', { flowId: step.flowId });
+    }
+  };
+
+  const unlink = (account: LinkedAccount) => {
+    if (confirmRemove !== account.id) {
+      setConfirmRemove(account.id);
+      return;
+    }
+    setConfirmRemove(null);
+    void linked.remove(account);
+  };
+
+  const renderAccount = (account: LinkedAccount) => (
+    <View key={account.id} style={styles.account}>
+      <View style={styles.accountRow}>
+        <View style={styles.flex}>
+          <AppText variant="statValue">{account.brand}</AppText>
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {`${account.title} · ${copy.deviceCount(account.deviceCount)}`}
+          </AppText>
+        </View>
+        {account.needsReconnect ? <StatusChip label={copy.needsReconnect} tone="amber" icon="alert-circle-outline" /> : null}
+      </View>
+      {account.problem ? (
+        <AppText variant="tileCaption" color={theme.colors.error}>
+          {account.problem}
+        </AppText>
+      ) : null}
+      <View style={styles.accountActions}>
+        {account.needsReconnect ? (
+          <AppButton
+            title={copy.reconnect}
+            variant="gradient"
+            height={SMALL_BUTTON_HEIGHT}
+            loading={linked.busy[account.id]}
+            onPress={() => void reconnect(account)}
+            style={styles.accountAction}
+          />
+        ) : null}
+        <AppButton
+          title={confirmRemove === account.id ? copy.confirmRemove : copy.remove}
+          variant="secondary"
+          height={SMALL_BUTTON_HEIGHT}
+          loading={linked.busy[account.id]}
+          onPress={() => unlink(account)}
+          accessibilityHint="Removes the account and its devices from your home"
+          style={styles.accountAction}
+        />
+      </View>
+    </View>
+  );
 
   const liveLabel = realtime === 'live' ? copy.live : realtime === 'connecting' ? copy.connecting : copy.offline;
   const hubStatus = home?.hub.status;
@@ -154,6 +214,25 @@ export function EmsDevicesScreen() {
                 <PanelHeading title={copy.devicesTitle} iconSet="material" iconName="devices" divider />
                 {renderDevices()}
               </NeonPanel>
+
+              {linked.hasHome ? (
+                <NeonPanel style={styles.panel}>
+                  <PanelHeading title={copy.accountsTitle} iconSet="ionicons" iconName="link-outline" divider />
+                  {linked.error ? <Notice tone="error">{linked.error}</Notice> : null}
+                  {linked.loaded && linked.accounts.length === 0 ? (
+                    <AppText variant="bodySmall" color={theme.colors.textSupport}>
+                      {copy.accountsEmpty}
+                    </AppText>
+                  ) : null}
+                  {linked.accounts.map(renderAccount)}
+                  <AppButton
+                    title={copy.connect}
+                    variant="gradient"
+                    height={BUTTON_HEIGHT}
+                    onPress={() => navigation.navigate('ConnectAccount')}
+                  />
+                </NeonPanel>
+              ) : null}
             </>
           )}
         </ScrollView>

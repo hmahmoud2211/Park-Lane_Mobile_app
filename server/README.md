@@ -16,7 +16,7 @@ It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
 cd server
 cp .env.example .env      # then fill it in
 npm start                 # node src/index.ts
-npm test                  # accounts, realtime, device mapping, the home facade, provisioning
+npm test                  # accounts, realtime, device mapping, the home facade, linking brands, provisioning
 npm run typecheck         # uses the app's TypeScript (../node_modules)
 ```
 
@@ -47,6 +47,15 @@ curl $API/api/admin/hubs -H "Authorization: Bearer $ADMIN_API_KEY"
 
 `POST /api/admin/units/<unitId>/provision` retries a failed setup. `DELETE /api/admin/units/<unitId>` removes the unit and its container. Its `/config` folder, which holds the resident's linked accounts, is kept until an operator deletes it.
 
+### Brands that sign in through a browser
+
+SmartThings, Google Nest, Netatmo, August, Yale, Miele and Home Connect sign residents in on their own page (OAuth). For each one you want to offer:
+
+1. Register an app with the brand and set its redirect URI to `PUBLIC_URL/api/accounts/oauth/auth/external/callback` (one address for every unit).
+2. Add its client id and secret to `HA_OAUTH_CREDENTIALS`. New units get them when they are provisioned.
+
+Until both `PUBLIC_URL` and the brand's credentials are set, the app lists the brand as not available. The callback carries the hub's own signed `state`; the backend only reads the flow id from it to forward the callback to the right unit's hub, which checks the signature.
+
 A unit that later wants Zigbee or local devices can run Home Assistant on a box at home instead: `POST /api/admin/hubs { unitId, baseUrl, token }` attaches it. The address must be inside `HA_ALLOWED_NETWORKS` (e.g. a WireGuard range).
 
 ## API
@@ -67,7 +76,13 @@ Every answer is `{ "ok": true, "data": … }` or `{ "ok": false, "error": { "cod
 | `POST /api/devices/:id/commands` `{ capability, action, value?, entityId? }` | Runs one allowlisted command and returns the device as the hub then reports it. See below. |
 | `PATCH /api/devices/:id` `{ name?, roomId? }` | Renames a device or moves it to a room (stored in Home Assistant). |
 | `GET /api/rooms` · `POST /api/rooms` `{ name }` | The unit's rooms (Home Assistant areas). |
-| `GET /api/events` (WebSocket) | Send `{ type: 'auth', token }` first; the server answers `{ type: 'ready' }`, then pushes `device`, `device_removed`, `rooms` and `hub_status`. |
+| `GET /api/accounts/integrations` | The brands a resident can link (`src/ha/integrations.ts`), each with `method` (`credentials`, `qr`, `oauth`) and `available`. |
+| `GET /api/accounts` | The linked accounts: brand, title, state, `needsReconnect`, device count. |
+| `POST /api/accounts/flows` `{ integration }` | Starts linking a brand. Returns a `FlowStep` (`src/ha/flows.ts`): `form` (typed, labelled fields), `menu`, `external` (open `url` in a browser), `progress`, `done` or `abort`. |
+| `GET` · `POST { data }` · `DELETE /api/accounts/flows/:id` | Reads, answers or cancels the resident's own flow. `410 flow_expired` after 30 minutes or for anyone else. |
+| `POST /api/accounts/:id/reconnect` | Continues the brand's "sign in again" flow, or reloads the account when there is none. |
+| `POST /api/accounts/:id/reload` · `DELETE /api/accounts/:id` | Reloads or unlinks an account; its devices leave the home with it. |
+| `GET /api/events` (WebSocket) | Send `{ type: 'auth', token }` first; the server answers `{ type: 'ready' }`, then pushes `device`, `device_removed`, `rooms`, `hub_status` and `accounts`. |
 
 Commands, by capability:
 

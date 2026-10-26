@@ -150,6 +150,19 @@ const MIGRATIONS: readonly string[] = [
     at TEXT NOT NULL
   );
   `,
+  // Account-linking flows in progress: which resident started which HA config flow, on which hub.
+  `
+  CREATE TABLE pairing_sessions (
+    flow_id TEXT PRIMARY KEY,
+    hub_id TEXT NOT NULL REFERENCES hubs(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    handler TEXT NOT NULL,
+    -- The current form's fields (name, section), to nest the answers as HA expects.
+    fields TEXT,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 let instance: DatabaseSync | null = null;

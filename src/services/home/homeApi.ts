@@ -1,5 +1,5 @@
 import { call } from '../ems/emsHttp';
-import type { Command, Device, Home, Room } from '../../types/home.types';
+import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room } from '../../types/home.types';
 
 /**
  * The resident's home, through the EMS backend (server/src/ha). The app never
@@ -31,3 +31,29 @@ export const updateDevice = (id: string, changes: DeviceChanges) =>
 export const listRooms = () => call<Room[]>('/api/rooms');
 
 export const createRoom = (name: string) => call<Room>('/api/rooms', { method: 'POST', body: { name } });
+
+// ---- Linking brand accounts ------------------------------------------------------------------
+
+/** Brands sign in against their own clouds, which can take a while. */
+const FLOW_TIMEOUT_MS = 30_000;
+
+export const listIntegrations = () => call<Integration[]>('/api/accounts/integrations');
+
+export const listAccounts = () => call<LinkedAccount[]>('/api/accounts');
+
+export const startFlow = (integration: string) =>
+  call<FlowStep>('/api/accounts/flows', { method: 'POST', body: { integration }, timeoutMs: FLOW_TIMEOUT_MS });
+
+export const getFlow = (flowId: string) => call<FlowStep>(`/api/accounts/flows/${encodeURIComponent(flowId)}`, { timeoutMs: FLOW_TIMEOUT_MS });
+
+export const stepFlow = (flowId: string, data: Record<string, unknown>) =>
+  call<FlowStep>(`/api/accounts/flows/${encodeURIComponent(flowId)}`, { method: 'POST', body: { data }, timeoutMs: FLOW_TIMEOUT_MS });
+
+export const cancelFlow = (flowId: string) =>
+  call<{ cancelled: true }>(`/api/accounts/flows/${encodeURIComponent(flowId)}`, { method: 'DELETE' });
+
+/** The brand's "sign in again" step, or null when reloading the account was enough. */
+export const reconnectAccount = (id: string) =>
+  call<{ step: FlowStep | null }>(`/api/accounts/${encodeURIComponent(id)}/reconnect`, { method: 'POST', timeoutMs: FLOW_TIMEOUT_MS });
+
+export const removeAccount = (id: string) => call<{ removed: true }>(`/api/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' });
