@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events';
+
 import { config } from '../config.ts';
 import * as cube from '../cube/cubeClient.ts';
 import { ApiError } from '../errors.ts';
@@ -19,6 +21,15 @@ import * as store from './store.ts';
  */
 
 export const browser = new EwelinkBrowser(config.mdns.interface);
+
+/**
+ * A bridged plug's state or reachability changed, by whatever cause: a
+ * command the hub sent, its own button, or going quiet. The EMS registry
+ * listens (ems/adapters/cube.ts) so the app updates live.
+ */
+export const plugEvents = new EventEmitter<{
+  change: [{ cubeSerial: string; power?: 'on' | 'off'; online?: boolean }];
+}>();
 
 export interface LanDeviceView {
   deviceId: string;
@@ -190,6 +201,7 @@ export async function handleDirective(body: Directive): Promise<object> {
     return reply(header, 'ErrorResponse', { type: 'ENDPOINT_UNREACHABLE' });
   }
   await store.updatePlug(plug.deviceId, { power, online: true, missedRounds: 0 });
+  plugEvents.emit('change', { cubeSerial: plug.cubeSerial, power, online: true });
   return reply(header, 'UpdateDeviceStatesResponse', {});
 }
 
@@ -214,6 +226,9 @@ async function onAnnouncement(service: EwelinkService): Promise<void> {
       .catch((error: unknown) => log.warn('State report to the hub failed', { reason: (error as Error).message }));
   }
   await store.updatePlug(plug.deviceId, changes);
+  if (changes.online || changes.power) {
+    plugEvents.emit('change', { cubeSerial: plug.cubeSerial, online: true, ...(changes.power ? { power: changes.power } : {}) });
+  }
 }
 
 /** Asks the LAN regularly; plugs silent for a few rounds are reported offline. */
@@ -234,6 +249,7 @@ async function monitorRound(): Promise<void> {
     if (plug.online && missedRounds >= config.mdns.offlineAfterMisses) {
       await store.updatePlug(plug.deviceId, { online: false });
       await cube.reportOnline(plug.cubeSerial, plug.thirdSerial, false).catch(() => undefined);
+      plugEvents.emit('change', { cubeSerial: plug.cubeSerial, online: false });
       log.warn('SONOFF plug went quiet; reported offline', { deviceId: plug.deviceId });
     }
   }

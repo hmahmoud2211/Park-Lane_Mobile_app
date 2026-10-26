@@ -140,9 +140,9 @@ export const discoverSonoff = (deviceId: string, key: DeviceKey, signal?: AbortS
  * Registers the plug with the hub as a third-party device the backend
  * drives. Resolves only once the hub has given it a serial number.
  */
-export const registerSonoff = (deviceId: string, key: DeviceKey, name: string): Promise<SonoffRegistration> =>
-  call<Omit<Extract<SonoffRegistration, { target: 'cube' }>, 'target'>>('/api/sonoff/devices', {
+export const registerSonoff = (deviceId: string, key: DeviceKey, name: string) =>
+  call<SonoffRegistration>('/api/sonoff/devices', {
     method: 'POST',
     body: { deviceId, deviceKey: key.reveal(), name },
     timeoutMs: backend.registerTimeoutMs,
-  }).then((registration) => ({ ...registration, target: 'cube' }));
+  });

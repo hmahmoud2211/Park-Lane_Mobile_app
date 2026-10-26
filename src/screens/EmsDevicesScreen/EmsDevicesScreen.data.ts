@@ -16,7 +16,7 @@ export const devicesCopy = {
   virtualNote:
     'A virtual switch has no hardware behind it. It behaves like a real switch in the app and with Alexa, and is always labelled “Virtual”.',
   sonoffNote:
-    'Pairs a SONOFF Wi-Fi plug from its setup hotspot, then registers it here once the backend can see and switch it on your network.',
+    'Pairs a SONOFF Wi-Fi plug from its setup hotspot, adds it to your CUBE hub, then to your devices here, so the hub, the app and Alexa all control it.',
   startPairing: 'Start pairing',
   addVirtual: 'Add virtual switch',
   name: 'Name',

@@ -146,9 +146,11 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
 
 - **Virtual switch:** **Add → Virtual switch**, then a name, an optional room and a type. It behaves like a real switch for the app and Alexa, and is always labelled **Virtual** (Alexa says "That is a virtual test switch"). **Simulate offline** lets you test offline handling.
 - **SONOFF Wi-Fi plug:** **Add → SONOFF Wi-Fi plug** opens the existing pairing wizard.
-  - **Signed in to EMS:** the final step registers the plug in the EMS registry (`protocol: 'sonoff-lan'`).
-  - **Not signed in:** it registers with the CUBE hub as before.
-  - **Conditions:** the backend refuses registration unless the plug is announcing itself on the backend's LAN, its key decrypts the announcement, and it reports a single switch.
+  - **Always:** the final step registers the plug on the **CUBE hub**, as before (a third-party device the backend's bridge drives over the LAN).
+  - **Signed in to EMS:** it is then also added to the user's EMS devices with `protocol: 'cube'` (`server/src/ems/adapters/cube.ts`), so the app and Alexa switch it **through CUBE**, the same path as the CUBE dashboard. If that second step fails, the plug stays on CUBE and the wizard shows why it was not added to EMS.
+  - **Live updates:** state changes the bridge sees (the plug's button, a switch from the CUBE dashboard, going offline) reach the app live through the registry.
+  - **Conditions:** the backend refuses registration unless the plug is announcing itself on the backend's LAN, its key decrypts the announcement, and it reports a single switch. A hub device can belong to one EMS account only.
+  - **Unused for now:** the direct `sonoff-lan` adapter (no hub) is kept, but the wizard no longer uses it.
 - **Per device:** rename, change room, remove (tap twice), switch on and off. Each card shows online/offline, the last confirmed state and when it was confirmed, a pending spinner while a command is in flight, and the reason for the last failure.
 - **Alexa access:** in **Settings → Alexa → Device access**, allow or block each device and pick the **default** device for "turn on" with no name. The first device added becomes the default.
 

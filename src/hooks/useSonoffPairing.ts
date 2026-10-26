@@ -662,20 +662,23 @@ export function useSonoffPairing() {
       const run = begin();
       retryRef.current = () => void actionsRef.current.register?.(name);
       setPhase('hub', 'active');
-      // Signed in to EMS: the plug joins the user's registry (app + Alexa). Otherwise the CUBE hub, as before.
-      const toEms = ems.getSessionToken() !== null;
-      patch({ busy: true, error: null, activity: toEms ? 'Adding the plug to your EMS devices…' : 'Adding the plug to your hub…' });
+      patch({ busy: true, error: null, activity: 'Adding the plug to your hub…' });
       try {
-        const registration: SonoffRegistration = toEms
-          ? {
-              target: 'ems',
-              emsDeviceId: (await ems.addSonoffDevice({ name, deviceId: device.deviceId, deviceKey: key.reveal() })).id,
-              device: stateRef.current.lanDevice,
-            }
-          : await registerSonoff(device.deviceId, key, name);
+        let registration: SonoffRegistration = await registerSonoff(device.deviceId, key, name);
         run.guard();
+        // Signed in to EMS: also add it to the resident's devices, switched through the hub (app + Alexa).
+        if (ems.getSessionToken() !== null) {
+          patch({ activity: 'Adding the plug to your EMS devices…' });
+          try {
+            const added = await ems.addCubeDevice({ name, serial: registration.cubeSerial });
+            registration = { ...registration, emsDeviceId: added.id };
+          } catch (error) {
+            registration = { ...registration, emsError: error instanceof ems.EmsError ? error.message : 'Could not reach the EMS backend.' };
+          }
+          run.guard();
+        }
         setPhase('hub', 'done');
-        patch({ registration, lanDevice: registration.device ?? stateRef.current.lanDevice, status: 'setupCompleted' });
+        patch({ registration, lanDevice: registration.device, status: 'setupCompleted' });
       } catch (error) {
         if (!(error instanceof Cancelled)) {
           setPhase('hub', 'failed');
@@ -697,11 +700,11 @@ export function useSonoffPairing() {
       }
       patch({ controlTest: { state: 'busy' } });
       try {
-        // Either way, only a state the plug confirmed is reported.
-        const power =
-          registration.target === 'ems'
-            ? (await ems.setDevicePower(registration.emsDeviceId, on ? 'on' : 'off')).power
-            : (await setDevicePower(registration.cubeSerial, on)).power;
+        // Through EMS when it is there (the same path as the app and Alexa), else the hub directly.
+        // Either way the hub only answers once the plug confirmed.
+        const power = registration.emsDeviceId
+          ? (await ems.setDevicePower(registration.emsDeviceId, on ? 'on' : 'off')).power
+          : (await setDevicePower(registration.cubeSerial, on)).power;
         patch({ controlTest: { state: 'ok', power: power === 'on' || power === 'off' ? power : on ? 'on' : 'off' } });
       } catch (error) {
         patch({ controlTest: { state: 'failed', message: backendFailure(error).message } });

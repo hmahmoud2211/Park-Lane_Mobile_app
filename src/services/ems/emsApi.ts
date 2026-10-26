@@ -146,17 +146,11 @@ export interface NewVirtualDevice {
 export const addVirtualDevice = (device: NewVirtualDevice) =>
   call<SmartDevice>('/api/devices', { method: 'POST', body: { ...device, protocol: 'virtual' } });
 
-/** Registers a SONOFF plug the backend can see on its LAN; refused unless its key reads its state. */
-export const addSonoffDevice = (input: { name: string; room?: string; deviceId: string; deviceKey: string }) =>
+/** Adds a device that is on the CUBE hub; the app and Alexa then switch it through the hub. */
+export const addCubeDevice = (input: { name: string; room?: string; serial: string }) =>
   call<SmartDevice>('/api/devices', {
     method: 'POST',
-    body: {
-      name: input.name,
-      room: input.room,
-      type: 'plug',
-      protocol: 'sonoff-lan',
-      sonoff: { deviceId: input.deviceId, deviceKey: input.deviceKey },
-    },
+    body: { name: input.name, room: input.room, type: 'plug', protocol: 'cube', cube: { serial: input.serial } },
     timeoutMs: emsConfig.registerTimeoutMs,
   });
 

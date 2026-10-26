@@ -29,6 +29,7 @@ const sha256 = (value: string) => createHash('sha256').update(value).digest('bas
 
 const appPort = await freePort();
 const amazonPort = await freePort();
+const cubePort = await freePort();
 const BASE = `http://127.0.0.1:${appPort}`;
 const AMAZON = `http://127.0.0.1:${amazonPort}`;
 
@@ -47,6 +48,8 @@ Object.assign(process.env, {
   AMAZON_LWA_TOKEN_URL: `${AMAZON}/auth/o2/token`,
   AMAZON_ALEXA_API_URL: AMAZON,
   DEV_VOICE_TOKEN: '',
+  CUBE_URL: `http://127.0.0.1:${cubePort}`,
+  CUBE_TOKEN: 'test-cube-token',
 });
 
 const { createApp } = await import('../src/app.ts');
@@ -155,6 +158,46 @@ const amazonServer: Server = createServer(async (req, res) => {
   json(404, {});
 });
 
+// ---- CUBE hub stand-in ------------------------------------------------------------------
+
+/** Two hub devices: a bridged plug that answers, and one whose plug never does (the hub refuses). */
+const hub = {
+  plug: { serial_number: 'cube-plug-1', name: 'Hall Plug', manufacturer: 'SONOFF', model: 'plug', display_category: 'plug',
+    capabilities: [{ capability: 'power', permission: '1100' }], state: { power: { powerState: 'off' } }, online: true },
+  dead: { serial_number: 'cube-dead-1', name: 'Dead Plug', manufacturer: 'SONOFF', model: 'plug', display_category: 'plug',
+    capabilities: [{ capability: 'power', permission: '1100' }], state: { power: { powerState: 'off' } }, online: true },
+  porch: { serial_number: 'cube-plug-2', name: 'Porch Plug', manufacturer: 'SONOFF', model: 'plug', display_category: 'plug',
+    capabilities: [{ capability: 'power', permission: '1100' }], state: { power: { powerState: 'off' } }, online: true },
+};
+
+const cubeServer: Server = createServer(async (req, res) => {
+  const reply = (value: unknown) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(value));
+  };
+  if (req.headers.authorization !== 'Bearer test-cube-token') {
+    return reply({ error: 401, data: {} });
+  }
+  const url = new URL(req.url ?? '/', 'http://cube');
+  if (req.method === 'GET' && url.pathname === '/open-api/v2/rest/devices') {
+    return reply({ error: 0, data: { device_list: [hub.plug, hub.dead, hub.porch] } });
+  }
+  const put = /^\/open-api\/v2\/rest\/devices\/(.+)$/.exec(url.pathname);
+  if (req.method === 'PUT' && put) {
+    const body = JSON.parse(await body_(req));
+    if (put[1] === 'cube-dead-1') {
+      return reply({ error: 110000, data: {}, message: 'ENDPOINT_UNREACHABLE' });
+    }
+    hub.plug.state.power.powerState = body.state.power.powerState;
+    return reply({ error: 0, data: {} });
+  }
+  reply({ error: 404, data: {} });
+});
+
+async function body_(req: IncomingMessage): Promise<string> {
+  return body(req);
+}
+
 // ---- Helpers -----------------------------------------------------------------------------
 
 let server: Server;
@@ -172,6 +215,7 @@ async function stopApp() {
 
 before(async () => {
   await new Promise<void>((resolve) => amazonServer.listen(amazonPort, '127.0.0.1', resolve));
+  await new Promise<void>((resolve) => cubeServer.listen(cubePort, '127.0.0.1', resolve));
   await startApp();
 });
 
@@ -179,6 +223,8 @@ after(async () => {
   await stopApp();
   amazonServer.closeAllConnections();
   await new Promise((resolve) => amazonServer.close(resolve));
+  cubeServer.closeAllConnections();
+  await new Promise((resolve) => cubeServer.close(resolve));
 });
 
 beforeEach(() => resetLimits());
@@ -533,6 +579,55 @@ test('free speech: any dialect, several devices, and "all"', async () => {
   const unclear = await say('ابي النور');
   assert.equal(unclear.data.outcome, 'need_action');
   assert.equal((unclear.data.device as Device).name, 'نور');
+});
+
+describe('CUBE devices', () => {
+  test('a plug on the hub joins EMS, and the app and Alexa switch it through CUBE', async () => {
+    const { token } = await newUser();
+    const alexa = await alexaTokensFor(token);
+    const added = await api<Device>('POST', '/api/devices', { token, body: { name: 'Hall Plug', room: 'Hall', type: 'plug', protocol: 'cube', cube: { serial: 'cube-plug-1' } } });
+    assert.equal(added.status, 200, JSON.stringify(added.error));
+    assert.equal(added.data.simulated, false);
+
+    const on = await api<Device>('POST', `/api/devices/${added.data.id}/power`, { token, body: { power: 'on' } });
+    assert.equal(on.data.power, 'on');
+    assert.equal(hub.plug.state.power.powerState, 'on');
+
+    const off = await voice(alexa.access_token, { action: 'auto', utterance: 'طفي الفيش اللي في الممر' });
+    assert.equal(off.data.outcome, 'done');
+    assert.equal(hub.plug.state.power.powerState, 'off');
+  });
+
+  test('the hub refusing (plug unreachable) is reported, not claimed', async () => {
+    const { token } = await newUser();
+    const added = await api<Device>('POST', '/api/devices', { token, body: { name: 'Dead Plug', type: 'plug', protocol: 'cube', cube: { serial: 'cube-dead-1' } } });
+    const result = await api<Device>('POST', `/api/devices/${added.data.id}/power`, { token, body: { power: 'on' } });
+    assert.equal(result.status, 502);
+    assert.equal(result.error?.code, 'device_unreachable');
+    assert.equal((await api<Device>('GET', `/api/devices/${added.data.id}`, { token })).data.power, 'off');
+  });
+
+  test('a serial the hub does not have is refused', async () => {
+    const { token } = await newUser();
+    const missing = await api('POST', '/api/devices', { token, body: { name: 'Ghost', type: 'plug', protocol: 'cube', cube: { serial: 'nope' } } });
+    assert.equal(missing.status, 404);
+    assert.equal(missing.error?.code, 'device_not_found');
+  });
+
+  test('a change the bridge reports (button, CUBE dashboard) reaches the app live', async () => {
+    const { token } = await newUser();
+    // A hub device belongs to one EMS account; registering it for another is refused (409).
+    const added = await api<Device>('POST', '/api/devices', { token, body: { name: 'Porch Plug', type: 'plug', protocol: 'cube', cube: { serial: 'cube-plug-2' } } });
+    const { startAdapters } = await import('../src/ems/devices.ts');
+    const { plugEvents } = await import('../src/sonoff/bridge.ts');
+    startAdapters();
+    const session = await listen(token);
+    plugEvents.emit('change', { cubeSerial: 'cube-plug-2', power: 'on', online: true });
+    await session.waitFor((event) => (event.device as Device)?.id === added.data.id && (event.device as Device).power === 'on');
+    plugEvents.emit('change', { cubeSerial: 'cube-plug-2', online: false });
+    await session.waitFor((event) => (event.device as Device)?.id === added.data.id && (event.device as Device).online === false);
+    session.socket.close();
+  });
 });
 
 describe('OAuth server', () => {
