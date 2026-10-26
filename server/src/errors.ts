@@ -16,6 +16,14 @@ export type ApiErrorCode =
   | 'cube_unreachable'
   | 'cube_auth'
   | 'cube_rejected'
+  | 'forbidden'
+  | 'conflict'
+  | 'rate_limited'
+  | 'device_offline'
+  | 'command_timeout'
+  | 'not_configured'
+  | 'amazon_error'
+  | 'link_expired'
   | 'internal';
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -32,6 +40,14 @@ const STATUS: Record<ApiErrorCode, number> = {
   cube_unreachable: 502,
   cube_auth: 502,
   cube_rejected: 502,
+  forbidden: 403,
+  conflict: 409,
+  rate_limited: 429,
+  device_offline: 503,
+  command_timeout: 504,
+  not_configured: 503,
+  amazon_error: 502,
+  link_expired: 401,
   internal: 500,
 };
 

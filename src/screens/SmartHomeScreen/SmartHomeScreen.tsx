@@ -218,8 +218,28 @@ export function SmartHomeScreen() {
   }, [navigation]);
 
   const menuItems = useMemo<readonly AppMenuItem[]>(
-    () => [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }],
-    [handleLogout],
+    () => [
+      {
+        id: 'devices',
+        label: 'My Devices',
+        icon: 'hardware-chip-outline',
+        onPress: () => {
+          setMenuOpen(false);
+          navigation.navigate('EmsDevices');
+        },
+      },
+      {
+        id: 'alexa',
+        label: 'Alexa',
+        icon: 'mic-outline',
+        onPress: () => {
+          setMenuOpen(false);
+          navigation.navigate('AlexaIntegration');
+        },
+      },
+      { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
+    ],
+    [handleLogout, navigation],
   );
 
   const headingIcon = (name: keyof typeof Ionicons.glyphMap, color: string) => (

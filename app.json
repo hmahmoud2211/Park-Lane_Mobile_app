@@ -14,9 +14,11 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }
-      }
+      },
+      "bundleIdentifier": "com.parklane.app"
     },
     "android": {
+      "package": "com.parklane.app",
       "adaptiveIcon": {
         "backgroundColor": "#071B44",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,7 +29,12 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.NEARBY_WIFI_DEVICES"
+        "android.permission.NEARBY_WIFI_DEVICES",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -62,8 +69,17 @@
         }
       ],
       "expo-asset",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
-    "backgroundColor": "#071B44"
+    "backgroundColor": "#071B44",
+    "extra": {
+      "eas": {
+        "projectId": "a8dcc67f-8647-4973-9c38-a0f522e87a4a"
+      }
+    },
+    "owner": "hazemmahm03",
+    "scheme": "parklane"
   }
 }

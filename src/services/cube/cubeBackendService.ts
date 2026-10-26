@@ -116,12 +116,12 @@ export interface BackendHealth {
 
 export const getBackendHealth = (signal?: AbortSignal) => call<BackendHealth>('/api/health', { signal });
 
-export const listDevices = () => call<BackendDevice[]>('/api/devices');
+export const listDevices = () => call<BackendDevice[]>('/api/cube/devices');
 
-export const getDevice = (id: string) => call<BackendDevice>(`/api/devices/${encodeURIComponent(id)}`);
+export const getDevice = (id: string) => call<BackendDevice>(`/api/cube/devices/${encodeURIComponent(id)}`);
 
 export const setDevicePower = (id: string, on: boolean) =>
-  call<BackendDevice>(`/api/devices/${encodeURIComponent(id)}/${on ? 'on' : 'off'}`, { method: 'POST' });
+  call<BackendDevice>(`/api/cube/devices/${encodeURIComponent(id)}/${on ? 'on' : 'off'}`, { method: 'POST' });
 
 /**
  * Asks the backend to look for the plug's mDNS announcement on the home
@@ -140,9 +140,9 @@ export const discoverSonoff = (deviceId: string, key: DeviceKey, signal?: AbortS
  * Registers the plug with the hub as a third-party device the backend
  * drives. Resolves only once the hub has given it a serial number.
  */
-export const registerSonoff = (deviceId: string, key: DeviceKey, name: string) =>
-  call<SonoffRegistration>('/api/sonoff/devices', {
+export const registerSonoff = (deviceId: string, key: DeviceKey, name: string): Promise<SonoffRegistration> =>
+  call<Omit<Extract<SonoffRegistration, { target: 'cube' }>, 'target'>>('/api/sonoff/devices', {
     method: 'POST',
     body: { deviceId, deviceKey: key.reveal(), name },
     timeoutMs: backend.registerTimeoutMs,
-  });
+  }).then((registration) => ({ ...registration, target: 'cube' }));

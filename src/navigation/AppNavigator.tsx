@@ -11,11 +11,13 @@ import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { AlexaIntegrationScreen } from '../screens/AlexaIntegrationScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { DemoControlsScreen } from '../screens/DemoControlsScreen';
+import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { GuestPassScreen } from '../screens/GuestPassScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -153,6 +155,8 @@ export function AppNavigator() {
           <Stack.Screen name="Community" component={CommunityScreen} />
           <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
           <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
+          <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
+          <Stack.Screen name="AlexaIntegration" component={AlexaIntegrationScreen} />
           <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />

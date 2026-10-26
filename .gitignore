@@ -43,3 +43,6 @@ yarn-error.*
 # device backend: secrets and its device store
 server/.env
 server/data/
+
+# Alexa skill dependencies (installed by Alexa-hosted builds)
+alexa/lambda/node_modules/

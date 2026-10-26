@@ -1,0 +1,239 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "e. m. s. assistant",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NoIntent",
+          "samples": []
+        },
+        {
+          "name": "TurnOnIntent",
+          "slots": [
+            {
+              "name": "device",
+              "type": "DEVICE_NAME"
+            },
+            {
+              "name": "room",
+              "type": "ROOM_NAME"
+            }
+          ],
+          "samples": [
+            "turn on",
+            "switch on",
+            "turn on {device}",
+            "turn on the {device}",
+            "switch on {device}",
+            "switch on the {device}",
+            "turn {device} on",
+            "turn the {device} on",
+            "turn on the {device} in the {room}",
+            "power on the {device}",
+            "start the {device}",
+            "turn on the {room} light"
+          ]
+        },
+        {
+          "name": "TurnOffIntent",
+          "slots": [
+            {
+              "name": "device",
+              "type": "DEVICE_NAME"
+            },
+            {
+              "name": "room",
+              "type": "ROOM_NAME"
+            }
+          ],
+          "samples": [
+            "turn off",
+            "switch off",
+            "turn off {device}",
+            "turn off the {device}",
+            "switch off {device}",
+            "switch off the {device}",
+            "turn {device} off",
+            "turn the {device} off",
+            "turn off the {device} in the {room}",
+            "power off the {device}",
+            "stop the {device}",
+            "turn off the {room} light"
+          ]
+        },
+        {
+          "name": "DeviceStatusIntent",
+          "slots": [
+            {
+              "name": "device",
+              "type": "DEVICE_NAME"
+            },
+            {
+              "name": "room",
+              "type": "ROOM_NAME"
+            }
+          ],
+          "samples": [
+            "is the {device} on",
+            "is the {device} off",
+            "is {device} on",
+            "what is the status of the {device}",
+            "status of the {device}",
+            "check the {device}",
+            "is the {device} in the {room} on"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "DEVICE_NAME",
+          "values": [
+            {
+              "name": {
+                "value": "light",
+                "synonyms": [
+                  "lights",
+                  "lamp",
+                  "bulb"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "plug",
+                "synonyms": [
+                  "socket",
+                  "outlet",
+                  "smart plug"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "switch"
+              }
+            },
+            {
+              "name": {
+                "value": "air conditioner",
+                "synonyms": [
+                  "ac",
+                  "a. c."
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "fan"
+              }
+            },
+            {
+              "name": {
+                "value": "heater",
+                "synonyms": [
+                  "water heater"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "bedroom light"
+              }
+            },
+            {
+              "name": {
+                "value": "kitchen light"
+              }
+            },
+            {
+              "name": {
+                "value": "living room light"
+              }
+            },
+            {
+              "name": {
+                "value": "desk lamp"
+              }
+            }
+          ]
+        },
+        {
+          "name": "ROOM_NAME",
+          "values": [
+            {
+              "name": {
+                "value": "bedroom",
+                "synonyms": [
+                  "master bedroom"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "kitchen"
+              }
+            },
+            {
+              "name": {
+                "value": "living room",
+                "synonyms": [
+                  "lounge",
+                  "sitting room"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "office",
+                "synonyms": [
+                  "study"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "bathroom"
+              }
+            },
+            {
+              "name": {
+                "value": "kids room",
+                "synonyms": [
+                  "children's room"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "hall",
+                "synonyms": [
+                  "hallway"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

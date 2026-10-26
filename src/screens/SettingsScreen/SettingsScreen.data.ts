@@ -35,6 +35,22 @@ export const settingsItems: readonly SettingsItem[] = [
     route: 'Profile',
   },
   {
+    id: 'devices',
+    title: 'My Devices',
+    description: 'Add, rename and switch your EMS devices.',
+    iconSet: 'material',
+    iconName: 'devices',
+    route: 'EmsDevices',
+  },
+  {
+    id: 'alexa',
+    title: 'Alexa',
+    description: 'Connect Alexa and choose what it controls.',
+    iconSet: 'ionicons',
+    iconName: 'mic-outline',
+    route: 'AlexaIntegration',
+  },
+  {
     id: 'notifications',
     title: 'Notifications',
     description: 'Manage your notification preferences.',

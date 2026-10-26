@@ -18,7 +18,7 @@ It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
 cd server
 cp .env.example .env      # then fill in PUBLIC_URL and CUBE_PASSWORD (or CUBE_TOKEN)
 npm start                 # node src/index.ts
-npm test                  # LAN crypto, mDNS parsing, CUBE directive handling
+npm test                  # LAN crypto, mDNS, CUBE directives, EMS registry, OAuth, Alexa linking, realtime
 npm run typecheck         # uses the app's TypeScript (../node_modules)
 ```
 
@@ -26,16 +26,20 @@ Run it on a machine on the **same network segment as the plugs**. mDNS does not 
 
 In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`, plus `EXPO_PUBLIC_DEVICE_BACKEND_KEY` if you set `BACKEND_API_KEY`.
 
-## API
+## EMS accounts, device registry and Alexa
+
+The same process also runs the EMS device registry (SQLite in `DATA_DIR/ems.db`), user accounts, realtime updates over WebSocket, and the Alexa account-linking and voice APIs. It does not depend on CUBE. See [../ALEXA_INTEGRATION.md](../ALEXA_INTEGRATION.md) for those routes, settings and tests. The hub routes below moved from `/api/devices` to `/api/cube/devices` to make room for the registry.
+
+## API (CUBE hub and SONOFF bridge)
 
 Every answer is `{ "ok": true, "data": … }` or `{ "ok": false, "error": { "code", "message" } }`.
 
 | Method & path | What it does |
 | --- | --- |
 | `GET /api/health` | Whether CUBE answers, whether mDNS is listening, and whether registration is possible (`PUBLIC_URL` set). |
-| `GET /api/devices` | The hub's devices: `{ id, name, category, manufacturer, model, online, power, controllable }`. |
-| `GET /api/devices/:id` | One of them. `:id` is the hub's serial number. |
-| `POST /api/devices/:id/on` · `/off` | `PUT /devices/:id { state: { power: { powerState } } }` on CUBE. Returns `409 not_controllable` when the device has no controllable `power` capability. Returns `502 device_unreachable` when CUBE (or the plug behind it) refuses. |
+| `GET /api/cube/devices` | The hub's devices: `{ id, name, category, manufacturer, model, online, power, controllable }`. |
+| `GET /api/cube/devices/:id` | One of them. `:id` is the hub's serial number. |
+| `POST /api/cube/devices/:id/on` · `/off` | `PUT /devices/:id { state: { power: { powerState } } }` on CUBE. Returns `409 not_controllable` when the device has no controllable `power` capability. Returns `502 device_unreachable` when CUBE (or the plug behind it) refuses. |
 | `POST /api/sonoff/discover` `{ deviceId, deviceKey? }` | Listens about 4 seconds for the plug's mDNS announcement. Returns `{ found: false }`, or `{ found: true, device: { host, port, encrypted, keyVerified, power, singleChannel } }`. |
 | `POST /api/sonoff/devices` `{ deviceId, deviceKey, name }` | Registers the plug with CUBE (see below) and returns `{ cubeSerial, created, device }`. |
 | `POST /cube/directive/:secret` | Called **by CUBE**, not the app. The random secret is stored in `data/sonoff.json`. |
