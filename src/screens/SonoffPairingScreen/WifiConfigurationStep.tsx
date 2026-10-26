@@ -1,11 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMemo, useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, View } from 'react-native';
 
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { DeviceConnectionStatus } from '../../components/ui/DeviceConnectionStatus';
+import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
@@ -13,6 +14,7 @@ import { WifiCredentialForm, validateWifiCredentials } from '../../components/ui
 import { apProvisioningSources, dispatchServerPresets } from '../../constants/sonoffConfig';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { SonoffPairing } from '../../hooks/useSonoffPairing';
+import { wifiPasswordStore } from '../../services/sonoff/wifiPasswordStore';
 import type { ApPayloadFormat } from '../../types/sonoff.types';
 import { Notice, PrimaryAction, SecondaryAction, TextAction } from './PairingParts';
 import { pairingCopy as copy, payloadFormats } from './SonoffPairingScreen.data';
@@ -45,13 +47,24 @@ function validateServer(choice: ServerChoice | null, host: string, port: string)
   return errors;
 }
 
-/** Stage 4: home Wi-Fi details, and the experimental request that would hand them to the plug. */
+const NEARBY_SHOWN = 6;
+
+/**
+ * Stage 4: home Wi-Fi details, and the experimental request that would hand them to the plug.
+ * The network is filled in from the Wi-Fi the phone was on before joining the plug's hotspot,
+ * and nearby 2.4 GHz networks can be picked; a password remembered from an earlier pairing
+ * fills in too (phones never let apps read saved Wi-Fi passwords).
+ */
 export function WifiConfigurationStep({ pairing }: { pairing: SonoffPairing }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [ssid, setSsid] = useState('');
+  /** The network shown when the step opens: the home Wi-Fi read before joining the hotspot. */
+  const [initialSsid] = useState(() => pairing.homeNetwork ?? '');
+  const [ssid, setSsid] = useState(initialSsid);
   const [password, setPassword] = useState('');
+  const [passwordRemembered, setPasswordRemembered] = useState(false);
+  const [remember, setRemember] = useState(wifiPasswordStore.available);
   const [wifiErrors, setWifiErrors] = useState<{ ssid?: string; password?: string }>({});
   const [experimental, setExperimental] = useState(false);
   const [server, setServer] = useState<ServerChoice | null>(null);
@@ -60,6 +73,40 @@ export function WifiConfigurationStep({ pairing }: { pairing: SonoffPairing }) {
   const [serverErrors, setServerErrors] = useState<{ server?: string; host?: string; port?: string }>({});
   const [format, setFormat] = useState<ApPayloadFormat>('ewelinkApp');
   const [reviewing, setReviewing] = useState(false);
+
+  const { scanHomeNetworks } = pairing;
+  useEffect(() => {
+    void scanHomeNetworks();
+  }, [scanHomeNetworks]);
+
+  // A password remembered for the network shown when the step opens.
+  useEffect(() => {
+    if (!initialSsid) {
+      return;
+    }
+    let current = true;
+    void wifiPasswordStore.load(initialSsid).then((saved) => {
+      if (current && saved) {
+        setPassword((typed) => typed || saved);
+        setPasswordRemembered(true);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [initialSsid]);
+
+  /** Picking a network fills its remembered password, if there is one. */
+  const chooseNetwork = useCallback(async (name: string) => {
+    setSsid(name);
+    setPassword('');
+    setPasswordRemembered(false);
+    const saved = await wifiPasswordStore.load(name);
+    if (saved) {
+      setPassword(saved);
+      setPasswordRemembered(true);
+    }
+  }, []);
 
   const preset = dispatchServerPresets.find((entry) => entry.id === server);
   const target = preset
@@ -77,6 +124,9 @@ export function WifiConfigurationStep({ pairing }: { pairing: SonoffPairing }) {
   };
 
   const send = () => {
+    if (remember) {
+      void wifiPasswordStore.save(ssid, password);
+    }
     pairing.provisionExperimental({ ssid, password, ...target, format });
     // The page is leaving; drop the copy held here straight away.
     setPassword('');
@@ -100,14 +150,76 @@ export function WifiConfigurationStep({ pairing }: { pairing: SonoffPairing }) {
       <NeonPanel style={[styles.card, styles.panelTight]}>
         <PanelHeading title={copy.wifiTitle} subtitle={copy.wifiBody} iconSet="ionicons" iconName="home-outline" iconSize={19} />
         <View style={[styles.panelBody, styles.gapTop]}>
+          {pairing.canScan && (pairing.homeNetworks.length > 0 || pairing.scanningHomeNetworks) ? (
+            <View style={styles.gapTop}>
+              <View style={styles.toggleRow}>
+                <AppText variant="statLabel" color={theme.colors.textAccentSoft}>
+                  {copy.wifiNearby}
+                </AppText>
+                {pairing.scanningHomeNetworks ? (
+                  <ActivityIndicator size="small" color={theme.colors.textAccentSoft} />
+                ) : (
+                  <TextAction title={copy.wifiScan} onPress={() => void scanHomeNetworks()} />
+                )}
+              </View>
+              <View style={[styles.chipRow, styles.gapTop]} accessibilityRole="radiogroup">
+                {pairing.homeNetworks.slice(0, NEARBY_SHOWN).map((network) => (
+                  <FilterChip
+                    key={network.ssid}
+                    role="radio"
+                    label={network.ssid}
+                    iconSet="ionicons"
+                    iconName="wifi"
+                    selected={network.ssid === ssid}
+                    onPress={() => {
+                      if (!formLocked) void chooseNetwork(network.ssid);
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           <WifiCredentialForm
             ssid={ssid}
             password={password}
-            onChangeSsid={setSsid}
-            onChangePassword={setPassword}
+            onChangeSsid={(value) => {
+              setSsid(value);
+              setPasswordRemembered(false);
+            }}
+            onChangePassword={(value) => {
+              setPassword(value);
+              setPasswordRemembered(false);
+            }}
             errors={wifiErrors}
             editable={!formLocked}
+            style={styles.gapTop}
           />
+
+          <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.gapTop}>
+            {pairing.homeNetwork && ssid === pairing.homeNetwork ? `${copy.wifiDetected(pairing.homeNetwork)} ` : ''}
+            {passwordRemembered ? copy.wifiPasswordRemembered : copy.wifiPasswordNote}
+          </AppText>
+
+          {wifiPasswordStore.available ? (
+            <View style={[styles.toggleRow, styles.gapTop]}>
+              <AppText variant="statValue" style={styles.flex}>
+                {copy.wifiRemember}
+              </AppText>
+              <ToggleSwitch
+                value={remember}
+                onValueChange={(next) => {
+                  setRemember(next);
+                  if (!next && ssid) {
+                    void wifiPasswordStore.forget(ssid);
+                    setPasswordRemembered(false);
+                  }
+                }}
+                accessibilityLabel={copy.wifiRemember}
+                disabled={formLocked}
+              />
+            </View>
+          ) : null}
         </View>
       </NeonPanel>
 

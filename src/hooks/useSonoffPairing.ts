@@ -21,10 +21,12 @@ import {
   WifiProvisioningError,
   canScanForNetworks,
   connectToDeviceNetwork,
+  detectHomeNetwork,
   getCurrentSsid,
   isNativeWifiAvailable,
   isSetupHotspot,
   releaseDeviceNetwork,
+  scanForHomeNetworks,
   scanForSetupHotspots,
   type NearbyHotspot,
 } from '../services/sonoff/wifiProvisioningService';
@@ -71,6 +73,11 @@ interface PairingState {
   error: PairingError | null;
   hotspots: NearbyHotspot[];
   selectedHotspot: string | null;
+  /** The home Wi-Fi the phone was on before joining the plug's hotspot; fills in the Wi-Fi step. */
+  homeNetwork: string | null;
+  /** 2.4 GHz networks in range (Android), for picking the plug's Wi-Fi. */
+  homeNetworks: NearbyHotspot[];
+  scanningHomeNetworks: boolean;
   network: DeviceNetworkState;
   device: SonoffDeviceInfo | null;
   /** True when the resident said the plug already knows their Wi-Fi. */
@@ -98,6 +105,9 @@ const INITIAL_STATE: PairingState = {
   error: null,
   hotspots: [],
   selectedHotspot: null,
+  homeNetwork: null,
+  homeNetworks: [],
+  scanningHomeNetworks: false,
   network: { ssid: null, deviceReachable: null },
   device: null,
   skippedProvisioning: false,
@@ -304,6 +314,14 @@ export function useSonoffPairing() {
 
   const startConnecting = useCallback(() => {
     patch({ step: 'connect', status: 'connectingToDevice', error: null });
+    // Read the home Wi-Fi now, while the phone is still on it: once it joins the hotspot, it is gone.
+    if (!stateRef.current.homeNetwork) {
+      void detectHomeNetwork().then((ssid) => {
+        if (ssid) {
+          patch({ homeNetwork: ssid });
+        }
+      });
+    }
     if (canScanForNetworks() && stateRef.current.hotspots.length === 0) {
       void scanHotspots();
     }
@@ -752,6 +770,21 @@ export function useSonoffPairing() {
     setState(INITIAL_STATE);
   }, [release, stop]);
 
+  /** The Wi-Fi step's network list; scanning works while the phone is on the hotspot. */
+  const scanHomeNetworks = useCallback(async () => {
+    if (!canScanForNetworks()) {
+      return;
+    }
+    patch({ scanningHomeNetworks: true });
+    try {
+      patch({ homeNetworks: await scanForHomeNetworks() });
+    } catch {
+      // The list is a convenience; the name can always be typed.
+    } finally {
+      patch({ scanningHomeNetworks: false });
+    }
+  }, [patch]);
+
   return {
     ...state,
     nativeWifi: isNativeWifiAvailable(),
@@ -762,6 +795,7 @@ export function useSonoffPairing() {
     backToForm,
     startConnecting,
     scanHotspots,
+    scanHomeNetworks,
     joinHotspot,
     detect,
     continueToWifi,

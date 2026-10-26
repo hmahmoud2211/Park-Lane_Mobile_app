@@ -40,6 +40,12 @@ export const pairingCopy = {
 
   wifiTitle: 'Your home Wi-Fi',
   wifiBody: 'The network the plug should join.',
+  wifiDetected: (ssid: string) => `Filled in from your phone’s Wi-Fi: “${ssid}”.`,
+  wifiNearby: 'Networks nearby (2.4 GHz)',
+  wifiScan: 'Refresh',
+  wifiPasswordRemembered: 'Password filled in from the last time you paired on this network.',
+  wifiPasswordNote: 'Phones don’t let apps read saved Wi-Fi passwords, so type it once here.',
+  wifiRemember: 'Remember the password on this phone',
   provisionTitle: 'Send to the plug',
   provisionUnverified: 'Unverified',
   provisionExplainer:
