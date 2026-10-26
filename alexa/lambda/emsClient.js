@@ -33,7 +33,7 @@ function postCommand(token, payload) {
           let parsed = null;
           try {
             parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-          } catch {
+          } catch (error) {
             parsed = null;
           }
           resolve({ status: response.statusCode || 0, body: parsed });

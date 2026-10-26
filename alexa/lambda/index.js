@@ -25,12 +25,15 @@ function slotValue(handlerInput, name) {
     return undefined;
   }
   // A value matched to the slot type's catalogue is the canonical name; otherwise what was heard.
-  const match = slot.resolutions?.resolutionsPerAuthority?.find((entry) => entry.status?.code === 'ER_SUCCESS_MATCH');
-  return match?.values?.[0]?.value?.name || slot.value || undefined;
+  const authorities = (slot.resolutions && slot.resolutions.resolutionsPerAuthority) || [];
+  const match = authorities.find((entry) => entry.status && entry.status.code === 'ER_SUCCESS_MATCH');
+  const canonical = match && match.values && match.values[0] && match.values[0].value && match.values[0].value.name;
+  return canonical || slot.value || undefined;
 }
 
 function tokenOf(handlerInput) {
-  const linked = handlerInput.requestEnvelope.context?.System?.user?.accessToken;
+  const context = handlerInput.requestEnvelope.context;
+  const linked = context && context.System && context.System.user && context.System.user.accessToken;
   // DEVELOPMENT ONLY fallback, empty in any skill customers use (see config.js).
   return linked || config.DEV_VOICE_TOKEN || '';
 }
@@ -63,8 +66,9 @@ async function runCommand(handlerInput, action) {
   if (result.status === 401) {
     return linkAccount(handlerInput);
   }
-  if (result.status !== 200 || !result.body?.ok) {
-    console.log(`EMS answered ${result.status}: ${result.body?.error?.code ?? 'no body'}`);
+  if (result.status !== 200 || !result.body || !result.body.ok) {
+    const code = result.body && result.body.error ? result.body.error.code : 'no body';
+    console.log(`EMS answered ${result.status}: ${code}`);
     return handlerInput.responseBuilder.speak(s.serverDown).getResponse();
   }
 
