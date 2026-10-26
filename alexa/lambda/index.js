@@ -10,8 +10,12 @@
  * says a device changed unless the backend confirmed the device did.
  *
  * Intents: TurnOnIntent and TurnOffIntent (as before, now with optional
- * `device` and `room` slots), plus DeviceStatusIntent. See
- * ../skill-package/interactionModels/custom for the models.
+ * `device` and `room` slots), DeviceStatusIntent, and VoiceCommandIntent,
+ * whose AMAZON.SearchQuery slot passes whatever was said in any dialect to
+ * the backend to understand. See ../skill-package/interactionModels/custom.
+ *
+ * When the skill asks which action («تبي أشغل النور ولا أطفيه؟»), it
+ * remembers the device for the session, so a bare «شغّله» acts on it.
  */
 const Alexa = require('ask-sdk-core');
 
@@ -43,7 +47,7 @@ function linkAccount(handlerInput) {
   return handlerInput.responseBuilder.speak(s.linkRequired).withLinkAccountCard().getResponse();
 }
 
-async function runCommand(handlerInput, action) {
+async function runCommand(handlerInput, action, utterance) {
   const locale = Alexa.getLocale(handlerInput.requestEnvelope);
   const s = strings(locale);
   const token = tokenOf(handlerInput);
@@ -51,13 +55,19 @@ async function runCommand(handlerInput, action) {
     return linkAccount(handlerInput);
   }
 
+  const session = handlerInput.attributesManager.getSessionAttributes();
+  let device = slotValue(handlerInput, 'device');
+  let room = slotValue(handlerInput, 'room');
+  // Answering «تبي أشغل النور ولا أطفيه؟» with just «شغّله».
+  if (!utterance && !device && !room && session.pendingDevice) {
+    device = session.pendingDevice.name;
+    room = session.pendingDevice.room || undefined;
+  }
+  delete session.pendingDevice;
+
   let result;
   try {
-    result = await postCommand(token, {
-      action,
-      device: slotValue(handlerInput, 'device'),
-      room: slotValue(handlerInput, 'room'),
-    });
+    result = await postCommand(token, { action, device, room, utterance });
   } catch (error) {
     console.log(`EMS request failed: ${error.message}`);
     return handlerInput.responseBuilder.speak(s.serverDown).getResponse();
@@ -73,6 +83,10 @@ async function runCommand(handlerInput, action) {
   }
 
   const outcome = result.body.data;
+  if (outcome.outcome === 'need_action' && outcome.device) {
+    session.pendingDevice = { name: outcome.device.name, room: outcome.device.room };
+  }
+  handlerInput.attributesManager.setSessionAttributes(session);
   const speech = forOutcome(locale, outcome);
   if (ASKS_AGAIN.has(outcome.outcome)) {
     return handlerInput.responseBuilder.speak(speech).reprompt(speech).getResponse();
@@ -123,6 +137,23 @@ const DeviceStatusIntentHandler = {
   },
   handle(handlerInput) {
     return runCommand(handlerInput, 'status');
+  },
+};
+
+const VoiceCommandIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === 'VoiceCommandIntent'
+    );
+  },
+  handle(handlerInput) {
+    const utterance = slotValue(handlerInput, 'utterance');
+    if (!utterance) {
+      const s = strings(Alexa.getLocale(handlerInput.requestEnvelope));
+      return handlerInput.responseBuilder.speak(s.fallback).reprompt(s.fallback).getResponse();
+    }
+    return runCommand(handlerInput, 'auto', utterance);
   },
 };
 
@@ -191,6 +222,7 @@ exports.handler = Alexa.SkillBuilders.custom()
     TurnOnIntentHandler,
     TurnOffIntentHandler,
     DeviceStatusIntentHandler,
+    VoiceCommandIntentHandler,
     HelpIntentHandler,
     CancelAndStopIntentHandler,
     FallbackIntentHandler,

@@ -62,3 +62,61 @@ test('a single device needs no name, and an empty home says so', () => {
   const empty = resolveDevice([]);
   assert.equal('outcome' in empty && empty.outcome, 'no_devices');
 });
+
+// ---- Free speech in any Arabic dialect ------------------------------------------------------
+
+const { parseUtterance, sameWord } = await import('../src/ems/utterance.ts');
+
+test('reads on, off and questions across dialects, with polite filler and attached pronouns', () => {
+  const cases: [string, 'on' | 'off' | 'status' | null][] = [
+    ['لو سمحت شغل النور', 'on'],
+    ['ولّعي الضو بالمطبخ', 'on'],
+    ['عايز اشغل التكييف', 'on'],
+    ['بدي شغّل اللمبة', 'on'],
+    ['خلي الفيش شغال', 'on'],
+    ['الله يخليك افتحي الإضاءة', 'on'],
+    ['ممكن تطفي النور', 'off'],
+    ['سكّرها', 'off'],
+    ['بنّد المروحة', 'off'],
+    ['افصل الفيشة', 'off'],
+    ['اقفلي المكيف', 'off'],
+    ['النور شغال؟', 'status'],
+    ['هل المكيف مطفي', 'status'],
+    ['وش حالة السخان', 'status'],
+    ['turn on the kitchen light', 'on'],
+    ['switch off the fan', 'off'],
+    ['is the fan off', 'status'],
+    ['ابي النور', null],
+  ];
+  for (const [spoken, action] of cases) {
+    assert.equal(parseUtterance(spoken).action, action, spoken);
+  }
+});
+
+test('splits several devices and recognises "all"', () => {
+  assert.deepEqual(parseUtterance('شغل النور والمكيف').targets, ['النور', 'المكيف']);
+  const all = parseUtterance('طفي كل الأنوار');
+  assert.equal(all.all, true);
+  assert.deepEqual(all.targets, ['الانوار']);
+  const everything = parseUtterance('طفي كل شي');
+  assert.equal(everything.all, true);
+  assert.deepEqual(everything.targets, []);
+  assert.deepEqual(parseUtterance('سكر كل الاجهزه').targets, []);
+});
+
+test('dialect synonyms and prefixes match the registered names', () => {
+  const devices = [device('نور', 'غرفة النوم'), device('مكيف', 'الصالة'), device('فيش', 'المطبخ')];
+  const light = resolveDevice(devices, 'الضو في اوضة النوم');
+  assert.ok('device' in light && light.device.name === 'نور');
+  const ac = resolveDevice(devices, 'التكييف بالصالون');
+  assert.ok('device' in ac && ac.device.name === 'مكيف');
+  const plug = resolveDevice(devices, 'البريزة');
+  assert.ok('device' in plug && plug.device.name === 'فيش');
+  const english = resolveDevice(devices, 'bedroom light');
+  assert.ok('device' in english && english.device.name === 'نور');
+});
+
+test('tolerates one recognition slip in longer words, never in short ones', () => {
+  assert.equal(sameWord('مكيفات', 'مكيفاة'), true);
+  assert.equal(sameWord('نور', 'نار'), false);
+});

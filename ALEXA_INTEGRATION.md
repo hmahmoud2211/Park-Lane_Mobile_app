@@ -162,6 +162,20 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
 | «هل المكيف شغال؟» | "Is the air conditioner on?" |
 | «شغل» (no device: the default device) | "Turn on" |
 
+**Free speech in any dialect.**
+- **How it works:** besides the fixed intents, `VoiceCommandIntent` has an `AMAZON.SearchQuery` slot (supported in Arabic (SA)). It catches phrases that start or end with words such as «ابي / ابغى / عايز / بدي / اريد / ممكن / لو سمحت / من فضلك / الله يخليك / خلي». The skill passes the whole phrase to the backend as `{ action: 'auto', utterance }`, and `server/src/ems/utterance.ts` reads it:
+  - **Action from Gulf, Egyptian, Levantine and MSA verbs**, including feminine, plural and verbal-noun forms and attached pronouns:
+    - on: شغّل، ولّع، افتح، اشعل، دوّر…
+    - off: طفّي، سكّر، اقفل، بنّد، وقّف، افصل…
+    - questions: «النور شغال؟»، «هل المكيف مطفي»، «وش حالة السخان»…
+    - «خلّي X شغال/طافي» counts as a command.
+  - **Synonyms:** نور = ضو = ضوء = لمبة = إضاءة = light; فيش = فيشة = بريزة = مقبس; مكيف = تكييف = كندشن; غرفة = أوضة = حجرة; صالة = صالون = ليفنج; and more.
+  - **Prefixes:** attached prefixes are split off («بالمطبخ»، «والمكيف»، «للصالة»).
+  - **Recognition slips:** one wrong letter is tolerated in longer words.
+  - **Several devices or all:** «شغل النور والمكيف», «طفي كل الأنوار», «طفي كل شي». Each device is switched and confirmed separately, and the reply names what worked and what didn't.
+  - **Unclear action:** «ابي النور» makes Alexa ask «تبي أشغل نور في غرفة النوم ولا أطفيه؟», and a bare «شغّله» then acts on that device (kept in the session).
+- **Limit:** Alexa still decides which intent a phrase belongs to before the backend sees it. A phrasing that matches no sample in the model goes to `AMAZON.FallbackIntent`, whose text Alexa doesn't pass on. Add common phrasings you hear in testing to `ar-SA.json`.
+
 How the backend resolves the device (`server/src/ems/voice.ts`):
 - **Arabic spelling:** it folds variants (أ/إ/آ→ا, ة→ه, ى→ي), strips diacritics and tatweel, and ignores the definite article ال, so «النور» matches «نور».
 - **Name and room:** the spoken phrase can be the name, the name plus the room, or just the room.

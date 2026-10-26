@@ -478,14 +478,17 @@ describe('account linking and the voice API', () => {
 
     const ambiguous = await voice(alexa.access_token, { action: 'on', device: 'light' });
     assert.equal(ambiguous.data.outcome, 'ambiguous');
-    assert.equal((ambiguous.data.candidates as unknown[]).length, 2);
+    // «نور» is a light too, so all three are candidates.
+    assert.equal((ambiguous.data.candidates as unknown[]).length, 3);
 
     const kitchen = await voice(alexa.access_token, { action: 'on', device: 'kitchen light' });
     assert.equal(kitchen.data.outcome, 'done');
     assert.equal((kitchen.data.device as Device).room, 'Kitchen');
 
+    // "Bedroom" and «غرفة النوم» are the same room, each with a light: Alexa asks which.
     const byRoom = await voice(alexa.access_token, { action: 'on', device: 'light', room: 'bedroom' });
-    assert.equal((byRoom.data.device as Device).room, 'Bedroom');
+    assert.equal(byRoom.data.outcome, 'ambiguous');
+    assert.equal((byRoom.data.candidates as unknown[]).length, 2);
 
     const spoken = await voice(alexa.access_token, { action: 'on', device: 'نور غرفة النوم' });
     assert.equal(spoken.data.outcome, 'done');
@@ -498,6 +501,38 @@ describe('account linking and the voice API', () => {
 
     assert.equal((await voice(alexa.access_token, { action: 'on', device: 'garden sprinkler' })).data.outcome, 'not_found');
   });
+});
+
+test('free speech: any dialect, several devices, and "all"', async () => {
+  const { token } = await newUser();
+  const alexa = await alexaTokensFor(token);
+  const light = await addVirtual(token, 'نور', 'غرفة النوم');
+  const ac = await addVirtual(token, 'مكيف', 'الصالة');
+  const plug = await api<Device>('POST', '/api/devices', { token, body: { name: 'Garage Plug', protocol: 'test-unreachable', type: 'plug' } });
+  const say = (utterance: string) => voice(alexa.access_token, { action: 'auto', utterance });
+  const power = async (id: string) => (await api<Device>('GET', `/api/devices/${id}`, { token })).data.power;
+
+  const one = await say('لو سمحت ولّعي الضو باوضة النوم');
+  assert.equal(one.data.outcome, 'done');
+  assert.equal(await power(light.id), 'on');
+
+  const two = await say('شغل التكييف والنور');
+  assert.equal(two.data.outcome, 'batch');
+  assert.equal((two.data.done as unknown[]).length, 2);
+  assert.equal(await power(ac.id), 'on');
+
+  // A device that does not answer is reported among the failures, not as switched.
+  const everything = await say('طفي الكل');
+  assert.equal(everything.data.outcome, 'batch');
+  assert.equal((everything.data.done as unknown[]).length, 2);
+  assert.deepEqual((everything.data.failed as { name: string; reason: string }[]).map((entry) => [entry.name, entry.reason]), [['Garage Plug', 'unreachable']]);
+  assert.equal(await power(light.id), 'off');
+  assert.equal(await power(plug.data.id), 'off');
+
+  assert.equal((await say('النور شغال؟')).data.outcome, 'status');
+  const unclear = await say('ابي النور');
+  assert.equal(unclear.data.outcome, 'need_action');
+  assert.equal((unclear.data.device as Device).name, 'نور');
 });
 
 describe('OAuth server', () => {
@@ -601,6 +636,8 @@ describe('persistence and reconnection', () => {
 
     await stopApp();
     closeDb();
+    // Lets fetch's connection pool notice the old server's sockets closed before reusing one.
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await startApp();
 
     const reloaded = await api<Device>('GET', `/api/devices/${device.id}`, { token });
