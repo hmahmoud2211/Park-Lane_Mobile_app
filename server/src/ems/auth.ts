@@ -8,13 +8,8 @@ import { db } from './db.ts';
 import { newToken, sha256 } from './secrets.ts';
 
 /**
- * EMS accounts and the bearer tokens EMS issues.
- *
- * Two families of token, never interchangeable:
- *  - `session`: the mobile app's, from /api/auth/login.
- *  - `alexa_access` / `alexa_refresh`: issued to Alexa at /oauth/token after
- *    account linking. They only open the voice API.
- * Amazon's own tokens are a third thing, kept sealed in alexa_links.
+ * EMS accounts and the bearer tokens EMS issues: `session` tokens for the
+ * mobile app, from /api/auth/login.
  */
 
 export interface User {
@@ -23,7 +18,7 @@ export interface User {
   name: string;
 }
 
-export type TokenKind = 'session' | 'alexa_access' | 'alexa_refresh';
+export type TokenKind = 'session';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -136,7 +131,7 @@ export function revokeToken(token: string): void {
   db().prepare('UPDATE tokens SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL').run(Date.now(), sha256(token));
 }
 
-/** Every token of these kinds for the user, e.g. all of Alexa's on unlink. */
+/** Every token of these kinds for the user. */
 export function revokeTokens(userId: string, kinds: readonly TokenKind[]): void {
   const placeholders = kinds.map(() => '?').join(', ');
   db()

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "strict": true
   },
-  // The device backend is a Node service with its own tsconfig (server/tsconfig.json).
+  // The device backend is a Node service with its own tsconfig (server/tsconfig.json),
+  // and IOT/ is the Home Assistant platform, a separate Python project.
   "exclude": [
     "node_modules",
     "babel.config.js",
@@ -11,6 +12,7 @@
     "jest.config.js",
     "android",
     "ios",
-    "server"
+    "server",
+    "IOT"
   ]
 }

@@ -2,7 +2,7 @@
   "name": "parklane-device-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Holds the CUBE hub's credentials for the Parklane app, and bridges SONOFF Wi-Fi plugs to the hub over the eWeLink LAN protocol.",
+  "description": "EMS accounts and realtime updates for the Parklane app, in front of the Home Assistant smart-home platform.",
   "type": "module",
   "engines": {
     "node": ">=22.18"

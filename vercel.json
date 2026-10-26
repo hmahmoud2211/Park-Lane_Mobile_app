@@ -6,10 +6,6 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/cube/:path*",
-      "destination": "https://cube.ems-iot.com/:path*"
-    },
-    {
       "source": "/((?!_expo/|assets/|favicon).*)",
       "destination": "/index.html"
     }

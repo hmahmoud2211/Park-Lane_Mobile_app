@@ -37,18 +37,10 @@ export const settingsItems: readonly SettingsItem[] = [
   {
     id: 'devices',
     title: 'My Devices',
-    description: 'Add, rename and switch your EMS devices.',
+    description: 'Rename and switch your smart home devices.',
     iconSet: 'material',
     iconName: 'devices',
     route: 'EmsDevices',
-  },
-  {
-    id: 'alexa',
-    title: 'Alexa',
-    description: 'Connect Alexa and choose what it controls.',
-    iconSet: 'ionicons',
-    iconName: 'mic-outline',
-    route: 'AlexaIntegration',
   },
   {
     id: 'notifications',

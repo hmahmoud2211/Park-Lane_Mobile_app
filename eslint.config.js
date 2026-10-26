@@ -5,6 +5,7 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // IOT/ is the Home Assistant platform, a separate Python project.
+    ignores: ["dist/*", "IOT/*"],
   }
 ]);

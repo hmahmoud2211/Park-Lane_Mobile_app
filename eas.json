@@ -9,7 +9,6 @@
       "distribution": "internal",
       "environment": "development",
       "env": {
-        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
       }
     },
@@ -20,7 +19,6 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
       }
     },
@@ -28,7 +26,6 @@
       "environment": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
       }
     }

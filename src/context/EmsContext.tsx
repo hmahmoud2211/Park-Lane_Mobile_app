@@ -4,15 +4,15 @@ import { AppState } from 'react-native';
 import * as api from '../services/ems/emsApi';
 import { EmsRealtime } from '../services/ems/realtime';
 import { sessionStore } from '../services/ems/sessionStore';
-import type { AlexaLinkStatus, EmsEvent, EmsUser, RealtimeState, SmartDevice } from '../types/ems.types';
+import type { EmsEvent, EmsUser, RealtimeState, SmartDevice } from '../types/ems.types';
 
 /**
  * The EMS session and its live device list, shared by every screen that
- * shows devices (My Devices, Alexa) and by the SONOFF wizard.
+ * shows devices.
  *
  * The list comes from the backend and is kept current by the realtime
- * channel, so a switch flipped by Alexa, another phone or the plug's own
- * button shows up without polling. When the channel is down the list is
+ * channel, so a switch flipped from another phone or the device itself
+ * shows up without polling. When the channel is down the list is
  * re-read on reconnect and on returning to the foreground.
  */
 
@@ -36,8 +36,6 @@ interface EmsContextValue {
   /** Puts a device the API returned into the list (realtime may deliver it too). */
   upsertDevice: (device: SmartDevice) => void;
   dropDevice: (id: string) => void;
-  /** The last Alexa link status the backend pushed; screens re-read details on change. */
-  alexaPushed: { status: AlexaLinkStatus; at: number } | null;
 }
 
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
@@ -58,7 +56,6 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [devicesLoaded, setDevicesLoaded] = useState(false);
   const [devicesError, setDevicesError] = useState<string | null>(null);
   const [realtime, setRealtime] = useState<RealtimeState>('offline');
-  const [alexaPushed, setAlexaPushed] = useState<EmsContextValue['alexaPushed']>(null);
   const channel = useRef<EmsRealtime | null>(null);
 
   const endSession = useCallback(async (notice: string | null) => {
@@ -160,8 +157,6 @@ export function EmsProvider({ children }: PropsWithChildren) {
         upsertDevice(event.device);
       } else if (event.type === 'device_removed') {
         dropDevice(event.id);
-      } else if (event.type === 'alexa') {
-        setAlexaPushed({ status: event.status, at: Date.now() });
       }
     };
     const next = new EmsRealtime(token, {
@@ -215,7 +210,6 @@ export function EmsProvider({ children }: PropsWithChildren) {
       refreshDevices,
       upsertDevice,
       dropDevice,
-      alexaPushed,
     }),
     [
       status,
@@ -231,7 +225,6 @@ export function EmsProvider({ children }: PropsWithChildren) {
       refreshDevices,
       upsertDevice,
       dropDevice,
-      alexaPushed,
     ],
   );
 

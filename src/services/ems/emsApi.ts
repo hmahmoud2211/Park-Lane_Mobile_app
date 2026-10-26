@@ -1,13 +1,13 @@
 import { emsConfig } from '../../constants/emsConfig';
-import type { AlexaStatus, EmsUser, SmartDevice, SmartDeviceType } from '../../types/ems.types';
+import type { EmsUser, SmartDevice } from '../../types/ems.types';
 
 /**
  * The EMS backend's REST API. Every answer is `{ ok: true, data }` or
  * `{ ok: false, error: { code, message } }`; failures throw EmsError with the
  * backend's code, so screens can tell "device offline" from "signed out".
  *
- * The signed-in user's token is held here (set by EmsAuthContext) so the
- * SONOFF wizard and hooks share one session.
+ * The signed-in user's token is held here (set by EmsContext) so every
+ * hook shares one session.
  */
 
 export type EmsErrorCode =
@@ -21,13 +21,7 @@ export type EmsErrorCode =
   | 'rate_limited'
   | 'device_offline'
   | 'device_unreachable'
-  | 'device_not_found'
   | 'command_timeout'
-  | 'key_rejected'
-  | 'unsupported_device'
-  | 'mdns_unavailable'
-  | 'amazon_error'
-  | 'link_expired'
   | 'internal'
   | (string & {});
 
@@ -137,30 +131,7 @@ export const getMe = () => call<{ user: EmsUser }>('/api/auth/me');
 
 export const listDevices = () => call<SmartDevice[]>('/api/devices');
 
-export interface NewVirtualDevice {
-  name: string;
-  room?: string;
-  type: SmartDeviceType;
-}
-
-export const addVirtualDevice = (device: NewVirtualDevice) =>
-  call<SmartDevice>('/api/devices', { method: 'POST', body: { ...device, protocol: 'virtual' } });
-
-/** Registers a SONOFF plug the backend can see on its LAN; refused unless its key reads its state. */
-export const addSonoffDevice = (input: { name: string; room?: string; deviceId: string; deviceKey: string }) =>
-  call<SmartDevice>('/api/devices', {
-    method: 'POST',
-    body: {
-      name: input.name,
-      room: input.room,
-      type: 'plug',
-      protocol: 'sonoff-lan',
-      sonoff: { deviceId: input.deviceId, deviceKey: input.deviceKey },
-    },
-    timeoutMs: emsConfig.registerTimeoutMs,
-  });
-
-export type DeviceChanges = Partial<Pick<SmartDevice, 'name' | 'room' | 'alexaEnabled' | 'isDefault' | 'online'>>;
+export type DeviceChanges = Partial<Pick<SmartDevice, 'name' | 'room'>>;
 
 export const updateDevice = (id: string, changes: DeviceChanges) =>
   call<SmartDevice>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PATCH', body: changes });
@@ -171,14 +142,3 @@ export const removeDevice = (id: string) =>
 /** Resolves with the state the device confirmed; throws if it did not. */
 export const setDevicePower = (id: string, power: 'on' | 'off') =>
   call<SmartDevice>(`/api/devices/${encodeURIComponent(id)}/power`, { method: 'POST', body: { power } });
-
-// ---- Alexa -----------------------------------------------------------------------------
-
-export const getAlexaStatus = (refresh = false) =>
-  call<AlexaStatus>(`/api/integrations/alexa/status${refresh ? '?refresh=1' : ''}`);
-
-export const startAlexaLink = () =>
-  call<{ url: string; expiresAt: string }>('/api/integrations/alexa/link/start', { method: 'POST' });
-
-export const unlinkAlexa = () =>
-  call<AlexaStatus & { amazonConfirmed: boolean }>('/api/integrations/alexa/unlink', { method: 'POST' });

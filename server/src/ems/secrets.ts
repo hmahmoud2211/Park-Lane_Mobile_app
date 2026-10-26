@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { config } from '../config.ts';
 
 /**
- * Sealing for values the backend must read back (Amazon tokens, plug keys),
- * and hashing for values it only compares (EMS tokens, codes, link states).
+ * Sealing for values the backend must read back (such as hub tokens), and
+ * hashing for values it only compares (EMS tokens).
  *
  * The AES-256-GCM key comes from EMS_ENCRYPTION_KEY. Without it, one is
  * generated into DATA_DIR/ems.key (mode 600) so a development backend works

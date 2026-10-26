@@ -11,7 +11,6 @@ import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { AlexaIntegrationScreen } from '../screens/AlexaIntegrationScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
@@ -34,7 +33,6 @@ import { SecurityConsoleScreen } from '../screens/SecurityConsoleScreen';
 import { ServicesScreen } from '../screens/ServicesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { SmartHomeScreen } from '../screens/SmartHomeScreen';
-import { SonoffPairingScreen } from '../screens/SonoffPairingScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import type { RootStackParamList } from '../types/navigation.types';
@@ -154,9 +152,7 @@ export function AppNavigator() {
           <Stack.Screen name="Parking" component={ParkingScreen} />
           <Stack.Screen name="Community" component={CommunityScreen} />
           <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
-          <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
           <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
-          <Stack.Screen name="AlexaIntegration" component={AlexaIntegrationScreen} />
           <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />

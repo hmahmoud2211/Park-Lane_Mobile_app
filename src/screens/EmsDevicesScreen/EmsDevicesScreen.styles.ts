@@ -17,7 +17,6 @@ export const CARD_GAP = 18;
 const PANEL_INSET = 14;
 const ROW_GAP = 12;
 export const FIELD_HEIGHT = 54;
-export const BUTTON_HEIGHT = 46;
 export const SMALL_BUTTON_HEIGHT = 36;
 /** Narrowest a device card gets beside another; phones show one column. */
 export const MIN_DEVICE_WIDTH = 300;
@@ -49,11 +48,6 @@ export function createStyles(theme: AppTheme) {
       alignItems: 'center',
       gap: theme.spacing.sm,
     },
-    chips: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
-    },
     form: {
       gap: ROW_GAP,
     },
@@ -69,12 +63,6 @@ export function createStyles(theme: AppTheme) {
     action: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing.md,
-    },
-    toggleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: theme.spacing.sm,
     },
   });
 }

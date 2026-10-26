@@ -12,13 +12,13 @@ import { StatusChip } from '../ui/StatusChip';
 
 export interface SmartDeviceCardProps {
   device: SmartDevice;
-  /** Omitted where the card only shows the device (e.g. Alexa's access list). */
+  /** Omitted where the card only shows the device. */
   onToggle?: (on: boolean) => void;
   /** A command from this screen is waiting for the device. */
   busy?: boolean;
   /** Why the last action from this screen failed. */
   error?: string | null;
-  /** Rows under the status line: edit controls, Alexa access. */
+  /** Rows under the status line, such as edit controls. */
   children?: ReactNode;
 }
 
@@ -56,7 +56,7 @@ function stateLine(device: SmartDevice): string {
 /**
  * One EMS device: what it is, where it is, whether it is reachable, and the
  * last state it confirmed. A command in flight shows as pending until the
- * device answers, whoever sent it (this phone, another one, or Alexa).
+ * device answers, whoever sent it (this phone or another one).
  */
 export function SmartDeviceCard({ device, onToggle, busy = false, error, children }: SmartDeviceCardProps) {
   const theme = useAppTheme();
@@ -103,8 +103,6 @@ export function SmartDeviceCard({ device, onToggle, busy = false, error, childre
       <View style={styles.chips}>
         <StatusChip label={device.online ? 'Online' : 'Offline'} tone={device.online ? 'teal' : 'red'} />
         {device.simulated ? <StatusChip label="Virtual" tone="violet" /> : null}
-        {device.alexaEnabled ? <StatusChip label="Alexa" tone="indigo" /> : null}
-        {device.isDefault ? <StatusChip label="Default" tone="amber" /> : null}
       </View>
 
       <AppText

@@ -1,14 +1,12 @@
 # Parklane device backend
 
-A small Node service between the Parklane app and the unit's eWeLink CUBE hub:
+A small Node service between the Parklane app and the smart-home platform. It runs EMS user accounts (SQLite in `DATA_DIR/ems.db`), gives every apartment its own Home Assistant (see `../IOT`), and pushes realtime updates to the app over WebSocket.
 
 ```
-App ──HTTP──▶ backend ──Open API──▶ CUBE ──UpdateDeviceStates──▶ backend ──eWeLink LAN──▶ SONOFF plug
+App ──HTTPS / WS──▶ backend ──private Docker network──▶ Home Assistant (one container per unit) ──▶ Tuya, SmartThings, … clouds
 ```
 
-- It holds the CUBE credentials, so the app never needs them for these endpoints.
-- It finds SONOFF plugs on the LAN over mDNS (`_ewelink._tcp`) and checks each plug's key against its encrypted announcement.
-- It registers each plug with CUBE as a **third-party device** whose `service_address` points back at the backend. CUBE's on/off commands then reach the plug through the backend.
+Residents install nothing at home. Their devices come in through the makers' clouds, which each unit's Home Assistant reaches from this server. The app never talks to Home Assistant itself: the backend holds each hub's token and only runs the commands in `src/ha/commands.ts`.
 
 It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
 
@@ -16,70 +14,94 @@ It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
 
 ```bash
 cd server
-cp .env.example .env      # then fill in PUBLIC_URL and CUBE_PASSWORD (or CUBE_TOKEN)
+cp .env.example .env      # then fill it in
 npm start                 # node src/index.ts
-npm test                  # LAN crypto, mDNS, CUBE directives, EMS registry, OAuth, Alexa linking, realtime
+npm test                  # accounts, realtime, device mapping, the home facade, provisioning
 npm run typecheck         # uses the app's TypeScript (../node_modules)
 ```
 
-Run it on a machine on the **same network segment as the plugs**. mDNS does not cross routers, so a backend on another subnet will never see a plug announce itself. CUBE must also be able to reach `PUBLIC_URL`.
+In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`.
 
-In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`, plus `EXPO_PUBLIC_DEVICE_BACKEND_KEY` if you set `BACKEND_API_KEY`.
+### On the server
 
-## EMS accounts, device registry and Alexa
+- The backend needs the Docker socket (`DOCKER_SOCKET`) to create the units' containers. Access to that socket is root on the host: run the backend as a dedicated user and never expose the socket elsewhere.
+- Run the backend on the `HA_NETWORK` Docker network, so it reaches each container as `http://parklane-ha-<unit>:8123`. Containers publish no ports.
+- Each unit's `/config` lives in `HA_CONFIG_ROOT` (default `DATA_DIR/ha`). When the backend itself runs in a container, mount that folder and set `HA_CONFIG_HOST_ROOT` to the same folder as the host sees it.
+- Budget about 300–500 MB of RAM per unit (`HA_MEMORY_MB` caps it). Pin `HA_IMAGE` to a release.
+- For development on a machine where the backend is not on the Docker network, set `HA_PUBLISH_LOCAL_PORTS=1`: each container is then published on a random `127.0.0.1` port.
 
-The same process also runs the EMS device registry (SQLite in `DATA_DIR/ems.db`), user accounts, realtime updates over WebSocket, and the Alexa account-linking and voice APIs. It does not depend on CUBE. See [../ALEXA_INTEGRATION.md](../ALEXA_INTEGRATION.md) for those routes, settings and tests. The hub routes below moved from `/api/devices` to `/api/cube/devices` to make room for the registry.
+### Setting up a unit
 
-## API (CUBE hub and SONOFF bridge)
+```bash
+# 1. Create the unit; its Home Assistant is provisioned in the background (a minute or two).
+curl -X POST $API/api/admin/units -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' -d '{"name": "Tower A · 1203", "building": "Tower A"}'
+
+# 2. Once the resident has signed up in the app, add them to it.
+curl -X POST $API/api/admin/units/<unitId>/members -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' -d '{"email": "resident@example.com"}'
+
+# 3. Watch it come up: status provisioning → online (or failed, with last_error).
+curl $API/api/admin/hubs -H "Authorization: Bearer $ADMIN_API_KEY"
+```
+
+`POST /api/admin/units/<unitId>/provision` retries a failed setup. `DELETE /api/admin/units/<unitId>` removes the unit and its container. Its `/config` folder, which holds the resident's linked accounts, is kept until an operator deletes it.
+
+A unit that later wants Zigbee or local devices can run Home Assistant on a box at home instead: `POST /api/admin/hubs { unitId, baseUrl, token }` attaches it. The address must be inside `HA_ALLOWED_NETWORKS` (e.g. a WireGuard range).
+
+## API
 
 Every answer is `{ "ok": true, "data": … }` or `{ "ok": false, "error": { "code", "message" } }`.
 
+### Residents (EMS session token)
+
 | Method & path | What it does |
 | --- | --- |
-| `GET /api/health` | Whether CUBE answers, whether mDNS is listening, and whether registration is possible (`PUBLIC_URL` set). |
-| `GET /api/cube/devices` | The hub's devices: `{ id, name, category, manufacturer, model, online, power, controllable }`. |
-| `GET /api/cube/devices/:id` | One of them. `:id` is the hub's serial number. |
-| `POST /api/cube/devices/:id/on` · `/off` | `PUT /devices/:id { state: { power: { powerState } } }` on CUBE. Returns `409 not_controllable` when the device has no controllable `power` capability. Returns `502 device_unreachable` when CUBE (or the plug behind it) refuses. |
-| `POST /api/sonoff/discover` `{ deviceId, deviceKey? }` | Listens about 4 seconds for the plug's mDNS announcement. Returns `{ found: false }`, or `{ found: true, device: { host, port, encrypted, keyVerified, power, singleChannel } }`. |
-| `POST /api/sonoff/devices` `{ deviceId, deviceKey, name }` | Registers the plug with CUBE (see below) and returns `{ cubeSerial, created, device }`. |
-| `POST /cube/directive/:secret` | Called **by CUBE**, not the app. The random secret is stored in `data/sonoff.json`. |
+| `POST /api/auth/register` `{ email, password, name? }` | Creates an EMS account. Returns `{ user, token }`. |
+| `POST /api/auth/login` `{ email, password }` | Returns `{ user, token }`. Rate limited per client. |
+| `POST /api/auth/logout` | Revokes the session token. |
+| `GET /api/auth/me` | The signed-in user. |
+| `GET /api/home` | `{ unit, hub: { status, haVersion, lastSeen }, rooms, deviceCount }`. `404 no_home` until the resident is in a unit. |
+| `GET /api/devices` | The unit's devices (`Device` in `src/ha/types.ts`): kind, room, capabilities with their current values, sensors, pending command, last error. |
+| `GET /api/devices/:id` | One of them. Another unit's device is `404`. |
+| `POST /api/devices/:id/commands` `{ capability, action, value?, entityId? }` | Runs one allowlisted command and returns the device as the hub then reports it. See below. |
+| `PATCH /api/devices/:id` `{ name?, roomId? }` | Renames a device or moves it to a room (stored in Home Assistant). |
+| `GET /api/rooms` · `POST /api/rooms` `{ name }` | The unit's rooms (Home Assistant areas). |
+| `GET /api/events` (WebSocket) | Send `{ type: 'auth', token }` first; the server answers `{ type: 'ready' }`, then pushes `device`, `device_removed`, `rooms` and `hub_status`. |
 
-### What registration checks first
+Commands, by capability:
 
-The backend refuses to register a plug unless all of the following hold. This ensures CUBE never lists a device that nothing can control:
+| Capability | Actions (value) |
+| --- | --- |
+| `power` | `on`, `off`, `toggle` |
+| `brightness` | `set` (0–100; 0 turns off) |
+| `color_temp` | `set` (kelvin, clamped to the light's range) |
+| `color` | `set` (`{ h: 0–360, s: 0–100 }`) |
+| `climate` | `set_temperature` (clamped), `set_mode`, `set_fan_mode` (one of the device's) |
+| `cover` | `open`, `close`, `stop`, `set_position` (0–100) |
+| `lock` | `lock`, `unlock` (audited) |
+| `fan` | `set_percentage` (0–100), `set_preset` |
+| `media` | `play`, `pause`, `next`, `previous`, `set_volume` (0–1), `mute` (boolean), `select_source` |
+| `press` | `press` |
 
-1. `PUBLIC_URL` is set (`503 public_url_missing`).
-2. The plug is announcing itself on the LAN right now (`404 device_not_found`).
-3. Its announcement is encrypted and the key decrypts it (`422 key_rejected`). A plain (DIY-mode) announcement also passes this step.
-4. It reports a single `switch` (`422 unsupported_device`). Multi-channel devices are not bridged yet.
+A command is pushed as `pending` to every open app, then the device's reported state. `ha_rejected` (502) means the device or its cloud refused; `hub_offline` (503) means the unit's hub is unreachable, while reads keep serving the last known state.
 
-Then it sends CUBE a `DiscoveryRequest`:
-- `display_category: "plug"`
-- `capabilities: [{ capability: "power", permission: "1100" }]` (controllable and reportable, as CUBE's docs declare power)
-- the plug's current state
-- `service_address = PUBLIC_URL/cube/directive/<secret>`
+### Operations and admin (`ADMIN_API_KEY`)
 
-Registering the same plug again refreshes its address and key instead of adding a duplicate.
+| Method & path | What it does |
+| --- | --- |
+| `GET /api/health` | Liveness check. |
+| `GET /api/admin/units` · `POST /api/admin/units` `{ name, building?, provision? }` | Units and their hubs; creating one provisions its container unless `provision: false`. |
+| `DELETE /api/admin/units/:id` | Removes the unit and its container. |
+| `POST /api/admin/units/:id/provision` | Starts or retries provisioning. |
+| `POST /api/admin/units/:id/members` `{ email, role? }` | Puts an existing EMS account in the unit (`owner` or `member`). |
+| `GET /api/admin/hubs` · `POST /api/admin/hubs` `{ unitId, baseUrl, token }` | All hubs; attach a separately run hub. |
 
-### After registration
-
-- **`UpdateDeviceStates` from CUBE** (`on`, `off` or `toggle`): the backend sends `POST http://<plug>:8081/zeroconf/switch` with the encrypted `{ "switch": "on" | "off" }`. It answers `UpdateDeviceStatesResponse`, or `ErrorResponse ENDPOINT_UNREACHABLE` if the plug does not confirm. CUBE allows 3 seconds; the LAN timeout is 2.5 seconds.
-- **`QueryDeviceStates`**: answered from the last state the plug reported.
-- **Every announcement from a registered plug**: updates its address. If the switch changed (for example from the physical button), the backend sends `DeviceStatesChangeReport`.
-- **Every 30 seconds**: the backend queries the LAN. A plug that misses 3 rounds is reported offline (`DeviceOnlineChangeReport`), and back online when it is heard again.
-
-## Protocol sources and limits
-
-- **CUBE third-party API:** CUBE's Developer & API Guide, the "Third-Party Request Gateway Interface" and "Gateway sends the instruction" sections.
-- **eWeLink LAN protocol:** not documented by ITEAD for stock (non-DIY) firmware. This follows [AlexxIT/SonoffLAN](https://github.com/AlexxIT/SonoffLAN):
-  - encryption is AES-128-CBC with key `MD5(devicekey)` and PKCS7 padding (checked against OpenSSL);
-  - state is carried in TXT `data1`..`data4`;
-  - commands go to `/zeroconf/<command>` on port 8081.
-- **The device key:** SonoffLAN documents that the `apikey` returned by `http://10.10.7.1/device` in pairing mode is the plug's `devicekey`. One SonoffLAN issue reports a model where it is not, so the backend **verifies** the key against the plug's own announcement before trusting it.
-- **Unverified on the S26R2TPF:** whether its firmware turns on LAN mode without a working eWeLink cloud connection. If it never announces `_ewelink._tcp`, discovery reports `found: false`, and the app stops at "Registration required".
+The admin routes refuse every request until `ADMIN_API_KEY` is set.
 
 ## Secrets
 
 - `.env` and `data/` are git-ignored.
-- `data/sonoff.json` is written with mode `600`. It holds plug keys and the directive secret.
-- Logs never include request bodies, the directive path, or any field whose name looks secret.
+- EMS tokens are stored as SHA-256 hashes. Hub tokens and the facade user's password are sealed with `EMS_ENCRYPTION_KEY`.
+- Each unit's `/config` holds its linked accounts' tokens; the folders are created owner-only.
+- Logs never include request bodies, query strings or fields whose names look secret.

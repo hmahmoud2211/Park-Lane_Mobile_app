@@ -64,13 +64,9 @@ export function useEmsDevices() {
       track(device.id, 'edit', async () => {
         const updated = await api.updateDevice(device.id, changes);
         upsertDevice(updated);
-        if (changes.isDefault) {
-          // The previous default changed too.
-          void refreshDevices();
-        }
         return updated;
       }),
-    [track, upsertDevice, refreshDevices],
+    [track, upsertDevice],
   );
 
   const remove = useCallback(
@@ -83,16 +79,7 @@ export function useEmsDevices() {
     [track, dropDevice],
   );
 
-  const addVirtual = useCallback(
-    async (input: api.NewVirtualDevice) => {
-      const device = await api.addVirtualDevice(input);
-      upsertDevice(device);
-      return device;
-    },
-    [upsertDevice],
-  );
-
   const clearError = useCallback((id: string) => setErrors(({ [id]: _cleared, ...rest }) => rest), []);
 
-  return { ...ems, busy, errors, setPower, update, remove, addVirtual, clearError };
+  return { ...ems, busy, errors, setPower, update, remove, clearError };
 }

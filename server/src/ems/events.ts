@@ -1,16 +1,13 @@
 import { EventEmitter } from 'node:events';
 
-import type { ApiSmartDevice } from './devices.ts';
-
 /**
- * Changes pushed to a user's open app sessions (see realtime.ts). Every
- * path that changes a device, whether the app, Alexa or the plug's own
- * button, ends here, so clients never need to poll.
+ * Changes pushed to a user's open app sessions (see realtime.ts), so
+ * clients never need to poll.
  */
-export type UserEvent =
-  | { type: 'device'; device: ApiSmartDevice }
-  | { type: 'device_removed'; id: string }
-  | { type: 'alexa'; status: string };
+export interface UserEvent {
+  type: string;
+  [field: string]: unknown;
+}
 
 const bus = new EventEmitter<Record<string, [UserEvent]>>();
 bus.setMaxListeners(0);

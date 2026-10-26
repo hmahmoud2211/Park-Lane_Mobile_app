@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -18,13 +18,10 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useCubeDevices } from '../../hooks/useCubeDevices';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import type { CubeDevice } from '../../services/cube/cube.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 // My Unit's own scale, so the two screens' small type is drawn at one size.
 import { statScaleFor } from '../MyUnitScreen/MyUnitScreen.styles';
-import { AddDeviceSheet } from './AddDeviceSheet';
 import { AutomationRow } from './AutomationRow';
 import { ClimateControls } from './ClimateControls';
 import { ControlCard } from './ControlCard';
@@ -38,7 +35,6 @@ import {
   addDeviceCopy,
   automations,
   climate,
-  cubeCategoryGlyphs,
   curtainActions,
   curtainsCard,
   deviceStatusLabel,
@@ -98,7 +94,7 @@ function enabledMap(items: readonly { id: string; enabled: boolean }[]) {
   return Object.fromEntries(items.map((item) => [item.id, item.enabled]));
 }
 
-/** One card in the Smart Devices panel, from the hub or from the sample data. */
+/** One card in the Smart Devices panel. */
 interface DeviceItem {
   id: string;
   name: string;
@@ -108,21 +104,6 @@ interface DeviceItem {
   online: boolean;
   enabled: boolean;
   onToggle?: (next: boolean) => void;
-}
-
-/** A device on the CUBE hub as a card: switchable only if it has power control. */
-function cubeDeviceItem(device: CubeDevice, setPower: (id: string, on: boolean) => void): DeviceItem {
-  const glyph = cubeCategoryGlyphs[device.display_category] ?? cubeCategoryGlyphs.chip;
-  const switchable = device.capabilities.some((entry) => entry.capability === 'power');
-  return {
-    id: device.serial_number,
-    name: device.name,
-    location: [device.manufacturer, device.model].filter(Boolean).join(' · '),
-    ...glyph,
-    online: device.online,
-    enabled: switchable ? device.state?.power?.powerState === 'on' : device.online,
-    onToggle: switchable ? (next) => setPower(device.serial_number, next) : undefined,
-  };
 }
 
 export function SmartHomeScreen() {
@@ -137,22 +118,6 @@ export function SmartHomeScreen() {
   const cellStyle = layout.controlColumns === 2 ? styles.gridCell : undefined;
   const navigation = useNavigation<RootStackScreenProps<'SmartHome'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const hub = useCubeDevices();
-
-  // Coming back from the SONOFF wizard, re-read the hub so a plug it added shows up.
-  const { refresh: refreshHub } = hub;
-  const focusedOnce = useRef(false);
-  useEffect(
-    () =>
-      navigation.addListener('focus', () => {
-        if (focusedOnce.current) {
-          void refreshHub();
-        }
-        focusedOnce.current = true;
-      }),
-    [navigation, refreshHub],
-  );
 
   // Screen-local until there is a home-automation backend to send commands to.
   // TODO(api): send each change to the unit's controller once that service exists.
@@ -186,26 +151,16 @@ export function SmartHomeScreen() {
   });
 
   const visibleScenes = expanded.scenes ? scenes : scenes.slice(0, previewCounts.scenes);
-  // The hub's devices once it answers; the design's sample devices while it cannot be reached.
-  const deviceItems: DeviceItem[] =
-    hub.status === 'connected'
-      ? hub.devices.map((device) => cubeDeviceItem(device, hub.setPower))
-      : devices.map((device) => ({
-          ...device,
-          enabled: devicesOn[device.id] ?? device.enabled,
-          onToggle: (next: boolean) => setDevicesOn((current) => ({ ...current, [device.id]: next })),
-        }));
+  // The design's sample devices until the home backend serves the unit's own.
+  // TODO(api): list the unit's devices from the EMS backend.
+  const deviceItems: DeviceItem[] = devices.map((device) => ({
+    ...device,
+    enabled: devicesOn[device.id] ?? device.enabled,
+    onToggle: (next: boolean) => setDevicesOn((current) => ({ ...current, [device.id]: next })),
+  }));
   const visibleDevices = expanded.devices
     ? deviceItems
     : deviceItems.slice(0, previewCounts.devices);
-  const deviceNote =
-    hub.status === 'connecting'
-      ? addDeviceCopy.hubConnecting
-      : hub.status === 'unreachable'
-        ? addDeviceCopy.hubUnreachable
-        : deviceItems.length === 0
-          ? addDeviceCopy.noDevices
-          : hub.error;
   const visibleAutomations = expanded.automations
     ? automations
     : automations.slice(0, previewCounts.automations);
@@ -226,15 +181,6 @@ export function SmartHomeScreen() {
         onPress: () => {
           setMenuOpen(false);
           navigation.navigate('EmsDevices');
-        },
-      },
-      {
-        id: 'alexa',
-        label: 'Alexa',
-        icon: 'mic-outline',
-        onPress: () => {
-          setMenuOpen(false);
-          navigation.navigate('AlexaIntegration');
         },
       },
       { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
@@ -566,7 +512,7 @@ export function SmartHomeScreen() {
                     {...viewAll('devices')}
                     trailing={
                       <Pressable
-                        onPress={() => setAddOpen(true)}
+                        onPress={() => navigation.navigate('EmsDevices')}
                         hitSlop={10}
                         accessibilityRole="button"
                         accessibilityLabel={addDeviceCopy.buttonLabel}
@@ -587,15 +533,6 @@ export function SmartHomeScreen() {
                     divider={false}
                   />
                   <View style={styles.deviceGrid}>
-                    {deviceNote ? (
-                      <AppText
-                        variant="tileCaption"
-                        color={theme.colors.textSupport}
-                        style={styles.deviceNote}
-                      >
-                        {deviceNote}
-                      </AppText>
-                    ) : null}
                     {visibleDevices.map((device) => (
                       <View
                         key={device.id}
@@ -657,13 +594,6 @@ export function SmartHomeScreen() {
         {/* The same empty glass bar as the other inner screens. */}
         <BottomBar />
       </View>
-
-      <AddDeviceSheet
-        visible={addOpen}
-        onClose={() => setAddOpen(false)}
-        refresh={hub.refresh}
-        onAddSonoff={() => navigation.navigate('SonoffPairing')}
-      />
 
       <AppMenu
         visible={menuOpen}

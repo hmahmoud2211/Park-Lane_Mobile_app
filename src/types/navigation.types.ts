@@ -18,12 +18,8 @@ export type RootStackParamList = {
   Parking: undefined;
   Community: undefined;
   SmartHome: undefined;
-  /** The SONOFF Wi-Fi plug wizard, from Smart Home's Add Device sheet. */
-  SonoffPairing: undefined;
-  /** Devices registered in EMS, which the app and Alexa both control. */
+  /** The resident's devices, controlled through the EMS backend. */
   EmsDevices: undefined;
-  /** Linking the EMS account to the Alexa skill, and Alexa's device access. */
-  AlexaIntegration: undefined;
   AmenitiesBooking: undefined;
   Services: undefined;
   Settings: undefined;
