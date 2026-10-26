@@ -2,9 +2,13 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** server/.env, when present; real environment variables win over it. */
+/**
+ * server/.env, when present; real environment variables win over it. Not under
+ * `node --test` (which sets NODE_TEST_CONTEXT), so a developer's own settings
+ * never leak into the tests.
+ */
 const envFile = new URL('../.env', import.meta.url);
-if (existsSync(envFile)) {
+if (existsSync(envFile) && !process.env.NODE_TEST_CONTEXT) {
   process.loadEnvFile(envFile);
 }
 
@@ -73,6 +77,11 @@ export const config = {
      */
     publishLocalPorts: env.HA_PUBLISH_LOCAL_PORTS === '1',
     memoryMb: Number(env.HA_MEMORY_MB || 512),
+    /**
+     * Optional: a folder of community integrations (each a sub-folder, e.g.
+     * sonoff/ from SonoffLAN) copied into every new unit's custom_components.
+     */
+    customComponents: env.HA_CUSTOM_COMPONENTS ? resolve(serverRoot, env.HA_CUSTOM_COMPONENTS) : '',
     timeZone: env.HA_TIME_ZONE || 'UTC',
     /** Where a separately run hub (POST /api/admin/hubs) may live: CIDRs, e.g. a WireGuard range. */
     allowedNetworks: list(env.HA_ALLOWED_NETWORKS || '100.64.0.0/10'),

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 
@@ -20,7 +20,8 @@ import { createHubRow, getHubForUnit, hubHasToken, startHub, stopHub, updateHubR
  *   2. creates and starts the container on the private network,
  *   3. waits for HA, creates its admin user through onboarding and swaps the
  *      first token for a long-lived one,
- *   4. adds the company's shared OAuth app credentials,
+ *   4. adds the company's shared OAuth app credentials (and, from
+ *      HA_CUSTOM_COMPONENTS, community integrations such as SonoffLAN),
  *   5. stores the address and sealed token, and connects (hubs.ts).
  * Removing a unit removes its container; its /config folder is kept, since
  * it holds the resident's linked accounts, until an operator deletes it.
@@ -120,6 +121,10 @@ function writeConfig(unitId: string, unitName: string): string {
   const file = join(dir, 'configuration.yaml');
   if (!existsSync(file)) {
     writeFileSync(file, configurationYaml(unitName), { mode: 0o600 });
+  }
+  // Community integrations (e.g. SonoffLAN for eWeLink devices); refreshed on every provision.
+  if (config.ha.customComponents) {
+    cpSync(config.ha.customComponents, join(dir, 'custom_components'), { recursive: true });
   }
   return config.ha.configHostRoot ? `${config.ha.configHostRoot.replace(/[/\\]+$/, '')}/${unitId}` : dir;
 }

@@ -12,6 +12,12 @@ import { config } from '../config.ts';
  *  - qr: a form, then a QR code to scan with the brand's own app
  *  - oauth: the brand's sign-in page in a browser; needs the company's OAuth
  *    app for that brand in HA_OAUTH_CREDENTIALS and PUBLIC_URL for the callback
+ *
+ * `sonoff` is not part of Home Assistant: it is the community SonoffLAN
+ * integration (github.com/AlexxIT/SonoffLAN), which signs in to the eWeLink
+ * cloud. A hub has it once it is in the hub's custom_components
+ * (HA_CUSTOM_COMPONENTS for provisioned units); without it, starting the
+ * link says the brand is not available on that hub.
  */
 
 export type LinkMethod = 'credentials' | 'qr' | 'oauth';
@@ -26,6 +32,7 @@ export interface Integration {
 
 const INTEGRATIONS: readonly Integration[] = [
   { id: 'tuya', name: 'Tuya / Smart Life', method: 'qr', hint: 'The user code from the Smart Life app (Me → Settings → Account and Security), then scan a QR code with it.' },
+  { id: 'sonoff', name: 'SONOFF (eWeLink)', method: 'credentials', hint: 'The email or phone number and password of your eWeLink app account.' },
   { id: 'smartthings', name: 'Samsung SmartThings', method: 'oauth', hint: 'Sign in with your Samsung account.' },
   { id: 'switchbot_cloud', name: 'SwitchBot', method: 'credentials', hint: 'The token and secret from the SwitchBot app (Profile → Preferences → Developer options).' },
   { id: 'lg_thinq', name: 'LG ThinQ', method: 'credentials', hint: 'A personal access token from the LG ThinQ developer site.' },
