@@ -1,0 +1,20 @@
+/** Copy for a device's own screen. */
+export const deviceDetailCopy = {
+  fallbackTitle: 'Device',
+  accountIntro: 'Sign in to your EMS account to control your devices.',
+  controlsTitle: 'Controls',
+  detailsTitle: 'Details',
+  missingTitle: 'Device not found',
+  missingBody: 'It may have been removed from your home, or your account was moved to another unit.',
+  name: 'Name',
+  rename: 'Rename',
+  save: 'Save',
+  cancel: 'Cancel',
+  room: 'Room',
+  noRoom: 'No room',
+  offline: 'This device is offline. Its controls come back when it does.',
+  hubOffline: 'Your home hub is offline. Showing the last known state.',
+  manufacturer: 'Made by',
+  model: 'Model',
+  integration: 'Connected through',
+} as const;

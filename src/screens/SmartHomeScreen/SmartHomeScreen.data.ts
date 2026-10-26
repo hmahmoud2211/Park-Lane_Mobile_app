@@ -91,6 +91,9 @@ export interface LightPreset {
   id: string;
   label: string;
   color: ColorToken;
+  /** What a real light is set to: a hue for colour lights, a temperature for white ones. */
+  hue?: number;
+  kelvin?: number;
 }
 
 export const lighting = {
@@ -99,11 +102,11 @@ export const lighting = {
   /** Arrow keys and screen-reader swipes move it by this much. */
   brightnessStep: 0.1,
   presets: [
-    { id: 'warm', label: 'Warm white', color: 'lightWarm' },
-    { id: 'amber', label: 'Amber', color: 'lightAmber' },
-    { id: 'daylight', label: 'Daylight', color: 'lightDaylight' },
-    { id: 'blue', label: 'Blue', color: 'lightBlue' },
-    { id: 'violet', label: 'Violet', color: 'lightViolet' },
+    { id: 'warm', label: 'Warm white', color: 'lightWarm', kelvin: 2700 },
+    { id: 'amber', label: 'Amber', color: 'lightAmber', hue: 35, kelvin: 2200 },
+    { id: 'daylight', label: 'Daylight', color: 'lightDaylight', kelvin: 5000 },
+    { id: 'blue', label: 'Blue', color: 'lightBlue', hue: 220 },
+    { id: 'violet', label: 'Violet', color: 'lightViolet', hue: 275 },
   ] satisfies readonly LightPreset[],
   /** Six hues around the custom-colour ring, clockwise from the top. */
   ringHues: ['hueRed', 'hueOrange', 'hueYellow', 'hueGreen', 'hueBlue', 'hueMagenta'] satisfies readonly ColorToken[],
@@ -233,6 +236,14 @@ export const deviceStatusLabel = { online: 'Online', offline: 'Offline' } as con
 /** Not in the design: the "+" in the Smart Devices heading. */
 export const addDeviceCopy = {
   buttonLabel: 'Manage devices',
+} as const;
+
+/** Not in the design: what the live screen says about the resident's own home. */
+export const liveCopy = {
+  allRooms: 'All rooms',
+  noDevices: 'No devices in this room yet.',
+  deviceCount: (count: number) => `${count} device${count === 1 ? '' : 's'}`,
+  hubOffline: 'Home hub offline · showing the last known state',
 } as const;
 
 export interface Automation extends Glyph {

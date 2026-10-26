@@ -1,114 +1,16 @@
-import { emsConfig } from '../../constants/emsConfig';
-import type { EmsUser, SmartDevice } from '../../types/ems.types';
+import type { EmsUser } from '../../types/ems.types';
+import { call } from './emsHttp';
 
-/**
- * The EMS backend's REST API. Every answer is `{ ok: true, data }` or
- * `{ ok: false, error: { code, message } }`; failures throw EmsError with the
- * backend's code, so screens can tell "device offline" from "signed out".
- *
- * The signed-in user's token is held here (set by EmsContext) so every
- * hook shares one session.
- */
+/** EMS accounts. The home (devices, rooms) is in services/home/homeApi.ts. */
 
-export type EmsErrorCode =
-  | 'not_configured'
-  | 'network'
-  | 'timeout'
-  | 'unauthorized'
-  | 'bad_request'
-  | 'not_found'
-  | 'conflict'
-  | 'rate_limited'
-  | 'device_offline'
-  | 'device_unreachable'
-  | 'command_timeout'
-  | 'internal'
-  | (string & {});
-
-export class EmsError extends Error {
-  readonly code: EmsErrorCode;
-  readonly status?: number;
-
-  constructor(code: EmsErrorCode, message: string, status?: number) {
-    super(message);
-    this.name = 'EmsError';
-    this.code = code;
-    this.status = status;
-  }
-}
-
-type Envelope<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
-
-let sessionToken: string | null = null;
-const expiredListeners = new Set<() => void>();
-
-export function setSessionToken(token: string | null) {
-  sessionToken = token;
-}
-
-export const getSessionToken = () => sessionToken;
-
-/** Called when the backend rejects the stored session, so the app can sign out. */
-export function onSessionExpired(listener: () => void): () => void {
-  expiredListeners.add(listener);
-  return () => expiredListeners.delete(listener);
-}
-
-export const isEmsConfigured = () => emsConfig.url !== '';
-
-async function call<T>(
-  path: string,
-  init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; timeoutMs?: number; auth?: boolean } = {},
-): Promise<T> {
-  if (!isEmsConfigured()) {
-    throw new EmsError('not_configured', 'The EMS backend is not set up in this build (EXPO_PUBLIC_DEVICE_BACKEND_URL).');
-  }
-  const useAuth = init.auth ?? true;
-  if (useAuth && !sessionToken) {
-    throw new EmsError('unauthorized', 'Sign in to your EMS account first.');
-  }
-
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, init.timeoutMs ?? emsConfig.requestTimeoutMs);
-
-  try {
-    let response: Response;
-    try {
-      response = await fetch(`${emsConfig.url}${path}`, {
-        method: init.method ?? 'GET',
-        headers: {
-          Accept: 'application/json',
-          ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-          ...(useAuth && sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-        },
-        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-        signal: controller.signal,
-      });
-    } catch {
-      throw timedOut
-        ? new EmsError('timeout', 'The EMS backend took too long to answer.')
-        : new EmsError('network', 'Could not reach the EMS backend. Check your internet connection.');
-    }
-
-    const body = (await response.json().catch(() => undefined)) as Envelope<T> | undefined;
-    if (!body || typeof body.ok !== 'boolean') {
-      throw new EmsError('internal', `The EMS backend answered ${response.status}.`, response.status);
-    }
-    if (!body.ok) {
-      if (body.error.code === 'unauthorized' && useAuth) {
-        expiredListeners.forEach((listener) => listener());
-      }
-      throw new EmsError(body.error.code, body.error.message, response.status);
-    }
-    return body.data;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+export {
+  EmsError,
+  getSessionToken,
+  isEmsConfigured,
+  onSessionExpired,
+  setSessionToken,
+  type EmsErrorCode,
+} from './emsHttp';
 
 // ---- Account -------------------------------------------------------------------------
 
@@ -126,19 +28,3 @@ export const createAccount = (name: string, email: string, password: string) =>
 export const signOut = () => call<{ signedOut: true }>('/api/auth/logout', { method: 'POST' });
 
 export const getMe = () => call<{ user: EmsUser }>('/api/auth/me');
-
-// ---- Devices -------------------------------------------------------------------------
-
-export const listDevices = () => call<SmartDevice[]>('/api/devices');
-
-export type DeviceChanges = Partial<Pick<SmartDevice, 'name' | 'room'>>;
-
-export const updateDevice = (id: string, changes: DeviceChanges) =>
-  call<SmartDevice>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PATCH', body: changes });
-
-export const removeDevice = (id: string) =>
-  call<{ deleted: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
-
-/** Resolves with the state the device confirmed; throws if it did not. */
-export const setDevicePower = (id: string, power: 'on' | 'off') =>
-  call<SmartDevice>(`/api/devices/${encodeURIComponent(id)}/power`, { method: 'POST', body: { power } });

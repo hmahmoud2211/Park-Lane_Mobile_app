@@ -1,12 +1,12 @@
+import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
-import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { EmsAccountPanel } from '../../components/ems/EmsAccountPanel';
-import { SmartDeviceCard } from '../../components/ems/SmartDeviceCard';
+import { DeviceCard } from '../../components/home/DeviceCard';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
@@ -17,135 +17,96 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useEmsDevices } from '../../hooks/useEmsDevices';
+import { useHomeDevices } from '../../hooks/useHomeDevices';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import type { SmartDevice } from '../../types/ems.types';
+import { toggleCommand } from '../../services/home/capabilities';
+import type { Device } from '../../types/home.types';
+import type { RootStackScreenProps } from '../../types/navigation.types';
 import { devicesCopy as copy } from './EmsDevicesScreen.data';
-import { CARD_GAP, FIELD_HEIGHT, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
-
-interface Draft {
-  name: string;
-  room: string;
-}
+import { CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
 
 /**
- * The resident's devices. Switching goes through the backend, so the card
- * shows the state the device confirmed, and changes made from another phone
- * or on the device arrive live.
+ * The resident's devices, from their unit's hub. Switching goes through the
+ * backend, so a card settles on the state the hub reports, and changes made
+ * from another phone or on the device arrive live. A card opens the
+ * device's own screen with all its controls.
  */
 export function EmsDevicesScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const layout = useScreenLayout();
-  const ems = useEmsDevices();
-  const { status, devices, devicesLoaded, devicesError, realtime, refreshDevices, busy, errors } = ems;
-
-  const [editing, setEditing] = useState<Record<string, Draft>>({});
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const navigation = useNavigation<RootStackScreenProps<'EmsDevices'>['navigation']>();
+  const ems = useHomeDevices();
+  const { status, home, homeProblem, devices, devicesLoaded, realtime, refreshHome, busy, errors } = ems;
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshDevices();
+    await refreshHome();
     setRefreshing(false);
-  }, [refreshDevices]);
-
-
-  const saveEdit = useCallback(
-    async (device: SmartDevice) => {
-      const draft = editing[device.id];
-      if (!draft?.name.trim()) {
-        return;
-      }
-      const updated = await ems.update(device, { name: draft.name.trim(), room: draft.room.trim() || null });
-      if (updated) {
-        setEditing(({ [device.id]: _done, ...rest }) => rest);
-      }
-    },
-    [editing, ems],
-  );
-
-  const removeDevice = useCallback(
-    async (device: SmartDevice) => {
-      if (confirmRemove !== device.id) {
-        setConfirmRemove(device.id);
-        return;
-      }
-      setConfirmRemove(null);
-      await ems.remove(device);
-    },
-    [confirmRemove, ems],
-  );
+  }, [refreshHome]);
 
   const liveLabel = realtime === 'live' ? copy.live : realtime === 'connecting' ? copy.connecting : copy.offline;
+  const hubStatus = home?.hub.status;
 
-  const renderDevice = (device: SmartDevice) => {
-    const draft = editing[device.id];
-    const deviceBusy = busy[device.id];
+  const renderDevice = (device: Device) => {
+    const canToggle = toggleCommand(device, true) !== null;
     return (
-      <SmartDeviceCard
+      <DeviceCard
         device={device}
-        busy={deviceBusy === 'power'}
+        busy={busy[device.id] === 'command'}
         error={errors[device.id]}
-        onToggle={(on) => void ems.setPower(device, on)}
-      >
-        {draft ? (
-          <View style={styles.form}>
-            <AppInput
-              variant="field"
-              label={copy.name}
-              value={draft.name}
-              onChangeText={(name) => setEditing((current) => ({ ...current, [device.id]: { ...draft, name } }))}
-              height={FIELD_HEIGHT}
-            />
-            <AppInput
-              variant="field"
-              label={copy.room}
-              value={draft.room}
-              onChangeText={(room) => setEditing((current) => ({ ...current, [device.id]: { ...draft, room } }))}
-              height={FIELD_HEIGHT}
-            />
-            <View style={styles.actions}>
-              <AppButton
-                title={copy.save}
-                variant="gradient"
-                height={SMALL_BUTTON_HEIGHT}
-                loading={deviceBusy === 'edit'}
-                onPress={() => void saveEdit(device)}
-                style={styles.action}
-              />
-              <AppButton
-                title={copy.cancel}
-                variant="secondary"
-                height={SMALL_BUTTON_HEIGHT}
-                onPress={() => setEditing(({ [device.id]: _done, ...rest }) => rest)}
-                style={styles.action}
-              />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.actions}>
-            <AppButton
-              title={copy.rename}
-              variant="secondary"
-              height={SMALL_BUTTON_HEIGHT}
-              onPress={() =>
-                setEditing((current) => ({ ...current, [device.id]: { name: device.name, room: device.room ?? '' } }))
+        onPress={() => navigation.navigate('DeviceDetail', { deviceId: device.id })}
+        onToggle={
+          canToggle
+            ? (on) => {
+                const next = toggleCommand(device, on);
+                if (next) void ems.command(device, next);
               }
-              style={styles.action}
-            />
-            <AppButton
-              title={confirmRemove === device.id ? copy.confirmRemove : copy.remove}
-              variant="secondary"
-              height={SMALL_BUTTON_HEIGHT}
-              loading={deviceBusy === 'remove'}
-              onPress={() => void removeDevice(device)}
-              accessibilityHint="Removes the device from your home"
-              style={styles.action}
-            />
-          </View>
-        )}
-      </SmartDeviceCard>
+            : undefined
+        }
+      />
+    );
+  };
+
+  const renderDevices = () => {
+    if (!devicesLoaded) {
+      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading devices" />;
+    }
+    if (homeProblem?.code === 'no_home' || homeProblem?.code === 'provisioning') {
+      return (
+        <Notice tone="info" title={homeProblem.code === 'no_home' ? copy.noHomeTitle : copy.provisioningTitle}>
+          {homeProblem.message}
+        </Notice>
+      );
+    }
+    if (homeProblem && devices.length === 0) {
+      return (
+        <Notice
+          tone="error"
+          title={copy.loadFailed}
+          actions={<AppButton title={copy.retry} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => void refreshHome()} />}
+        >
+          {homeProblem.message}
+        </Notice>
+      );
+    }
+    if (devices.length === 0) {
+      return (
+        <AppText variant="bodySmall" color={theme.colors.textSupport}>
+          {copy.empty}
+        </AppText>
+      );
+    }
+    return (
+      <ResponsiveGrid
+        data={devices}
+        keyExtractor={(device) => device.id}
+        minItemWidth={MIN_DEVICE_WIDTH}
+        maxColumns={2}
+        gap={CARD_GAP - 6}
+        renderItem={renderDevice}
+      />
     );
   };
 
@@ -163,7 +124,7 @@ export function EmsDevicesScreen() {
             ) : undefined
           }
         >
-          <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
+          <PageHeader title={copy.title} subtitle={home?.unit.name ?? copy.subtitle} style={styles.header} />
 
           {status !== 'signedIn' ? (
             <EmsAccountPanel intro={copy.accountIntro} />
@@ -179,39 +140,19 @@ export function EmsDevicesScreen() {
                   {liveLabel}
                 </AppText>
               </View>
-
+              {hubStatus && hubStatus !== 'provisioning' ? (
+                <View style={styles.live}>
+                  <StatusChip
+                    label={hubStatus === 'online' ? copy.hubOnline : hubStatus === 'auth_failed' ? copy.hubAuth : copy.hubOffline}
+                    tone={hubStatus === 'online' ? 'teal' : hubStatus === 'auth_failed' ? 'red' : 'amber'}
+                    icon="home-outline"
+                  />
+                </View>
+              ) : null}
 
               <NeonPanel style={styles.panel}>
-                <PanelHeading
-                  title={copy.devicesTitle}
-                  iconSet="material"
-                  iconName="devices"
-                  divider
-                />
-                {!devicesLoaded ? (
-                  <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading devices" />
-                ) : devicesError && devices.length === 0 ? (
-                  <Notice
-                    tone="error"
-                    title={copy.loadFailed}
-                    actions={<AppButton title={copy.retry} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => void refreshDevices()} />}
-                  >
-                    {devicesError}
-                  </Notice>
-                ) : devices.length === 0 ? (
-                  <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                    {copy.empty}
-                  </AppText>
-                ) : (
-                  <ResponsiveGrid
-                    data={devices}
-                    keyExtractor={(device) => device.id}
-                    minItemWidth={MIN_DEVICE_WIDTH}
-                    maxColumns={2}
-                    gap={CARD_GAP - 6}
-                    renderItem={renderDevice}
-                  />
-                )}
+                <PanelHeading title={copy.devicesTitle} iconSet="material" iconName="devices" divider />
+                {renderDevices()}
               </NeonPanel>
             </>
           )}

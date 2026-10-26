@@ -14,6 +14,10 @@ export interface LightingControlsProps {
   /** 0-1. */
   brightness: number;
   onBrightnessChange: (next: number) => void;
+  /** Called once when a drag ends, for a real light that should get one command per gesture. */
+  onBrightnessCommit?: (next: number) => void;
+  /** Hidden for a light that cannot change colour. */
+  showPresets?: boolean;
   presetId: string;
   onPresetChange: (id: string) => void;
   onCustomColorPress: () => void;
@@ -54,6 +58,8 @@ function arcPath(index: number, count: number, size: number, stroke: number) {
 export function LightingControls({
   brightness,
   onBrightnessChange,
+  onBrightnessCommit,
+  showPresets = true,
   presetId,
   onPresetChange,
   onCustomColorPress,
@@ -69,8 +75,11 @@ export function LightingControls({
       onBrightnessChange(clamp(event.nativeEvent.locationX / trackWidth, 0, 1));
     }
   };
-  const step = (direction: 1 | -1) =>
-    onBrightnessChange(clamp(brightness + direction * lighting.brightnessStep, 0, 1));
+  const step = (direction: 1 | -1) => {
+    const next = clamp(brightness + direction * lighting.brightnessStep, 0, 1);
+    onBrightnessChange(next);
+    onBrightnessCommit?.(next);
+  };
 
   return (
     <View>
@@ -85,6 +94,7 @@ export function LightingControls({
           onResponderTerminationRequest={() => false}
           onResponderGrant={seek}
           onResponderMove={seek}
+          onResponderRelease={() => onBrightnessCommit?.(brightness)}
           accessible
           accessibilityRole="adjustable"
           accessibilityLabel="Brightness"
@@ -111,47 +121,49 @@ export function LightingControls({
         </AppText>
       </View>
 
-      <View style={styles.presetRow}>
-        <View style={styles.well} accessibilityRole="radiogroup">
-          {lighting.presets.map((preset) => {
-            const selected = preset.id === presetId;
-            const color = theme.colors[preset.color];
-            return (
-              <Pressable
-                key={preset.id}
-                onPress={() => onPresetChange(preset.id)}
-                hitSlop={4}
-                accessibilityRole="radio"
-                accessibilityLabel={preset.label}
-                accessibilityState={{ selected }}
-                style={[styles.dotRing, selected && styles.dotRingSelected]}
-              >
-                <View style={[styles.dot, { backgroundColor: color, shadowColor: color }]} />
-              </Pressable>
-            );
-          })}
-        </View>
+      {showPresets ? (
+        <View style={styles.presetRow}>
+          <View style={styles.well} accessibilityRole="radiogroup">
+            {lighting.presets.map((preset) => {
+              const selected = preset.id === presetId;
+              const color = theme.colors[preset.color];
+              return (
+                <Pressable
+                  key={preset.id}
+                  onPress={() => onPresetChange(preset.id)}
+                  hitSlop={4}
+                  accessibilityRole="radio"
+                  accessibilityLabel={preset.label}
+                  accessibilityState={{ selected }}
+                  style={[styles.dotRing, selected && styles.dotRingSelected]}
+                >
+                  <View style={[styles.dot, { backgroundColor: color, shadowColor: color }]} />
+                </Pressable>
+              );
+            })}
+          </View>
 
-        <Pressable
-          onPress={onCustomColorPress}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel="Custom colour"
-          style={({ pressed }) => [styles.ringWell, pressed && styles.pressed]}
-        >
-          <Svg width={RING_SIZE} height={RING_SIZE}>
-            {lighting.ringHues.map((hue, index) => (
-              <Path
-                key={hue}
-                d={arcPath(index, lighting.ringHues.length, RING_SIZE, RING_STROKE)}
-                stroke={theme.colors[hue]}
-                strokeWidth={RING_STROKE}
-                fill="none"
-              />
-            ))}
-          </Svg>
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={onCustomColorPress}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Custom colour"
+            style={({ pressed }) => [styles.ringWell, pressed && styles.pressed]}
+          >
+            <Svg width={RING_SIZE} height={RING_SIZE}>
+              {lighting.ringHues.map((hue, index) => (
+                <Path
+                  key={hue}
+                  d={arcPath(index, lighting.ringHues.length, RING_SIZE, RING_STROKE)}
+                  stroke={theme.colors[hue]}
+                  strokeWidth={RING_STROKE}
+                  fill="none"
+                />
+              ))}
+            </Svg>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

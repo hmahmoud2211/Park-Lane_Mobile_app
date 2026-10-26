@@ -4,19 +4,28 @@ import { AppState } from 'react-native';
 import * as api from '../services/ems/emsApi';
 import { EmsRealtime } from '../services/ems/realtime';
 import { sessionStore } from '../services/ems/sessionStore';
-import type { EmsEvent, EmsUser, RealtimeState, SmartDevice } from '../types/ems.types';
+import { sortDevices } from '../services/home/capabilities';
+import * as homeApi from '../services/home/homeApi';
+import type { EmsEvent, EmsUser, RealtimeState } from '../types/ems.types';
+import type { Device, Home, Room } from '../types/home.types';
 
 /**
- * The EMS session and its live device list, shared by every screen that
- * shows devices.
+ * The EMS session and the resident's home: their unit, its hub, rooms and
+ * live device list, shared by every screen that shows devices.
  *
- * The list comes from the backend and is kept current by the realtime
- * channel, so a switch flipped from another phone or the device itself
- * shows up without polling. When the channel is down the list is
- * re-read on reconnect and on returning to the foreground.
+ * Everything comes from the backend and is kept current by the realtime
+ * channel, so a switch flipped from another phone or on the device itself
+ * shows up without polling. When the channel is down the home is re-read on
+ * reconnect and on returning to the foreground.
  */
 
 export type EmsAuthStatus = 'loading' | 'signedOut' | 'signedIn';
+
+/** Why there is no home to show: not in a unit yet, still being set up, or the backend failed. */
+export interface HomeProblem {
+  code: string;
+  message: string;
+}
 
 interface EmsContextValue {
   status: EmsAuthStatus;
@@ -28,33 +37,36 @@ interface EmsContextValue {
   /** Set when the backend ended the session (expired or revoked). */
   sessionNotice: string | null;
 
-  devices: SmartDevice[];
+  home: Home | null;
+  homeProblem: HomeProblem | null;
+  rooms: Room[];
+  devices: Device[];
+  /** False until the first read after signing in has answered. */
   devicesLoaded: boolean;
-  devicesError: string | null;
   realtime: RealtimeState;
-  refreshDevices: () => Promise<void>;
-  /** Puts a device the API returned into the list (realtime may deliver it too). */
-  upsertDevice: (device: SmartDevice) => void;
-  dropDevice: (id: string) => void;
+  refreshHome: () => Promise<void>;
+  /** Puts a device the API returned (or an optimistic copy) into the list. */
+  upsertDevice: (device: Device) => void;
 }
 
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
 
-function messageOf(error: unknown): string {
-  return error instanceof api.EmsError ? error.message : 'Something went wrong talking to the EMS backend.';
+function problemOf(error: unknown): HomeProblem {
+  return error instanceof api.EmsError
+    ? { code: error.code, message: error.message }
+    : { code: 'internal', message: 'Something went wrong talking to the EMS backend.' };
 }
-
-const byRoomThenName = (a: SmartDevice, b: SmartDevice) =>
-  (a.room ?? '￿').localeCompare(b.room ?? '￿') || a.name.localeCompare(b.name);
 
 export function EmsProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<EmsAuthStatus>('loading');
   const [user, setUser] = useState<EmsUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
-  const [devices, setDevices] = useState<SmartDevice[]>([]);
+  const [home, setHome] = useState<Home | null>(null);
+  const [homeProblem, setHomeProblem] = useState<HomeProblem | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [devicesLoaded, setDevicesLoaded] = useState(false);
-  const [devicesError, setDevicesError] = useState<string | null>(null);
   const [realtime, setRealtime] = useState<RealtimeState>('offline');
   const channel = useRef<EmsRealtime | null>(null);
 
@@ -65,6 +77,9 @@ export function EmsProvider({ children }: PropsWithChildren) {
     await sessionStore.clear();
     setToken(null);
     setUser(null);
+    setHome(null);
+    setHomeProblem(null);
+    setRooms([]);
     setDevices([]);
     setDevicesLoaded(false);
     setSessionNotice(notice);
@@ -116,33 +131,46 @@ export function EmsProvider({ children }: PropsWithChildren) {
 
   useEffect(() => api.onSessionExpired(() => void endSession('Your EMS session ended. Sign in again.')), [endSession]);
 
-  const upsertDevice = useCallback((device: SmartDevice) => {
-    setDevices((current) => [...current.filter((entry) => entry.id !== device.id), device].sort(byRoomThenName));
+  const upsertDevice = useCallback((device: Device) => {
+    setDevices((current) => sortDevices([...current.filter((entry) => entry.id !== device.id), device]));
   }, []);
 
   const dropDevice = useCallback((id: string) => {
     setDevices((current) => current.filter((entry) => entry.id !== id));
   }, []);
 
-  const refreshDevices = useCallback(async () => {
+  const refreshHome = useCallback(async () => {
     try {
-      const list = await api.listDevices();
-      setDevices([...list].sort(byRoomThenName));
-      setDevicesError(null);
+      const next = await homeApi.getHome();
+      setHome(next);
+      setRooms(next.rooms);
+      if (next.hub.status === 'provisioning') {
+        setDevices([]);
+        setHomeProblem({ code: 'provisioning', message: 'Your smart home is still being set up. Check back in a few minutes.' });
+      } else {
+        setDevices(sortDevices(await homeApi.listDevices()));
+        setHomeProblem(null);
+      }
       if (!user) {
         api.getMe().then((me) => setUser(me.user), () => undefined);
       }
     } catch (error) {
-      setDevicesError(messageOf(error));
+      const problem = problemOf(error);
+      setHomeProblem(problem);
+      if (problem.code === 'no_home') {
+        setHome(null);
+        setRooms([]);
+        setDevices([]);
+      }
     } finally {
       setDevicesLoaded(true);
     }
   }, [user]);
 
-  const refreshRef = useRef(refreshDevices);
+  const refreshRef = useRef(refreshHome);
   useEffect(() => {
-    refreshRef.current = refreshDevices;
-  }, [refreshDevices]);
+    refreshRef.current = refreshHome;
+  }, [refreshHome]);
 
   // One realtime channel per session.
   useEffect(() => {
@@ -157,6 +185,13 @@ export function EmsProvider({ children }: PropsWithChildren) {
         upsertDevice(event.device);
       } else if (event.type === 'device_removed') {
         dropDevice(event.id);
+      } else if (event.type === 'rooms') {
+        setRooms(event.rooms);
+      } else if (event.type === 'hub_status') {
+        setHome((current) => (current ? { ...current, hub: { ...current.hub, status: event.status } } : current));
+        if (event.status === 'online') {
+          void refreshRef.current();
+        }
       }
     };
     const next = new EmsRealtime(token, {
@@ -203,13 +238,14 @@ export function EmsProvider({ children }: PropsWithChildren) {
       createAccount,
       signOut,
       sessionNotice,
+      home,
+      homeProblem,
+      rooms,
       devices,
       devicesLoaded,
-      devicesError,
       realtime,
-      refreshDevices,
+      refreshHome,
       upsertDevice,
-      dropDevice,
     }),
     [
       status,
@@ -218,13 +254,14 @@ export function EmsProvider({ children }: PropsWithChildren) {
       createAccount,
       signOut,
       sessionNotice,
+      home,
+      homeProblem,
+      rooms,
       devices,
       devicesLoaded,
-      devicesError,
       realtime,
-      refreshDevices,
+      refreshHome,
       upsertDevice,
-      dropDevice,
     ],
   );
 

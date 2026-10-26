@@ -20,6 +20,8 @@ export type RootStackParamList = {
   SmartHome: undefined;
   /** The resident's devices, controlled through the EMS backend. */
   EmsDevices: undefined;
+  /** One device's controls, name and room. */
+  DeviceDetail: { deviceId: string };
   AmenitiesBooking: undefined;
   Services: undefined;
   Settings: undefined;

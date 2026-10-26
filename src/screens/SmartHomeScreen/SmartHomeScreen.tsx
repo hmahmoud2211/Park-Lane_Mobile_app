@@ -18,7 +18,10 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useHomeDevices } from '../../hooks/useHomeDevices';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
+import { capabilityOf, isOn, kindGlyph, kindLabel, roomGlyph, toggleCommand } from '../../services/home/capabilities';
+import type { Command, Device, DeviceKind } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 // My Unit's own scale, so the two screens' small type is drawn at one size.
 import { statScaleFor } from '../MyUnitScreen/MyUnitScreen.styles';
@@ -43,13 +46,13 @@ import {
   formatKwh,
   lighting,
   lightingCard,
+  liveCopy,
   mediaCard,
   mediaSources,
   previewCounts,
   rooms,
   scenes,
   smartHomeCopy as copy,
-  type AcMode,
   type CurtainAction,
   type Scene,
 } from './SmartHomeScreen.data';
@@ -104,6 +107,19 @@ interface DeviceItem {
   online: boolean;
   enabled: boolean;
   onToggle?: (next: boolean) => void;
+  onPress?: () => void;
+}
+
+/** The live media card shows this many of the player's sources. */
+const MEDIA_SOURCES_SHOWN = 3;
+
+type MediaSourceTile = (typeof mediaSources)[number];
+
+/** Which way a cover is heading, as the Curtains card's buttons show it. */
+function coverAction(state: string): CurtainAction | null {
+  if (state === 'open' || state === 'opening') return 'open';
+  if (state === 'closed' || state === 'closing') return 'close';
+  return null;
 }
 
 export function SmartHomeScreen() {
@@ -119,8 +135,30 @@ export function SmartHomeScreen() {
   const navigation = useNavigation<RootStackScreenProps<'SmartHome'>['navigation']>();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Screen-local until there is a home-automation backend to send commands to.
-  // TODO(api): send each change to the unit's controller once that service exists.
+  // A signed-in resident with a home sees their own rooms and devices; anyone
+  // else sees the design's sample home, driven by screen-local state below.
+  const ems = useHomeDevices();
+  const home = ems.status === 'signedIn' && ems.home && ems.home.hub.status !== 'provisioning' ? ems.home : null;
+  const live = home !== null;
+  const [liveRoomId, setLiveRoomId] = useState('all');
+  const [dragBrightness, setDragBrightness] = useState<number | null>(null);
+  const [livePresetId, setLivePresetId] = useState<string | null>(null);
+  const roomDevices = live ? ems.devices.filter((device) => liveRoomId === 'all' || device.roomId === liveRoomId) : [];
+  // Each control card drives the room's first device of its kind, preferring one that is online.
+  const firstOf = (kind: DeviceKind) =>
+    roomDevices.find((device) => device.kind === kind && device.online) ?? roomDevices.find((device) => device.kind === kind);
+  const liveLight = firstOf('light');
+  const liveAc = firstOf('climate');
+  const liveCover = firstOf('cover');
+  const liveMedia = firstOf('media');
+  const send = (device: Device, command: Command) => void ems.command(device, command);
+  const toggle = (device: Device) => (on: boolean) => {
+    const command = toggleCommand(device, on);
+    if (command) send(device, command);
+  };
+  const openDevice = (device: Device) => navigation.navigate('DeviceDetail', { deviceId: device.id });
+
+  // The sample home's state: screen-local, nothing is sent anywhere.
   const [roomId, setRoomId] = useState(rooms[0].id);
   const [lightsOn, setLightsOn] = useState(true);
   const [brightness, setBrightness] = useState<number>(lighting.brightness);
@@ -128,7 +166,7 @@ export function SmartHomeScreen() {
   const [acOn, setAcOn] = useState(true);
   const [temperature, setTemperature] = useState<number>(climate.temperature);
   const [fanSpeed, setFanSpeed] = useState<number>(climate.fanSpeed);
-  const [acMode, setAcMode] = useState<AcMode>(climate.modes[0]);
+  const [acMode, setAcMode] = useState<string>(climate.modes[0]);
   const [curtainsOn, setCurtainsOn] = useState(true);
   const [curtainAction, setCurtainAction] = useState<CurtainAction | null>(null);
   const [mediaOn, setMediaOn] = useState(true);
@@ -151,13 +189,30 @@ export function SmartHomeScreen() {
   });
 
   const visibleScenes = expanded.scenes ? scenes : scenes.slice(0, previewCounts.scenes);
-  // The design's sample devices until the home backend serves the unit's own.
-  // TODO(api): list the unit's devices from the EMS backend.
-  const deviceItems: DeviceItem[] = devices.map((device) => ({
-    ...device,
-    enabled: devicesOn[device.id] ?? device.enabled,
-    onToggle: (next: boolean) => setDevicesOn((current) => ({ ...current, [device.id]: next })),
-  }));
+  const deviceItems: DeviceItem[] = live
+    ? roomDevices.map((device) => ({
+        id: device.id,
+        name: device.name,
+        location: device.room ?? kindLabel(device.kind),
+        ...kindGlyph(device.kind),
+        online: device.online,
+        enabled: isOn(device) ?? device.online,
+        onToggle: toggleCommand(device, true) ? toggle(device) : undefined,
+        onPress: () => openDevice(device),
+      }))
+    : devices.map((device) => ({
+        ...device,
+        enabled: devicesOn[device.id] ?? device.enabled,
+        onToggle: (next: boolean) => setDevicesOn((current) => ({ ...current, [device.id]: next })),
+      }));
+  const roomChips = live
+    ? [
+        { id: 'all', label: liveCopy.allRooms, iconSet: 'material' as const, iconName: 'home-outline' },
+        ...ems.rooms.map((room) => ({ id: room.id, label: room.name, ...roomGlyph(room) })),
+      ]
+    : rooms;
+  const selectedRoom = live ? liveRoomId : roomId;
+  const selectRoom = (id: string) => (live ? setLiveRoomId(id) : setRoomId(id));
   const visibleDevices = expanded.devices
     ? deviceItems
     : deviceItems.slice(0, previewCounts.devices);
@@ -170,7 +225,7 @@ export function SmartHomeScreen() {
     // Frontend only, as on Home: there is no session to clear yet.
     // TODO(auth): clear the stored session here once one exists.
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+  }, [navigation, setMenuOpen]);
 
   const menuItems = useMemo<readonly AppMenuItem[]>(
     () => [
@@ -185,8 +240,223 @@ export function SmartHomeScreen() {
       },
       { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
     ],
-    [handleLogout, navigation],
+    [handleLogout, navigation, setMenuOpen],
   );
+
+  const lightCaps = liveLight
+    ? {
+        power: capabilityOf(liveLight, 'power'),
+        brightness: capabilityOf(liveLight, 'brightness'),
+        color: capabilityOf(liveLight, 'color'),
+        colorTemp: capabilityOf(liveLight, 'color_temp'),
+      }
+    : null;
+  const lightingEl = live ? (
+    liveLight && lightCaps ? (
+      <ControlCard key="lighting" info={{ ...lightingCard, subtitle: liveLight.name }} on={isOn(liveLight) === true} onToggle={toggle(liveLight)}>
+        <LightingControls
+          brightness={dragBrightness ?? (lightCaps.brightness?.value ?? (isOn(liveLight) ? 100 : 0)) / 100}
+          onBrightnessChange={setDragBrightness}
+          onBrightnessCommit={(next) => {
+            setDragBrightness(null);
+            if (lightCaps.brightness) {
+              send(liveLight, { capability: 'brightness', action: 'set', value: Math.round(next * 100), entityId: lightCaps.brightness.entityId });
+            }
+          }}
+          showPresets={Boolean(lightCaps.color || lightCaps.colorTemp)}
+          presetId={livePresetId ?? ''}
+          onPresetChange={(id) => {
+            const preset = lighting.presets.find((entry) => entry.id === id);
+            setLivePresetId(id);
+            if (preset && 'hue' in preset && lightCaps.color) {
+              send(liveLight, { capability: 'color', action: 'set', value: { h: preset.hue, s: 100 }, entityId: lightCaps.color.entityId });
+            } else if (preset && 'kelvin' in preset && lightCaps.colorTemp) {
+              send(liveLight, { capability: 'color_temp', action: 'set', value: preset.kelvin, entityId: lightCaps.colorTemp.entityId });
+            }
+          }}
+          onCustomColorPress={() => openDevice(liveLight)}
+        />
+      </ControlCard>
+    ) : null
+  ) : (
+    <ControlCard key="lighting" info={lightingCard} on={lightsOn} onToggle={setLightsOn}>
+      <LightingControls
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
+        presetId={presetId}
+        onPresetChange={setPresetId}
+        // TODO(nav): open the colour picker once it is designed.
+        onCustomColorPress={notYetRouted}
+      />
+    </ControlCard>
+  );
+
+  const acCap = liveAc ? capabilityOf(liveAc, 'climate') : undefined;
+  const acEl = live ? (
+    liveAc && acCap ? (
+      <ControlCard key="ac" info={{ ...acCard, subtitle: liveAc.name }} on={acCap.mode !== 'off'} onToggle={toggle(liveAc)}>
+        <ClimateControls
+          temperature={acCap.target ?? acCap.current ?? acCap.min}
+          onTemperatureChange={(next) =>
+            send(liveAc, { capability: 'climate', action: 'set_temperature', value: next, entityId: acCap.entityId })
+          }
+          fanSpeed={acCap.fanMode ? acCap.fanModes.indexOf(acCap.fanMode) + 1 : 0}
+          onFanSpeedChange={(level) =>
+            send(liveAc, { capability: 'climate', action: 'set_fan_mode', value: acCap.fanModes[level - 1], entityId: acCap.entityId })
+          }
+          mode={acCap.mode}
+          onModeChange={(next) => send(liveAc, { capability: 'climate', action: 'set_mode', value: next, entityId: acCap.entityId })}
+          minTemperature={acCap.min}
+          maxTemperature={acCap.max}
+          step={acCap.step}
+          unit={acCap.unit}
+          // Off is the card's own switch.
+          modes={acCap.modes.filter((mode) => mode !== 'off')}
+          fanLevels={acCap.fanModes.length}
+        />
+      </ControlCard>
+    ) : null
+  ) : (
+    <ControlCard key="ac" info={acCard} on={acOn} onToggle={setAcOn}>
+      <ClimateControls
+        temperature={temperature}
+        onTemperatureChange={setTemperature}
+        fanSpeed={fanSpeed}
+        onFanSpeedChange={setFanSpeed}
+        mode={acMode}
+        onModeChange={setAcMode}
+      />
+    </ControlCard>
+  );
+
+  const coverCap = liveCover ? capabilityOf(liveCover, 'cover') : undefined;
+  const curtainButtons = (active: CurtainAction | null, onPick: (action: CurtainAction) => void) => (
+    <View style={styles.curtainRow}>
+      {curtainActions.map((action) => (
+        <Pressable
+          key={action.id}
+          onPress={() => onPick(action.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`${action.label} curtains`}
+          accessibilityState={{ selected: action.id === active }}
+          style={({ pressed }) => [styles.curtainButton, pressed && styles.pressed]}
+        >
+          <GlassSurface
+            radius={CURTAIN_BUTTON_SIZE / 2}
+            glow={action.id === active}
+            stroke="gradient"
+            strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+            blurred={false}
+            fillOpacity={theme.glass.subtleFillOpacity}
+            style={styles.curtainSurface}
+          >
+            <AppIcon set={action.iconSet} name={action.iconName} size={CURTAIN_ICON_SIZE} />
+            <AppText variant="statLabel">{action.label}</AppText>
+          </GlassSurface>
+        </Pressable>
+      ))}
+    </View>
+  );
+  const curtainsEl = live ? (
+    liveCover && coverCap ? (
+      <ControlCard
+        key="curtains"
+        info={{ ...curtainsCard, subtitle: liveCover.name }}
+        on={coverCap.state !== 'closed'}
+        onToggle={(on) => send(liveCover, { capability: 'cover', action: on ? 'open' : 'close', entityId: coverCap.entityId })}
+      >
+        {curtainButtons(coverAction(coverCap.state), (action) =>
+          send(liveCover, {
+            capability: 'cover',
+            action: action === 'pause' ? 'stop' : action,
+            entityId: coverCap.entityId,
+          }),
+        )}
+      </ControlCard>
+    ) : null
+  ) : (
+    <ControlCard key="curtains" info={curtainsCard} on={curtainsOn} onToggle={setCurtainsOn}>
+      {curtainButtons(curtainAction, setCurtainAction)}
+    </ControlCard>
+  );
+
+  const mediaCap = liveMedia ? capabilityOf(liveMedia, 'media') : undefined;
+  const mediaTiles = (
+    sources: readonly MediaSourceTile[],
+    active: string | null,
+    onPick: (id: string) => void,
+  ) => (
+    <View style={styles.mediaRow} accessibilityRole="radiogroup">
+      {sources.map((source) => (
+        <Pressable
+          key={source.id}
+          onPress={() => onPick(source.id)}
+          accessibilityRole="radio"
+          accessibilityLabel={source.label}
+          accessibilityState={{ selected: source.id === active }}
+          style={({ pressed }) => [styles.mediaItem, pressed && styles.pressed]}
+        >
+          <GlassSurface
+            radius={theme.borderRadius.sm}
+            glow={source.id === active}
+            stroke="gradient"
+            strokeColors={[theme.colors.dividerSubtle, theme.colors.dividerSubtle]}
+            blurred={false}
+            fillOpacity={theme.glass.subtleFillOpacity}
+            style={styles.mediaTile}
+          >
+            {'logo' in source ? (
+              <Image
+                source={images[source.logo]}
+                style={[styles.mediaLogo, { width: MEDIA_LOGO_HEIGHT * imageAspects[source.logo] }]}
+                resizeMode="contain"
+                fadeDuration={0}
+              />
+            ) : (
+              <AppIcon set={source.iconSet} name={source.iconName} size={MEDIA_ICON_SIZE} />
+            )}
+          </GlassSurface>
+          <AppText variant="tileCaption" numberOfLines={1}>
+            {source.label}
+          </AppText>
+        </Pressable>
+      ))}
+    </View>
+  );
+  const mediaEl = live ? (
+    liveMedia && mediaCap ? (
+      <ControlCard
+        key="media"
+        info={{ ...mediaCard, subtitle: mediaCap.title ?? liveMedia.name }}
+        on={isOn(liveMedia) ?? mediaCap.state !== 'off'}
+        onToggle={toggle(liveMedia)}
+      >
+        {mediaCap.sources.length > 0 ? (
+          mediaTiles(
+            mediaCap.sources
+              .slice(0, MEDIA_SOURCES_SHOWN)
+              .map((source) => ({ id: source, label: source, iconSet: 'material' as const, iconName: 'television-play' })),
+            mediaCap.source,
+            (source) => send(liveMedia, { capability: 'media', action: 'select_source', value: source, entityId: mediaCap.entityId }),
+          )
+        ) : (
+          <Pressable onPress={() => openDevice(liveMedia)} accessibilityRole="button" accessibilityLabel={`Open ${liveMedia.name}`}>
+            <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              {kindLabel(liveMedia.kind)}
+            </AppText>
+          </Pressable>
+        )}
+      </ControlCard>
+    ) : null
+  ) : (
+    <ControlCard key="media" info={mediaCard} on={mediaOn} onToggle={setMediaOn}>
+      {mediaTiles(mediaSources, mediaId, setMediaId)}
+    </ControlCard>
+  );
+
+  // Two cards to a row, as drawn; the live screen closes up around the ones it has no device for.
+  const controlCards = [lightingEl, acEl, curtainsEl, mediaEl].filter((card) => card !== null);
+  const controlRows = Array.from({ length: Math.ceil(controlCards.length / 2) }, (_, row) => controlCards.slice(row * 2, row * 2 + 2));
 
   const headingIcon = (name: keyof typeof Ionicons.glyphMap, color: string) => (
     <Ionicons name={name} size={HEADING_ICON_SIZE} color={color} />
@@ -239,8 +509,14 @@ export function SmartHomeScreen() {
             />
 
             <FeatureBanner
-              title={copy.unitTitle}
-              body={copy.unitMeta}
+              title={home ? home.unit.name : copy.unitTitle}
+              body={
+                home
+                  ? [home.unit.building, liveCopy.deviceCount(ems.devices.length), home.hub.status === 'offline' ? liveCopy.hubOffline : null]
+                      .filter(Boolean)
+                      .join(' • ')
+                  : copy.unitMeta
+              }
               photo={images.smartHomeHero}
               photoAspect={imageAspects.smartHomeHero}
               height={BANNER_HEIGHT}
@@ -249,7 +525,7 @@ export function SmartHomeScreen() {
                   onPress={() => navigation.navigate('MyUnit')}
                   hitSlop={10}
                   accessibilityRole="button"
-                  accessibilityLabel={`Open ${copy.unitTitle}`}
+                  accessibilityLabel={`Open ${home ? home.unit.name : copy.unitTitle}`}
                   style={({ pressed }) => [styles.bannerButton, pressed && styles.pressed]}
                 >
                   <GlassSurface
@@ -277,14 +553,14 @@ export function SmartHomeScreen() {
               contentContainerStyle={styles.roomsContent}
               accessibilityRole="tablist"
             >
-              {rooms.map((room) => (
+              {roomChips.map((room) => (
                 <FilterChip
                   key={room.id}
                   label={room.label}
                   iconSet={room.iconSet}
                   iconName={room.iconName}
-                  selected={room.id === roomId}
-                  onPress={() => setRoomId(room.id)}
+                  selected={room.id === selectedRoom}
+                  onPress={() => selectRoom(room.id)}
                 />
               ))}
             </ScrollView>
@@ -293,121 +569,15 @@ export function SmartHomeScreen() {
             <ResponsiveColumns gap={CARD_GAP} style={styles.sections}>
               <>
                 <View>
-                  <View style={gridStyle}>
-                    <View style={cellStyle}>
-                      <ControlCard info={lightingCard} on={lightsOn} onToggle={setLightsOn}>
-                        <LightingControls
-                          brightness={brightness}
-                          onBrightnessChange={setBrightness}
-                          presetId={presetId}
-                          onPresetChange={setPresetId}
-                          // TODO(nav): open the colour picker once it is designed.
-                          onCustomColorPress={notYetRouted}
-                        />
-                      </ControlCard>
-                    </View>
-                    <View style={cellStyle}>
-                      <ControlCard info={acCard} on={acOn} onToggle={setAcOn}>
-                        <ClimateControls
-                          temperature={temperature}
-                          onTemperatureChange={setTemperature}
-                          fanSpeed={fanSpeed}
-                          onFanSpeedChange={setFanSpeed}
-                          mode={acMode}
-                          onModeChange={setAcMode}
-                        />
-                      </ControlCard>
-                    </View>
-                  </View>
-
-                  <View style={[gridStyle, styles.gridLast]}>
-                    <View style={cellStyle}>
-                      <ControlCard info={curtainsCard} on={curtainsOn} onToggle={setCurtainsOn}>
-                        <View style={styles.curtainRow}>
-                          {curtainActions.map((action) => {
-                            const active = action.id === curtainAction;
-                            return (
-                              <Pressable
-                                key={action.id}
-                                onPress={() => setCurtainAction(action.id)}
-                                accessibilityRole="button"
-                                accessibilityLabel={`${action.label} curtains`}
-                                accessibilityState={{ selected: active }}
-                                style={({ pressed }) => [styles.curtainButton, pressed && styles.pressed]}
-                              >
-                                <GlassSurface
-                                  radius={CURTAIN_BUTTON_SIZE / 2}
-                                  glow={active}
-                                  stroke="gradient"
-                                  strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-                                  blurred={false}
-                                  fillOpacity={theme.glass.subtleFillOpacity}
-                                  style={styles.curtainSurface}
-                                >
-                                  <AppIcon
-                                    set={action.iconSet}
-                                    name={action.iconName}
-                                    size={CURTAIN_ICON_SIZE}
-                                  />
-                                  <AppText variant="statLabel">{action.label}</AppText>
-                                </GlassSurface>
-                              </Pressable>
-                            );
-                          })}
+                  {controlRows.map((row, index) => (
+                    <View key={row[0]?.key} style={[gridStyle, index === controlRows.length - 1 && styles.gridLast]}>
+                      {row.map((card) => (
+                        <View key={card?.key} style={cellStyle}>
+                          {card}
                         </View>
-                      </ControlCard>
+                      ))}
                     </View>
-                    <View style={cellStyle}>
-                      <ControlCard info={mediaCard} on={mediaOn} onToggle={setMediaOn}>
-                        <View style={styles.mediaRow} accessibilityRole="radiogroup">
-                          {mediaSources.map((source) => {
-                            const active = source.id === mediaId;
-                            return (
-                              <Pressable
-                                key={source.id}
-                                onPress={() => setMediaId(source.id)}
-                                accessibilityRole="radio"
-                                accessibilityLabel={source.label}
-                                accessibilityState={{ selected: active }}
-                                style={({ pressed }) => [styles.mediaItem, pressed && styles.pressed]}
-                              >
-                                <GlassSurface
-                                  radius={theme.borderRadius.sm}
-                                  glow={active}
-                                  stroke="gradient"
-                                  strokeColors={[theme.colors.dividerSubtle, theme.colors.dividerSubtle]}
-                                  blurred={false}
-                                  fillOpacity={theme.glass.subtleFillOpacity}
-                                  style={styles.mediaTile}
-                                >
-                                  {'logo' in source ? (
-                                    <Image
-                                      source={images[source.logo]}
-                                      style={[
-                                        styles.mediaLogo,
-                                        { width: MEDIA_LOGO_HEIGHT * imageAspects[source.logo] },
-                                      ]}
-                                      resizeMode="contain"
-                                      fadeDuration={0}
-                                    />
-                                  ) : (
-                                    <AppIcon
-                                      set={source.iconSet}
-                                      name={source.iconName}
-                                      size={MEDIA_ICON_SIZE}
-                                    />
-                                  )}
-                                </GlassSurface>
-                                <AppText variant="tileCaption" numberOfLines={1}>
-                                  {source.label}
-                                </AppText>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </ControlCard>
-                    </View>
-                  </View>
+                  ))}
                 </View>
 
                 <NeonPanel>
@@ -533,6 +703,11 @@ export function SmartHomeScreen() {
                     divider={false}
                   />
                   <View style={styles.deviceGrid}>
+                    {live && deviceItems.length === 0 ? (
+                      <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.deviceNote}>
+                        {liveCopy.noDevices}
+                      </AppText>
+                    ) : null}
                     {visibleDevices.map((device) => (
                       <View
                         key={device.id}
@@ -551,8 +726,8 @@ export function SmartHomeScreen() {
                           statusLabel={device.online ? deviceStatusLabel.online : deviceStatusLabel.offline}
                           enabled={device.enabled}
                           onToggle={device.onToggle}
-                          // TODO(nav): open the device once its detail screen is designed.
-                          onPress={notYetRouted}
+                          // TODO(nav): the sample devices open nothing; live ones open their own screen.
+                          onPress={device.onPress ?? notYetRouted}
                         />
                       </View>
                     ))}

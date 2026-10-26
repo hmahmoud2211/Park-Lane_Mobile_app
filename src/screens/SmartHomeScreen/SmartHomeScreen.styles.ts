@@ -296,6 +296,9 @@ export function createStyles(theme: AppTheme) {
       height: ADD_BUTTON_SIZE,
       marginLeft: ACTION_TO_ADD,
     },
+    deviceNote: {
+      flexBasis: '100%',
+    },
 
     automationList: {
       gap: ROW_GAP,
