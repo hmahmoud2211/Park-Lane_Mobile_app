@@ -22,6 +22,16 @@ npm run typecheck         # uses the app's TypeScript (../node_modules)
 
 In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`.
 
+### Attach a Home Assistant you run yourself
+
+For a real hub without Docker (on Windows, Home Assistant runs inside WSL), start the backend (`npm start`), sign up in the app, create a long-lived token in Home Assistant (profile → Security), then:
+
+```bash
+npm run attach-hub -- --email you@example.com --url http://127.0.0.1:8123 --token <long-lived token>
+```
+
+It creates the unit (`--unit`, default "Test unit") if needed, puts the resident in it and attaches the hub. The address must be inside `HA_ALLOWED_NETWORKS`.
+
 ### Try it without Docker
 
 `npm run fake-hub` starts the backend against the test suite's stand-in Home Assistant, with a unit that already has a few devices. Point the app at it (`EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`), open My Devices, and sign in as `demo@parklane.test` / `correct horse battery`. "Connect devices" then links the scripted brands: SwitchBot (any token and secret) and Tuya (any user code, then the QR step). Nothing is kept when it stops.
