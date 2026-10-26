@@ -41,18 +41,170 @@
           ],
           "samples": [
             "شغل",
-            "شغلي",
+            "شغله",
+            "شغليه",
+            "شغلها",
+            "ولعه",
+            "ولعها",
+            "افتحه",
+            "افتحها",
             "شغل {device}",
-            "شغلي {device}",
-            "افتح {device}",
-            "افتحي {device}",
-            "ولع {device}",
-            "ولعي {device}",
             "شغل {device} في {room}",
-            "شغلي {device} في {room}",
+            "شغل {device} حق {room}",
+            "شغل {device} تبع {room}",
+            "شغل {device} بتاع {room}",
+            "شغل {device} اللي في {room}",
             "شغل نور {room}",
+            "شغل ضو {room}",
+            "شغل اضاءة {room}",
+            "شغل {room}",
+            "شغلي {device}",
+            "شغلي {device} في {room}",
+            "شغلي {device} حق {room}",
+            "شغلي {device} تبع {room}",
+            "شغلي {device} بتاع {room}",
+            "شغلي {device} اللي في {room}",
+            "شغلي نور {room}",
+            "شغلي ضو {room}",
+            "شغلي اضاءة {room}",
+            "شغلي {room}",
+            "شغلو {device}",
+            "شغلو {device} في {room}",
+            "شغلو {device} حق {room}",
+            "شغلو {device} تبع {room}",
+            "شغلو {device} بتاع {room}",
+            "شغلو {device} اللي في {room}",
+            "شغلو نور {room}",
+            "شغلو ضو {room}",
+            "شغلو اضاءة {room}",
+            "شغلو {room}",
+            "ولع {device}",
+            "ولع {device} في {room}",
+            "ولع {device} حق {room}",
+            "ولع {device} تبع {room}",
+            "ولع {device} بتاع {room}",
+            "ولع {device} اللي في {room}",
+            "ولع نور {room}",
+            "ولع ضو {room}",
+            "ولع اضاءة {room}",
+            "ولع {room}",
+            "ولعي {device}",
+            "ولعي {device} في {room}",
+            "ولعي {device} حق {room}",
+            "ولعي {device} تبع {room}",
+            "ولعي {device} بتاع {room}",
+            "ولعي {device} اللي في {room}",
+            "ولعي نور {room}",
+            "ولعي ضو {room}",
+            "ولعي اضاءة {room}",
+            "ولعي {room}",
+            "افتح {device}",
+            "افتح {device} في {room}",
+            "افتح {device} حق {room}",
+            "افتح {device} تبع {room}",
+            "افتح {device} بتاع {room}",
+            "افتح {device} اللي في {room}",
+            "افتح نور {room}",
+            "افتح ضو {room}",
+            "افتح اضاءة {room}",
+            "افتح {room}",
+            "افتحي {device}",
+            "افتحي {device} في {room}",
+            "افتحي {device} حق {room}",
+            "افتحي {device} تبع {room}",
+            "افتحي {device} بتاع {room}",
+            "افتحي {device} اللي في {room}",
+            "افتحي نور {room}",
+            "افتحي ضو {room}",
+            "افتحي اضاءة {room}",
+            "افتحي {room}",
+            "اشعل {device}",
+            "اشعل {device} في {room}",
+            "اشعل {device} حق {room}",
+            "اشعل {device} تبع {room}",
+            "اشعل {device} بتاع {room}",
+            "اشعل {device} اللي في {room}",
+            "اشعل نور {room}",
+            "اشعل ضو {room}",
+            "اشعل اضاءة {room}",
+            "اشعل {room}",
+            "شعل {device}",
+            "شعل {device} في {room}",
+            "شعل {device} حق {room}",
+            "شعل {device} تبع {room}",
+            "شعل {device} بتاع {room}",
+            "شعل {device} اللي في {room}",
+            "شعل نور {room}",
+            "شعل ضو {room}",
+            "شعل اضاءة {room}",
+            "شعل {room}",
+            "شعلي {device}",
+            "شعلي {device} في {room}",
+            "شعلي {device} حق {room}",
+            "شعلي {device} تبع {room}",
+            "شعلي {device} بتاع {room}",
+            "شعلي {device} اللي في {room}",
+            "شعلي نور {room}",
+            "شعلي ضو {room}",
+            "شعلي اضاءة {room}",
+            "شعلي {room}",
+            "دور {device}",
+            "دور {device} في {room}",
+            "دور {device} حق {room}",
+            "دور {device} تبع {room}",
+            "دور {device} بتاع {room}",
+            "دور {device} اللي في {room}",
+            "دور نور {room}",
+            "دور ضو {room}",
+            "دور اضاءة {room}",
+            "دور {room}",
+            "دوري {device}",
+            "دوري {device} في {room}",
+            "دوري {device} حق {room}",
+            "دوري {device} تبع {room}",
+            "دوري {device} بتاع {room}",
+            "دوري {device} اللي في {room}",
+            "دوري نور {room}",
+            "دوري ضو {room}",
+            "دوري اضاءة {room}",
+            "دوري {room}",
+            "قوم {device}",
+            "قوم {device} في {room}",
+            "قوم {device} حق {room}",
+            "قوم {device} تبع {room}",
+            "قوم {device} بتاع {room}",
+            "قوم {device} اللي في {room}",
+            "قوم نور {room}",
+            "قوم ضو {room}",
+            "قوم اضاءة {room}",
+            "قوم {room}",
+            "وصل {device}",
+            "وصل {device} في {room}",
+            "وصل {device} حق {room}",
+            "وصل {device} تبع {room}",
+            "وصل {device} بتاع {room}",
+            "وصل {device} اللي في {room}",
+            "وصل نور {room}",
+            "وصل ضو {room}",
+            "وصل اضاءة {room}",
+            "وصل {room}",
             "تشغيل {device}",
-            "ابي اشغل {device}"
+            "تشغيل {device} في {room}",
+            "تشغيل {device} حق {room}",
+            "تشغيل {device} تبع {room}",
+            "تشغيل {device} بتاع {room}",
+            "تشغيل {device} اللي في {room}",
+            "تشغيل نور {room}",
+            "تشغيل ضو {room}",
+            "تشغيل اضاءة {room}",
+            "تشغيل {room}",
+            "خلي {device} شغال",
+            "خلي {device} يشتغل",
+            "خلي {device} مولع",
+            "تشغل {device}",
+            "تشغلي {device}",
+            "تولع {device}",
+            "نور {room}"
           ]
         },
         {
@@ -70,19 +222,189 @@
           "samples": [
             "اطفي",
             "طفي",
+            "طفيه",
+            "طفيها",
+            "سكره",
+            "سكرها",
+            "اقفله",
+            "اقفلها",
+            "بنده",
             "اطفي {device}",
-            "طفي {device}",
-            "اطفئ {device}",
-            "طف {device}",
-            "سكر {device}",
-            "سكري {device}",
-            "اقفل {device}",
-            "اقفلي {device}",
             "اطفي {device} في {room}",
-            "طفي {device} في {room}",
+            "اطفي {device} حق {room}",
+            "اطفي {device} تبع {room}",
+            "اطفي {device} بتاع {room}",
+            "اطفي {device} اللي في {room}",
             "اطفي نور {room}",
+            "اطفي ضو {room}",
+            "اطفي اضاءة {room}",
+            "اطفي {room}",
+            "طفي {device}",
+            "طفي {device} في {room}",
+            "طفي {device} حق {room}",
+            "طفي {device} تبع {room}",
+            "طفي {device} بتاع {room}",
+            "طفي {device} اللي في {room}",
+            "طفي نور {room}",
+            "طفي ضو {room}",
+            "طفي اضاءة {room}",
+            "طفي {room}",
+            "طف {device}",
+            "طف {device} في {room}",
+            "طف {device} حق {room}",
+            "طف {device} تبع {room}",
+            "طف {device} بتاع {room}",
+            "طف {device} اللي في {room}",
+            "طف نور {room}",
+            "طف ضو {room}",
+            "طف اضاءة {room}",
+            "طف {room}",
+            "اطفئ {device}",
+            "اطفئ {device} في {room}",
+            "اطفئ {device} حق {room}",
+            "اطفئ {device} تبع {room}",
+            "اطفئ {device} بتاع {room}",
+            "اطفئ {device} اللي في {room}",
+            "اطفئ نور {room}",
+            "اطفئ ضو {room}",
+            "اطفئ اضاءة {room}",
+            "اطفئ {room}",
+            "سكر {device}",
+            "سكر {device} في {room}",
+            "سكر {device} حق {room}",
+            "سكر {device} تبع {room}",
+            "سكر {device} بتاع {room}",
+            "سكر {device} اللي في {room}",
+            "سكر نور {room}",
+            "سكر ضو {room}",
+            "سكر اضاءة {room}",
+            "سكر {room}",
+            "سكري {device}",
+            "سكري {device} في {room}",
+            "سكري {device} حق {room}",
+            "سكري {device} تبع {room}",
+            "سكري {device} بتاع {room}",
+            "سكري {device} اللي في {room}",
+            "سكري نور {room}",
+            "سكري ضو {room}",
+            "سكري اضاءة {room}",
+            "سكري {room}",
+            "اقفل {device}",
+            "اقفل {device} في {room}",
+            "اقفل {device} حق {room}",
+            "اقفل {device} تبع {room}",
+            "اقفل {device} بتاع {room}",
+            "اقفل {device} اللي في {room}",
+            "اقفل نور {room}",
+            "اقفل ضو {room}",
+            "اقفل اضاءة {room}",
+            "اقفل {room}",
+            "اقفلي {device}",
+            "اقفلي {device} في {room}",
+            "اقفلي {device} حق {room}",
+            "اقفلي {device} تبع {room}",
+            "اقفلي {device} بتاع {room}",
+            "اقفلي {device} اللي في {room}",
+            "اقفلي نور {room}",
+            "اقفلي ضو {room}",
+            "اقفلي اضاءة {room}",
+            "اقفلي {room}",
+            "قفل {device}",
+            "قفل {device} في {room}",
+            "قفل {device} حق {room}",
+            "قفل {device} تبع {room}",
+            "قفل {device} بتاع {room}",
+            "قفل {device} اللي في {room}",
+            "قفل نور {room}",
+            "قفل ضو {room}",
+            "قفل اضاءة {room}",
+            "قفل {room}",
+            "بند {device}",
+            "بند {device} في {room}",
+            "بند {device} حق {room}",
+            "بند {device} تبع {room}",
+            "بند {device} بتاع {room}",
+            "بند {device} اللي في {room}",
+            "بند نور {room}",
+            "بند ضو {room}",
+            "بند اضاءة {room}",
+            "بند {room}",
+            "بندي {device}",
+            "بندي {device} في {room}",
+            "بندي {device} حق {room}",
+            "بندي {device} تبع {room}",
+            "بندي {device} بتاع {room}",
+            "بندي {device} اللي في {room}",
+            "بندي نور {room}",
+            "بندي ضو {room}",
+            "بندي اضاءة {room}",
+            "بندي {room}",
+            "وقف {device}",
+            "وقف {device} في {room}",
+            "وقف {device} حق {room}",
+            "وقف {device} تبع {room}",
+            "وقف {device} بتاع {room}",
+            "وقف {device} اللي في {room}",
+            "وقف نور {room}",
+            "وقف ضو {room}",
+            "وقف اضاءة {room}",
+            "وقف {room}",
+            "وقفي {device}",
+            "وقفي {device} في {room}",
+            "وقفي {device} حق {room}",
+            "وقفي {device} تبع {room}",
+            "وقفي {device} بتاع {room}",
+            "وقفي {device} اللي في {room}",
+            "وقفي نور {room}",
+            "وقفي ضو {room}",
+            "وقفي اضاءة {room}",
+            "وقفي {room}",
+            "اغلق {device}",
+            "اغلق {device} في {room}",
+            "اغلق {device} حق {room}",
+            "اغلق {device} تبع {room}",
+            "اغلق {device} بتاع {room}",
+            "اغلق {device} اللي في {room}",
+            "اغلق نور {room}",
+            "اغلق ضو {room}",
+            "اغلق اضاءة {room}",
+            "اغلق {room}",
+            "افصل {device}",
+            "افصل {device} في {room}",
+            "افصل {device} حق {room}",
+            "افصل {device} تبع {room}",
+            "افصل {device} بتاع {room}",
+            "افصل {device} اللي في {room}",
+            "افصل نور {room}",
+            "افصل ضو {room}",
+            "افصل اضاءة {room}",
+            "افصل {room}",
+            "افصلي {device}",
+            "افصلي {device} في {room}",
+            "افصلي {device} حق {room}",
+            "افصلي {device} تبع {room}",
+            "افصلي {device} بتاع {room}",
+            "افصلي {device} اللي في {room}",
+            "افصلي نور {room}",
+            "افصلي ضو {room}",
+            "افصلي اضاءة {room}",
+            "افصلي {room}",
             "إطفاء {device}",
-            "ابي اطفي {device}"
+            "إطفاء {device} في {room}",
+            "إطفاء {device} حق {room}",
+            "إطفاء {device} تبع {room}",
+            "إطفاء {device} بتاع {room}",
+            "إطفاء {device} اللي في {room}",
+            "إطفاء نور {room}",
+            "إطفاء ضو {room}",
+            "إطفاء اضاءة {room}",
+            "إطفاء {room}",
+            "خلي {device} طافي",
+            "خلي {device} مطفي",
+            "تطفي {device}",
+            "تطفيلي {device}",
+            "تسكر {device}",
+            "تقفل {device}"
           ]
         },
         {
@@ -100,12 +422,71 @@
           "samples": [
             "هل {device} شغال",
             "هل {device} شغالة",
-            "حالة {device}",
+            "هل {device} مطفي",
+            "هل {device} طافي",
+            "هل {device} في {room} شغال",
+            "{device} شغال",
+            "{device} شغالة",
+            "{device} مولع",
+            "{device} طافي",
+            "{device} مطفي",
+            "{device} مسكر",
+            "{device} شغال ولا طافي",
             "وش حالة {device}",
             "ايش حالة {device}",
-            "{device} شغال ولا لا",
-            "هل {device} في {room} شغال",
-            "هل {device} طافي"
+            "شو حالة {device}",
+            "شو وضع {device}",
+            "ايه حالة {device}",
+            "ايه وضع {device}",
+            "كيف حالة {device}",
+            "حالة {device}",
+            "وضع {device}",
+            "شيك على {device}",
+            "تشيك على {device}",
+            "وش وضع {room}",
+            "شو وضع {room}"
+          ]
+        },
+        {
+          "name": "VoiceCommandIntent",
+          "slots": [
+            {
+              "name": "utterance",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "ابي {utterance}",
+            "ابغى {utterance}",
+            "ابغا {utterance}",
+            "ابا {utterance}",
+            "عايز {utterance}",
+            "عاوز {utterance}",
+            "عايزة {utterance}",
+            "بدي {utterance}",
+            "بدنا {utterance}",
+            "اريد {utterance}",
+            "حابب {utterance}",
+            "ودي {utterance}",
+            "نبي {utterance}",
+            "ممكن {utterance}",
+            "لو سمحت {utterance}",
+            "من فضلك {utterance}",
+            "الله يخليك {utterance}",
+            "يا ريت {utterance}",
+            "بليز {utterance}",
+            "تقدر {utterance}",
+            "اقدر {utterance}",
+            "خلي {utterance}",
+            "خليه {utterance}",
+            "خليها {utterance}",
+            "ابيك {utterance}",
+            "ابغاك {utterance}",
+            "{utterance} لو سمحت",
+            "{utterance} من فضلك",
+            "{utterance} الله يخليك",
+            "{utterance} بليز",
+            "{utterance} يعطيك العافية"
           ]
         }
       ],
@@ -118,18 +499,20 @@
                 "value": "نور",
                 "synonyms": [
                   "النور",
+                  "الضو",
+                  "ضو",
                   "الضوء",
                   "ضوء",
-                  "انوار"
-                ]
-              }
-            },
-            {
-              "name": {
-                "value": "لمبة",
-                "synonyms": [
+                  "لمبة",
                   "اللمبة",
-                  "لمبه"
+                  "لمبه",
+                  "الإضاءة",
+                  "اضاءة",
+                  "الانوار",
+                  "انوار",
+                  "الإنارة",
+                  "النجفة",
+                  "السبوت"
                 ]
               }
             },
@@ -138,8 +521,14 @@
                 "value": "فيش",
                 "synonyms": [
                   "الفيش",
+                  "الفيشة",
+                  "فيشة",
+                  "البريزة",
+                  "بريزة",
+                  "المقبس",
+                  "البلك",
                   "الافياش",
-                  "البلك"
+                  "الفيشه"
                 ]
               }
             },
@@ -148,7 +537,12 @@
                 "value": "مكيف",
                 "synonyms": [
                   "المكيف",
-                  "التكييف"
+                  "التكييف",
+                  "تكييف",
+                  "الكندشن",
+                  "كندشن",
+                  "السبلت",
+                  "المكيفات"
                 ]
               }
             },
@@ -157,7 +551,10 @@
                 "value": "مروحة",
                 "synonyms": [
                   "المروحة",
-                  "مروحه"
+                  "مروحه",
+                  "المروحه",
+                  "الشفاط",
+                  "المراوح"
                 ]
               }
             },
@@ -165,7 +562,32 @@
               "name": {
                 "value": "سخان",
                 "synonyms": [
-                  "السخان"
+                  "السخان",
+                  "الهيتر",
+                  "الدفاية",
+                  "الدفايه"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "تلفزيون",
+                "synonyms": [
+                  "التلفزيون",
+                  "التلفاز",
+                  "الشاشة",
+                  "التليفزيون"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "ستارة",
+                "synonyms": [
+                  "الستارة",
+                  "الستائر",
+                  "الستاير",
+                  "البرداية"
                 ]
               }
             },
@@ -180,17 +602,61 @@
             },
             {
               "name": {
-                "value": "نور غرفة النوم"
+                "value": "نور غرفة النوم",
+                "synonyms": [
+                  "ضو غرفة النوم",
+                  "نور الغرفة",
+                  "لمبة غرفة النوم"
+                ]
               }
             },
             {
               "name": {
-                "value": "نور المطبخ"
+                "value": "نور المطبخ",
+                "synonyms": [
+                  "ضو المطبخ",
+                  "لمبة المطبخ"
+                ]
               }
             },
             {
               "name": {
-                "value": "نور الصالة"
+                "value": "نور الصالة",
+                "synonyms": [
+                  "ضو الصالة",
+                  "نور الصالون",
+                  "لمبة الصالة"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "نور المجلس",
+                "synonyms": [
+                  "ضو المجلس"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "كل الأنوار",
+                "synonyms": [
+                  "كل النور",
+                  "جميع الانوار",
+                  "كل اللمبات",
+                  "كل الاضاءة"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "الكل",
+                "synonyms": [
+                  "كل شي",
+                  "كل الاجهزة",
+                  "جميع الاجهزة",
+                  "كلها"
+                ]
               }
             }
           ]
@@ -202,9 +668,12 @@
               "name": {
                 "value": "غرفة النوم",
                 "synonyms": [
-                  "غرفة النوم",
+                  "الغرفة",
                   "غرفه النوم",
-                  "الغرفة"
+                  "اوضة النوم",
+                  "الاوضة",
+                  "حجرة النوم",
+                  "غرفة نومي"
                 ]
               }
             },
@@ -221,7 +690,10 @@
                 "value": "الصالة",
                 "synonyms": [
                   "صالة",
-                  "الصاله"
+                  "الصالون",
+                  "الليفنج",
+                  "غرفة المعيشة",
+                  "المعيشة"
                 ]
               }
             },
@@ -229,7 +701,9 @@
               "name": {
                 "value": "المجلس",
                 "synonyms": [
-                  "مجلس"
+                  "مجلس",
+                  "الديوانية",
+                  "المقلط"
                 ]
               }
             },
@@ -237,7 +711,8 @@
               "name": {
                 "value": "الحمام",
                 "synonyms": [
-                  "حمام"
+                  "حمام",
+                  "دورة المياه"
                 ]
               }
             },
@@ -253,7 +728,28 @@
               "name": {
                 "value": "غرفة الأطفال",
                 "synonyms": [
-                  "غرفه الاطفال"
+                  "غرفة العيال",
+                  "غرفة الاولاد",
+                  "غرفة البزران"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "الحوش",
+                "synonyms": [
+                  "الحديقة",
+                  "الجنينة",
+                  "الحوشة"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "المدخل",
+                "synonyms": [
+                  "الممر",
+                  "الكوريدور"
                 ]
               }
             }

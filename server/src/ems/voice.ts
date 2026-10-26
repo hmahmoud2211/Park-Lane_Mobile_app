@@ -6,10 +6,14 @@ import { ApiError } from '../errors.ts';
 import { log } from '../log.ts';
 import { bearerOf, findUserByEmail, lookupToken, type User } from './auth.ts';
 import { alexaDevices, setPower, type ApiSmartDevice } from './devices.ts';
+import { parseUtterance, sameWord, words } from './utterance.ts';
+
+export { normalize } from './utterance.ts';
 
 /**
  * What the Alexa skill calls: POST /api/voice/command
- *   { action: 'on' | 'off' | 'status', device?: string, room?: string }
+ *   { action: 'on' | 'off' | 'status', device?, room? }   from TurnOn/TurnOff/DeviceStatus
+ *   { action: 'auto', utterance }                         from VoiceCommandIntent (free speech)
  *
  * The skill authenticates with the EMS access token Alexa holds after
  * account linking (never a shared token). The answer is always a structured
@@ -25,52 +29,37 @@ interface Spoken {
   simulated: boolean;
 }
 
+type Failure = 'offline' | 'unreachable' | 'timeout';
+
 export type VoiceOutcome =
   | { outcome: 'done'; action: 'on' | 'off'; device: Spoken & { power: 'on' | 'off' } }
   | { outcome: 'status'; device: Spoken & { power: string; online: boolean } }
   | { outcome: 'ambiguous'; candidates: Spoken[] }
   | { outcome: 'need_device'; candidates: Spoken[] }
+  | { outcome: 'need_action'; device: Spoken | null }
   | { outcome: 'not_found'; heard: string }
   | { outcome: 'no_devices' }
-  | { outcome: 'offline' | 'unreachable' | 'timeout'; device: Spoken };
+  | { outcome: Failure; device: Spoken }
+  /** Several devices at once («شغل النور والمكيف»، «طفي كل الأنوار»). */
+  | {
+      outcome: 'batch';
+      action: 'on' | 'off';
+      done: Spoken[];
+      failed: (Spoken & { reason: Failure })[];
+      /** Names heard that matched nothing, or more than one device. */
+      unresolved: string[];
+    }
+  | { outcome: 'batch_status'; devices: (Spoken & { power: string; online: boolean })[]; unresolved: string[] };
 
 // ---- Matching spoken names -------------------------------------------------------------
 
-/** Folds the spellings speech recognition varies between, in Arabic and English. */
-export function normalize(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFKC')
-    .replace(/[ً-ْٰـ]/g, '') // harakat, dagger alif, tatweel
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-const STOP_WORDS = new Set(['the', 'my', 'in', 'on', 'of', 'a', 'an', 'في', 'على', 'من']);
-
-function tokens(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-  return normalize(value)
-    .split(' ')
-    .filter((word) => word && !STOP_WORDS.has(word))
-    // "النوم" and "نوم" are the same word to a listener.
-    .map((word) => (word.length > 3 && word.startsWith('ال') ? word.slice(2) : word));
-}
-
+/** Every word of `needles` is somewhere in `haystack`, allowing small recognition slips. */
 const covers = (haystack: readonly string[], needles: readonly string[]) =>
-  needles.length > 0 && needles.every((word) => haystack.includes(word));
+  needles.length > 0 && needles.every((word) => haystack.some((candidate) => sameWord(candidate, word)));
 
 function score(device: ApiSmartDevice, query: readonly string[]): number {
-  const name = tokens(device.name);
-  const all = [...name, ...tokens(device.room)];
+  const name = words(device.name);
+  const all = [...name, ...words(device.room)];
   if (query.join(' ') === name.join(' ')) {
     return 4;
   }
@@ -80,7 +69,7 @@ function score(device: ApiSmartDevice, query: readonly string[]): number {
   if (covers(all, query)) {
     return 2;
   }
-  const shared = query.filter((word) => all.includes(word)).length;
+  const shared = query.filter((word) => all.some((candidate) => sameWord(candidate, word))).length;
   return shared > 0 && shared / query.length >= 0.5 ? 1 : 0;
 }
 
@@ -95,15 +84,15 @@ export function resolveDevice(devices: readonly ApiSmartDevice[], deviceSlot?: s
     return { outcome: 'no_devices' };
   }
   let pool = [...devices];
-  const room = tokens(roomSlot ?? null);
+  const room = words(roomSlot);
   if (room.length > 0) {
-    pool = pool.filter((device) => covers(tokens(device.room), room));
+    pool = pool.filter((device) => covers(words(device.room), room));
     if (pool.length === 0) {
       return { outcome: 'not_found', heard: roomSlot ?? '' };
     }
   }
 
-  const query = tokens(deviceSlot ?? null);
+  const query = words(deviceSlot);
   if (query.length === 0) {
     if (room.length > 0) {
       return pool.length === 1 ? { device: pool[0] } : { outcome: 'ambiguous', candidates: pool.map(spoken) };
@@ -119,6 +108,12 @@ export function resolveDevice(devices: readonly ApiSmartDevice[], deviceSlot?: s
   const best = Math.max(...scored.map((entry) => entry.score));
   const top = scored.filter((entry) => entry.score === best);
   return top.length === 1 ? { device: top[0].device } : { outcome: 'ambiguous', candidates: top.map((entry) => spoken(entry.device)) };
+}
+
+/** Every device the words describe («كل الأنوار» → every light); all devices when there are no words. */
+function devicesMatchingAll(devices: readonly ApiSmartDevice[], phrase: string | undefined): ApiSmartDevice[] {
+  const query = words(phrase);
+  return query.length === 0 ? [...devices] : devices.filter((device) => score(device, query) >= 2);
 }
 
 // ---- The endpoint ------------------------------------------------------------------------
@@ -146,39 +141,123 @@ export function voiceUser(req: IncomingMessage): User {
   throw new ApiError('unauthorized', 'Account linking is required.');
 }
 
-function optionalText(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 100) : undefined;
+function optionalText(value: unknown, max = 100): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : undefined;
 }
 
-export async function voiceCommand(user: User, body: Record<string, unknown>): Promise<VoiceOutcome> {
-  const action = body.action;
-  if (action !== 'on' && action !== 'off' && action !== 'status') {
-    throw new ApiError('bad_request', 'action must be "on", "off" or "status".');
-  }
-  const resolution = resolveDevice(alexaDevices(user.id), optionalText(body.device), optionalText(body.room));
-  if (!('device' in resolution)) {
-    return resolution;
-  }
-  const { device } = resolution;
+const FAILURES: Record<string, Failure> = {
+  device_offline: 'offline',
+  command_timeout: 'timeout',
+  device_unreachable: 'unreachable',
+};
 
-  if (action === 'status') {
-    return { outcome: 'status', device: { ...spoken(device), power: device.power, online: device.online } };
-  }
+/** Switches one device; a device that did not confirm is a reported failure, never a success. */
+async function switchOne(user: User, device: ApiSmartDevice, action: 'on' | 'off'): Promise<VoiceOutcome> {
   try {
     const after = await setPower(user.id, device.id, action, 'alexa', config.ems.voiceCommandTimeoutMs);
     return { outcome: 'done', action, device: { ...spoken(after), power: after.power as 'on' | 'off' } };
   } catch (error) {
     const code = error instanceof ApiError ? error.code : 'internal';
     log.warn('Voice command not confirmed', { id: device.id, code });
-    if (code === 'device_offline') {
-      return { outcome: 'offline', device: spoken(device) };
-    }
-    if (code === 'command_timeout') {
-      return { outcome: 'timeout', device: spoken(device) };
-    }
-    if (code === 'device_unreachable') {
-      return { outcome: 'unreachable', device: spoken(device) };
+    const failure = FAILURES[code];
+    if (failure) {
+      return { outcome: failure, device: spoken(device) };
     }
     throw error;
   }
+}
+
+const statusOf = (device: ApiSmartDevice) => ({ ...spoken(device), power: device.power, online: device.online });
+
+async function many(user: User, action: VoiceAction, devices: ApiSmartDevice[], unresolved: string[]): Promise<VoiceOutcome> {
+  if (action === 'status') {
+    return { outcome: 'batch_status', devices: devices.map(statusOf), unresolved };
+  }
+  // Together, so a slow device does not use up Alexa's time for the others.
+  const results = await Promise.all(devices.map((device) => switchOne(user, device, action)));
+  const done: Spoken[] = [];
+  const failed: (Spoken & { reason: Failure })[] = [];
+  for (const result of results) {
+    if (result.outcome === 'done') {
+      done.push(result.device);
+    } else if (result.outcome === 'offline' || result.outcome === 'unreachable' || result.outcome === 'timeout') {
+      failed.push({ ...result.device, reason: result.outcome });
+    }
+  }
+  return { outcome: 'batch', action, done, failed, unresolved };
+}
+
+export async function voiceCommand(user: User, body: Record<string, unknown>): Promise<VoiceOutcome> {
+  const requested = body.action;
+  if (requested !== 'on' && requested !== 'off' && requested !== 'status' && requested !== 'auto') {
+    throw new ApiError('bad_request', 'action must be "on", "off", "status" or "auto".');
+  }
+  const devices = alexaDevices(user.id);
+  const utterance = optionalText(body.utterance, 300);
+
+  // Slots from TurnOn/TurnOff/DeviceStatus: the intent already says what to do.
+  if (!utterance) {
+    if (requested === 'auto') {
+      throw new ApiError('bad_request', 'action "auto" needs an utterance.');
+    }
+    // A slot may still name several devices or all of them («النور والمكيف»).
+    const slot = optionalText(body.device);
+    const parsed = slot ? parseUtterance(slot) : null;
+    if (parsed && (parsed.all || parsed.targets.length > 1)) {
+      return run(user, requested, devices, parsed.targets, parsed.all);
+    }
+    return single(user, requested, resolveDevice(devices, slot, optionalText(body.room)));
+  }
+
+  // Free speech from VoiceCommandIntent, in any phrasing.
+  const parsed = parseUtterance(utterance);
+  const action = requested !== 'auto' ? requested : parsed.action;
+  if (!action) {
+    const resolution = resolveDevice(devices, parsed.targets[0]);
+    return { outcome: 'need_action', device: 'device' in resolution ? spoken(resolution.device) : null };
+  }
+  if (parsed.all || parsed.targets.length > 1) {
+    return run(user, action, devices, parsed.targets, parsed.all);
+  }
+  return single(user, action, resolveDevice(devices, parsed.targets[0], optionalText(body.room)));
+}
+
+async function single(user: User, action: VoiceAction, resolution: Resolution): Promise<VoiceOutcome> {
+  if (!('device' in resolution)) {
+    return resolution;
+  }
+  return action === 'status' ? { outcome: 'status', device: statusOf(resolution.device) } : switchOne(user, resolution.device, action);
+}
+
+async function run(user: User, action: VoiceAction, devices: ApiSmartDevice[], targets: string[], all: boolean): Promise<VoiceOutcome> {
+  if (devices.length === 0) {
+    return { outcome: 'no_devices' };
+  }
+  const chosen = new Map<string, ApiSmartDevice>();
+  const unresolved: string[] = [];
+  if (all) {
+    const phrases = targets.length > 0 ? targets : [undefined];
+    for (const phrase of phrases) {
+      for (const device of devicesMatchingAll(devices, phrase)) {
+        chosen.set(device.id, device);
+      }
+    }
+  } else {
+    for (const target of targets) {
+      const resolution = resolveDevice(devices, target);
+      if ('device' in resolution) {
+        chosen.set(resolution.device.id, resolution.device);
+      } else {
+        unresolved.push(target);
+      }
+    }
+  }
+  if (chosen.size === 0) {
+    return { outcome: 'not_found', heard: targets.join('، ') };
+  }
+  // One device after all: answer as for one.
+  if (chosen.size === 1 && unresolved.length === 0) {
+    return single(user, action, { device: [...chosen.values()][0] });
+  }
+  return many(user, action, [...chosen.values()], unresolved);
 }

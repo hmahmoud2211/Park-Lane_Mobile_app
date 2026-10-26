@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { log } from '../log.ts';
+import { cubeAdapter } from './adapters/cube.ts';
 import { sonoffLanAdapter } from './adapters/sonoffLan.ts';
 import type { AdapterDevice, DeviceAdapter, DeviceType, HardwareReport, Power } from './adapters/types.ts';
 import { virtualAdapter } from './adapters/virtual.ts';
@@ -68,6 +69,7 @@ interface DeviceRow {
 const adapters = new Map<string, DeviceAdapter>([
   [virtualAdapter.protocol, virtualAdapter],
   [sonoffLanAdapter.protocol, sonoffLanAdapter],
+  [cubeAdapter.protocol, cubeAdapter],
 ]);
 
 /** Tests register a stand-in for real hardware here. */
@@ -170,7 +172,8 @@ export async function createDevice(userId: string, body: Record<string, unknown>
   if (!TYPES.includes(type) || !adapter.types.includes(type)) {
     throw new ApiError('bad_request', `A ${protocol} device cannot be a "${String(body.type)}".`);
   }
-  const input = (body[protocol === 'sonoff-lan' ? 'sonoff' : 'settings'] ?? {}) as Record<string, unknown>;
+  const settingsKey = protocol === 'sonoff-lan' ? 'sonoff' : protocol === 'cube' ? 'cube' : 'settings';
+  const input = (body[settingsKey] ?? {}) as Record<string, unknown>;
   if (typeof input !== 'object' || Array.isArray(input)) {
     throw new ApiError('bad_request', 'Device settings must be an object.');
   }

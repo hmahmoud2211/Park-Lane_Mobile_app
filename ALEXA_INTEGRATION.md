@@ -146,9 +146,11 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
 
 - **Virtual switch:** **Add → Virtual switch**, then a name, an optional room and a type. It behaves like a real switch for the app and Alexa, and is always labelled **Virtual** (Alexa says "That is a virtual test switch"). **Simulate offline** lets you test offline handling.
 - **SONOFF Wi-Fi plug:** **Add → SONOFF Wi-Fi plug** opens the existing pairing wizard.
-  - **Signed in to EMS:** the final step registers the plug in the EMS registry (`protocol: 'sonoff-lan'`).
-  - **Not signed in:** it registers with the CUBE hub as before.
-  - **Conditions:** the backend refuses registration unless the plug is announcing itself on the backend's LAN, its key decrypts the announcement, and it reports a single switch.
+  - **Always:** the final step registers the plug on the **CUBE hub**, as before (a third-party device the backend's bridge drives over the LAN).
+  - **Signed in to EMS:** it is then also added to the user's EMS devices with `protocol: 'cube'` (`server/src/ems/adapters/cube.ts`), so the app and Alexa switch it **through CUBE**, the same path as the CUBE dashboard. If that second step fails, the plug stays on CUBE and the wizard shows why it was not added to EMS.
+  - **Live updates:** state changes the bridge sees (the plug's button, a switch from the CUBE dashboard, going offline) reach the app live through the registry.
+  - **Conditions:** the backend refuses registration unless the plug is announcing itself on the backend's LAN, its key decrypts the announcement, and it reports a single switch. A hub device can belong to one EMS account only.
+  - **Unused for now:** the direct `sonoff-lan` adapter (no hub) is kept, but the wizard no longer uses it.
 - **Per device:** rename, change room, remove (tap twice), switch on and off. Each card shows online/offline, the last confirmed state and when it was confirmed, a pending spinner while a command is in flight, and the reason for the last failure.
 - **Alexa access:** in **Settings → Alexa → Device access**, allow or block each device and pick the **default** device for "turn on" with no name. The first device added becomes the default.
 
@@ -161,6 +163,20 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
 | «اطفي نور غرفة النوم» → «تم إطفاء نور في غرفة النوم.» | "Turn off the bedroom light" |
 | «هل المكيف شغال؟» | "Is the air conditioner on?" |
 | «شغل» (no device: the default device) | "Turn on" |
+
+**Free speech in any dialect.**
+- **How it works:** besides the fixed intents, `VoiceCommandIntent` has an `AMAZON.SearchQuery` slot (supported in Arabic (SA)). It catches phrases that start or end with words such as «ابي / ابغى / عايز / بدي / اريد / ممكن / لو سمحت / من فضلك / الله يخليك / خلي». The skill passes the whole phrase to the backend as `{ action: 'auto', utterance }`, and `server/src/ems/utterance.ts` reads it:
+  - **Action from Gulf, Egyptian, Levantine and MSA verbs**, including feminine, plural and verbal-noun forms and attached pronouns:
+    - on: شغّل، ولّع، افتح، اشعل، دوّر…
+    - off: طفّي، سكّر، اقفل، بنّد، وقّف، افصل…
+    - questions: «النور شغال؟»، «هل المكيف مطفي»، «وش حالة السخان»…
+    - «خلّي X شغال/طافي» counts as a command.
+  - **Synonyms:** نور = ضو = ضوء = لمبة = إضاءة = light; فيش = فيشة = بريزة = مقبس; مكيف = تكييف = كندشن; غرفة = أوضة = حجرة; صالة = صالون = ليفنج; and more.
+  - **Prefixes:** attached prefixes are split off («بالمطبخ»، «والمكيف»، «للصالة»).
+  - **Recognition slips:** one wrong letter is tolerated in longer words.
+  - **Several devices or all:** «شغل النور والمكيف», «طفي كل الأنوار», «طفي كل شي». Each device is switched and confirmed separately, and the reply names what worked and what didn't.
+  - **Unclear action:** «ابي النور» makes Alexa ask «تبي أشغل نور في غرفة النوم ولا أطفيه؟», and a bare «شغّله» then acts on that device (kept in the session).
+- **Limit:** Alexa still decides which intent a phrase belongs to before the backend sees it. A phrasing that matches no sample in the model goes to `AMAZON.FallbackIntent`, whose text Alexa doesn't pass on. Add common phrasings you hear in testing to `ar-SA.json`.
 
 How the backend resolves the device (`server/src/ems/voice.ts`):
 - **Arabic spelling:** it folds variants (أ/إ/آ→ا, ة→ه, ى→ي), strips diacritics and tatweel, and ignores the definite article ال, so «النور» matches «نور».

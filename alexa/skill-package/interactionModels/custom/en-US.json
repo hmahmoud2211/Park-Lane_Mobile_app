@@ -42,16 +42,33 @@
           "samples": [
             "turn on",
             "switch on",
-            "turn on {device}",
-            "turn on the {device}",
-            "switch on {device}",
-            "switch on the {device}",
+            "turn it on",
             "turn {device} on",
             "turn the {device} on",
+            "turn on {device}",
+            "turn on the {device}",
             "turn on the {device} in the {room}",
+            "turn on the {room} lights",
+            "turn on the lights in the {room}",
+            "turn on the {room}",
+            "switch on {device}",
+            "switch on the {device}",
+            "switch on the {device} in the {room}",
+            "switch on the {room} lights",
+            "switch on the lights in the {room}",
+            "switch on the {room}",
+            "power on {device}",
             "power on the {device}",
+            "power on the {device} in the {room}",
+            "power on the {room} lights",
+            "power on the lights in the {room}",
+            "power on the {room}",
+            "start {device}",
             "start the {device}",
-            "turn on the {room} light"
+            "start the {device} in the {room}",
+            "start the {room} lights",
+            "start the lights in the {room}",
+            "start the {room}"
           ]
         },
         {
@@ -69,16 +86,45 @@
           "samples": [
             "turn off",
             "switch off",
-            "turn off {device}",
-            "turn off the {device}",
-            "switch off {device}",
-            "switch off the {device}",
+            "turn it off",
             "turn {device} off",
             "turn the {device} off",
+            "turn off {device}",
+            "turn off the {device}",
             "turn off the {device} in the {room}",
+            "turn off the {room} lights",
+            "turn off the lights in the {room}",
+            "turn off the {room}",
+            "switch off {device}",
+            "switch off the {device}",
+            "switch off the {device} in the {room}",
+            "switch off the {room} lights",
+            "switch off the lights in the {room}",
+            "switch off the {room}",
+            "power off {device}",
             "power off the {device}",
+            "power off the {device} in the {room}",
+            "power off the {room} lights",
+            "power off the lights in the {room}",
+            "power off the {room}",
+            "stop {device}",
             "stop the {device}",
-            "turn off the {room} light"
+            "stop the {device} in the {room}",
+            "stop the {room} lights",
+            "stop the lights in the {room}",
+            "stop the {room}",
+            "shut off {device}",
+            "shut off the {device}",
+            "shut off the {device} in the {room}",
+            "shut off the {room} lights",
+            "shut off the lights in the {room}",
+            "shut off the {room}",
+            "kill {device}",
+            "kill the {device}",
+            "kill the {device} in the {room}",
+            "kill the {room} lights",
+            "kill the lights in the {room}",
+            "kill the {room}"
           ]
         },
         {
@@ -97,10 +143,34 @@
             "is the {device} on",
             "is the {device} off",
             "is {device} on",
+            "is the {device} in the {room} on",
             "what is the status of the {device}",
             "status of the {device}",
             "check the {device}",
-            "is the {device} in the {room} on"
+            "is anything on in the {room}",
+            "how is the {device}"
+          ]
+        },
+        {
+          "name": "VoiceCommandIntent",
+          "slots": [
+            {
+              "name": "utterance",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "please {utterance}",
+            "{utterance} please",
+            "i want {utterance}",
+            "i need {utterance}",
+            "can you {utterance}",
+            "could you {utterance}",
+            "would you {utterance}",
+            "make {utterance}",
+            "set {utterance}",
+            "go ahead and {utterance}",
+            "i would like {utterance}"
           ]
         }
       ],
@@ -114,7 +184,8 @@
                 "synonyms": [
                   "lights",
                   "lamp",
-                  "bulb"
+                  "bulb",
+                  "lighting"
                 ]
               }
             },
@@ -138,13 +209,18 @@
                 "value": "air conditioner",
                 "synonyms": [
                   "ac",
-                  "a. c."
+                  "a. c.",
+                  "aircon",
+                  "cooling"
                 ]
               }
             },
             {
               "name": {
-                "value": "fan"
+                "value": "fan",
+                "synonyms": [
+                  "ceiling fan"
+                ]
               }
             },
             {
@@ -152,6 +228,23 @@
                 "value": "heater",
                 "synonyms": [
                   "water heater"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "tv",
+                "synonyms": [
+                  "television"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "curtains",
+                "synonyms": [
+                  "blinds",
+                  "curtain"
                 ]
               }
             },
@@ -173,6 +266,24 @@
             {
               "name": {
                 "value": "desk lamp"
+              }
+            },
+            {
+              "name": {
+                "value": "all the lights",
+                "synonyms": [
+                  "every light",
+                  "all lights"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "everything",
+                "synonyms": [
+                  "all devices",
+                  "all"
+                ]
               }
             }
           ]
@@ -227,7 +338,16 @@
               "name": {
                 "value": "hall",
                 "synonyms": [
-                  "hallway"
+                  "hallway",
+                  "entrance"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "garden",
+                "synonyms": [
+                  "yard"
                 ]
               }
             }

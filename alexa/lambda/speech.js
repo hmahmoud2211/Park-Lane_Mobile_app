@@ -14,6 +14,14 @@ function deviceLabel(device, lang) {
   return lang === 'ar' ? `${device.name} في ${device.room}` : `${device.name} in the ${device.room}`;
 }
 
+function joinAnd(names, lang) {
+  if (names.length <= 1) {
+    return names.join('');
+  }
+  const head = names.slice(0, -1).join(lang === 'ar' ? '، ' : ', ');
+  return lang === 'ar' ? `${head} و${names[names.length - 1]}` : `${head} and ${names[names.length - 1]}`;
+}
+
 function list(names, lang) {
   if (names.length <= 1) {
     return names.join('');
@@ -45,6 +53,24 @@ const ar = {
   timeout: (device) => `${deviceLabel(device, 'ar')} ما أكد الأمر في الوقت. تأكد من حالته في التطبيق.`,
   serverDown: 'ما قدرت أتواصل مع خدمة إي إم إس الآن، فما تأكدت من تنفيذ الأمر. حاول بعد شوي.',
   virtualNote: ' هذا مفتاح افتراضي للتجربة.',
+  needAction: (device) => (device ? `تبي أشغل ${deviceLabel(device, 'ar')} ولا أطفيه؟` : 'وش تبيني أسوي؟ أشغل ولا أطفي؟'),
+  batch: (result) => {
+    const parts = [];
+    if (result.done.length > 0) {
+      parts.push(`تم ${result.action === 'on' ? 'تشغيل' : 'إطفاء'} ${joinAnd(result.done.map((d) => deviceLabel(d, 'ar')), 'ar')}.`);
+    }
+    for (const failed of result.failed) {
+      parts.push(failed.reason === 'offline' ? `${deviceLabel(failed, 'ar')} غير متصل.` : `ما قدرت أوصل لـ ${deviceLabel(failed, 'ar')}.`);
+    }
+    if (result.unresolved.length > 0) {
+      parts.push(`وما عرفت أي جهاز تقصد بـ ${joinAnd(result.unresolved, 'ar')}.`);
+    }
+    return parts.join(' ');
+  },
+  batchStatus: (result) =>
+    result.devices
+      .map((d) => `${deviceLabel(d, 'ar')} ${!d.online ? 'غير متصل' : d.power === 'on' ? 'شغال' : d.power === 'off' ? 'طافي' : 'حالته غير معروفة'}`)
+      .join('، ') + '.',
 };
 
 const en = {
@@ -69,6 +95,24 @@ const en = {
   timeout: (device) => `${deviceLabel(device, 'en')} didn't confirm in time. Check it in the app.`,
   serverDown: "I couldn't reach the EMS service, so I can't confirm anything changed. Please try again shortly.",
   virtualNote: ' That is a virtual test switch.',
+  needAction: (device) => (device ? `Should I turn ${deviceLabel(device, 'en')} on or off?` : 'Should I turn it on or off?'),
+  batch: (result) => {
+    const parts = [];
+    if (result.done.length > 0) {
+      parts.push(`Turned ${result.action} ${joinAnd(result.done.map((d) => deviceLabel(d, 'en')), 'en')}.`);
+    }
+    for (const failed of result.failed) {
+      parts.push(failed.reason === 'offline' ? `${deviceLabel(failed, 'en')} is offline.` : `I couldn't reach ${deviceLabel(failed, 'en')}.`);
+    }
+    if (result.unresolved.length > 0) {
+      parts.push(`I wasn't sure which device you meant by ${joinAnd(result.unresolved, 'en')}.`);
+    }
+    return parts.join(' ');
+  },
+  batchStatus: (result) =>
+    result.devices
+      .map((d) => `${deviceLabel(d, 'en')} is ${!d.online ? 'offline' : d.power === 'unknown' ? 'in an unknown state' : d.power}`)
+      .join(', ') + '.',
 };
 
 function strings(locale) {
@@ -97,12 +141,18 @@ function forOutcome(locale, result) {
       return s.unreachable(result.device);
     case 'timeout':
       return s.timeout(result.device);
+    case 'need_action':
+      return s.needAction(result.device);
+    case 'batch':
+      return s.batch(result);
+    case 'batch_status':
+      return s.batchStatus(result);
     default:
       return s.serverDown;
   }
 }
 
 /** Outcomes after which the skill waits for the customer to name a device. */
-const ASKS_AGAIN = new Set(['ambiguous', 'need_device', 'not_found']);
+const ASKS_AGAIN = new Set(['ambiguous', 'need_device', 'not_found', 'need_action']);
 
 module.exports = { strings, forOutcome, ASKS_AGAIN };
