@@ -267,6 +267,13 @@ export const colors = {
   navGlossEdge: 'rgba(255, 255, 255, 0.00)',
   /** Inactive tab icon and label; the active tab is full white with a gradient label. */
   navLabel: 'rgba(255, 255, 255, 0.60)',
+  /**
+   * The side rail tablets and desktops get instead of the bar: the active
+   * item sits on the Home halo's gradient, a pointer hover on a white wash.
+   */
+  navActiveFrom: 'rgba(79, 123, 255, 0.26)',
+  navActiveTo: 'rgba(255, 92, 203, 0.14)',
+  navHover: 'rgba(255, 255, 255, 0.07)',
 
   /**
    * Visitor parking, gate and EV charging demo. No design exists yet, so these

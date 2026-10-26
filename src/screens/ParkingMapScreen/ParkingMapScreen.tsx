@@ -15,7 +15,7 @@ import { findInvitation, findReservation, gateMapsUrl } from '../../services/par
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { openExternal } from '../../utils/share';
 import { mapCopy } from './ParkingMapScreen.data';
-import { createStyles } from './ParkingMapScreen.styles';
+import { MAP_COLUMN_WEIGHTS, createStyles } from './ParkingMapScreen.styles';
 
 /**
  * Gate-to-bay guidance: an external maps link for the drive to the right
@@ -49,20 +49,9 @@ export function ParkingMapScreen() {
     );
   }
 
-  return (
-    <ParkingFrame {...frame}>
-      <Panel
-        title={`${space.label} · ${nameIn(zone.name, lang)}`}
-        subtitle={`${nameIn(zone.level, lang)} · ${copy.enterBy(gateNameIn(gate.id, lang))}`}
-        icon="map-outline"
-        padded={false}
-      >
-        {/* The map guides by itself: the route glows and flows from the gate to the bay, then on foot. */}
-        <View style={styles.mapPad}>
-          <SiteMap db={db} now={now} mode="directions" targetSpaceId={space.id} privacy={visitor} lang={lang} />
-        </View>
-      </Panel>
-
+  // On wide screens the map takes the larger column and the way out sits beside it.
+  const directions = (
+    <>
       <ParkingButton
         label={copy.navigateTo(gateNameIn(gate.id, lang, true))}
         icon="navigate-outline"
@@ -74,6 +63,22 @@ export function ParkingMapScreen() {
       <AppText variant="label" color={theme.colors.textMuted} style={styles.note}>
         {`${zone.indoor ? copy.gpsNote : copy.outdoorNote} ${copy.fictional}`}
       </AppText>
+    </>
+  );
+
+  return (
+    <ParkingFrame {...frame} aside={directions} columnWeights={MAP_COLUMN_WEIGHTS}>
+      <Panel
+        title={`${space.label} · ${nameIn(zone.name, lang)}`}
+        subtitle={`${nameIn(zone.level, lang)} · ${copy.enterBy(gateNameIn(gate.id, lang))}`}
+        icon="map-outline"
+        padded={false}
+      >
+        {/* The map guides by itself: the route glows and flows from the gate to the bay, then on foot. */}
+        <View style={styles.mapPad}>
+          <SiteMap db={db} now={now} mode="directions" targetSpaceId={space.id} privacy={visitor} lang={lang} />
+        </View>
+      </Panel>
     </ParkingFrame>
   );
 }

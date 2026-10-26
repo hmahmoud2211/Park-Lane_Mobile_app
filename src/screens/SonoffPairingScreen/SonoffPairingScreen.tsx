@@ -1,7 +1,7 @@
 import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, type ScrollViewInstance } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -9,6 +9,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ProgressStepper, type ProgressStep } from '../../components/ui/ProgressStepper';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { useSonoffPairing } from '../../hooks/useSonoffPairing';
 import { openAppSettings, openWifiSettings } from '../../services/sonoff/wifiProvisioningService';
 import type { RootStackScreenProps } from '../../types/navigation.types';
@@ -27,9 +28,14 @@ import { WifiConfigurationStep } from './WifiConfigurationStep';
 export function SonoffPairingScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const layout = useScreenLayout();
+  // A focused, one-step-at-a-time task: wide layouts keep it to one readable column.
+  const wizardWidth = layout.isWide
+    ? { maxWidth: theme.layout.contentMaxWidth.tablet + 2 * layout.gutter }
+    : undefined;
   const navigation = useNavigation<RootStackScreenProps<'SonoffPairing'>['navigation']>();
   const pairing = useSonoffPairing();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [leaving, setLeaving] = useState(false);
 
   const stepIndex = wizardSteps.findIndex((entry) => entry.id === pairing.step);
@@ -101,7 +107,7 @@ export function SonoffPairingScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           ref={scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, layout.contentStyle, wizardWidth]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

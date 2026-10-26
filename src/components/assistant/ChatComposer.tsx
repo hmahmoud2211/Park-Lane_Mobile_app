@@ -9,9 +9,9 @@ import {
   StyleSheet,
   TextInput,
   View,
-  type NativeSyntheticEvent,
   type StyleProp,
-  type TextInputKeyPressEventData,
+  type TextInputInstance,
+  type TextInputKeyPressEvent,
   type ViewStyle,
 } from 'react-native';
 
@@ -59,7 +59,7 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [text, setText] = useState('');
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const hasText = text.trim().length > 0;
 
   const [morph] = useState(() => new Animated.Value(0));
@@ -85,11 +85,11 @@ export function ChatComposer({ onSend, onVoice, busy, style }: ChatComposerProps
 
   // On the web, Enter sends and Shift+Enter adds a line, as in any chat app.
   const onKeyPress = useCallback(
-    (event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    (event: TextInputKeyPressEvent) => {
       if (Platform.OS !== 'web') {
         return;
       }
-      const native = event.nativeEvent as TextInputKeyPressEventData & { shiftKey?: boolean };
+      const native = event.nativeEvent as TextInputKeyPressEvent['nativeEvent'] & { shiftKey?: boolean };
       if (native.key === 'Enter' && !native.shiftKey) {
         event.preventDefault();
         submit();

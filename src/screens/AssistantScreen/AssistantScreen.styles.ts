@@ -19,6 +19,13 @@ const HEADER_GUTTER = 35;
 /** Home's gutter: 318dp frames at 390dp. */
 const GUTTER = spacing.screenGutter;
 const TOOLBAR_GAP = 18;
+/**
+ * Tablets and desktops: the conversation widens to a comfortable reading
+ * column, centred beside the side rail, rather than the phone's 520dp.
+ */
+const PAGE_MAX_WIDTH_WIDE = 760;
+/** Where the header's menu button sits on wide layouts, for AppMenu. */
+export const ASSISTANT_MENU_COLUMN = { maxWidth: PAGE_MAX_WIDTH_WIDE, gutter: GUTTER };
 const MODE_SWITCH_WIDTH = 156;
 
 /**
@@ -63,6 +70,10 @@ export function createStyles(theme: AppTheme) {
       alignSelf: 'center',
       // Shared by every screen, so the brand lockup sits at the same height.
       paddingTop: theme.spacing.headerTop,
+    },
+    pageWide: {
+      maxWidth: PAGE_MAX_WIDTH_WIDE,
+      paddingBottom: theme.spacing.lg,
     },
     header: {
       paddingHorizontal: HEADER_GUTTER,

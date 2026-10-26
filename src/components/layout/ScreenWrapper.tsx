@@ -1,4 +1,4 @@
-import { useMemo, type PropsWithChildren, type ReactNode } from 'react';
+import { useContext, useMemo, type PropsWithChildren, type ReactNode } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
+import { ShellContext } from '../../context/ShellContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { AppBackground } from '../common/AppBackground';
 
@@ -24,6 +25,8 @@ export interface ScreenWrapperProps extends PropsWithChildren {
   withScrim?: boolean;
   /** Flat darkening over the whole background photo, 0-1. */
   backgroundOverlay?: number;
+  /** See AppBackground's `bottomAnchorAspect`. */
+  backgroundBottomAnchorAspect?: number;
   /** Applies the standard horizontal gutter. */
   withGutter?: boolean;
   scrollable?: boolean;
@@ -39,6 +42,7 @@ export function ScreenWrapper({
   backgroundSource,
   withScrim = true,
   backgroundOverlay,
+  backgroundBottomAnchorAspect,
   withGutter = false,
   scrollable = false,
   edges = ['top', 'bottom'],
@@ -48,6 +52,7 @@ export function ScreenWrapper({
   children,
 }: ScreenWrapperProps) {
   const theme = useAppTheme();
+  const railReserve = useContext(ShellContext)?.railReserve ?? 0;
 
   const gutterStyle = useMemo<StyleProp<ViewStyle>>(
     () => (withGutter ? { paddingHorizontal: theme.spacing.screenGutter } : null),
@@ -69,7 +74,8 @@ export function ScreenWrapper({
 
   const body = (
     <SafeAreaView style={[styles.fill, style]} edges={edges}>
-      {content}
+      {/* Beside the side rail, when there is one; the background still runs under it. */}
+      <View style={[styles.fill, railReserve > 0 && { marginLeft: railReserve }]}>{content}</View>
     </SafeAreaView>
   );
 
@@ -78,7 +84,12 @@ export function ScreenWrapper({
   }
 
   return (
-    <AppBackground source={backgroundSource} withScrim={withScrim} overlay={backgroundOverlay}>
+    <AppBackground
+      source={backgroundSource}
+      withScrim={withScrim}
+      overlay={backgroundOverlay}
+      bottomAnchorAspect={backgroundBottomAnchorAspect}
+    >
       {backdrop}
       {body}
     </AppBackground>

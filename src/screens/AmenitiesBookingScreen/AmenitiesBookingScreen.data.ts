@@ -33,6 +33,8 @@ export const amenitiesCopy = {
   confirm: 'Confirm Booking',
   closeForm: 'Close the booking form',
   bookingsTitle: 'My Bookings',
+  /** Not in the design: wide layouts keep My Bookings in view beside the list, empty or not. */
+  bookingsEmpty: 'No bookings yet. Book an amenity and it will show here.',
   cancelBooking: (amenity: string, date: string) => `Cancel ${amenity} on ${date}`,
   booked: (amenity: string, date: string, slot: string) => `${amenity} booked for ${date}, ${slot}`,
   noSlots: 'No times left today',

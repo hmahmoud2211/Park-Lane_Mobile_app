@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,7 +12,8 @@ import {
   Pressable,
   ScrollView,
   View,
-  type TextInput,
+  type TextInputInstance,
+  type ViewStyle,
 } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
@@ -27,6 +28,7 @@ import { assistantConfig } from '../../constants/assistantConfig';
 import { images } from '../../constants/images';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { AppTheme } from '../../types/theme.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
@@ -37,9 +39,13 @@ import {
   type SignInMethodId,
 } from './LoginScreen.data';
 import {
+  BACKGROUND_ASPECT,
+  BACKGROUND_OVERLAY_WIDE,
   BACK_BUTTON_SIZE,
   FIELD_HEIGHT,
+  FIELD_HEIGHT_WIDE,
   SUBMIT_HEIGHT,
+  SUBMIT_HEIGHT_WIDE,
   createStyles,
 } from './LoginScreen.styles';
 
@@ -56,10 +62,29 @@ function MethodIcon({ id, theme }: { id: SignInMethodId; theme: AppTheme }) {
   }
 }
 
+interface FormCardProps {
+  wide: boolean;
+  style: ViewStyle;
+  children: ReactNode;
+}
+
+/**
+ * A plain tinted panel rather than a GlassSurface: the fields and buttons
+ * frost the photo themselves, and inside a clipped glass card their blur
+ * composites as square patches around the rounded corners.
+ */
+function FormCard({ wide, style, children }: FormCardProps) {
+  return wide ? <View style={style}>{children}</View> : <>{children}</>;
+}
+
 export function LoginScreen() {
   const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { isWide } = useScreenLayout();
+  const styles = useMemo(() => createStyles(theme, isWide), [theme, isWide]);
   const navigation = useNavigation<RootStackScreenProps<'Login'>['navigation']>();
+  // Tablets and desktops get roomier controls, sized for a pointer or a finger at arm's length.
+  const fieldHeight = isWide ? FIELD_HEIGHT_WIDE : FIELD_HEIGHT;
+  const submitHeight = isWide ? SUBMIT_HEIGHT_WIDE : SUBMIT_HEIGHT;
   const { setResidentId } = useAppContext();
 
   const [email, setEmail] = useState('');
@@ -67,7 +92,7 @@ export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<LoginErrors>({});
 
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   const handleSubmit = useCallback(() => {
     const nextErrors = validateLogin(email, password);
@@ -104,7 +129,13 @@ export function LoginScreen() {
   const togglePassword = useCallback(() => setShowPassword((shown) => !shown), []);
 
   return (
-    <ScreenWrapper backgroundSource={images.loginBackground} withScrim={false} withGutter>
+    <ScreenWrapper
+      backgroundSource={images.loginBackground}
+      backgroundBottomAnchorAspect={isWide ? BACKGROUND_ASPECT : undefined}
+      backgroundOverlay={isWide ? BACKGROUND_OVERLAY_WIDE : undefined}
+      withScrim={false}
+      withGutter
+    >
       <StatusBar style="light" />
 
       <KeyboardAvoidingView
@@ -127,128 +158,131 @@ export function LoginScreen() {
             />
           </View>
 
-          <View style={styles.heading}>
-            <AppText variant="heading">{loginCopy.headingLead}</AppText>
-            <View style={styles.headingGap} />
-            <GradientText variant="heading">{loginCopy.headingAccent}</GradientText>
-          </View>
+          {/* Phones show the form on the photo; wider screens set it on a glass card. */}
+          <FormCard wide={isWide} style={styles.card}>
+            <View style={styles.heading}>
+              <AppText variant="heading">{loginCopy.headingLead}</AppText>
+              <View style={styles.headingGap} />
+              <GradientText variant="heading">{loginCopy.headingAccent}</GradientText>
+            </View>
 
-          <AppText variant="bodySmall" color={theme.colors.textAccentSoft} style={styles.subtitle}>
-            {loginCopy.subtitle}
-          </AppText>
+            <AppText variant="bodySmall" color={theme.colors.textAccentSoft} style={styles.subtitle}>
+              {loginCopy.subtitle}
+            </AppText>
 
-          <View style={styles.form}>
-            <AppInput
-              placeholder={loginCopy.emailLabel}
-              accessibilityLabel={loginCopy.emailLabel}
-              value={email}
-              onChangeText={setEmail}
-              height={FIELD_HEIGHT}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="username"
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              leftIcon={
-                <Ionicons
-                  name="person-outline"
-                  size={FIELD_ICON_SIZE}
-                  color={theme.colors.textPrimary}
-                />
-              }
-            />
-
-            <AppInput
-              ref={passwordRef}
-              placeholder={loginCopy.passwordLabel}
-              accessibilityLabel={loginCopy.passwordLabel}
-              value={password}
-              onChangeText={setPassword}
-              height={FIELD_HEIGHT}
-              error={errors.password}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="password"
-              textContentType="password"
-              returnKeyType="go"
-              onSubmitEditing={handleSubmit}
-              containerStyle={styles.fieldGap}
-              leftIcon={
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={FIELD_ICON_SIZE}
-                  color={theme.colors.textPrimary}
-                />
-              }
-              rightIcon={
-                <Pressable
-                  onPress={togglePassword}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                >
+            <View style={styles.form}>
+              <AppInput
+                placeholder={loginCopy.emailLabel}
+                accessibilityLabel={loginCopy.emailLabel}
+                value={email}
+                onChangeText={setEmail}
+                height={fieldHeight}
+                error={errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="username"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                leftIcon={
                   <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    name="person-outline"
                     size={FIELD_ICON_SIZE}
                     color={theme.colors.textPrimary}
                   />
-                </Pressable>
-              }
-            />
+                }
+              />
 
-            <Pressable
-              onPress={() => {
-                // TODO(nav): route to password recovery once that screen exists.
-              }}
-              style={styles.forgotPassword}
-              accessibilityRole="button"
-            >
-              <AppText variant="bodySmall" color={theme.colors.link}>
-                {loginCopy.forgotPassword}
-              </AppText>
-            </Pressable>
+              <AppInput
+                ref={passwordRef}
+                placeholder={loginCopy.passwordLabel}
+                accessibilityLabel={loginCopy.passwordLabel}
+                value={password}
+                onChangeText={setPassword}
+                height={fieldHeight}
+                error={errors.password}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={handleSubmit}
+                containerStyle={styles.fieldGap}
+                leftIcon={
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={FIELD_ICON_SIZE}
+                    color={theme.colors.textPrimary}
+                  />
+                }
+                rightIcon={
+                  <Pressable
+                    onPress={togglePassword}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={FIELD_ICON_SIZE}
+                      color={theme.colors.textPrimary}
+                    />
+                  </Pressable>
+                }
+              />
 
-            <AppButton
-              title={loginCopy.submit}
-              onPress={handleSubmit}
-              height={SUBMIT_HEIGHT}
-              labelVariant="buttonSoft"
-              trailingIcon={<ArrowRightIcon size={14} />}
-              style={styles.submit}
-            />
-
-          </View>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <AppText variant="bodySmall" style={styles.dividerLabel}>
-              {loginCopy.divider}
-            </AppText>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.methods}>
-            {signInMethods.map((method, index) => (
               <Pressable
-                key={method.id}
-                onPress={() => handleMethod(method.id)}
+                onPress={() => {
+                  // TODO(nav): route to password recovery once that screen exists.
+                }}
+                style={styles.forgotPassword}
                 accessibilityRole="button"
-                accessibilityLabel={method.label.split('\n').join(' ')}
-                style={index > 0 ? styles.methodGap : undefined}
               >
-                <GlassSurface radius={theme.borderRadius.lg} style={styles.methodCard}>
-                  <MethodIcon id={method.id} theme={theme} />
-                  <AppText variant="inputLabel" align="center" style={styles.methodLabel}>
-                    {method.label}
-                  </AppText>
-                </GlassSurface>
+                <AppText variant="bodySmall" color={theme.colors.link}>
+                  {loginCopy.forgotPassword}
+                </AppText>
               </Pressable>
-            ))}
-          </View>
+
+              <AppButton
+                title={loginCopy.submit}
+                onPress={handleSubmit}
+                height={submitHeight}
+                labelVariant="buttonSoft"
+                trailingIcon={<ArrowRightIcon size={14} />}
+                style={styles.submit}
+              />
+
+            </View>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <AppText variant="bodySmall" style={styles.dividerLabel}>
+                {loginCopy.divider}
+              </AppText>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.methods}>
+              {signInMethods.map((method, index) => (
+                <Pressable
+                  key={method.id}
+                  onPress={() => handleMethod(method.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={method.label.split('\n').join(' ')}
+                  style={index > 0 ? styles.methodGap : undefined}
+                >
+                  <GlassSurface radius={theme.borderRadius.lg} style={styles.methodCard}>
+                    <MethodIcon id={method.id} theme={theme} />
+                    <AppText variant="inputLabel" align="center" style={styles.methodLabel}>
+                      {method.label}
+                    </AppText>
+                  </GlassSurface>
+                </Pressable>
+              ))}
+            </View>
+          </FormCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenWrapper>

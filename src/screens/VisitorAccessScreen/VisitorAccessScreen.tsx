@@ -11,7 +11,8 @@ import {
   Pressable,
   ScrollView,
   View,
-  type TextInput,
+  type TextInputInstance,
+  type ViewInstance,
 } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
@@ -20,6 +21,7 @@ import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
@@ -30,6 +32,7 @@ import { VisitorPassCard } from '../../components/ui/VisitorPassCard';
 import { VisitorRow } from '../../components/ui/VisitorRow';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { downloadPdf } from '../../services/documents/exportPdf';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
@@ -67,7 +70,8 @@ import {
 
 type SelectKey = Extract<FormFieldKey, 'date' | 'time' | 'guests'>;
 
-type MenuAnchor = { y: number; height: number };
+/** Where the tapped control sits; `x` and `width` line a picker up with its field on wide layouts. */
+type MenuAnchor = { y: number; height: number; x?: number; width?: number };
 
 /** Which dropdown is open, and the control it hangs from. */
 type OpenMenu =
@@ -83,6 +87,7 @@ const fieldRows: readonly (readonly FormFieldConfig[])[] = Array.from(
 
 export function VisitorAccessScreen() {
   const theme = useAppTheme();
+  const layout = useScreenLayout();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'VisitorAccess'>['navigation']>();
 
@@ -93,8 +98,8 @@ export function VisitorAccessScreen() {
   const [openMenu, setOpenMenu] = useState<OpenMenu | null>(null);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
-  const inputRefs = useRef<Partial<Record<FormFieldKey, TextInput | null>>>({});
-  const selectRefs = useRef<Partial<Record<SelectKey, View | null>>>({});
+  const inputRefs = useRef<Partial<Record<FormFieldKey, TextInputInstance | null>>>({});
+  const selectRefs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
   const activePass = visitors.find((visitor) => visitor.id === activeId) ?? null;
   const allUpcoming = visitors.filter((visitor) => visitor.id !== activeId);
@@ -117,11 +122,11 @@ export function VisitorAccessScreen() {
 
   const openSelect = useCallback((key: SelectKey, column: number) => {
     Keyboard.dismiss();
-    selectRefs.current[key]?.measureInWindow((_x, y, _width, height) => {
+    selectRefs.current[key]?.measureInWindow((x, y, width, height) => {
       setOpenMenu({
         kind: 'select',
         key,
-        anchor: { y, height },
+        anchor: { x, y, width, height },
         align: column === 0 ? 'left' : 'right',
       });
     });
@@ -327,7 +332,7 @@ export function VisitorAccessScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, layout.contentStyle]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -345,127 +350,137 @@ export function VisitorAccessScreen() {
             style={styles.card}
           />
 
-          <NeonPanel style={[styles.card, styles.form]}>
-            <View style={styles.formHeader}>
-              <View style={styles.formIcon}>
-                <Ionicons
-                  name="person-add-outline"
-                  size={FORM_ICON_SIZE}
-                  color={theme.colors.textPrimary}
-                />
-              </View>
-              <View style={styles.formTitle}>
-                <AppText variant="sectionTitle" accessibilityRole="header">
-                  {copy.formTitle}
-                </AppText>
-                <AppText
-                  variant="statLabel"
-                  color={theme.colors.textSupport}
-                  style={styles.formSubtitle}
-                >
-                  {copy.formSubtitle}
-                </AppText>
-              </View>
-            </View>
-
-            <View style={styles.grid}>
-              {fieldRows.map((row) => (
-                <View key={row[0].key} style={styles.gridRow}>
-                  {row.map((field, column) => renderField(field, column))}
+          {/*
+            The form on the left, what it produces on the right. Cards keep
+            their own bottom margins, so the columns add no gap of their own.
+          */}
+          <ResponsiveColumns gap={0}>
+            <>
+              <NeonPanel style={[styles.card, styles.form]}>
+                <View style={styles.formHeader}>
+                  <View style={styles.formIcon}>
+                    <Ionicons
+                      name="person-add-outline"
+                      size={FORM_ICON_SIZE}
+                      color={theme.colors.textPrimary}
+                    />
+                  </View>
+                  <View style={styles.formTitle}>
+                    <AppText variant="sectionTitle" accessibilityRole="header">
+                      {copy.formTitle}
+                    </AppText>
+                    <AppText
+                      variant="statLabel"
+                      color={theme.colors.textSupport}
+                      style={styles.formSubtitle}
+                    >
+                      {copy.formSubtitle}
+                    </AppText>
+                  </View>
                 </View>
-              ))}
-            </View>
 
-            <AppButton
-              title={copy.generate}
-              variant="gradient"
-              gradientColors={[
-                theme.colors.ctaSky,
-                theme.colors.ctaRoyal,
-                theme.colors.ctaViolet,
-                theme.colors.ctaPink,
-              ]}
-              height={CTA_HEIGHT}
-              labelVariant="statValue"
-              trailingIcon={<ArrowRightIcon size={CTA_ARROW_SIZE} thickness={1.2} />}
-              trailingPlacement="label"
-              onPress={handleGenerate}
-              style={styles.cta}
-            />
-          </NeonPanel>
+                <View style={styles.grid}>
+                  {fieldRows.map((row) => (
+                    <View key={row[0].key} style={styles.gridRow}>
+                      {row.map((field, column) => renderField(field, column))}
+                    </View>
+                  ))}
+                </View>
 
-          {activePass ? (
-            <VisitorPassCard
-              qrValue={passPayload(activePass)}
-              name={activePass.name}
-              schedule={`${activePass.date}${SEPARATOR}${activePass.time}`}
-              guestsLabel={guestsLabel(activePass.guests)}
-              plate={activePass.plate}
-              caption={copy.passCaption}
-              statusLabel={statusDisplay[activePass.status].label}
-              // The active pass is always drawn in teal, whatever its status.
-              statusTone="teal"
-              statusIcon={statusDisplay[activePass.status].icon}
-              onMorePress={({ y, height }) => setOpenMenu({ kind: 'pass', anchor: { y, height } })}
-              style={styles.card}
-            />
-          ) : null}
+                <AppButton
+                  title={copy.generate}
+                  variant="gradient"
+                  gradientColors={[
+                    theme.colors.ctaSky,
+                    theme.colors.ctaRoyal,
+                    theme.colors.ctaViolet,
+                    theme.colors.ctaPink,
+                  ]}
+                  height={CTA_HEIGHT}
+                  labelVariant="statValue"
+                  trailingIcon={<ArrowRightIcon size={CTA_ARROW_SIZE} thickness={1.2} />}
+                  trailingPlacement="label"
+                  onPress={handleGenerate}
+                  style={styles.cta}
+                />
+              </NeonPanel>
+            </>
 
-          {upcoming.length > 0 ? (
-            <NeonPanel style={[styles.card, styles.list]}>
-              <PanelHeading
-                title={copy.upcomingTitle}
-                iconSet="ionicons"
-                iconName="time-outline"
-                actionLabel={
-                  hasMoreUpcoming ? (showAllUpcoming ? copy.showLess : copy.viewAll) : undefined
-                }
-                actionExpanded={hasMoreUpcoming ? showAllUpcoming : undefined}
-                onActionPress={() => setShowAllUpcoming((current) => !current)}
-              />
+            <>
+              {activePass ? (
+                <VisitorPassCard
+                  qrValue={passPayload(activePass)}
+                  name={activePass.name}
+                  schedule={`${activePass.date}${SEPARATOR}${activePass.time}`}
+                  guestsLabel={guestsLabel(activePass.guests)}
+                  plate={activePass.plate}
+                  caption={copy.passCaption}
+                  statusLabel={statusDisplay[activePass.status].label}
+                  // The active pass is always drawn in teal, whatever its status.
+                  statusTone="teal"
+                  statusIcon={statusDisplay[activePass.status].icon}
+                  onMorePress={({ y, height }) => setOpenMenu({ kind: 'pass', anchor: { y, height } })}
+                  style={styles.card}
+                />
+              ) : null}
 
-              <View style={styles.listRows}>
-                {upcoming.map((visitor, index) => (
-                  <VisitorRow
-                    key={visitor.id}
-                    divided={index > 0}
-                    name={visitor.name}
-                    meta={`${visitor.date}, ${visitor.time}${SEPARATOR}${guestsLabel(visitor.guests)}`}
-                    initials={initialsOf(visitor.name)}
-                    plate={visitor.plate}
-                    statusLabel={statusDisplay[visitor.status].label}
-                    statusTone={statusDisplay[visitor.status].tone}
-                    onPress={() => setActiveId(visitor.id)}
+              {upcoming.length > 0 ? (
+                <NeonPanel style={[styles.card, styles.list]}>
+                  <PanelHeading
+                    title={copy.upcomingTitle}
+                    iconSet="ionicons"
+                    iconName="time-outline"
+                    actionLabel={
+                      hasMoreUpcoming ? (showAllUpcoming ? copy.showLess : copy.viewAll) : undefined
+                    }
+                    actionExpanded={hasMoreUpcoming ? showAllUpcoming : undefined}
+                    onActionPress={() => setShowAllUpcoming((current) => !current)}
                   />
-                ))}
-              </View>
-            </NeonPanel>
-          ) : null}
 
-          {/* "Reserve Guest Parking" goes straight to the booking flow. */}
-          <Pressable
-            onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
-            accessibilityRole="button"
-            accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-          >
-            <NeonPanel style={styles.parking}>
-              <View style={styles.parkingBadge}>
-                <AppText variant="body">P</AppText>
-              </View>
-              <View style={styles.parkingText}>
-                <AppText variant="statValue">{copy.parkingTitle}</AppText>
-                <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                  {copy.parkingSubtitle}
-                </AppText>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={PARKING_CHEVRON_SIZE}
-                color={theme.colors.textPrimary}
-              />
-            </NeonPanel>
-          </Pressable>
+                  <View style={styles.listRows}>
+                    {upcoming.map((visitor, index) => (
+                      <VisitorRow
+                        key={visitor.id}
+                        divided={index > 0}
+                        name={visitor.name}
+                        meta={`${visitor.date}, ${visitor.time}${SEPARATOR}${guestsLabel(visitor.guests)}`}
+                        initials={initialsOf(visitor.name)}
+                        plate={visitor.plate}
+                        statusLabel={statusDisplay[visitor.status].label}
+                        statusTone={statusDisplay[visitor.status].tone}
+                        onPress={() => setActiveId(visitor.id)}
+                      />
+                    ))}
+                  </View>
+                </NeonPanel>
+              ) : null}
+
+              {/* "Reserve Guest Parking" goes straight to the booking flow. */}
+              <Pressable
+                onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
+                accessibilityRole="button"
+                accessibilityLabel={`${copy.parkingTitle}. ${copy.parkingSubtitle}`}
+                style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+              >
+                <NeonPanel style={styles.parking}>
+                  <View style={styles.parkingBadge}>
+                    <AppText variant="body">P</AppText>
+                  </View>
+                  <View style={styles.parkingText}>
+                    <AppText variant="statValue">{copy.parkingTitle}</AppText>
+                    <AppText variant="tileCaption" color={theme.colors.textSupport}>
+                      {copy.parkingSubtitle}
+                    </AppText>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={PARKING_CHEVRON_SIZE}
+                    color={theme.colors.textPrimary}
+                  />
+                </NeonPanel>
+              </Pressable>
+            </>
+          </ResponsiveColumns>
         </ScrollView>
 
         {/* The same empty glass bar as the home screen, drawn taller here. */}

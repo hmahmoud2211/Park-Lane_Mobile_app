@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
+        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
+        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
+      }
+    },
+    "production": {
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
+        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

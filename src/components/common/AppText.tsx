@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type Ref } from 'react';
-import { Platform, Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
+import { Platform, Text, type StyleProp, type TextInstance, type TextProps, type TextStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { TypographyVariant } from '../../theme';
@@ -29,7 +29,7 @@ export interface AppTextProps extends TextProps {
   color?: string;
   align?: TextStyle['textAlign'];
   style?: StyleProp<TextStyle>;
-  ref?: Ref<Text>;
+  ref?: Ref<TextInstance>;
 }
 
 export function AppText({

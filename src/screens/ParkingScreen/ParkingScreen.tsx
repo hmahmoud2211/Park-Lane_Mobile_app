@@ -2,13 +2,14 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ListRow } from '../../components/parking/Rows';
 import { Panel } from '../../components/parking/Panel';
@@ -23,6 +24,7 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useParking } from '../../hooks/useParking';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import {
   dashboardCounts,
   myParking,
@@ -69,8 +71,8 @@ const ACTIVITY_ICONS: Record<ActivityItem['kind'], keyof typeof Ionicons.glyphMa
 export function ParkingScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { width } = useWindowDimensions();
-  const scale = contentScaleFor(width);
+  const layout = useScreenLayout();
+  const scale = contentScaleFor(layout.columnFrameWidth);
   const navigation = useNavigation<RootStackScreenProps<'Parking'>['navigation']>();
   const { db, now, residentId } = useParking();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -173,163 +175,173 @@ export function ParkingScreen() {
       <StatusBar style="light" />
 
       <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.content, layout.contentStyle]} showsVerticalScrollIndicator={false}>
           <PageHeader title={copy.title} onMenuPress={() => setMenuOpen(true)} style={styles.header} />
 
-          <FeatureBanner
-            title={copy.bannerTitle}
-            body={copy.bannerBody}
-            photo={images.parkingHero}
-            photoAspect={imageAspects.parkingHero}
-            height={BANNER_HEIGHT}
-            style={styles.card}
-          />
-
-          {mySpace ? (
-            <PhotoCard
-              title={copy.myParkingTitle}
-              icon={<ParkingSign size={HEADING_SIGN_SIZE} />}
-              headline={`Slot ${mySpace.label}`}
-              meta={`${mine.building?.name ?? ''}${SEPARATOR}${mine.zone?.level ?? ''}`}
-              photo={images.parkingSlot}
-              photoAspect={imageAspects.parkingSlot}
-              onPress={() => navigation.navigate('ParkingMap', { spaceId: mySpace.id })}
-              accessibilityHint="Shows the way to your bay"
-              scale={scale}
-              style={styles.card}
-            >
-              <StatusChip
-                label={parked ? 'Car parked' : 'Bay free'}
-                tone={parked ? 'teal' : 'slate'}
-                glow={parked}
-                style={styles.slotChip}
+          {/*
+           * Your bay, car and the lot beside your bookings and gate activity
+           * where there is room; one column on phones, in the same order. The
+           * cards carry their own bottom margins, so the columns add no gap.
+           */}
+          <ResponsiveColumns gap={0}>
+            <>
+              <FeatureBanner
+                title={copy.bannerTitle}
+                body={copy.bannerBody}
+                photo={images.parkingHero}
+                photoAspect={imageAspects.parkingHero}
+                height={BANNER_HEIGHT}
+                style={styles.card}
               />
-            </PhotoCard>
-          ) : null}
 
-          {myCar ? (
-            <PhotoCard
-              title={copy.vehicleTitle}
-              icon={<AppIcon set="ionicons" name="car-outline" size={HEADING_ICON_SIZE} />}
-              headline={`${myCar.make} ${myCar.model}`}
-              meta={`${myCar.colour}${SEPARATOR}${myCar.plateCountry} Plate: ${myCar.plate}`}
-              photo={images.registeredVehicle}
-              photoAspect={imageAspects.registeredVehicle}
-              photoLayout="cutout"
-              scale={scale}
-              style={styles.card}
-            >
-              {evCount > 0 ? (
-                <StatusChip label={`+${evCount} EV registered`} tone="indigo" style={styles.vehicleChip} />
+              {mySpace ? (
+                <PhotoCard
+                  title={copy.myParkingTitle}
+                  icon={<ParkingSign size={HEADING_SIGN_SIZE} />}
+                  headline={`Slot ${mySpace.label}`}
+                  meta={`${mine.building?.name ?? ''}${SEPARATOR}${mine.zone?.level ?? ''}`}
+                  photo={images.parkingSlot}
+                  photoAspect={imageAspects.parkingSlot}
+                  onPress={() => navigation.navigate('ParkingMap', { spaceId: mySpace.id })}
+                  accessibilityHint="Shows the way to your bay"
+                  scale={scale}
+                  style={styles.card}
+                >
+                  <StatusChip
+                    label={parked ? 'Car parked' : 'Bay free'}
+                    tone={parked ? 'teal' : 'slate'}
+                    glow={parked}
+                    style={styles.slotChip}
+                  />
+                </PhotoCard>
               ) : null}
-            </PhotoCard>
-          ) : null}
 
-          <View style={styles.stats}>
-            {stats.map((stat) => (
-              <StatTile
-                key={stat.id}
-                label={stat.label}
-                value={stat.value}
-                total={stat.total}
-                icon={renderStatIcon(stat.icon)}
-                progress={stat.progress}
-                // The gauge tile's edge runs on into violet, as drawn.
-                strokeColors={
-                  stat.progress !== undefined ? [theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo] : undefined
-                }
-                scale={scale}
-              />
-            ))}
-          </View>
-          <AppText variant="label" color={theme.colors.textSupport} style={styles.countsNote}>
-            {`${copy.countsNote} Updated ${formatTime(now)}.`}
-          </AppText>
+              {myCar ? (
+                <PhotoCard
+                  title={copy.vehicleTitle}
+                  icon={<AppIcon set="ionicons" name="car-outline" size={HEADING_ICON_SIZE} />}
+                  headline={`${myCar.make} ${myCar.model}`}
+                  meta={`${myCar.colour}${SEPARATOR}${myCar.plateCountry} Plate: ${myCar.plate}`}
+                  photo={images.registeredVehicle}
+                  photoAspect={imageAspects.registeredVehicle}
+                  photoLayout="cutout"
+                  scale={scale}
+                  style={styles.card}
+                >
+                  {evCount > 0 ? (
+                    <StatusChip label={`+${evCount} EV registered`} tone="indigo" style={styles.vehicleChip} />
+                  ) : null}
+                </PhotoCard>
+              ) : null}
 
-          <View style={[styles.card, styles.actions]}>
-            {parkingActions.map((action, index) => {
-              const look = actionLook(action.tone);
-              return (
-                <AppButton
-                  key={action.id}
-                  title={action.label}
-                  variant={look.variant}
-                  gradientColors={look.gradientColors}
-                  height={ACTION_HEIGHT}
-                  radius={ACTION_RADIUS}
-                  labelVariant="statValue"
-                  leadingIcon={<AppIcon {...action.icon} size={ACTION_ICON_SIZE * scale} />}
-                  leadingPlacement="inline"
-                  accessibilityLabel={action.label.replace('\n', ' ')}
-                  onPress={() => openAction(action.id)}
-                  style={[{ flex: ACTION_WEIGHTS[index] }, look.style]}
-                />
-              );
-            })}
-          </View>
-
-          <Panel
-            title={copy.guestRequestTitle}
-            icon="people-outline"
-            style={styles.card}
-            trailing={<ViewAll onPress={() => navigation.navigate('ReservationHistory')} />}
-          >
-            {guestBookings.length === 0 ? (
-              <AppText variant="caption" color={theme.colors.textSecondary}>
-                {copy.guestRequestEmpty}
+              <View style={styles.stats}>
+                {stats.map((stat) => (
+                  <StatTile
+                    key={stat.id}
+                    label={stat.label}
+                    value={stat.value}
+                    total={stat.total}
+                    icon={renderStatIcon(stat.icon)}
+                    progress={stat.progress}
+                    // The gauge tile's edge runs on into violet, as drawn.
+                    strokeColors={
+                      stat.progress !== undefined ? [theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo] : undefined
+                    }
+                    scale={scale}
+                  />
+                ))}
+              </View>
+              <AppText variant="label" color={theme.colors.textSupport} style={styles.countsNote}>
+                {`${copy.countsNote} Updated ${formatTime(now)}.`}
               </AppText>
-            ) : (
-              guestBookings.slice(0, GUEST_LIMIT).map((view, index) => (
-                <ListRow
-                  key={view.reservation.id}
-                  divided={index > 0}
-                  icon={reservationIcon(view)}
-                  title={view.title}
-                  lines={reservationLines(view, now)}
-                  statusLabel={view.status.label}
-                  statusTone={view.status.tone}
-                  onPress={() => navigation.navigate('ReservationDetails', { reservationId: view.reservation.id })}
-                />
-              ))
-            )}
-            <ParkingButton
-              label="Reserve Guest Parking"
-              icon="add-circle-outline"
-              tone="primary"
-              onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
-            />
-          </Panel>
 
-          <Panel title={copy.activityTitle} icon="time-outline" style={styles.card}>
-            {activity.length === 0 ? (
-              <AppText variant="caption" color={theme.colors.textSecondary}>
-                {copy.activityEmpty}
-              </AppText>
-            ) : (
-              activity.map((item, index) => (
-                <ListRow
-                  key={item.id}
-                  divided={index > 0}
-                  icon={ACTIVITY_ICONS[item.kind]}
-                  title={item.title}
-                  lines={[item.detail, item.timeLabel]}
+              <View style={[styles.card, styles.actions]}>
+                {parkingActions.map((action, index) => {
+                  const look = actionLook(action.tone);
+                  return (
+                    <AppButton
+                      key={action.id}
+                      title={action.label}
+                      variant={look.variant}
+                      gradientColors={look.gradientColors}
+                      height={ACTION_HEIGHT}
+                      radius={ACTION_RADIUS}
+                      labelVariant="statValue"
+                      leadingIcon={<AppIcon {...action.icon} size={ACTION_ICON_SIZE * scale} />}
+                      leadingPlacement="inline"
+                      accessibilityLabel={action.label.replace('\n', ' ')}
+                      onPress={() => openAction(action.id)}
+                      style={[{ flex: ACTION_WEIGHTS[index] }, look.style]}
+                    />
+                  );
+                })}
+              </View>
+            </>
+            <>
+              <Panel
+                title={copy.guestRequestTitle}
+                icon="people-outline"
+                style={styles.card}
+                trailing={<ViewAll onPress={() => navigation.navigate('ReservationHistory')} />}
+              >
+                {guestBookings.length === 0 ? (
+                  <AppText variant="caption" color={theme.colors.textSecondary}>
+                    {copy.guestRequestEmpty}
+                  </AppText>
+                ) : (
+                  guestBookings.slice(0, GUEST_LIMIT).map((view, index) => (
+                    <ListRow
+                      key={view.reservation.id}
+                      divided={index > 0}
+                      icon={reservationIcon(view)}
+                      title={view.title}
+                      lines={reservationLines(view, now)}
+                      statusLabel={view.status.label}
+                      statusTone={view.status.tone}
+                      onPress={() => navigation.navigate('ReservationDetails', { reservationId: view.reservation.id })}
+                    />
+                  ))
+                )}
+                <ParkingButton
+                  label="Reserve Guest Parking"
+                  icon="add-circle-outline"
+                  tone="primary"
+                  onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
                 />
-              ))
-            )}
-          </Panel>
+              </Panel>
 
-          {/* Demo tooling, kept apart from the resident's own actions. */}
-          <Pressable
-            onPress={() => navigation.navigate('DemoControls')}
-            accessibilityRole="button"
-            accessibilityLabel="Open demo controls"
-            style={({ pressed }) => [styles.demoStrip, pressed && styles.pressed]}
-          >
-            <AppIcon set="ionicons" name="construct-outline" size={16} color={theme.colors.textSupport} />
-            <AppText variant="label" color={theme.colors.textSupport} style={styles.flex}>
-              {`Demo · simulated time ${formatDateTime(now)} · open demo controls`}
-            </AppText>
-          </Pressable>
+              <Panel title={copy.activityTitle} icon="time-outline" style={styles.card}>
+                {activity.length === 0 ? (
+                  <AppText variant="caption" color={theme.colors.textSecondary}>
+                    {copy.activityEmpty}
+                  </AppText>
+                ) : (
+                  activity.map((item, index) => (
+                    <ListRow
+                      key={item.id}
+                      divided={index > 0}
+                      icon={ACTIVITY_ICONS[item.kind]}
+                      title={item.title}
+                      lines={[item.detail, item.timeLabel]}
+                    />
+                  ))
+                )}
+              </Panel>
+
+              {/* Demo tooling, kept apart from the resident's own actions. */}
+              <Pressable
+                onPress={() => navigation.navigate('DemoControls')}
+                accessibilityRole="button"
+                accessibilityLabel="Open demo controls"
+                style={({ pressed }) => [styles.demoStrip, pressed && styles.pressed]}
+              >
+                <AppIcon set="ionicons" name="construct-outline" size={16} color={theme.colors.textSupport} />
+                <AppText variant="label" color={theme.colors.textSupport} style={styles.flex}>
+                  {`Demo · simulated time ${formatDateTime(now)} · open demo controls`}
+                </AppText>
+              </Pressable>
+            </>
+          </ResponsiveColumns>
         </ScrollView>
 
         <BottomBar />

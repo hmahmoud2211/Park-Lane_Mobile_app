@@ -77,7 +77,11 @@ export function PairingProgressStep({ pairing, onAdviceAction, onDone }: Pairing
     }
   }
   if (registration) {
-    details.push({ label: 'Hub serial', value: registration.cubeSerial });
+    details.push(
+      registration.target === 'ems'
+        ? { label: 'Registered in', value: 'Your EMS devices' }
+        : { label: 'Hub serial', value: registration.cubeSerial },
+    );
   }
 
   const addToHub = () => {

@@ -1,0 +1,265 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "مساعد إي إم إس",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NoIntent",
+          "samples": []
+        },
+        {
+          "name": "TurnOnIntent",
+          "slots": [
+            {
+              "name": "device",
+              "type": "DEVICE_NAME"
+            },
+            {
+              "name": "room",
+              "type": "ROOM_NAME"
+            }
+          ],
+          "samples": [
+            "شغل",
+            "شغلي",
+            "شغل {device}",
+            "شغلي {device}",
+            "افتح {device}",
+            "افتحي {device}",
+            "ولع {device}",
+            "ولعي {device}",
+            "شغل {device} في {room}",
+            "شغلي {device} في {room}",
+            "شغل نور {room}",
+            "تشغيل {device}",
+            "ابي اشغل {device}"
+          ]
+        },
+        {
+          "name": "TurnOffIntent",
+          "slots": [
+            {
+              "name": "device",
+              "type": "DEVICE_NAME"
+            },
+            {
+              "name": "room",
+              "type": "ROOM_NAME"
+            }
+          ],
+          "samples": [
+            "اطفي",
+            "طفي",
+            "اطفي {device}",
+            "طفي {device}",
+            "اطفئ {device}",
+            "طف {device}",
+            "سكر {device}",
+            "سكري {device}",
+            "اقفل {device}",
+            "اقفلي {device}",
+            "اطفي {device} في {room}",
+            "طفي {device} في {room}",
+            "اطفي نور {room}",
+            "إطفاء {device}",
+            "ابي اطفي {device}"
+          ]
+        },
+        {
+          "name": "DeviceStatusIntent",
+          "slots": [
+            {
+              "name": "device",
+              "type": "DEVICE_NAME"
+            },
+            {
+              "name": "room",
+              "type": "ROOM_NAME"
+            }
+          ],
+          "samples": [
+            "هل {device} شغال",
+            "هل {device} شغالة",
+            "حالة {device}",
+            "وش حالة {device}",
+            "ايش حالة {device}",
+            "{device} شغال ولا لا",
+            "هل {device} في {room} شغال",
+            "هل {device} طافي"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "DEVICE_NAME",
+          "values": [
+            {
+              "name": {
+                "value": "نور",
+                "synonyms": [
+                  "النور",
+                  "الضوء",
+                  "ضوء",
+                  "انوار"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "لمبة",
+                "synonyms": [
+                  "اللمبة",
+                  "لمبه"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "فيش",
+                "synonyms": [
+                  "الفيش",
+                  "الافياش",
+                  "البلك"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "مكيف",
+                "synonyms": [
+                  "المكيف",
+                  "التكييف"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "مروحة",
+                "synonyms": [
+                  "المروحة",
+                  "مروحه"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "سخان",
+                "synonyms": [
+                  "السخان"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "مفتاح",
+                "synonyms": [
+                  "المفتاح",
+                  "السويتش"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "نور غرفة النوم"
+              }
+            },
+            {
+              "name": {
+                "value": "نور المطبخ"
+              }
+            },
+            {
+              "name": {
+                "value": "نور الصالة"
+              }
+            }
+          ]
+        },
+        {
+          "name": "ROOM_NAME",
+          "values": [
+            {
+              "name": {
+                "value": "غرفة النوم",
+                "synonyms": [
+                  "غرفة النوم",
+                  "غرفه النوم",
+                  "الغرفة"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "المطبخ",
+                "synonyms": [
+                  "مطبخ"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "الصالة",
+                "synonyms": [
+                  "صالة",
+                  "الصاله"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "المجلس",
+                "synonyms": [
+                  "مجلس"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "الحمام",
+                "synonyms": [
+                  "حمام"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "المكتب",
+                "synonyms": [
+                  "مكتب"
+                ]
+              }
+            },
+            {
+              "name": {
+                "value": "غرفة الأطفال",
+                "synonyms": [
+                  "غرفه الاطفال"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

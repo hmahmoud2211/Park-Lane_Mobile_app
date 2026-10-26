@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type TextInput, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type TextInputInstance, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
@@ -55,7 +55,7 @@ export function WifiCredentialForm({
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [revealed, setRevealed] = useState(false);
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   return (
     <View style={style}>

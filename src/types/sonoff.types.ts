@@ -128,10 +128,23 @@ export interface BackendDevice {
   controllable: boolean;
 }
 
-export interface SonoffRegistration {
-  /** The hub's serial number for the plug. */
-  cubeSerial: string;
-  /** False when the plug was already registered and this only refreshed it. */
-  created: boolean;
-  device: SonoffLanDevice;
-}
+/**
+ * Where the plug was registered: in the signed-in user's EMS registry (which
+ * the app and Alexa control directly over the LAN), or, without an EMS
+ * session, on the CUBE hub as before.
+ */
+export type SonoffRegistration =
+  | {
+      target: 'cube';
+      /** The hub's serial number for the plug. */
+      cubeSerial: string;
+      /** False when the plug was already registered and this only refreshed it. */
+      created: boolean;
+      device: SonoffLanDevice;
+    }
+  | {
+      target: 'ems';
+      /** The plug's id in the EMS registry. */
+      emsDeviceId: string;
+      device: SonoffLanDevice | null;
+    };

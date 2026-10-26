@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
@@ -46,7 +46,7 @@ type SelectKey = Extract<RequestFormKey, 'category' | 'date' | 'window'>;
 
 interface OpenSelect {
   key: SelectKey;
-  anchor: { y: number; height: number };
+  anchor: { x: number; y: number; width: number; height: number };
   align: 'left' | 'right';
 }
 
@@ -74,7 +74,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
   }));
   const [errors, setErrors] = useState<RequestFormErrors>({});
   const [openSelect, setOpenSelect] = useState<OpenSelect | null>(null);
-  const selectRefs = useRef<Partial<Record<SelectKey, View | null>>>({});
+  const selectRefs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
   // Another tile tapped while the form is open picks that category instead.
   // Adjusted during render, as React recommends for state that follows a prop.
@@ -104,8 +104,8 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
 
   const open = (key: SelectKey, column: number) => {
     Keyboard.dismiss();
-    selectRefs.current[key]?.measureInWindow((_x, y, _width, height) => {
-      setOpenSelect({ key, anchor: { y, height }, align: column === 0 ? 'left' : 'right' });
+    selectRefs.current[key]?.measureInWindow((x, y, width, height) => {
+      setOpenSelect({ key, anchor: { x, y, width, height }, align: column === 0 ? 'left' : 'right' });
     });
   };
 

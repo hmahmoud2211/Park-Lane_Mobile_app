@@ -10,6 +10,7 @@ import {
   registerSonoff,
   setDevicePower,
 } from '../services/cube/cubeBackendService';
+import * as ems from '../services/ems/emsApi';
 import { sendWifiCredentialsExperimental } from '../services/sonoff/experimental/apProvisioning';
 import {
   SonoffDeviceError,
@@ -154,6 +155,20 @@ function wifiFailure(error: unknown): PairingError {
 }
 
 function backendFailure(error: unknown): PairingError {
+  if (error instanceof ems.EmsError) {
+    const emsKinds: Partial<Record<string, PairingErrorKind>> = {
+      not_configured: 'backendNotConfigured',
+      network: 'backendUnreachable',
+      timeout: 'backendUnreachable',
+      device_not_found: 'deviceNotFound',
+      key_rejected: 'keyRejected',
+      unsupported_device: 'unsupportedDevice',
+      device_unreachable: 'notControllable',
+      device_offline: 'notControllable',
+      command_timeout: 'notControllable',
+    };
+    return failure(emsKinds[error.code] ?? 'unknown', error.message);
+  }
   if (!(error instanceof BackendError)) {
     return failure('unknown', 'Something went wrong talking to the device backend.');
   }
@@ -647,12 +662,20 @@ export function useSonoffPairing() {
       const run = begin();
       retryRef.current = () => void actionsRef.current.register?.(name);
       setPhase('hub', 'active');
-      patch({ busy: true, error: null, activity: 'Adding the plug to your hub…' });
+      // Signed in to EMS: the plug joins the user's registry (app + Alexa). Otherwise the CUBE hub, as before.
+      const toEms = ems.getSessionToken() !== null;
+      patch({ busy: true, error: null, activity: toEms ? 'Adding the plug to your EMS devices…' : 'Adding the plug to your hub…' });
       try {
-        const registration = await registerSonoff(device.deviceId, key, name);
+        const registration: SonoffRegistration = toEms
+          ? {
+              target: 'ems',
+              emsDeviceId: (await ems.addSonoffDevice({ name, deviceId: device.deviceId, deviceKey: key.reveal() })).id,
+              device: stateRef.current.lanDevice,
+            }
+          : await registerSonoff(device.deviceId, key, name);
         run.guard();
         setPhase('hub', 'done');
-        patch({ registration, lanDevice: registration.device, status: 'setupCompleted' });
+        patch({ registration, lanDevice: registration.device ?? stateRef.current.lanDevice, status: 'setupCompleted' });
       } catch (error) {
         if (!(error instanceof Cancelled)) {
           setPhase('hub', 'failed');
@@ -674,8 +697,12 @@ export function useSonoffPairing() {
       }
       patch({ controlTest: { state: 'busy' } });
       try {
-        const device = await setDevicePower(registration.cubeSerial, on);
-        patch({ controlTest: { state: 'ok', power: device.power ?? (on ? 'on' : 'off') } });
+        // Either way, only a state the plug confirmed is reported.
+        const power =
+          registration.target === 'ems'
+            ? (await ems.setDevicePower(registration.emsDeviceId, on ? 'on' : 'off')).power
+            : (await setDevicePower(registration.cubeSerial, on)).power;
+        patch({ controlTest: { state: 'ok', power: power === 'on' || power === 'off' ? power : on ? 'on' : 'off' } });
       } catch (error) {
         patch({ controlTest: { state: 'failed', message: backendFailure(error).message } });
       }

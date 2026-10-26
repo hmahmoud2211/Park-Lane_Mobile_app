@@ -21,6 +21,8 @@ export interface LinkCardProps {
   icon: LinkCardIcon;
   /** `regular` is the Services row; `compact` the shorter Settings row. */
   size?: LinkCardSize;
+  /** Grows to the height of its grid row, so cards side by side line up. */
+  fill?: boolean;
   onPress: () => void;
 }
 
@@ -77,7 +79,7 @@ const TITLE_TO_DESCRIPTION = 3;
  * A neon card that opens something: an icon tile, a title, a short summary
  * and a chevron. The rows of the Services and Settings screens.
  */
-export function LinkCard({ title, description, icon, size = 'regular', onPress }: LinkCardProps) {
+export function LinkCard({ title, description, icon, size = 'regular', fill = false, onPress }: LinkCardProps) {
   const theme = useAppTheme();
   const metrics = METRICS[size];
   const styles = useMemo(() => createStyles(theme, metrics), [theme, metrics]);
@@ -87,9 +89,9 @@ export function LinkCard({ title, description, icon, size = 'regular', onPress }
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${description.replace(/\n/g, ' ')}`}
-      style={({ pressed }) => pressed && styles.pressed}
+      style={({ pressed }) => [fill && styles.fill, pressed && styles.pressed]}
     >
-      <NeonPanel style={styles.card}>
+      <NeonPanel style={[styles.card, fill && styles.fill]}>
         <View style={styles.tile}>
           {'image' in icon ? (
             <Image
@@ -130,6 +132,9 @@ export function LinkCard({ title, description, icon, size = 'regular', onPress }
 
 function createStyles(theme: AppTheme, metrics: Metrics) {
   return StyleSheet.create({
+    fill: {
+      flexGrow: 1,
+    },
     card: {
       minHeight: metrics.minHeight,
       flexDirection: 'row',

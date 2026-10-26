@@ -1,11 +1,15 @@
 import { borderRadius } from './borderRadius';
+import { breakpoints } from './breakpoints';
 import { colors } from './colors';
 import { glass } from './glass';
+import { layout } from './layout';
+import { motion } from './motion';
 import { shadows } from './shadows';
 import { spacing } from './spacing';
 import { fontFamily, typography } from './typography';
 
-export { borderRadius, colors, glass, shadows, spacing, fontFamily, typography };
+export { borderRadius, breakpoints, colors, glass, layout, motion, shadows, spacing, fontFamily, typography };
+export { breakpointFor, type Breakpoint } from './breakpoints';
 export type { TypographyVariant } from './typography';
 
 /**
@@ -20,4 +24,7 @@ export const parklaneTheme = {
   borderRadius,
   shadows,
   glass,
+  breakpoints,
+  layout,
+  motion,
 } as const;

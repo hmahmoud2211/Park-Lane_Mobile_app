@@ -1,4 +1,4 @@
-import { Linking, NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import { Linking, NativeModules, PermissionsAndroid, Platform, type Permission } from 'react-native';
 import WifiManager from 'react-native-wifi-reborn';
 
 import { sonoffConfig } from '../../constants/sonoffConfig';
@@ -88,7 +88,7 @@ export async function ensureWifiPermissions(): Promise<void> {
     return;
   }
   const { ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, NEARBY_WIFI_DEVICES } = PermissionsAndroid.PERMISSIONS;
-  const wanted = [ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION];
+  const wanted: Permission[] = [ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION];
   if (typeof Platform.Version === 'number' && Platform.Version >= 33) {
     wanted.push(NEARBY_WIFI_DEVICES);
   }

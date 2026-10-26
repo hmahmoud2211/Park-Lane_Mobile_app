@@ -47,4 +47,55 @@ export const config = {
     commandTimeoutMs: 2_500,
     defaultPort: 8081,
   },
+
+  /** EMS accounts, the device registry and the Alexa integration (see ALEXA_INTEGRATION.md). */
+  ems: {
+    /**
+     * The HTTPS address browsers and Amazon reach this backend at, e.g.
+     * https://api-iot.ems-iot.com. Account linking stays off until it is set.
+     */
+    publicUrl: trimUrl(env.EMS_PUBLIC_URL),
+    /** 32 bytes, base64. Seals stored Amazon tokens and plug keys. Generated into DATA_DIR when unset. */
+    encryptionKey: env.EMS_ENCRYPTION_KEY ?? '',
+    /** Set TRUST_PROXY=1 only behind a reverse proxy that overwrites X-Forwarded-For. */
+    trustProxy: env.TRUST_PROXY === '1',
+    sessionTtlMs: 30 * 24 * 3600_000,
+    /** Device commands wait this long for the adapter to confirm. */
+    commandTimeoutMs: 8_000,
+    /** Shorter for Alexa, which gives the skill about 8 seconds to answer in all. */
+    voiceCommandTimeoutMs: 5_000,
+  },
+
+  alexa: {
+    skillId: env.ALEXA_SKILL_ID ?? '',
+    /** `development` until the skill is certified, then `live`. */
+    skillStage: env.ALEXA_SKILL_STAGE === 'live' ? 'live' : 'development',
+    /** "Alexa Client ID / Secret" from the console's app-to-app linking section; used with Login with Amazon. */
+    lwaClientId: env.ALEXA_LWA_CLIENT_ID ?? '',
+    lwaClientSecret: env.ALEXA_LWA_CLIENT_SECRET ?? '',
+    /** "Your Client ID / Secret" in the skill's account linking; Alexa uses them at /oauth/token. */
+    oauthClientId: env.ALEXA_OAUTH_CLIENT_ID ?? '',
+    oauthClientSecret: env.ALEXA_OAUTH_CLIENT_SECRET ?? '',
+    /** The "Alexa Redirect URLs" the console lists, comma separated: where /oauth/authorize may send codes. */
+    redirectUris: (env.ALEXA_REDIRECT_URIS ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+    /** Where the browser lands after linking: the app's own scheme. */
+    appReturnUrl: env.APP_RETURN_URL || 'parklane://alexa-link',
+    lwaAuthorizeUrl: env.AMAZON_LWA_AUTHORIZE_URL || 'https://www.amazon.com/ap/oa',
+    lwaTokenUrl: env.AMAZON_LWA_TOKEN_URL || 'https://api.amazon.com/auth/o2/token',
+    /** Asked for the customer's regional endpoints; the three regions are tried when it fails. */
+    apiUrl: trimUrl(env.AMAZON_ALEXA_API_URL) || 'https://api.amazonalexa.com',
+    accessTokenTtlS: 3600,
+    refreshTokenTtlMs: 365 * 24 * 3600_000,
+    /** How often a status request re-asks Amazon whether the skill is still enabled. */
+    statusRecheckMs: 60_000,
+    /**
+     * DEVELOPMENT ONLY. Lets the skill call /api/voice/command before account
+     * linking exists, as DEV_VOICE_USER_EMAIL. Refused when NODE_ENV=production.
+     */
+    devVoiceToken: env.NODE_ENV === 'production' ? '' : (env.DEV_VOICE_TOKEN ?? ''),
+    devVoiceUserEmail: env.DEV_VOICE_USER_EMAIL ?? '',
+  },
 } as const;

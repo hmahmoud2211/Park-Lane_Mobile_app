@@ -38,7 +38,7 @@ export function ScreenHeader({ initials, onMenuPress, onProfilePress, style }: S
         <Ionicons name="menu" size={24} color={theme.colors.textPrimary} />
       </Pressable>
 
-      <BrandLockup />
+      <BrandLockup yieldsToRail />
 
       <Pressable
         onPress={onProfilePress}

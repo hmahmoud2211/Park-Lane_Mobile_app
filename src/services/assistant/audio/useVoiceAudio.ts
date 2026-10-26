@@ -258,7 +258,7 @@ class NativeVoiceAudio implements VoiceAudioEngine {
 
     const file = new File(Paths.cache, `${FILE_PREFIX}${Date.now()}-${this.segmentCount++}.wav`);
     file.create({ overwrite: true });
-    file.write(wavFromPcm16(pcm, assistantConfig.sampleRate));
+    file.writeSync(wavFromPcm16(pcm, assistantConfig.sampleRate));
 
     const samples = int16FromBytes(pcm);
     return {

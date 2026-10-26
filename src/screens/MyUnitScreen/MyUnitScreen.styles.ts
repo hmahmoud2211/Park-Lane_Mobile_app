@@ -11,7 +11,7 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
  * packed the cards almost edge to edge.
  */
 const GUTTER = 16;
-const CARD_GAP = 14;
+export const CARD_GAP = 14;
 
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
 const HEADER_GUTTER = 35;
@@ -68,7 +68,7 @@ export function createStyles(theme: AppTheme) {
       paddingTop: theme.spacing.headerTop,
       paddingHorizontal: GUTTER,
       // Clears the pinned bottom bar so the last card scrolls fully into view.
-      paddingBottom: NAV_BAR_CLEARANCE + CARD_GAP,
+      paddingBottom: NAV_BAR_CLEARANCE + 2 * CARD_GAP,
     },
 
     header: {
@@ -88,7 +88,7 @@ export function createStyles(theme: AppTheme) {
       opacity: 0.6,
     },
 
-    card: {
+    hero: {
       marginBottom: CARD_GAP,
     },
 

@@ -2,13 +2,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, View } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
@@ -17,6 +18,7 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { guestsLabel } from '../VisitorAccessScreen/VisitorAccessScreen.data';
 import { AmenityCard } from './AmenityCard';
@@ -40,6 +42,7 @@ import {
   BOOKING_ICON_SIZE,
   CANCEL_ICON_SIZE,
   MORE_CHEVRON_SIZE,
+  WIDE_COLUMN_WEIGHTS,
   createStyles,
 } from './AmenitiesBookingScreen.styles';
 import { BookingForm } from './BookingForm';
@@ -65,7 +68,12 @@ export function AmenitiesBookingScreen() {
   /** The amenity whose booking form is open under its card, if any. */
   const [bookingFor, setBookingFor] = useState<Amenity['id'] | null>(null);
 
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
+  const layout = useScreenLayout();
+  // Beside My Bookings, the list sits in a column: offsets inside it start from the columns' top.
+  const sideBySide = layout.columns > 1;
+  const sectionsY = useRef(0);
+  const sectionTop = () => (sideBySide ? sectionsY.current : 0);
   const listY = useRef(0);
   const formY = useRef(0);
   const bookingsY = useRef(0);
@@ -78,7 +86,7 @@ export function AmenitiesBookingScreen() {
   // "Book Now" and the card's heading both open the form under that card.
   const openBooking = (id: Amenity['id']) => {
     if (bookingFor === id) {
-      scrollTo(listY.current + formY.current);
+      scrollTo(sectionTop() + listY.current + formY.current);
       return;
     }
     // Scrolled to once the form has laid out (see its onLayout).
@@ -111,6 +119,153 @@ export function AmenitiesBookingScreen() {
     [handleLogout],
   );
 
+  const listSection = (
+    <>
+      <View
+        style={styles.list}
+        onLayout={(event) => {
+          listY.current = event.nativeEvent.layout.y;
+        }}
+      >
+        {visible.map((amenity) => (
+          <Fragment key={amenity.id}>
+            <AmenityCard
+              title={amenity.title}
+              location={amenity.location}
+              hours={hoursLabel(amenity)}
+              capacity={capacityLabel(amenity)}
+              photo={images[amenity.photo]}
+              iconSet={amenity.iconSet}
+              iconName={amenity.iconName}
+              bookLabel={copy.bookNow}
+              onPress={() => openBooking(amenity.id)}
+              onBook={() => openBooking(amenity.id)}
+            />
+            {bookingFor === amenity.id ? (
+              <View
+                onLayout={(event) => {
+                  formY.current = event.nativeEvent.layout.y;
+                  if (scrollToFormOnLayout.current) {
+                    scrollToFormOnLayout.current = false;
+                    scrollTo(sectionTop() + listY.current + formY.current);
+                  }
+                }}
+              >
+                <BookingForm
+                  amenity={amenity}
+                  bookings={bookings}
+                  onSubmit={(form) => confirmBooking(amenity, form)}
+                  onClose={() => setBookingFor(null)}
+                />
+              </View>
+            ) : null}
+          </Fragment>
+        ))}
+        {visible.length === 0 ? (
+          <AppText variant="statValue" color={theme.colors.textSupport} align="center" style={styles.empty}>
+            {copy.empty}
+          </AppText>
+        ) : null}
+      </View>
+
+      {canExpand ? (
+        <Pressable
+          onPress={() => setExpanded((current) => !current)}
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? copy.showLess : copy.viewMore}
+          accessibilityState={{ expanded }}
+          style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+        >
+          <GlassSurface
+            radius={theme.borderRadius.pill}
+            blurred={false}
+            fillOpacity={theme.glass.subtleFillOpacity}
+            style={styles.moreSurface}
+          >
+            <AppText variant="statValue" align="center" style={styles.moreLabel}>
+              {expanded ? copy.showLess : copy.viewMore}
+            </AppText>
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-forward'}
+              size={MORE_CHEVRON_SIZE}
+              color={theme.colors.textPrimary}
+            />
+          </GlassSurface>
+        </Pressable>
+      ) : null}
+    </>
+  );
+
+  const bookingsSection = bookings.length > 0 || sideBySide ? (
+    <View
+      onLayout={(event) => {
+        bookingsY.current = event.nativeEvent.layout.y;
+        if (scrollToBookingsOnLayout.current) {
+          scrollToBookingsOnLayout.current = false;
+          scrollTo(sectionTop() + bookingsY.current);
+        }
+      }}
+    >
+      <NeonPanel style={[styles.bookings, sideBySide && styles.bookingsBeside]}>
+        <PanelHeading
+          title={copy.bookingsTitle}
+          iconSet="ionicons"
+          iconName="calendar-outline"
+        />
+        {bookings.length === 0 ? (
+          <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.bookingsEmpty}>
+            {copy.bookingsEmpty}
+          </AppText>
+        ) : null}
+        {bookings.map((booking, index) => {
+          const amenity = amenities.find((entry) => entry.id === booking.amenityId);
+          if (!amenity) {
+            return null;
+          }
+          return (
+            <View
+              key={booking.id}
+              style={[styles.booking, index > 0 && styles.bookingDivided]}
+            >
+              <View style={styles.bookingRing}>
+                <AppIcon
+                  set={amenity.iconSet}
+                  name={amenity.iconName}
+                  size={BOOKING_ICON_SIZE}
+                />
+              </View>
+              <View style={styles.bookingText}>
+                <AppText variant="statValue" numberOfLines={1}>
+                  {amenity.title}
+                </AppText>
+                <AppText
+                  variant="tileCaption"
+                  color={theme.colors.textSupport}
+                  style={styles.bookingMeta}
+                >
+                  {`${booking.date} • ${booking.slot} • ${guestsLabel(booking.guests)}`}
+                </AppText>
+              </View>
+              <Pressable
+                onPress={() => cancelBooking(booking.id)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={copy.cancelBooking(amenity.title, booking.date)}
+                style={({ pressed }) => pressed && styles.pressed}
+              >
+                <Ionicons
+                  name="close-circle-outline"
+                  size={CANCEL_ICON_SIZE}
+                  color={theme.colors.textSecondary}
+                />
+              </Pressable>
+            </View>
+          );
+        })}
+      </NeonPanel>
+    </View>
+  ) : null;
+
   return (
     <ScreenWrapper
       backgroundSource={images.homeBackground}
@@ -122,7 +277,7 @@ export function AmenitiesBookingScreen() {
       <View style={styles.flex}>
         <ScrollView
           ref={scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, layout.contentStyle]}
           showsVerticalScrollIndicator={false}
         >
           <PageHeader
@@ -156,143 +311,23 @@ export function AmenitiesBookingScreen() {
             ))}
           </View>
 
-          <View
-            style={styles.list}
-            onLayout={(event) => {
-              listY.current = event.nativeEvent.layout.y;
-            }}
-          >
-            {visible.map((amenity) => (
-              <Fragment key={amenity.id}>
-                <AmenityCard
-                  title={amenity.title}
-                  location={amenity.location}
-                  hours={hoursLabel(amenity)}
-                  capacity={capacityLabel(amenity)}
-                  photo={images[amenity.photo]}
-                  iconSet={amenity.iconSet}
-                  iconName={amenity.iconName}
-                  bookLabel={copy.bookNow}
-                  onPress={() => openBooking(amenity.id)}
-                  onBook={() => openBooking(amenity.id)}
-                />
-                {bookingFor === amenity.id ? (
-                  <View
-                    onLayout={(event) => {
-                      formY.current = event.nativeEvent.layout.y;
-                      if (scrollToFormOnLayout.current) {
-                        scrollToFormOnLayout.current = false;
-                        scrollTo(listY.current + formY.current);
-                      }
-                    }}
-                  >
-                    <BookingForm
-                      amenity={amenity}
-                      bookings={bookings}
-                      onSubmit={(form) => confirmBooking(amenity, form)}
-                      onClose={() => setBookingFor(null)}
-                    />
-                  </View>
-                ) : null}
-              </Fragment>
-            ))}
-            {visible.length === 0 ? (
-              <AppText variant="statValue" color={theme.colors.textSupport} align="center" style={styles.empty}>
-                {copy.empty}
-              </AppText>
-            ) : null}
-          </View>
-
-          {canExpand ? (
-            <Pressable
-              onPress={() => setExpanded((current) => !current)}
-              accessibilityRole="button"
-              accessibilityLabel={expanded ? copy.showLess : copy.viewMore}
-              accessibilityState={{ expanded }}
-              style={({ pressed }) => [styles.more, pressed && styles.pressed]}
-            >
-              <GlassSurface
-                radius={theme.borderRadius.pill}
-                blurred={false}
-                fillOpacity={theme.glass.subtleFillOpacity}
-                style={styles.moreSurface}
-              >
-                <AppText variant="statValue" align="center" style={styles.moreLabel}>
-                  {expanded ? copy.showLess : copy.viewMore}
-                </AppText>
-                <Ionicons
-                  name={expanded ? 'chevron-up' : 'chevron-forward'}
-                  size={MORE_CHEVRON_SIZE}
-                  color={theme.colors.textPrimary}
-                />
-              </GlassSurface>
-            </Pressable>
-          ) : null}
-
-          {bookings.length > 0 ? (
+          {sideBySide ? (
             <View
               onLayout={(event) => {
-                bookingsY.current = event.nativeEvent.layout.y;
-                if (scrollToBookingsOnLayout.current) {
-                  scrollToBookingsOnLayout.current = false;
-                  scrollTo(bookingsY.current);
-                }
+                sectionsY.current = event.nativeEvent.layout.y;
               }}
             >
-              <NeonPanel style={styles.bookings}>
-                <PanelHeading
-                  title={copy.bookingsTitle}
-                  iconSet="ionicons"
-                  iconName="calendar-outline"
-                />
-                {bookings.map((booking, index) => {
-                  const amenity = amenities.find((entry) => entry.id === booking.amenityId);
-                  if (!amenity) {
-                    return null;
-                  }
-                  return (
-                    <View
-                      key={booking.id}
-                      style={[styles.booking, index > 0 && styles.bookingDivided]}
-                    >
-                      <View style={styles.bookingRing}>
-                        <AppIcon
-                          set={amenity.iconSet}
-                          name={amenity.iconName}
-                          size={BOOKING_ICON_SIZE}
-                        />
-                      </View>
-                      <View style={styles.bookingText}>
-                        <AppText variant="statValue" numberOfLines={1}>
-                          {amenity.title}
-                        </AppText>
-                        <AppText
-                          variant="tileCaption"
-                          color={theme.colors.textSupport}
-                          style={styles.bookingMeta}
-                        >
-                          {`${booking.date} • ${booking.slot} • ${guestsLabel(booking.guests)}`}
-                        </AppText>
-                      </View>
-                      <Pressable
-                        onPress={() => cancelBooking(booking.id)}
-                        hitSlop={10}
-                        accessibilityRole="button"
-                        accessibilityLabel={copy.cancelBooking(amenity.title, booking.date)}
-                        style={({ pressed }) => pressed && styles.pressed}
-                      >
-                        <Ionicons
-                          name="close-circle-outline"
-                          size={CANCEL_ICON_SIZE}
-                          color={theme.colors.textSecondary}
-                        />
-                      </Pressable>
-                    </View>
-                  );
-                })}
-              </NeonPanel>
+              <ResponsiveColumns gap={0} weights={WIDE_COLUMN_WEIGHTS}>
+                {listSection}
+                {bookingsSection}
+              </ResponsiveColumns>
             </View>
-          ) : null}
+          ) : (
+            <>
+              {listSection}
+              {bookingsSection}
+            </>
+          )}
         </ScrollView>
 
         {/* The same empty glass bar as the other inner screens. */}

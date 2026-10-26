@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import type { LayoutChangeEvent, View } from 'react-native';
+import type { LayoutChangeEvent, ViewInstance } from 'react-native';
 
 export interface LayoutSize {
   width: number;
@@ -23,7 +23,7 @@ type Measurable = { getBoundingClientRect(): { width: number; height: number } }
  * Attach `ref` and `onLayout` to the same view. Pass `enabled: false` to skip
  * the work for callers that do not need the size.
  */
-export function useLayoutSize<T extends Measurable = View>(enabled = true) {
+export function useLayoutSize<T extends Measurable = ViewInstance>(enabled = true) {
   const ref = useRef<T>(null);
   const [size, setSize] = useState<LayoutSize>(EMPTY);
 

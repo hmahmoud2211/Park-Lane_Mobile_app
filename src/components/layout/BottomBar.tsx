@@ -6,14 +6,15 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { ParamlessRoute, RootStackParamList } from '../../types/navigation.types';
+import { useSideNav } from '../../hooks/useSideNav';
+import { LEFT_TABS, RIGHT_TABS, isTabActive, type NavTab } from '../../navigation/navTabs';
+import type { RootStackParamList } from '../../types/navigation.types';
 import type { AppTheme } from '../../types/theme.types';
 import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
 import { GradientText } from '../common/GradientText';
 import { BlurTargetContext } from '../common/BlurTarget';
 import { GlassSurface } from '../common/GlassSurface';
-import type { IconSet } from '../ui/ServiceTile';
 
 export interface BottomBarProps {
   /**
@@ -25,26 +26,6 @@ export interface BottomBarProps {
 }
 
 type Route = keyof RootStackParamList;
-
-interface NavTab {
-  id: string;
-  label: string;
-  iconSet: IconSet;
-  iconName: string;
-  route?: ParamlessRoute;
-  /** Opens the "Under Development" placeholder until the tab's screen exists. */
-  underDevelopment?: boolean;
-}
-
-/** Two tabs either side of the raised Home button. */
-const LEFT_TABS: readonly NavTab[] = [
-  { id: 'ems-ai', label: 'EMS AI', iconSet: 'material', iconName: 'robot-outline', route: 'Assistant' },
-  { id: 'contact', label: 'Contact Us', iconSet: 'ionicons', iconName: 'call-outline', underDevelopment: true },
-];
-const RIGHT_TABS: readonly NavTab[] = [
-  { id: 'services', label: 'Services', iconSet: 'ionicons', iconName: 'grid-outline', route: 'Services' },
-  { id: 'settings', label: 'Settings', iconSet: 'ionicons', iconName: 'settings-outline', route: 'Settings' },
-];
 
 /*
  * Proportions read from the navbar reference: the Home disc breaks out of the
@@ -91,6 +72,9 @@ export const NAV_BAR_CLEARANCE = NAV_BAR_BOTTOM + NAV_BAR_HEIGHT + HOME_OVERHANG
  * and Contact Us on the left, Services and Settings on the right, and a raised
  * Home button in the middle.
  *
+ * Tablets and desktops show the side rail instead (see AppShell): the bar
+ * still asks for it, then draws nothing.
+ *
  * The bar floats over scrolling content, but the Android blur samples only the
  * screen photo (see BlurTarget) and would paint it over the cards beneath,
  * making the bar look solid. So it opts out of the target and keeps the
@@ -112,12 +96,9 @@ export function BottomBar({ inset = 0, style }: BottomBarProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const current = route.name as Route;
-  // On the placeholder page, the tab that opened it is the active one.
-  const placeholderTitle =
-    current === 'UnderDevelopment' ? (route.params as RootStackParamList['UnderDevelopment']).title : undefined;
+  const railShown = useSideNav();
 
-  const isActive = (tab: NavTab) =>
-    tab.underDevelopment ? placeholderTitle === tab.label : tab.route === current;
+  const isActive = (tab: NavTab) => isTabActive(tab, { name: current, params: route.params });
 
   const go = (tab: NavTab) => {
     if (isActive(tab)) {
@@ -178,6 +159,10 @@ export function BottomBar({ inset = 0, style }: BottomBarProps) {
 
   const homeActive = current === 'Home';
   const labelGradient = [theme.colors.electricCyan, theme.colors.frameGradientEnd] as const;
+
+  if (railShown) {
+    return null;
+  }
 
   return (
     <View style={[placement, style]}>

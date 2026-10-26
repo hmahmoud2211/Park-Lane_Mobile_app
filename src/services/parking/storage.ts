@@ -22,7 +22,7 @@ export function createDeviceStorage(): ParkingStorage {
       if (!file.exists) {
         file.create();
       }
-      file.write(serialized);
+      file.writeSync(serialized);
     },
     clear: () => {
       if (file.exists) {
