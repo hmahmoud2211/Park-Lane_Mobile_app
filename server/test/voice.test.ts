@@ -120,3 +120,30 @@ test('tolerates one recognition slip in longer words, never in short ones', () =
   assert.equal(sameWord('مكيفات', 'مكيفاة'), true);
   assert.equal(sameWord('نور', 'نار'), false);
 });
+
+test('English: split verbs, bare on/off, questions, contractions', () => {
+  const cases: [string, 'on' | 'off' | 'status' | null, string[]][] = [
+    ['turn the kitchen light on', 'on', ['kitchen light']],
+    ['can you please turn on the bedroom lamp', 'on', ['bedroom lamp']],
+    ['living room light on please', 'on', ['living room light']],
+    ['shut down the heater', 'off', ['heater']],
+    ['turn the fan and the heater off', 'off', ['fan', 'heater']],
+    ['kill the fan', 'off', ['fan']],
+    ["what's the status of the fan", 'status', ['fan']],
+    ['is the AC still on', 'status', ['ac']],
+    ['did I leave the hall light on', 'status', ['hall light']],
+  ];
+  for (const [spoken, action, targets] of cases) {
+    const parsed = parseUtterance(spoken);
+    assert.equal(parsed.action, action, spoken);
+    assert.deepEqual(parsed.targets, targets, spoken);
+  }
+});
+
+test('plurals mean every device of that kind', () => {
+  assert.equal(parseUtterance('lights off').all, true);
+  assert.equal(parseUtterance('are the lights on').all, true);
+  assert.equal(parseUtterance('طفي الانوار').all, true);
+  assert.equal(parseUtterance('switch everything off').all, true);
+  assert.equal(parseUtterance('turn off the light').all, false);
+});

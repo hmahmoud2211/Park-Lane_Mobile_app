@@ -28,11 +28,12 @@ function slotValue(handlerInput, name) {
   if (!slot) {
     return undefined;
   }
-  // A value matched to the slot type's catalogue is the canonical name; otherwise what was heard.
+  // What was heard: the backend understands synonyms itself, and "lights" (all of them)
+  // must not become the catalogue's "light". The catalogue name is only a fallback.
   const authorities = (slot.resolutions && slot.resolutions.resolutionsPerAuthority) || [];
   const match = authorities.find((entry) => entry.status && entry.status.code === 'ER_SUCCESS_MATCH');
   const canonical = match && match.values && match.values[0] && match.values[0].value && match.values[0].value.name;
-  return canonical || slot.value || undefined;
+  return slot.value || canonical || undefined;
 }
 
 function tokenOf(handlerInput) {
@@ -41,6 +42,9 @@ function tokenOf(handlerInput) {
   // DEVELOPMENT ONLY fallback, empty in any skill customers use (see config.js).
   return linked || config.DEV_VOICE_TOKEN || '';
 }
+
+/** «شكراً»، «مشكور»، «يعطيك العافية»، "thanks", "that's all": the customer is done. */
+const CLOSING = /(شكر|مشكور|تسلم|يسلمو|يعطيك العافي|جزاك الله|ممنون|ميرسي|مع السلام|(?:^|\s)باي(?:$|\s)|\bthank|\bthanks\b|that'?s all|that is all|that'?s it|nothing else|no thanks|i'?m done|all done|goodbye|\bbye\b|cheers)/i;
 
 function linkAccount(handlerInput) {
   const s = strings(Alexa.getLocale(handlerInput.requestEnvelope));
@@ -136,7 +140,41 @@ const DeviceStatusIntentHandler = {
     );
   },
   handle(handlerInput) {
+    // "What's on?" / «وش الشغال؟» with no device named: report everything (in that room, if one was named).
+    if (!slotValue(handlerInput, 'device')) {
+      const room = slotValue(handlerInput, 'room');
+      return runCommand(handlerInput, 'auto', room ? `وش حالة الكل ${room}` : 'وش حالة الكل');
+    }
     return runCommand(handlerInput, 'status');
+  },
+};
+
+function thankYou(handlerInput) {
+  const s = strings(Alexa.getLocale(handlerInput.requestEnvelope));
+  return handlerInput.responseBuilder.speak(s.thanks).withShouldEndSession(true).getResponse();
+}
+
+const ThankYouIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === 'ThankYouIntent'
+    );
+  },
+  handle: thankYou,
+};
+
+/** "Yes" to «تبي شي ثاني؟» / "Anything else?". */
+const YesIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.YesIntent'
+    );
+  },
+  handle(handlerInput) {
+    const s = strings(Alexa.getLocale(handlerInput.requestEnvelope));
+    return handlerInput.responseBuilder.speak(s.yes).reprompt(s.yes).getResponse();
   },
 };
 
@@ -149,6 +187,9 @@ const VoiceCommandIntentHandler = {
   },
   handle(handlerInput) {
     const utterance = slotValue(handlerInput, 'utterance');
+    if (utterance && CLOSING.test(utterance)) {
+      return thankYou(handlerInput);
+    }
     if (!utterance) {
       const s = strings(Alexa.getLocale(handlerInput.requestEnvelope));
       return handlerInput.responseBuilder.speak(s.fallback).reprompt(s.fallback).getResponse();
@@ -223,6 +264,8 @@ exports.handler = Alexa.SkillBuilders.custom()
     TurnOffIntentHandler,
     DeviceStatusIntentHandler,
     VoiceCommandIntentHandler,
+    ThankYouIntentHandler,
+    YesIntentHandler,
     HelpIntentHandler,
     CancelAndStopIntentHandler,
     FallbackIntentHandler,

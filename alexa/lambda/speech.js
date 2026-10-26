@@ -8,7 +8,8 @@ function deviceLabel(device, lang) {
   if (!device) {
     return '';
   }
-  if (!device.room) {
+  // "Kitchen Light", not "Kitchen Light in the Kitchen".
+  if (!device.room || device.name.toLowerCase().includes(device.room.toLowerCase())) {
     return device.name;
   }
   return lang === 'ar' ? `${device.name} في ${device.room}` : `${device.name} in the ${device.room}`;
@@ -53,6 +54,8 @@ const ar = {
   timeout: (device) => `${deviceLabel(device, 'ar')} ما أكد الأمر في الوقت. تأكد من حالته في التطبيق.`,
   serverDown: 'ما قدرت أتواصل مع خدمة إي إم إس الآن، فما تأكدت من تنفيذ الأمر. حاول بعد شوي.',
   virtualNote: ' هذا مفتاح افتراضي للتجربة.',
+  thanks: 'العفو، في الخدمة دايماً. مع السلامة.',
+  yes: 'تفضل، وش تبيني أسوي؟',
   needAction: (device) => (device ? `تبي أشغل ${deviceLabel(device, 'ar')} ولا أطفيه؟` : 'وش تبيني أسوي؟ أشغل ولا أطفي؟'),
   batch: (result) => {
     const parts = [];
@@ -74,14 +77,15 @@ const ar = {
 };
 
 const en = {
-  welcome: 'Welcome to EMS assistant. How can I help?',
-  welcomeReprompt: 'You can say: turn on the bedroom light, or turn off the light.',
-  help: 'I can switch the devices in your EMS app on and off. Try: turn on the bedroom light, or: is the air conditioner on?',
+  welcome: 'Welcome to EMS assistant. What would you like me to turn on or off?',
+  welcomeReprompt: 'You can say: turn on the bedroom light, lights off, or: is the fan on?',
+  help:
+    'I can switch the devices in your EMS app on and off, and tell you what is on. Try: turn on the kitchen light, turn everything off, or: what is on? When you are done, just say thank you.',
   goodbye: 'Goodbye.',
-  fallback: 'Sorry, I did not get that. Try: turn on the bedroom light.',
+  fallback: "Sorry, I didn't catch that. Try: turn on the kitchen light, or: lights off.",
   anythingElse: 'Anything else?',
   linkRequired: 'First link your EMS account. In the EMS app, open Settings, then Alexa, and tap Connect to Alexa.',
-  done: (device, power) => `${deviceLabel(device, 'en')} is ${power === 'on' ? 'on' : 'off'}.`,
+  done: (device, power) => `OK, ${deviceLabel(device, 'en')} is now ${power === 'on' ? 'on' : 'off'}.`,
   status: (device) =>
     !device.online
       ? `${deviceLabel(device, 'en')} is offline. It was last ${device.power === 'unknown' ? 'in an unknown state' : device.power}.`
@@ -95,11 +99,13 @@ const en = {
   timeout: (device) => `${deviceLabel(device, 'en')} didn't confirm in time. Check it in the app.`,
   serverDown: "I couldn't reach the EMS service, so I can't confirm anything changed. Please try again shortly.",
   virtualNote: ' That is a virtual test switch.',
+  thanks: "You're welcome. Goodbye!",
+  yes: 'Sure, what would you like me to do?',
   needAction: (device) => (device ? `Should I turn ${deviceLabel(device, 'en')} on or off?` : 'Should I turn it on or off?'),
   batch: (result) => {
     const parts = [];
     if (result.done.length > 0) {
-      parts.push(`Turned ${result.action} ${joinAnd(result.done.map((d) => deviceLabel(d, 'en')), 'en')}.`);
+      parts.push(`OK, I turned ${result.action} ${joinAnd(result.done.map((d) => deviceLabel(d, 'en')), 'en')}.`);
     }
     for (const failed of result.failed) {
       parts.push(failed.reason === 'offline' ? `${deviceLabel(failed, 'en')} is offline.` : `I couldn't reach ${deviceLabel(failed, 'en')}.`);
