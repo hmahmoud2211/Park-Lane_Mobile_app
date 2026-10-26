@@ -107,35 +107,71 @@ export interface NearbyHotspot {
   level: number;
 }
 
-/**
- * Android only: setup hotspots in range, strongest first. Android allows four
- * scans every two minutes, so a refused rescan falls back to the last results.
- */
-export async function scanForSetupHotspots(): Promise<NearbyHotspot[]> {
+/** One scan, falling back to the last results when Android refuses a rescan (four every two minutes). */
+async function loadNearbyNetworks(): Promise<Awaited<ReturnType<typeof WifiManager.loadWifiList>>> {
   if (!canScanForNetworks()) {
     throw new WifiProvisioningError('unavailable', 'This phone cannot list nearby Wi-Fi networks from the app.');
   }
   await ensureWifiPermissions();
-  let list: Awaited<ReturnType<typeof WifiManager.loadWifiList>>;
   try {
-    list = await WifiManager.reScanAndLoadWifiList();
+    return await WifiManager.reScanAndLoadWifiList();
   } catch (error) {
     if (codeOf(error) === 'locationServicesOff') {
       throw toWifiError(error);
     }
     try {
-      list = await WifiManager.loadWifiList();
+      return await WifiManager.loadWifiList();
     } catch (fallbackError) {
       throw toWifiError(fallbackError);
     }
   }
+}
+
+/** Android only: setup hotspots in range, strongest first. */
+export async function scanForSetupHotspots(): Promise<NearbyHotspot[]> {
   const seen = new Map<string, NearbyHotspot>();
-  for (const entry of list) {
+  for (const entry of await loadNearbyNetworks()) {
     if (isSetupHotspot(entry.SSID) && (seen.get(entry.SSID)?.level ?? -Infinity) < entry.level) {
       seen.set(entry.SSID, { ssid: entry.SSID, level: entry.level });
     }
   }
   return [...seen.values()].sort((a, b) => b.level - a.level);
+}
+
+/**
+ * Android only: Wi-Fi networks the plug could join, strongest first. SONOFF
+ * plugs only have a 2.4 GHz radio, so 5 GHz-only networks are left out, as
+ * are hidden networks and other plugs' setup hotspots.
+ */
+export async function scanForHomeNetworks(): Promise<NearbyHotspot[]> {
+  const seen = new Map<string, NearbyHotspot>();
+  for (const entry of await loadNearbyNetworks()) {
+    const name = entry.SSID?.trim();
+    const twoPointFour = !entry.frequency || entry.frequency < 3000;
+    if (name && name !== '<unknown ssid>' && twoPointFour && !isSetupHotspot(name) && (seen.get(name)?.level ?? -Infinity) < entry.level) {
+      seen.set(name, { ssid: name, level: entry.level });
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.level - a.level);
+}
+
+/**
+ * The home network the phone is on now, read before it joins a plug's
+ * hotspot so the Wi-Fi step can fill it in. Null when the platform will not
+ * say, or the phone is already on a setup hotspot. Asks for the location
+ * permission Android needs to reveal network names.
+ */
+export async function detectHomeNetwork(): Promise<string | null> {
+  if (!isNativeWifiAvailable()) {
+    return null;
+  }
+  try {
+    await ensureWifiPermissions();
+  } catch {
+    return null;
+  }
+  const ssid = await getCurrentSsid();
+  return ssid && !isSetupHotspot(ssid) ? ssid : null;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
