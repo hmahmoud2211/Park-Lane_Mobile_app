@@ -54,9 +54,14 @@ interface EmsContextValue {
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
 
 function problemOf(error: unknown): HomeProblem {
-  return error instanceof api.EmsError
-    ? { code: error.code, message: error.message }
-    : { code: 'internal', message: 'Something went wrong talking to the EMS backend.' };
+  if (!(error instanceof api.EmsError)) {
+    return { code: 'internal', message: 'Something went wrong talking to the EMS backend.' };
+  }
+  // A backend from before the smart-home service answers its routes with a bare "Not found."
+  if (error.code === 'not_found') {
+    return { code: 'unsupported', message: 'The smart home service is not available on this EMS server yet.' };
+  }
+  return { code: error.code, message: error.message };
 }
 
 export function EmsProvider({ children }: PropsWithChildren) {

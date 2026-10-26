@@ -39,7 +39,7 @@ export function ConnectAccountScreen() {
   const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'ConnectAccount'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'ConnectAccount'>['route']>();
-  const { status, home, homeProblem } = useEms();
+  const { status, home, homeProblem, refreshHome } = useEms();
   const link = useAccountLink();
   const { start, open } = link;
   const [integrations, setIntegrations] = useState<Integration[] | null>(null);
@@ -153,8 +153,19 @@ export function ConnectAccountScreen() {
       return <EmsAccountPanel intro={copy.accountIntro} />;
     }
     if (!hasHome) {
+      if (homeProblem?.code === 'no_home' || homeProblem?.code === 'provisioning') {
+        return (
+          <Notice tone="info" title={homeProblem.code === 'no_home' ? copy.noHomeTitle : copy.provisioningTitle}>
+            {homeProblem.message}
+          </Notice>
+        );
+      }
       return homeProblem ? (
-        <Notice tone="info" title={homeProblem.code === 'no_home' ? copy.noHomeTitle : copy.provisioningTitle}>
+        <Notice
+          tone="error"
+          title={copy.homeFailedTitle}
+          actions={<AppButton title={copy.retry} variant="secondary" height={BUTTON_HEIGHT} onPress={() => void refreshHome()} />}
+        >
           {homeProblem.message}
         </Notice>
       ) : (

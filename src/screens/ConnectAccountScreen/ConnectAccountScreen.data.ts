@@ -26,6 +26,7 @@ export const connectCopy = {
   qrHint: 'Scan this code with the brand’s app on another phone or tablet, then tap Continue.',
   noHomeTitle: 'Not linked to a unit yet',
   provisioningTitle: 'Setting up your smart home',
+  homeFailedTitle: 'Your smart home could not be reached',
 } as const;
 
 export const methodLabels: Record<LinkMethod, { label: string; icon: 'log-in-outline' | 'qr-code-outline' | 'key-outline' }> = {
