@@ -2,7 +2,7 @@
 
 The EMS app and the **EMS Voice Control** Alexa skill switch the same devices through one backend. This document explains how the pieces fit, what you have to configure at Amazon and on the backend, how to test it, and what is and is not verified yet.
 
-> EMS Voice Control is a **Custom Skill**. Customers talk to it by name ("Alexa, open EMS assistant" / «أليكسا، افتحي مساعد إي إم إس»). Devices do **not** appear in the Alexa app's Devices list, and Alexa routines cannot see them. That needs a Smart Home skill, which is a separate project.
+> EMS Voice Control is a **Custom Skill**. Customers talk to it by name ("Alexa, open EMS assistant" / «أليكسا، افتحي مساعد إدارة المنزل»). Devices do **not** appear in the Alexa app's Devices list, and Alexa routines cannot see them. That needs a Smart Home skill, which is a separate project.
 
 ## 1. How it works
 
@@ -104,7 +104,7 @@ In the developer console, open **EMS Voice Control → Build**.
 
 **Interaction model.**
 - **What to paste:** for **Arabic (SA)** and **English (US)**, open **Interaction Model → JSON Editor** and paste `alexa/skill-package/interactionModels/custom/ar-SA.json` and `en-US.json`. Then **Save** and **Build**.
-  - The models keep `TurnOnIntent` and `TurnOffIntent`, add optional `device` (`DEVICE_NAME`) and `room` (`ROOM_NAME`) slots and a `DeviceStatusIntent`, and keep your Arabic invocation name «مساعد إي إم إس».
+  - The models keep `TurnOnIntent` and `TurnOffIntent`, add optional `device` (`DEVICE_NAME`) and `room` (`ROOM_NAME`) slots and a `DeviceStatusIntent`, and keep your Arabic invocation name «مساعد إدارة المنزل».
   - The English invocation name in the file is `e. m. s. assistant`. If yours is different, change `invocationName` before pasting.
 - **Custom slot values:** a custom slot type also passes through words that aren't in its list, so names like "desk lamp" reach the backend even when they're not listed. Adding the names your customers actually use as values or synonyms improves recognition.
 
@@ -156,7 +156,7 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
 
 | Arabic (ar-SA) | English (en-US) |
 | --- | --- |
-| «أليكسا، افتحي مساعد إي إم إس» → «أهلاً بك في مساعد إي إم إس. كيف أقدر أساعدك؟» | "Alexa, open EMS assistant" |
+| «أليكسا، افتحي مساعد إدارة المنزل» → «أهلاً بك في مساعد إدارة المنزل. كيف أقدر أساعدك؟» | "Alexa, open EMS assistant" |
 | «شغل نور غرفة النوم» → «تم تشغيل نور في غرفة النوم.» | "Turn on the bedroom light" |
 | «اطفي نور غرفة النوم» → «تم إطفاء نور في غرفة النوم.» | "Turn off the bedroom light" |
 | «هل المكيف شغال؟» | "Is the air conditioner on?" |
@@ -200,7 +200,7 @@ cd .. && npx tsc --noEmit && npx expo lint    # app
 
 1. Deploy the backend with the settings above and deploy the skill code and models.
 2. In the EMS app, sign in, add a virtual switch named "نور" in room "غرفة النوم", then **Settings → Alexa → Connect to Alexa** using **the same Amazon account as your developer console**.
-3. In the console **Test** tab, set testing to **Development**, pick **Arabic (SA)**, and type «افتحي مساعد إي إم إس», then «شغل نور غرفة النوم». The switch in the app flips live, and the simulator answers «تم تشغيل نور في غرفة النوم.».
+3. In the console **Test** tab, set testing to **Development**, pick **Arabic (SA)**, and type «افتحي مساعد إدارة المنزل», then «شغل نور غرفة النوم». The switch in the app flips live, and the simulator answers «تم تشغيل نور في غرفة النوم.».
 4. Mark the switch offline in the app and repeat: Alexa reports it offline and nothing changes.
 
 **Before linking works (development only).** Set `DEV_VOICE_TOKEN` (a long random value) and `DEV_VOICE_USER_EMAIL` on a non-production backend, and put the same token in `config.js` → `DEV_VOICE_TOKEN` in the console's Code tab. The skill then acts as that one user whenever the request carries no linked token. Remove both values before anyone else uses the skill, and never commit them.
@@ -209,7 +209,7 @@ cd .. && npx tsc --noEmit && npx expo lint    # app
 
 1. Sign the Echo in to the same Amazon account (or a beta tester's account linked through the app).
 2. Make sure the device language is Arabic (Saudi Arabia) or English (US).
-3. Say «أليكسا، افتحي مساعد إي إم إس», then «شغل نور غرفة النوم».
+3. Say «أليكسا، افتحي مساعد إدارة المنزل», then «شغل نور غرفة النوم».
 
 ### Mobile app
 

@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "مساعد إي إم إس",
+      "invocationName": "مساعد إدارة المنزل",
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
