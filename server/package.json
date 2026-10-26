@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.ts",
+    "fake-hub": "node scripts/fake-hub.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p ."
   }

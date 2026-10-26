@@ -87,6 +87,10 @@ function flowResult(result: RestResult): HaFlowResult {
   if (result.status === 404) {
     throw new ApiError('flow_expired', 'This sign-in has expired. Start again.');
   }
+  if (result.status === 400) {
+    // HA's own schema check, e.g. "User input malformed: expected int for dictionary value @ data['pin']".
+    throw new ApiError('bad_request', restMessage(result, 'Check the details you entered.'));
+  }
   if (result.status >= 400) {
     throw new ApiError('ha_rejected', restMessage(result, 'Your home hub could not continue the sign-in.'));
   }

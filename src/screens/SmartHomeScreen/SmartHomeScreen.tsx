@@ -238,6 +238,15 @@ export function SmartHomeScreen() {
           navigation.navigate('EmsDevices');
         },
       },
+      {
+        id: 'connect',
+        label: 'Connect devices',
+        icon: 'add-circle-outline',
+        onPress: () => {
+          setMenuOpen(false);
+          navigation.navigate('ConnectAccount');
+        },
+      },
       { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
     ],
     [handleLogout, navigation, setMenuOpen],

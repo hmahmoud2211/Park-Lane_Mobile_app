@@ -157,6 +157,10 @@ describe('linking brand accounts', () => {
       ],
     );
 
+    const malformed = await api('POST', `/api/accounts/flows/${start.data.flowId}`, { token, body: { data: { api_key: 'x' } } });
+    assert.equal(malformed.status, 400, 'HA refusing the input is the resident’s to fix, not a hub failure');
+    assert.match(malformed.error?.message ?? '', /api_token/);
+
     const wrong = await api<Step>('POST', `/api/accounts/flows/${start.data.flowId}`, { token, body: { data: { api_token: 'bad', api_key: 'x' } } });
     assert.equal(wrong.data.type, 'form');
     assert.deepEqual(wrong.data.errors, { base: 'Invalid authentication' });
@@ -170,6 +174,24 @@ describe('linking brand accounts', () => {
       (list) => list.data.some((account) => account.id === done.data.accountId),
     );
     assert.equal(accounts.data.find((account) => account.id === done.data.accountId)?.brand, 'SwitchBot');
+
+    // The account's devices join the home, controllable like any other.
+    const devices = await until(
+      () => api<{ id: string; name: string; accountId: string | null; kind: string }[]>('GET', '/api/devices', { token }),
+      (list) => list.data.some((device) => device.accountId === done.data.accountId),
+    );
+    const added = devices.data.find((device) => device.accountId === done.data.accountId);
+    assert.deepEqual([added?.name, added?.kind], ['SwitchBot Plug', 'plug']);
+    const switched = await api<{ capabilities: { type: string; value: string }[] }>('POST', `/api/devices/${added?.id}/commands`, {
+      token,
+      body: { capability: 'power', action: 'on' },
+    });
+    assert.equal(switched.data.capabilities[0].value, 'on');
+    const linked = await until(
+      () => api<{ id: string; deviceCount: number }[]>('GET', '/api/accounts', { token }),
+      (list) => list.data.find((account) => account.id === done.data.accountId)?.deviceCount === 1,
+    );
+    assert.ok(linked);
   });
 
   test('another resident cannot drive someone else’s flow', async () => {

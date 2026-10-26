@@ -22,6 +22,7 @@ export const connectCopy = {
   linkedBody: 'Its devices are being added to your home. They appear in My Devices in a moment.',
   failedTitle: 'Could not link the account',
   required: 'Required',
+  notANumber: 'Enter a number',
   qrHint: 'Scan this code with the brand’s app on another phone or tablet, then tap Continue.',
   noHomeTitle: 'Not linked to a unit yet',
   provisioningTitle: 'Setting up your smart home',

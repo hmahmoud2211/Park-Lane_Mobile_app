@@ -46,15 +46,22 @@ export function FlowStepForm({ step, brand, busy, error, onSubmit, onSignIn, onC
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [values, setValues] = useState(() => initialValues(step.fields));
-  const [missing, setMissing] = useState<Set<string>>(new Set());
+  const [invalid, setInvalid] = useState<Record<string, string>>({});
   const set = (name: string, value: unknown) => setValues((current) => ({ ...current, [name]: value }));
 
   const submit = () => {
-    const empty = step.fields.filter(
-      (field) => field.required && field.kind !== 'boolean' && field.kind !== 'qr' && field.kind !== 'constant' && (values[field.name] === '' || values[field.name] === null),
-    );
-    setMissing(new Set(empty.map((field) => field.name)));
-    if (empty.length > 0) {
+    const problems: Record<string, string> = {};
+    for (const field of step.fields) {
+      const value = values[field.name];
+      if (field.kind === 'boolean' || field.kind === 'qr' || field.kind === 'constant') continue;
+      if (field.required && (value === '' || value === null || (Array.isArray(value) && value.length === 0))) {
+        problems[field.name] = copy.required;
+      } else if (field.kind === 'number' && value !== '' && !Number.isFinite(Number(value))) {
+        problems[field.name] = copy.notANumber;
+      }
+    }
+    setInvalid(problems);
+    if (Object.keys(problems).length > 0) {
       return;
     }
     const data: Record<string, unknown> = {};
@@ -153,7 +160,7 @@ export function FlowStepForm({ step, brand, busy, error, onSubmit, onSignIn, onC
       {heading}
       {step.errors.base ? <Notice tone="error">{step.errors.base}</Notice> : null}
       {step.fields.map((field) => {
-        const fieldError = step.errors[field.name] ?? (missing.has(field.name) ? copy.required : undefined);
+        const fieldError = invalid[field.name] ?? step.errors[field.name];
         switch (field.kind) {
           case 'qr':
             return field.data ? (

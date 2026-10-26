@@ -153,9 +153,12 @@ export function EmsDevicesScreen() {
     }
     if (devices.length === 0) {
       return (
-        <AppText variant="bodySmall" color={theme.colors.textSupport}>
-          {copy.empty}
-        </AppText>
+        <>
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.empty}
+          </AppText>
+          <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('ConnectAccount')} />
+        </>
       );
     }
     return (
@@ -211,7 +214,15 @@ export function EmsDevicesScreen() {
               ) : null}
 
               <NeonPanel style={styles.panel}>
-                <PanelHeading title={copy.devicesTitle} iconSet="material" iconName="devices" divider />
+                <PanelHeading
+                  title={copy.devicesTitle}
+                  iconSet="material"
+                  iconName="devices"
+                  // Adding devices is linking the brand app they already use.
+                  actionLabel={home && home.hub.status !== 'provisioning' ? copy.add : undefined}
+                  onActionPress={() => navigation.navigate('ConnectAccount')}
+                  divider
+                />
                 {renderDevices()}
               </NeonPanel>
 

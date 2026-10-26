@@ -529,9 +529,17 @@ export class FakeHa {
     }
   }
 
+  /** A linked account brings its devices in, as a real brand's integration does once set up. */
   private finish(flow: FakeFlow, title: string) {
     this.flows.delete(flow.flow_id);
     const entry = this.addEntry(flow.handler, title);
+    const deviceId = `dev-${entry.entry_id}`;
+    const entityId = `switch.${entry.entry_id.replace(/\W/g, '_')}`;
+    this.setup.devices.push({ id: deviceId, name: `${title} Plug`, manufacturer: title, config_entry_id: entry.entry_id });
+    this.setup.entities.push({ entity_id: entityId, device_id: deviceId, platform: flow.handler, config_entry_id: entry.entry_id });
+    this.fire('device_registry_updated', { action: 'create', device_id: deviceId });
+    this.fire('entity_registry_updated', { action: 'create', entity_id: entityId });
+    this.setState(entityId, 'off', { device_class: 'outlet' });
     return { flow_id: flow.flow_id, handler: flow.handler, type: 'create_entry', title, result: { entry_id: entry.entry_id } };
   }
 
@@ -554,6 +562,7 @@ export class FakeHa {
       }
       switch (`${flow.handler}:${flow.step}`) {
         case 'switchbot_cloud:user':
+          if (body.api_token === undefined) return json(400, { message: "User input malformed: required key not provided @ data['api_token']" });
           if (body.api_token === 'bad') return json(200, this.stepResult(flow, { base: 'invalid_auth' }));
           return json(200, this.finish(flow, 'SwitchBot'));
         case 'tuya:user':

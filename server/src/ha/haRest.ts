@@ -13,7 +13,8 @@ import { hubCredentials } from './hubs.ts';
  */
 
 export const OAUTH_BASE_PATH = '/api/accounts/oauth';
-const TIMEOUT_MS = 20_000;
+/** Generous: a flow step waits on the brand's cloud, which can take a while to sign in. */
+const TIMEOUT_MS = 60_000;
 
 export interface RestResult {
   status: number;

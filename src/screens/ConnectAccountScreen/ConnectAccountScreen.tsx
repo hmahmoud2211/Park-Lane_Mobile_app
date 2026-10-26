@@ -175,7 +175,7 @@ export function ConnectAccountScreen() {
             onSubmit={(data) => void link.submit(data)}
             onSignIn={() => void link.signInWithBrand()}
             onCancel={() => void link.cancel()}
-            onDone={() => navigation.navigate('EmsDevices')}
+            onDone={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('EmsDevices'))}
             onRetry={async () => {
               const integration = link.step?.integration;
               await link.cancel();

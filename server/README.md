@@ -22,6 +22,10 @@ npm run typecheck         # uses the app's TypeScript (../node_modules)
 
 In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`.
 
+### Try it without Docker
+
+`npm run fake-hub` starts the backend against the test suite's stand-in Home Assistant, with a unit that already has a few devices. Point the app at it (`EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`), open My Devices, and sign in as `demo@parklane.test` / `correct horse battery`. "Connect devices" then links the scripted brands: SwitchBot (any token and secret) and Tuya (any user code, then the QR step). Nothing is kept when it stops.
+
 ### On the server
 
 - The backend needs the Docker socket (`DOCKER_SOCKET`) to create the units' containers. Access to that socket is root on the host: run the backend as a dedicated user and never expose the socket elsewhere.

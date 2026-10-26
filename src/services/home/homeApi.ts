@@ -34,8 +34,8 @@ export const createRoom = (name: string) => call<Room>('/api/rooms', { method: '
 
 // ---- Linking brand accounts ------------------------------------------------------------------
 
-/** Brands sign in against their own clouds, which can take a while. */
-const FLOW_TIMEOUT_MS = 30_000;
+/** Brands sign in against their own clouds, which can take a while (the backend allows 60 s). */
+const FLOW_TIMEOUT_MS = 70_000;
 
 export const listIntegrations = () => call<Integration[]>('/api/accounts/integrations');
 
