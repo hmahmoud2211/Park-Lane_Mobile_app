@@ -24,6 +24,10 @@
           "samples": []
         },
         {
+          "name": "AMAZON.YesIntent",
+          "samples": []
+        },
+        {
           "name": "AMAZON.NoIntent",
           "samples": []
         },
@@ -48,27 +52,32 @@
             "turn on {device}",
             "turn on the {device}",
             "turn on the {device} in the {room}",
-            "turn on the {room} lights",
-            "turn on the lights in the {room}",
             "turn on the {room}",
             "switch on {device}",
             "switch on the {device}",
             "switch on the {device} in the {room}",
-            "switch on the {room} lights",
-            "switch on the lights in the {room}",
             "switch on the {room}",
             "power on {device}",
             "power on the {device}",
             "power on the {device} in the {room}",
-            "power on the {room} lights",
-            "power on the lights in the {room}",
             "power on the {room}",
             "start {device}",
             "start the {device}",
             "start the {device} in the {room}",
-            "start the {room} lights",
-            "start the lights in the {room}",
-            "start the {room}"
+            "start the {room}",
+            "switch the {device} on",
+            "turn the {device} in the {room} on",
+            "{device} on",
+            "enable the {device}",
+            "activate the {device}",
+            "power up the {device}",
+            "put the {device} on",
+            "set the {device} to on",
+            "turn on the {device} please",
+            "get the {device} on",
+            "flip the {device} on",
+            "open the {device}",
+            "turn the {device} on in the {room}"
           ]
         },
         {
@@ -92,39 +101,41 @@
             "turn off {device}",
             "turn off the {device}",
             "turn off the {device} in the {room}",
-            "turn off the {room} lights",
-            "turn off the lights in the {room}",
             "turn off the {room}",
             "switch off {device}",
             "switch off the {device}",
             "switch off the {device} in the {room}",
-            "switch off the {room} lights",
-            "switch off the lights in the {room}",
             "switch off the {room}",
             "power off {device}",
             "power off the {device}",
             "power off the {device} in the {room}",
-            "power off the {room} lights",
-            "power off the lights in the {room}",
             "power off the {room}",
             "stop {device}",
             "stop the {device}",
             "stop the {device} in the {room}",
-            "stop the {room} lights",
-            "stop the lights in the {room}",
             "stop the {room}",
             "shut off {device}",
             "shut off the {device}",
             "shut off the {device} in the {room}",
-            "shut off the {room} lights",
-            "shut off the lights in the {room}",
             "shut off the {room}",
             "kill {device}",
             "kill the {device}",
             "kill the {device} in the {room}",
-            "kill the {room} lights",
-            "kill the lights in the {room}",
-            "kill the {room}"
+            "kill the {room}",
+            "switch the {device} off",
+            "turn the {device} in the {room} off",
+            "{device} off",
+            "disable the {device}",
+            "deactivate the {device}",
+            "power down the {device}",
+            "shut the {device} off",
+            "shut down the {device}",
+            "set the {device} to off",
+            "cut the {device}",
+            "turn off the {device} please",
+            "flip the {device} off",
+            "close the {device}",
+            "turn the {device} off in the {room}"
           ]
         },
         {
@@ -148,7 +159,25 @@
             "status of the {device}",
             "check the {device}",
             "is anything on in the {room}",
-            "how is the {device}"
+            "how is the {device}",
+            "are the {device} on",
+            "are the {device} off",
+            "is anything on",
+            "what's on",
+            "what is on",
+            "what is on in the {room}",
+            "what's the status of the {device}",
+            "what's the state of the {device}",
+            "is the {device} still on",
+            "did i leave the {device} on",
+            "check on the {device}",
+            "how's the {device}",
+            "tell me if the {device} is on",
+            "status of the {device} in the {room}",
+            "which lights are on",
+            "what devices are on",
+            "give me a status update",
+            "are the {device} on in the {room}"
           ]
         },
         {
@@ -170,7 +199,50 @@
             "make {utterance}",
             "set {utterance}",
             "go ahead and {utterance}",
-            "i would like {utterance}"
+            "i would like {utterance}",
+            "hey {utterance}",
+            "i'd like to {utterance}",
+            "i want to {utterance}",
+            "let us {utterance}",
+            "would you mind {utterance}",
+            "do me a favor and {utterance}",
+            "quickly {utterance}",
+            "{utterance} for me",
+            "{utterance} now",
+            "ok {utterance}"
+          ]
+        },
+        {
+          "name": "ThankYouIntent",
+          "samples": [
+            "thank you",
+            "thanks",
+            "thanks a lot",
+            "thank you very much",
+            "thank you so much",
+            "that is all",
+            "that's all",
+            "that's it",
+            "that will be all",
+            "nothing else",
+            "no thanks",
+            "no thank you",
+            "i'm done",
+            "we are done",
+            "all done",
+            "cheers",
+            "great thanks",
+            "perfect thanks",
+            "awesome thank you",
+            "appreciate it",
+            "goodbye",
+            "bye",
+            "bye bye",
+            "see you",
+            "thanks that is all",
+            "ok thanks",
+            "okay thank you",
+            "much appreciated"
           ]
         }
       ],
@@ -182,10 +254,13 @@
               "name": {
                 "value": "light",
                 "synonyms": [
-                  "lights",
-                  "lamp",
                   "bulb",
-                  "lighting"
+                  "bulbs",
+                  "ceiling light",
+                  "lamp",
+                  "lamps",
+                  "lighting",
+                  "lights"
                 ]
               }
             },
@@ -281,8 +356,11 @@
               "name": {
                 "value": "everything",
                 "synonyms": [
+                  "all",
                   "all devices",
-                  "all"
+                  "anything",
+                  "every device",
+                  "the whole house"
                 ]
               }
             }

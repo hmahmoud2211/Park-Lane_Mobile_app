@@ -163,6 +163,9 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
 | «اطفي نور غرفة النوم» → «تم إطفاء نور في غرفة النوم.» | "Turn off the bedroom light" |
 | «هل المكيف شغال؟» | "Is the air conditioner on?" |
 | «شغل» (no device: the default device) | "Turn on" |
+| «طفي الأنوار»، «طفي كل شي» (every light / everything) | "Lights off", "Turn everything off" |
+| «وش الشغال؟» (reports every device) | "What's on?", "Is anything on in the kitchen?" |
+| «شكراً»، «مشكور»، «يعطيك العافية» → «العفو، في الخدمة دايماً. مع السلامة.» (session ends) | "Thank you", "That's all" → "You're welcome. Goodbye!" |
 
 **Free speech in any dialect.**
 - **How it works:** besides the fixed intents, `VoiceCommandIntent` has an `AMAZON.SearchQuery` slot (supported in Arabic (SA)). It catches phrases that start or end with words such as «ابي / ابغى / عايز / بدي / اريد / ممكن / لو سمحت / من فضلك / الله يخليك / خلي». The skill passes the whole phrase to the backend as `{ action: 'auto', utterance }`, and `server/src/ems/utterance.ts` reads it:
@@ -176,6 +179,8 @@ In the app: **Settings → My Devices** (or Smart Home menu → My Devices).
   - **Recognition slips:** one wrong letter is tolerated in longer words.
   - **Several devices or all:** «شغل النور والمكيف», «طفي كل الأنوار», «طفي كل شي». Each device is switched and confirmed separately, and the reply names what worked and what didn't.
   - **Unclear action:** «ابي النور» makes Alexa ask «تبي أشغل نور في غرفة النوم ولا أطفيه؟», and a bare «شغّله» then acts on that device (kept in the session).
+- **English:** split verbs ("turn the kitchen light on", "shut the fan off"), bare commands ("lights off", "kitchen light on"), questions ("are the lights on?", "what's the status of the fan", "did I leave the hall light on") and contractions are understood. Plurals ("lights", «الأنوار») mean every device of that kind.
+- **Ending the conversation:** `ThankYouIntent` («شكراً»، «مشكور»، «تسلم»، «يعطيك العافية»، «خلاص كذا»، "thank you", "that's all", "no thanks") replies and closes the session. Thanks that arrive through the free-speech intent are caught too. "Yes" after «تبي شي ثاني؟» / "Anything else?" asks what to do next, and "no" ends.
 - **Limit:** Alexa still decides which intent a phrase belongs to before the backend sees it. A phrasing that matches no sample in the model goes to `AMAZON.FallbackIntent`, whose text Alexa doesn't pass on. Add common phrasings you hear in testing to `ar-SA.json`.
 
 How the backend resolves the device (`server/src/ems/voice.ts`):

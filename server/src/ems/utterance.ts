@@ -80,6 +80,7 @@ const ON_VERBS = new Set([
   'ولع', 'ولعي', 'ولعو', 'تولع', 'تولعي', 'اشعل', 'شعل', 'شعلي', 'تشعل',
   'افتح', 'افتحي', 'فتح', 'افتحو', 'تفتح', 'تفتحي',
   'دور', 'دوري', 'تدور', 'شغله', 'قوم', 'قومي', 'وصل', 'وصلي',
+  'start', 'enable', 'activate', 'open',
 ]);
 const OFF_VERBS = new Set([
   'طفي', 'اطفي', 'طف', 'اطف', 'اطفيء', 'اطفا', 'اطفاء', 'طفو', 'تطفي', 'تطفيه',
@@ -87,12 +88,21 @@ const OFF_VERBS = new Set([
   'اقفل', 'اقفلي', 'قفل', 'قفلي', 'تقفل', 'تقفلي',
   'بند', 'بندي', 'تبند', 'وقف', 'وقفي', 'توقف', 'ايقاف', 'اغلق', 'اغلقي', 'تغلق', 'اغلاق',
   'افصل', 'افصلي', 'فصل', 'تفصل', 'سكت', 'نيم',
+  'stop', 'disable', 'deactivate', 'kill', 'cut', 'close',
 ]);
 /** States that answer, or with «خلي» request, on and off. */
 const ON_STATES = new Set(['شغال', 'شغاله', 'مشغل', 'مشغله', 'شغالين', 'مولع', 'مولعه', 'منور', 'منوره', 'مفتوح', 'مفتوحه', 'on']);
 const OFF_STATES = new Set(['طافي', 'طافيه', 'مطفي', 'مطفيه', 'مطفا', 'مسكر', 'مسكره', 'مقفول', 'مقفوله', 'مقفل', 'مغلق', 'مغلقه', 'واقف', 'واقفه', 'off']);
 const MAKE = new Set(['خلي', 'خليه', 'خليها', 'خليهم', 'اجعل', 'خلو', 'خل', 'حط', 'خليلي']);
-const QUESTION = new Set(['هل', 'وش', 'ايش', 'شو', 'ايه', 'شنو', 'كيف', 'حاله', 'وضع', 'شلون', 'اش', 'مين', 'ليش']);
+const QUESTION = new Set([
+  'هل', 'وش', 'ايش', 'شو', 'ايه', 'شنو', 'كيف', 'حاله', 'وضع', 'شلون', 'اش', 'مين', 'ليش',
+  'is', 'are', 'was', 'were', 'what', 'whats', 'which', 'how', 'hows', 'check', 'status', 'state', 'did', 'whether',
+]);
+/** Plurals mean every device of that kind: "lights off", «طفي الأنوار». */
+const PLURALS = new Set(['lights', 'lamps', 'bulbs', 'plugs', 'sockets', 'fans', 'heaters', 'انوار', 'اضواء', 'لمبات', 'لمض', 'افياش', 'مكيفات', 'مراوح', 'سبوتات']);
+
+/** English verbs that take on/off after the object: "turn the kitchen light on". */
+const TURN = new Set(['turn', 'switch', 'power', 'put', 'set', 'shut', 'flip', 'get']);
 const ALL = new Set(['كل', 'جميع', 'كلها', 'كلهم', 'الكل', 'all', 'every', 'everything']);
 /** Wanting, asking and politeness, which carry no meaning for the command. */
 const FILLER = new Set([
@@ -101,6 +111,10 @@ const FILLER = new Set([
   'ريت', 'يا', 'اليكسا', 'الكسا', 'الیکسا', 'please', 'alexa', 'can', 'could', 'you', 'would', 'kindly', 'i', 'want', 'need', 'to',
   // Generic «thing»/«devices», as in «طفي كل شي»، «كل الأجهزة».
   'شي', 'شيء', 'اشي', 'حاجه', 'حاجات', 'اغراض', 'جهاز', 'اجهزه', 'thing', 'things', 'device', 'devices',
+  // English pronouns, contractions ("what's" folds to "what s") and conversational padding.
+  'it', 's', 'd', 'll', 'm', 're', 't', 'them', 'they', 'that', 'this', 'these', 'those', 'hey', 'ok', 'okay', 'let', 'lets', 'us', 'me',
+  'mind', 'like', 'go', 'ahead', 'for', 'will', 'do', 'does', 'have', 'get', 'got', 'currently', 'right', 'still', 'left', 'leave',
+  'tell', 'if', 'there', 'anything', 'something', 'thanks', 'too', 'also', 'as', 'well', 'with', 'by', 'to', 'into', 'set', 'put', 'flip', 'shut',
   'لي', 'لنا', 'الحين', 'الان', 'هلا', 'هلق', 'دلوقتي', 'هسا', 'هسه', 'بسرعه', 'شوي', 'شويه', 'now', 'just',
   'حق', 'تبع', 'بتاع', 'بتاعه', 'تبعه', 'حقت', 'الي', 'اللي', 'يلي', 'اللذي', 'الذي', 'التي', 'هذا', 'هذي', 'هاذا', 'ده', 'دي',
   'في', 'على', 'من', 'عن', 'الى', 'لـ', 'the', 'my', 'in', 'on', 'of', 'a', 'an', 'at', 'and', 'off', 'is', 'are', 'status', 'what', 'turn', 'switch', 'power', 'shut', 'down', 'up',
@@ -196,6 +210,9 @@ export function parseUtterance(text: string): ParsedCommand {
   let state: ParsedAction | null = null;
   let question = false;
   let all = false;
+  let turning = false;
+  /** "lights on" / "kitchen off": an English on/off with no question is a command. */
+  let englishState: ParsedAction | null = null;
   const targets: string[] = [];
 
   for (const segment of folded.split(SEGMENT_SPLIT)) {
@@ -211,8 +228,19 @@ export function parseUtterance(text: string): ParsedCommand {
         making = true;
         continue;
       }
+      if (TURN.has(word)) {
+        turning = true;
+        continue;
+      }
       const asState = stateOf(word);
       if (asState) {
+        if (turning && (word === 'on' || word === 'off')) {
+          verb = verb ?? asState;
+          continue;
+        }
+        if (word === 'on' || word === 'off') {
+          englishState = englishState ?? asState;
+        }
         if (making) {
           made = made ?? asState;
         } else {
@@ -228,6 +256,9 @@ export function parseUtterance(text: string): ParsedCommand {
         all = true;
         continue;
       }
+      if (PLURALS.has(word.replace(/^(وال|بال|فال|كال|لل|ال)/, ''))) {
+        all = true;
+      }
       kept.push(word);
     }
     // Kept as heard (minus filler), so it can be spoken back; matching maps it to concepts.
@@ -238,6 +269,7 @@ export function parseUtterance(text: string): ParsedCommand {
   }
 
   // A command verb wins; «خلّي النور شغال» is a command too; a bare state or question asks.
-  const action: ParsedAction | null = verb ?? made ?? (state || question ? 'status' : null);
+  const action: ParsedAction | null =
+    verb ?? made ?? (englishState && !question ? englishState : null) ?? (state || question ? 'status' : null);
   return { action, targets, all };
 }
