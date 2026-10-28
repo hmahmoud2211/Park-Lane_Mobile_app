@@ -48,6 +48,17 @@ export const config = {
     defaultPort: 8081,
   },
 
+  /** LG appliances through rethink (docker/rethink). Off until RETHINK_MQTT_URL is set. */
+  rethink: {
+    /** The broker rethink publishes to, e.g. mqtt://localhost:1883 or mqtt://user:pass@host:1883. */
+    mqttUrl: (env.RETHINK_MQTT_URL ?? '').trim(),
+    /** rethink's `rethink_prefix` and `discovery_prefix` (its config.json). */
+    prefix: env.RETHINK_PREFIX || 'rethink',
+    discoveryPrefix: env.RETHINK_DISCOVERY_PREFIX || 'homeassistant',
+    /** How long a power command waits for the appliance to report its new state. */
+    confirmMs: 7_500,
+  },
+
   /** EMS accounts, the device registry and the Alexa integration (see ALEXA_INTEGRATION.md). */
   ems: {
     /**

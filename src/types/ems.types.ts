@@ -9,7 +9,7 @@ export interface EmsUser {
   name: string;
 }
 
-export type SmartDeviceType = 'switch' | 'plug' | 'light' | 'virtual';
+export type SmartDeviceType = 'switch' | 'plug' | 'light' | 'ac' | 'virtual';
 export type SmartDevicePower = 'on' | 'off' | 'unknown';
 
 export interface SmartDevice {
@@ -17,7 +17,7 @@ export interface SmartDevice {
   name: string;
   room: string | null;
   type: SmartDeviceType;
-  /** `virtual` or `sonoff-lan` today. */
+  /** `virtual`, `sonoff-lan`, `cube`, or `rethink` for LG appliances. */
   protocol: string;
   /** No hardware behind it: a virtual switch. Always labelled as such. */
   simulated: boolean;
@@ -33,6 +33,20 @@ export interface SmartDevice {
   lastError: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** An LG appliance paired with rethink, the backend's local LG bridge (GET /api/lg/appliances). */
+export interface LgAppliance {
+  /** Rethink's id for the appliance. */
+  id: string;
+  name: string;
+  /** LG's model code, e.g. RAC_056905_WW. */
+  model: string | null;
+  kind: 'ac';
+  online: boolean;
+  power: SmartDevicePower;
+  /** Already one of this account's devices. */
+  added: boolean;
 }
 
 export type AlexaLinkStatus = 'linked' | 'unlinked' | 'failed' | 'expired';

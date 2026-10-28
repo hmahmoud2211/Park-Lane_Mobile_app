@@ -9,7 +9,7 @@ export const devicesCopy = {
   devicesTitle: 'Devices',
   add: 'Add',
   close: 'Close',
-  empty: 'No devices yet. Add a virtual switch to try the app and Alexa, or pair a SONOFF Wi-Fi plug.',
+  empty: 'No devices yet. Add a virtual switch to try the app and Alexa, pair a SONOFF Wi-Fi plug, or add an LG AC.',
   loadFailed: 'Your devices could not be loaded.',
   retry: 'Try again',
   addTitle: 'Add a device',
@@ -18,6 +18,20 @@ export const devicesCopy = {
   sonoffNote:
     'Pairs a SONOFF Wi-Fi plug from its setup hotspot, adds it to your CUBE hub, then to your devices here, so the hub, the app and Alexa all control it.',
   startPairing: 'Start pairing',
+  lgNote:
+    'LG air conditioners paired with rethink, the LG bridge on your home network. Pair the AC in rethink first; it then shows up here.',
+  lgLoading: 'Looking for LG appliances…',
+  lgNotConfigured: 'LG appliances are not set up on the EMS backend yet (RETHINK_MQTT_URL).',
+  lgBridgeDown: 'The EMS backend cannot reach rethink, the LG bridge. Check it is running.',
+  lgEmpty: 'Rethink has no LG appliances yet. Pair your AC in rethink, then refresh.',
+  lgRefresh: 'Refresh',
+  lgPick: 'Choose the appliance',
+  lgAdded: 'added',
+  lgOffline: 'offline',
+  lgPickFirst: 'Choose an appliance first.',
+  lgNameMissing: 'Give the AC a name, e.g. “Bedroom AC”.',
+  lgDefaultName: 'AC',
+  addLg: 'Add LG appliance',
   addVirtual: 'Add virtual switch',
   name: 'Name',
   room: 'Room (optional)',
@@ -33,14 +47,15 @@ export const devicesCopy = {
 } as const;
 
 export interface AddOption {
-  id: 'virtual' | 'sonoff';
+  id: 'virtual' | 'sonoff' | 'lg';
   label: string;
   iconName: string;
 }
 
 export const addOptions: readonly AddOption[] = [
   { id: 'virtual', label: 'Virtual switch', iconName: 'toggle-outline' },
-  { id: 'sonoff', label: 'SONOFF Wi-Fi plug', iconName: 'flash-outline' },
+  { id: 'sonoff', label: 'SONOFF', iconName: 'flash-outline' },
+  { id: 'lg', label: 'LG', iconName: 'snow-outline' },
 ];
 
 export const virtualTypes: readonly { id: SmartDeviceType; label: string; iconName: string }[] = [

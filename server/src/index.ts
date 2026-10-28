@@ -4,12 +4,14 @@ import { isConfigured as alexaConfigured } from './ems/alexaLink.ts';
 import { db } from './ems/db.ts';
 import { startAdapters } from './ems/devices.ts';
 import { log } from './log.ts';
+import { isConfigured as rethinkConfigured, startRethink } from './rethink/appliances.ts';
 import { browser, startBridge } from './sonoff/bridge.ts';
 
 /** Starts the backend: routes in app.ts, EMS storage in ems/, the SONOFF bridge in sonoff/. */
 
 db();
 await startBridge();
+startRethink();
 startAdapters();
 
 if (config.alexa.devVoiceToken) {
@@ -23,6 +25,7 @@ createApp().listen(config.port, config.host, () => {
     emsPublicUrl: config.ems.publicUrl || '(not set: Alexa linking disabled)',
     alexaLinking: alexaConfigured(),
     mdns: browser.listening,
+    lgAppliances: rethinkConfigured() ? config.rethink.mqttUrl.replace(/\/\/[^@/]*@/, '//') : '(RETHINK_MQTT_URL not set)',
     auth: config.apiKey ? 'api key' : 'none',
   });
 });

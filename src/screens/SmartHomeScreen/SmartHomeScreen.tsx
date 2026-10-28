@@ -663,6 +663,7 @@ export function SmartHomeScreen() {
         onClose={() => setAddOpen(false)}
         refresh={hub.refresh}
         onAddSonoff={() => navigation.navigate('SonoffPairing')}
+        onAddLg={() => navigation.navigate('EmsDevices', { add: 'lg' })}
       />
 
       <AppMenu

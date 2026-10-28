@@ -4,7 +4,7 @@
  * registry never stores, or tells Alexa, a state that did not happen.
  */
 
-export type DeviceType = 'switch' | 'plug' | 'light' | 'virtual';
+export type DeviceType = 'switch' | 'plug' | 'light' | 'ac' | 'virtual';
 export type Power = 'on' | 'off' | 'unknown';
 
 export interface AdapterDevice {

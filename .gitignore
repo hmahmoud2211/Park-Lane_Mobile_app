@@ -46,3 +46,6 @@ server/data/
 
 # Alexa skill dependencies (installed by Alexa-hosted builds)
 alexa/lambda/node_modules/
+
+# rethink-cloud runtime state (CA private key)
+/docker/rethink/data/
