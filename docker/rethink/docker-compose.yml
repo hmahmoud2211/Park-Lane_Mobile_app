@@ -6,7 +6,8 @@
 #   docker compose logs -f rethink
 #
 # Appliances must resolve config.json's `hostname` (default rethink.lan) and, during setup,
-# common.lgthinq.com to this machine's LAN IP.
+# common.lgthinq.com to this machine's LAN IP. The `dns` service does that: set RETHINK_HOST_IP
+# in .env, then make the router's DHCP hand out this machine as the network's DNS server.
 services:
   rethink:
     container_name: rethink
@@ -33,6 +34,16 @@ services:
       - mosquitto-data:/mosquitto/data
     ports:
       - '1883:1883'
+
+  dns:
+    container_name: rethink-dns
+    build: ./dns
+    restart: unless-stopped
+    environment:
+      RETHINK_HOST_IP: ${RETHINK_HOST_IP:?Set RETHINK_HOST_IP in .env}
+    ports:
+      - '53:53/udp'
+      - '53:53/tcp'
 
 volumes:
   mosquitto-data:
