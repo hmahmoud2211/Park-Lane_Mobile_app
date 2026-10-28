@@ -1,0 +1,71 @@
+import type { HealthLang } from '../../services/health/health.types';
+import { num } from '../../services/health/i18n';
+
+export const documentCopy = {
+  en: {
+    status: 'Status',
+    uploaded: 'Uploaded',
+    dated: 'Document date',
+    pages: 'Pages',
+    unknownDate: 'Not given',
+    processingTitle: 'We’re reading your document',
+    processingBody: 'This can take a few minutes. You can leave this screen; we’ll let you know when it’s ready.',
+    slowTitle: 'Taking longer than expected',
+    slowBody: 'Reading this document is taking longer than usual.',
+    checkAgain: 'Check again',
+    reviewTitle: 'Ready for your review',
+    reviewBody: 'Check what we read before it’s added to the record.',
+    review: 'Review now',
+    failedTitle: 'We couldn’t read this document',
+    tryAgain: 'Try again',
+    addManually: 'Add manually',
+    original: 'Original',
+    extractedText: 'Extracted text',
+    extractedHint: 'Everything we read from the document, word for word. Press and hold to select.',
+    copy: 'Copy text',
+    copied: 'Copied',
+    savedItems: 'Saved from this document',
+    noSavedItems: 'No items from this document are in the record.',
+    delete: 'Delete document',
+    deleteTitle: 'Delete this document?',
+    deleteBody: (n: number) =>
+      n === 0
+        ? 'The document, its original and extracted text will be deleted.'
+        : `${n} ${n === 1 ? 'item in the record came' : 'items in the record came'} from it. You can keep them or delete them too.`,
+    deleteOnly: 'Delete document only',
+    deleteWithItems: (n: number) => `Delete document and ${n === 1 ? 'its item' : `its ${n} items`}`,
+  },
+  ar: {
+    status: 'الحالة',
+    uploaded: 'تاريخ الرفع',
+    dated: 'تاريخ المستند',
+    pages: 'الصفحات',
+    unknownDate: 'غير محدد',
+    processingTitle: 'جارٍ قراءة مستندك',
+    processingBody: 'قد يستغرق ذلك بضع دقائق. يمكنك مغادرة هذه الشاشة، وسننبهك عندما يصبح جاهزًا.',
+    slowTitle: 'يستغرق وقتًا أطول من المتوقع',
+    slowBody: 'قراءة هذا المستند تستغرق وقتًا أطول من المعتاد.',
+    checkAgain: 'تحقق مرة أخرى',
+    reviewTitle: 'جاهز لمراجعتك',
+    reviewBody: 'راجع ما قرأناه قبل إضافته إلى السجل.',
+    review: 'راجع الآن',
+    failedTitle: 'تعذّرت قراءة هذا المستند',
+    tryAgain: 'حاول مرة أخرى',
+    addManually: 'إضافة يدويًا',
+    original: 'الأصل',
+    extractedText: 'النص المقروء',
+    extractedHint: 'كل ما قرأناه من المستند كما هو. اضغط مطولًا للتحديد.',
+    copy: 'نسخ النص',
+    copied: 'تم النسخ',
+    savedItems: 'محفوظ من هذا المستند',
+    noSavedItems: 'لا توجد عناصر من هذا المستند في السجل.',
+    delete: 'حذف المستند',
+    deleteTitle: 'حذف هذا المستند؟',
+    deleteBody: (n: number) =>
+      n === 0
+        ? 'سيُحذف المستند وملفه الأصلي والنص المقروء منه.'
+        : `${n === 1 ? 'عنصر واحد في السجل مصدره' : `${num(n, 'ar')} عناصر في السجل مصدرها`} هذا المستند. يمكنك الاحتفاظ بها أو حذفها أيضًا.`,
+    deleteOnly: 'حذف المستند فقط',
+    deleteWithItems: (n: number) => (n === 1 ? 'حذف المستند والعنصر المرتبط به' : `حذف المستند و${num(n, 'ar')} عناصر مرتبطة به`),
+  },
+} satisfies Record<HealthLang, unknown>;

@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { IconSet } from '../components/ui/ServiceTile';
+import type { DocumentType, HealthLang, RecordSection } from '../services/health/health.types';
 import type { Lang } from '../services/parking/i18n';
 
 /**
@@ -45,7 +46,30 @@ export type RootStackParamList = {
   SecurityConsole: undefined;
   /** Demo only: clock, simulated events and data reset. */
   DemoControls: undefined;
+
+  /** Health Passport home; sends a resident who hasn't consented to onboarding first. */
+  HealthPassport: undefined;
+  HealthOnboarding: undefined;
+  /** A profile's basic details; without `profileId` it adds a family member. */
+  HealthProfile: { profileId?: string } | undefined;
+  HealthRecords: { profileId: string; tab?: RecordTab };
+  HealthDocument: { docId: string };
+  /** `retryOf` names a failed document this upload replaces. */
+  HealthUpload: { profileId: string; type?: DocumentType; retryOf?: string };
+  /** Checking what the server read from a document, item by item. */
+  HealthReview: { docId: string };
+  /**
+   * Adds an item by hand, or edits `itemId`. Without `section` the resident
+   * picks one first; `labTest` starts a new lab result for that test.
+   */
+  HealthItemForm: { profileId: string; section?: RecordSection; itemId?: string; labTest?: string };
+  /** With `lang` (and `specialty`), opens straight on that summary: its player, progress or failure. */
+  HealthSummary: { profileId: string; lang?: HealthLang; specialty?: string | null };
+  HealthSettings: undefined;
 };
+
+/** The Records screen's tabs: each record section, then the documents. */
+export type RecordTab = RecordSection | 'documents';
 
 /** Routes that can be opened without params, e.g. from data-driven tiles and tabs. */
 export type ParamlessRoute = {

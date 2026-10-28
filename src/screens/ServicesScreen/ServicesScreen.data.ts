@@ -1,5 +1,6 @@
 import type { IconSet } from '../../components/ui/ServiceTile';
 import type { ImageKey } from '../../constants/images';
+import type { ParamlessRoute } from '../../types/navigation.types';
 
 /**
  * Content for the Services screen. Wording matches the Figma reference
@@ -23,6 +24,8 @@ export interface ServiceItem {
    */
   iconSet: IconSet;
   iconName: string;
+  /** Screen the row opens; rows without one open the placeholder. */
+  route?: ParamlessRoute;
 }
 
 export const services: readonly ServiceItem[] = [
@@ -57,6 +60,16 @@ export const services: readonly ServiceItem[] = [
     icon: 'serviceMoving',
     iconSet: 'material',
     iconName: 'dolly',
+  },
+  {
+    // Not in the Figma reference; added after it with the same row.
+    id: 'health-passport',
+    title: 'Health Passport',
+    description: 'Your family’s medical records,\nand a summary for your doctor.',
+    icon: 'serviceHealth',
+    iconSet: 'ionicons',
+    iconName: 'medkit-outline',
+    route: 'HealthPassport',
   },
   {
     id: 'support',

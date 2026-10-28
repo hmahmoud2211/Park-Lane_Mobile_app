@@ -60,6 +60,11 @@ export function onSessionExpired(listener: () => void): () => void {
   return () => expiredListeners.delete(listener);
 }
 
+/** For other clients of the same session (Health Passport) that were refused with a 401. */
+export function reportSessionExpired() {
+  expiredListeners.forEach((listener) => listener());
+}
+
 export const isEmsConfigured = () => emsConfig.url !== '';
 
 async function call<T>(

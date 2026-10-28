@@ -131,6 +131,8 @@ export const images = {
   serviceDeliveries: require('../assets/images/icons/service-deliveries.png') as number,
   serviceMoving: require('../assets/images/icons/service-moving.png') as number,
   serviceSupport: require('../assets/images/icons/service-support.png') as number,
+  /** Not in the Services design: drawn to match the glyphs above. Replace with an official export when there is one. */
+  serviceHealth: require('../assets/images/icons/service-health.png') as number,
 } as const;
 
 /**

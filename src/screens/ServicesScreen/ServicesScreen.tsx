@@ -68,15 +68,17 @@ export function ServicesScreen() {
                 title={service.title}
                 description={service.description}
                 icon={{ image: images[service.icon] }}
-                // None of the services has a designed screen yet, so each opens
-                // the same placeholder Home's unbuilt tiles do.
+                // Services without a screen yet open the same placeholder
+                // Home's unbuilt tiles do.
                 // TODO(nav): route to each service's screen once it is designed.
                 onPress={() =>
-                  navigation.navigate('UnderDevelopment', {
-                    title: service.title,
-                    iconSet: service.iconSet,
-                    iconName: service.iconName,
-                  })
+                  service.route
+                    ? navigation.navigate(service.route)
+                    : navigation.navigate('UnderDevelopment', {
+                        title: service.title,
+                        iconSet: service.iconSet,
+                        iconName: service.iconName,
+                      })
                 }
               />
             )}
