@@ -17,6 +17,7 @@ import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { DemoControlsScreen } from '../screens/DemoControlsScreen';
+import { AcControlScreen } from '../screens/AcControlScreen';
 import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { GuestPassScreen } from '../screens/GuestPassScreen';
@@ -158,6 +159,7 @@ export function AppNavigator() {
           <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
           <Stack.Screen name="LgPairing" component={LgPairingScreen} />
           <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
+          <Stack.Screen name="AcControl" component={AcControlScreen} />
           <Stack.Screen name="AlexaIntegration" component={AlexaIntegrationScreen} />
           <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />

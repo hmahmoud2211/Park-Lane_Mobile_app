@@ -36,6 +36,7 @@ export const devicesCopy = {
   addVirtual: 'Add virtual switch',
   name: 'Name',
   room: 'Room (optional)',
+  controls: 'Controls',
   rename: 'Edit',
   remove: 'Remove',
   confirmRemove: 'Tap again to remove',

@@ -17,6 +17,7 @@ function device(name: string, room: string | null, extra: Partial<Device> = {}):
     type: 'switch',
     protocol: 'virtual',
     simulated: true,
+    hasControls: false,
     online: true,
     power: 'off',
     pendingPower: null,

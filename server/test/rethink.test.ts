@@ -10,7 +10,9 @@ import { after, before, describe, test } from 'node:test';
  * LG appliances through rethink, end to end over HTTP: an in-process MQTT
  * broker, and a stand-in for rethink with one AC that answers the way
  * rethink's RAC_056905_WW driver does (power on climate-power/set, state on
- * climate-mode). Nothing here touches a real appliance or broker.
+ * climate-mode, the climate settings, and extras such as Jet, which only
+ * works in Cooling or Heating, Air purify, which is never echoed, the sleep
+ * timer and the filter). Nothing here touches a real appliance or broker.
  */
 
 async function freePort(): Promise<number> {
@@ -103,40 +105,156 @@ const broker = createTcpServer((socket) => {
 // ---- Rethink stand-in with one DualCool AC -----------------------------------------------
 
 const AC = 'ac-1111';
-const ac = { power: false, mode: 'cool', deaf: false };
+const ac = {
+  power: false,
+  mode: 'cool',
+  deaf: false,
+  temperature: 24,
+  fan: 'auto',
+  swing: 'off',
+  jet: false,
+  sleep: 0,
+  filterUsed: 120,
+};
+const at = (name: string) => `rethink/${AC}/${name}`;
+const availableWhen = (name: string) => [{ topic: at('availability') }, { topic: 'rethink/availability' }, { topic: at(`${name}-available`) }];
 const discovery = JSON.stringify({
-  availability: [{ topic: `rethink/${AC}/availability` }, { topic: 'rethink/availability' }],
+  availability: [{ topic: at('availability') }, { topic: 'rethink/availability' }],
   availability_mode: 'all',
   device: { identifiers: AC, manufacturer: 'LG', model: 'RAC_056905_WW', name: 'LG Air Conditioner' },
   components: {
     climate: {
       platform: 'climate',
       unique_id: `${AC}-climate`,
-      mode_state_topic: `rethink/${AC}/climate-mode`,
-      mode_command_topic: `rethink/${AC}/climate-mode/set`,
-      power_command_topic: `rethink/${AC}/climate-power/set`,
-      current_temperature_topic: `rethink/${AC}/climate-current_temperature`,
+      action_topic: at('climate-action'),
+      temperature_unit: 'C',
+      temp_step: 0.5,
+      min_temp: 16,
+      max_temp: 30,
+      fan_modes: ['auto', 'very low', 'low', 'medium', 'high', 'very high'],
+      swing_modes: ['1', '2', '3', '4', '5', '6', 'on', 'off'],
+      mode_state_topic: at('climate-mode'),
+      mode_command_topic: at('climate-mode/set'),
+      power_command_topic: at('climate-power/set'),
+      current_temperature_topic: at('climate-current_temperature'),
+      temperature_state_topic: at('climate-temperature'),
+      temperature_command_topic: at('climate-temperature/set'),
+      fan_mode_state_topic: at('climate-fan_mode'),
+      fan_mode_command_topic: at('climate-fan_mode/set'),
+      swing_mode_state_topic: at('climate-swing_mode'),
+      swing_mode_command_topic: at('climate-swing_mode/set'),
     },
+    jet: {
+      platform: 'switch',
+      name: 'Jet cool/heat',
+      entity_category: 'config',
+      optimistic: true,
+      state_topic: at('jet-'),
+      command_topic: at('jet-/set'),
+      json_attributes_topic: at('jet-attributes'),
+      availability: availableWhen('jet'),
+    },
+    airclean: {
+      platform: 'switch',
+      name: 'Air purify',
+      entity_category: 'config',
+      optimistic: true,
+      state_topic: at('airclean-'),
+      command_topic: at('airclean-/set'),
+    },
+    sleeptimer: {
+      platform: 'number',
+      name: 'Sleep timer',
+      unit_of_measurement: 'h',
+      min: 0,
+      max: 15,
+      step: 0.25,
+      state_topic: at('sleeptimer-'),
+      command_topic: at('sleeptimer-/set'),
+      json_attributes_topic: at('sleeptimer-attributes'),
+      availability: availableWhen('sleeptimer'),
+    },
+    filterused: { platform: 'sensor', name: 'Filter used time', unit_of_measurement: 'h', entity_category: 'diagnostic', state_topic: at('filterused') },
+    filterlife: { platform: 'sensor', name: 'Filter life time', unit_of_measurement: 'h', entity_category: 'diagnostic', state_topic: at('filterlife') },
+    changeddate: { platform: 'sensor', name: 'Filter usage last reset', entity_category: 'diagnostic', state_topic: at('filterchangeddate') },
+    filterreset: { platform: 'button', name: 'Reset filter usage', entity_category: 'diagnostic', command_topic: at('filterreset/set') },
+    autodry: { platform: 'binary_sensor', name: 'Auto dry', entity_category: 'diagnostic', state_topic: at('autodry-') },
+    // Withdrawn by an earlier rethink release: only the platform is left.
+    gone: { platform: 'switch' },
   },
 });
 
 const rethink = new MqttClient(`mqtt://127.0.0.1:${brokerPort}`);
-const publishMode = () => rethink.publish(`rethink/${AC}/climate-mode`, ac.power ? ac.mode : 'off', true);
+const jetModes = () => ac.power && (ac.mode === 'cool' || ac.mode === 'heat');
+function publishState() {
+  const state: Record<string, string> = {
+    'climate-mode': ac.power ? ac.mode : 'off',
+    'climate-action': ac.power ? 'cooling' : 'off',
+    'climate-temperature': String(ac.temperature),
+    'climate-fan_mode': ac.fan,
+    'climate-swing_mode': ac.swing,
+    'jet-': ac.jet ? 'ON' : 'OFF',
+    'jet-available': jetModes() ? 'online' : 'offline',
+    'sleeptimer-': String(ac.sleep),
+    'sleeptimer-available': ac.power ? 'online' : 'offline',
+    filterused: String(ac.filterUsed),
+  };
+  for (const [name, value] of Object.entries(state)) {
+    rethink.publish(at(name), value, true);
+  }
+}
 rethink.on('connect', () => {
   rethink.subscribe(['rethink/+/+/set', 'homeassistant/status']);
   rethink.publish('rethink/availability', 'online', true);
-  rethink.publish(`rethink/${AC}/availability`, 'online', true);
-  publishMode();
+  rethink.publish(at('availability'), 'online', true);
+  rethink.publish(at('climate-current_temperature'), '26', true);
+  rethink.publish(at('airclean-'), 'OFF', true);
+  rethink.publish(at('filterlife'), '720', true);
+  rethink.publish(at('filterchangeddate'), '0000-00-00', true);
+  rethink.publish(at('autodry-'), 'OFF', true);
+  rethink.publish(at('jet-attributes'), JSON.stringify({ description: 'Strong airflow.', requires: 'AC on, in Cooling or Heating' }), true);
+  rethink.publish(at('sleeptimer-attributes'), JSON.stringify({ description: 'Turns the AC off.', requires: 'AC on' }), true);
+  publishState();
 });
 rethink.on('message', (topic: string, payload: Buffer) => {
   const text = payload.toString('utf8');
   if (topic === 'homeassistant/status' && text === 'online') {
     rethink.publish(`homeassistant/device/rethink/${AC}/config`, discovery);
   }
-  if (topic === `rethink/${AC}/climate-power/set` && !ac.deaf) {
-    ac.power = text === 'ON';
-    publishMode();
+  const set = new RegExp(`^rethink/${AC}/(.+)/set$`).exec(topic);
+  if (!set || ac.deaf) {
+    return;
   }
+  switch (set[1]) {
+    case 'climate-power':
+      ac.power = text === 'ON';
+      break;
+    case 'climate-mode':
+      ac.mode = text;
+      break;
+    case 'climate-temperature':
+      ac.temperature = Number(text);
+      break;
+    case 'climate-fan_mode':
+      ac.fan = text;
+      break;
+    case 'climate-swing_mode':
+      ac.swing = text;
+      break;
+    case 'jet-':
+      ac.jet = jetModes() && text === 'ON';
+      break;
+    case 'sleeptimer-':
+      ac.sleep = ac.power ? Number(text) : ac.sleep;
+      break;
+    case 'filterreset':
+      ac.filterUsed = 0;
+      break;
+    default:
+      // Air purify is kept for power-up and never echoed, as by an AC that is off.
+      return;
+  }
+  publishState();
 });
 
 // ---- Helpers ------------------------------------------------------------------------------
@@ -274,7 +392,7 @@ describe('LG appliances in the registry', () => {
 
   test('picks up a change made with the remote', async () => {
     ac.power = false;
-    publishMode();
+    publishState();
     await waitFor(async () => (await api<{ power: string }>('GET', `/api/devices/${deviceId}`, token)).data.power === 'off');
   });
 
@@ -297,4 +415,156 @@ describe('LG appliances in the registry', () => {
     rethink.publish(`rethink/${AC}/availability`, 'online', true);
     await waitFor(async () => (await api<{ online: boolean }>('GET', `/api/devices/${deviceId}`, token)).data.online === true);
   });
+
+  describe('settings beyond power', () => {
+    const controls = async () => (await api<Controls>('GET', `/api/devices/${deviceId}/controls`, token)).data;
+    const setting = (all: Controls, key: string) => all.settings.find((entry) => entry.key === key);
+    const set = (key: string, value: unknown) => api<Controls>('POST', `/api/devices/${deviceId}/controls`, token, { key, value });
+
+    test('lists what rethink announced, climate settings first', async () => {
+      const device = await api<{ hasControls: boolean }>('GET', `/api/devices/${deviceId}`, token);
+      assert.equal(device.data.hasControls, true);
+      const all = await controls();
+      assert.deepEqual(
+        all.settings.map(({ key, kind }) => `${key}:${kind}`),
+        [
+          'mode:select',
+          'temperature:number',
+          'fan_mode:select',
+          'swing_mode:select',
+          'jet:switch',
+          'airclean:switch',
+          'sleeptimer:number',
+          'filterused:sensor',
+          'filterlife:sensor',
+          'changeddate:sensor',
+          'filterreset:button',
+          'autodry:sensor',
+        ],
+      );
+      assert.equal(all.currentTemperature, 26);
+      assert.deepEqual(setting(all, 'mode')?.options, ['auto', 'cool', 'heat', 'dry', 'fan_only']);
+      assert.deepEqual(setting(all, 'temperature'), {
+        key: 'temperature',
+        kind: 'number',
+        name: 'Temperature',
+        value: 24,
+        min: 16,
+        max: 30,
+        step: 0.5,
+        unit: '°C',
+        available: false,
+        requires: 'AC on',
+        description: null,
+        diagnostic: false,
+      });
+      assert.equal(setting(all, 'jet')?.requires, 'AC on, in Cooling or Heating');
+      assert.equal(setting(all, 'jet')?.description, 'Strong airflow.');
+      assert.equal(setting(all, 'airclean')?.available, true);
+      assert.equal(setting(all, 'filterused')?.value, 120);
+      assert.equal(setting(all, 'filterlife')?.unit, 'h');
+      assert.equal(setting(all, 'changeddate')?.value, null);
+      assert.equal(setting(all, 'autodry')?.value, false);
+    });
+
+    test('a device without settings says so', async () => {
+      const lamp = await api<{ id: string; hasControls: boolean }>('POST', '/api/devices', token, { name: 'Lamp', protocol: 'virtual', type: 'light' });
+      assert.equal(lamp.data.hasControls, false);
+      const result = await api('GET', `/api/devices/${lamp.data.id}/controls`, token);
+      assert.equal(result.status, 409);
+      assert.equal(result.error?.code, 'not_controllable');
+    });
+
+    test('refuses climate settings while the AC is off', async () => {
+      const result = await set('temperature', 21);
+      assert.equal(result.status, 409);
+      assert.equal(result.error?.code, 'not_controllable');
+      assert.equal(ac.temperature, 24);
+    });
+
+    test('changes the set point, fan and swing once the AC reports them', async () => {
+      assert.equal((await api('POST', `/api/devices/${deviceId}/power`, token, { power: 'on' })).status, 200);
+      const temperature = await set('temperature', 21.5);
+      assert.equal(temperature.status, 200, JSON.stringify(temperature.error));
+      assert.equal(setting(temperature.data, 'temperature')?.value, 21.5);
+      assert.equal(ac.temperature, 21.5);
+      assert.equal(setting((await set('fan_mode', 'very high')).data, 'fan_mode')?.value, 'very high');
+      assert.equal(setting((await set('swing_mode', 'on')).data, 'swing_mode')?.value, 'on');
+      assert.deepEqual([ac.fan, ac.swing], ['very high', 'on']);
+    });
+
+    test('refuses values the AC does not take', async () => {
+      for (const [key, value] of [
+        ['temperature', 31],
+        ['temperature', 21.3],
+        ['temperature', '22'],
+        ['fan_mode', 'turbo'],
+        ['mode', 'off'],
+        ['jet', 'yes'],
+        ['filterused', 0],
+        ['nope', 1],
+      ] as const) {
+        const result = await set(key, value);
+        assert.equal(result.status, 400, `${key} = ${String(value)}`);
+        assert.equal(result.error?.code, 'bad_request');
+      }
+      assert.equal((await api('POST', `/api/devices/${deviceId}/controls`, token, { value: 1 })).status, 400);
+    });
+
+    test('Jet only where the AC takes it, and says why', async () => {
+      assert.equal((await set('mode', 'fan_only')).status, 200);
+      await waitFor(async () => setting(await controls(), 'jet')?.available === false);
+      const refused = await set('jet', true);
+      assert.equal(refused.status, 409);
+      assert.equal(refused.error?.code, 'not_controllable');
+      assert.match(String((refused.error as { message?: string }).message), /Cooling or Heating/);
+      assert.equal((await set('mode', 'cool')).status, 200);
+      await waitFor(async () => setting(await controls(), 'jet')?.available === true);
+      const jet = await set('jet', true);
+      assert.equal(jet.status, 200, JSON.stringify(jet.error));
+      assert.equal(setting(jet.data, 'jet')?.value, true);
+      await waitFor(() => ac.jet);
+    });
+
+    test('assumes a setting the AC never echoes, as Home Assistant does', async () => {
+      const result = await set('airclean', true);
+      assert.equal(result.status, 200, JSON.stringify(result.error));
+      assert.equal(setting(result.data, 'airclean')?.value, true);
+    });
+
+    test('sets a timer and presses the filter reset', async () => {
+      const timer = await set('sleeptimer', 1.5);
+      assert.equal(timer.status, 200, JSON.stringify(timer.error));
+      assert.equal(setting(timer.data, 'sleeptimer')?.value, 1.5);
+      assert.equal(ac.sleep, 1.5);
+      assert.equal((await set('filterreset', null)).status, 200);
+      await waitFor(async () => setting(await controls(), 'filterused')?.value === 0);
+    });
+
+    test('pushes changes made on the AC to the app', async () => {
+      const socket = new WebSocket(`ws://127.0.0.1:${appPort}/api/events`);
+      const events: { type: string; id?: string; controls?: Controls }[] = [];
+      socket.onmessage = (message) => events.push(JSON.parse(String(message.data)));
+      await new Promise((resolve) => (socket.onopen = resolve));
+      socket.send(JSON.stringify({ type: 'auth', token }));
+      try {
+        await waitFor(() => events.some((event) => event.type === 'ready'));
+        ac.temperature = 19;
+        publishState();
+        await waitFor(() =>
+          events.some((event) => event.type === 'controls' && event.id === deviceId && setting(event.controls as Controls, 'temperature')?.value === 19),
+        );
+      } finally {
+        socket.close();
+      }
+    });
+  });
 });
+
+interface Controls {
+  online: boolean;
+  power: string;
+  action: string | null;
+  currentTemperature: number | null;
+  settings: { key: string; kind: string; value: unknown; options?: string[]; unit: string | null; available: boolean; requires: string | null; description: string | null }[];
+}

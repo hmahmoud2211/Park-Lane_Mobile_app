@@ -4,7 +4,14 @@ import { AppState } from 'react-native';
 import * as api from '../services/ems/emsApi';
 import { EmsRealtime } from '../services/ems/realtime';
 import { sessionStore } from '../services/ems/sessionStore';
-import type { AlexaLinkStatus, EmsEvent, EmsUser, RealtimeState, SmartDevice } from '../types/ems.types';
+import type {
+  AlexaLinkStatus,
+  DeviceControls,
+  EmsEvent,
+  EmsUser,
+  RealtimeState,
+  SmartDevice,
+} from '../types/ems.types';
 
 /**
  * The EMS session and its live device list, shared by every screen that
@@ -38,6 +45,12 @@ interface EmsContextValue {
   dropDevice: (id: string) => void;
   /** The last Alexa link status the backend pushed; screens re-read details on change. */
   alexaPushed: { status: AlexaLinkStatus; at: number } | null;
+  /**
+   * A device's settings and readings as the backend pushes them. A listener,
+   * not state: they change every few seconds while an AC runs, and only the
+   * screen showing them should re-render.
+   */
+  subscribeControls: (deviceId: string, listener: (controls: DeviceControls) => void) => () => void;
 }
 
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
@@ -60,6 +73,20 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [realtime, setRealtime] = useState<RealtimeState>('offline');
   const [alexaPushed, setAlexaPushed] = useState<EmsContextValue['alexaPushed']>(null);
   const channel = useRef<EmsRealtime | null>(null);
+  const controlsListeners = useRef(new Map<string, Set<(controls: DeviceControls) => void>>());
+
+  const subscribeControls = useCallback<EmsContextValue['subscribeControls']>((deviceId, listener) => {
+    const listeners = controlsListeners.current;
+    const forDevice = listeners.get(deviceId) ?? new Set();
+    forDevice.add(listener);
+    listeners.set(deviceId, forDevice);
+    return () => {
+      forDevice.delete(listener);
+      if (forDevice.size === 0) {
+        listeners.delete(deviceId);
+      }
+    };
+  }, []);
 
   const endSession = useCallback(async (notice: string | null) => {
     channel.current?.stop();
@@ -158,6 +185,8 @@ export function EmsProvider({ children }: PropsWithChildren) {
         void refreshRef.current();
       } else if (event.type === 'device') {
         upsertDevice(event.device);
+      } else if (event.type === 'controls') {
+        controlsListeners.current.get(event.id)?.forEach((listener) => listener(event.controls));
       } else if (event.type === 'device_removed') {
         dropDevice(event.id);
       } else if (event.type === 'alexa') {
@@ -216,6 +245,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       upsertDevice,
       dropDevice,
       alexaPushed,
+      subscribeControls,
     }),
     [
       status,
@@ -232,6 +262,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       upsertDevice,
       dropDevice,
       alexaPushed,
+      subscribeControls,
     ],
   );
 

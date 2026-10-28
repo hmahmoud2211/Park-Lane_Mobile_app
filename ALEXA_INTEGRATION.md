@@ -45,11 +45,13 @@ Every response is `{ ok: true, data }` or `{ ok: false, error: { code, message }
 | `GET /api/devices` · `POST /api/devices` | session | List; create `{ name, room?, type, protocol: 'virtual' }` or `{ …, protocol: 'sonoff-lan', sonoff: { deviceId, deviceKey } }` |
 | `GET` · `PATCH` · `DELETE /api/devices/:id` | session | `PATCH { name?, room?, alexaEnabled?, isDefault?, online? }` (`online` only for virtual switches) |
 | `POST /api/devices/:id/power` | session | `{ power: 'on' \| 'off' }`. Resolves with the **confirmed** device, or fails with `device_offline`, `device_unreachable` or `command_timeout` |
+| `GET /api/devices/:id/controls` | session | Settings beyond power for devices with `hasControls` (LG ACs): `{ online, power, action, currentTemperature, currentHumidity, settings: [{ key, kind, name, value, options?, min?, max?, step?, unit, available, requires, description, diagnostic }] }`, only what the model announces. `409 not_controllable` for other devices |
+| `POST /api/devices/:id/controls` | session | `{ key, value }`, e.g. `{ key: 'temperature', value: 22.5 }`, `{ key: 'jet', value: true }`, `{ key: 'filterreset', value: null }`. Resolves with the settings once the AC **confirmed** the value (switches rethink marks optimistic, and buttons, once sent). `400` for a value the setting does not take, `409 not_controllable` while the AC would ignore it (climate settings while off, Jet outside Cooling/Heating), with the reason |
 | `GET /api/integrations/alexa/status[?refresh=1]` | session | Link status; re-checked with Amazon at most once a minute unless `refresh=1` |
 | `POST /api/integrations/alexa/link/start` | session | `{ url }`: the Login with Amazon page to open |
 | `GET /alexa/link/callback` | `state` | Where Login with Amazon returns the browser (this is the "link callback" step) |
 | `POST /api/integrations/alexa/unlink` | session | Disables the skill at Amazon and revokes Alexa's EMS tokens |
-| `GET /api/events` | first message `{type:'auth', token}` | WebSocket: `device`, `device_removed`, `alexa` events |
+| `GET /api/events` | first message `{type:'auth', token}` | WebSocket: `device`, `controls` (`{ id, controls }`, as GET …/controls returns them), `device_removed`, `alexa` events |
 | `POST /api/voice/command` | Alexa's EMS access token | `{ action: 'on'\|'off'\|'status', device?, room? }` → `{ outcome, … }` |
 | `GET`/`POST /oauth/authorize`, `POST /oauth/token` | client credentials | Account linking (Authorization Code grant, PKCE supported, refresh tokens rotate) |
 

@@ -24,6 +24,8 @@ export type RootStackParamList = {
   LgPairing: undefined;
   /** Devices registered in EMS, which the app and Alexa both control; `add` opens the add panel on that kind. */
   EmsDevices: { add?: 'virtual' | 'sonoff' | 'lg' } | undefined;
+  /** Every setting of one EMS air conditioner (mode, set point, swing, timers, filter), from its My Devices card. */
+  AcControl: { deviceId: string };
   /** Linking the EMS account to the Alexa skill, and Alexa's device access. */
   AlexaIntegration: undefined;
   AmenitiesBooking: undefined;

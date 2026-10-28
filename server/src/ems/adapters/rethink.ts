@@ -1,12 +1,24 @@
 import { ApiError } from '../../errors.ts';
-import { applianceEvents, getAppliance, isConfigured, isConnected, setAppliancePower } from '../../rethink/appliances.ts';
+import {
+  applianceControls,
+  applianceEvents,
+  getAppliance,
+  isConfigured,
+  isConnected,
+  setApplianceControl,
+  setAppliancePower,
+} from '../../rethink/appliances.ts';
 import type { AdapterDevice, DeviceAdapter, HardwareReport } from './types.ts';
 
 /**
  * An LG appliance paired with rethink, the local stand-in for LG's ThinQ
- * cloud (see rethink/appliances.ts and docker/rethink). Only power is driven
- * today; it resolves once the appliance reported the new state back.
+ * cloud (see rethink/appliances.ts and docker/rethink). Power, and every
+ * setting rethink announces for the model (mode, set point, fan, swing,
+ * Jet, timers, filter), each resolving once the appliance reported it back.
  */
+
+/** Rethink publishes a burst of topics at a time; each appliance reports once per burst. */
+const REPORT_DELAY_MS = 200;
 
 function applianceId(device: AdapterDevice): string {
   const id = (device.config as { applianceId?: unknown } | null)?.applianceId;
@@ -43,19 +55,39 @@ export const rethinkAdapter: DeviceAdapter = {
     await setAppliancePower(applianceId(device), power);
   },
 
+  readControls(device) {
+    return applianceControls(applianceId(device));
+  },
+
+  async setControl(device, key, value) {
+    await setApplianceControl(applianceId(device), key, value);
+  },
+
   start(report: (report: HardwareReport) => void) {
-    // The remote, the unit's own buttons, or the appliance dropping off Wi-Fi.
-    applianceEvents.on('change', (id: string) => {
-      const appliance = getAppliance(id);
-      if (!appliance) {
-        return;
+    // The remote, the unit's own buttons, a new reading, or the appliance dropping off Wi-Fi.
+    const due = new Set<string>();
+    let timer: NodeJS.Timeout | undefined;
+    const flush = () => {
+      timer = undefined;
+      const ids = [...due];
+      due.clear();
+      for (const id of ids) {
+        const appliance = getAppliance(id);
+        if (!appliance) {
+          continue;
+        }
+        report({
+          protocol: 'rethink',
+          externalId: id,
+          online: appliance.online,
+          ...(appliance.power !== 'unknown' ? { power: appliance.power } : {}),
+          controlsChanged: true,
+        });
       }
-      report({
-        protocol: 'rethink',
-        externalId: id,
-        online: appliance.online,
-        ...(appliance.power !== 'unknown' ? { power: appliance.power } : {}),
-      });
+    };
+    applianceEvents.on('change', (id: string) => {
+      due.add(id);
+      timer ??= setTimeout(flush, REPORT_DELAY_MS);
     });
   },
 };

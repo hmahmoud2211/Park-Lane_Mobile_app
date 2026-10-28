@@ -6,7 +6,14 @@ import { log } from '../log.ts';
 import { cubeAdapter } from './adapters/cube.ts';
 import { rethinkAdapter } from './adapters/rethink.ts';
 import { sonoffLanAdapter } from './adapters/sonoffLan.ts';
-import type { AdapterDevice, DeviceAdapter, DeviceType, HardwareReport, Power } from './adapters/types.ts';
+import type {
+  AdapterDevice,
+  DeviceAdapter,
+  DeviceControls,
+  DeviceType,
+  HardwareReport,
+  Power,
+} from './adapters/types.ts';
 import { virtualAdapter } from './adapters/virtual.ts';
 import { db, transaction } from './db.ts';
 import { publish } from './events.ts';
@@ -36,6 +43,8 @@ export interface ApiSmartDevice {
   protocol: string;
   /** No hardware behind it: a virtual switch. */
   simulated: boolean;
+  /** Has settings beyond power, e.g. an AC's mode and set point (GET /api/devices/:id/controls). */
+  hasControls: boolean;
   online: boolean;
   power: Power;
   pendingPower: 'on' | 'off' | null;
@@ -95,6 +104,7 @@ function toApi(row: DeviceRow): ApiSmartDevice {
     type: row.type,
     protocol: row.protocol,
     simulated: adapters.get(row.protocol)?.simulated ?? false,
+    hasControls: Boolean(adapters.get(row.protocol)?.readControls),
     online: row.online === 1,
     power: row.power,
     pendingPower: row.pending_power,
@@ -339,8 +349,12 @@ export async function setPower(
     throw new ApiError('bad_request', 'power must be "on" or "off".');
   }
   ownedRow(userId, id);
+  return serialized(id, () => command(userId, id, power, source, timeoutMs));
+}
+
+async function serialized<T>(id: string, work: () => Promise<T>): Promise<T> {
   const previous = inFlight.get(id) ?? Promise.resolve();
-  const run = previous.catch(() => undefined).then(() => command(userId, id, power, source, timeoutMs));
+  const run = previous.catch(() => undefined).then(work);
   inFlight.set(id, run);
   try {
     return await run;
@@ -390,6 +404,53 @@ async function command(
   return emit(reload(id));
 }
 
+// ---- Settings beyond power (an AC's mode, set point, swing, timers) -------------------
+
+function withControls(row: DeviceRow): Required<Pick<DeviceAdapter, 'readControls' | 'setControl'>> {
+  const adapter = adapterFor(row.protocol);
+  if (!adapter.readControls || !adapter.setControl) {
+    throw new ApiError('not_controllable', 'This device has no settings beyond on and off.');
+  }
+  return adapter as Required<Pick<DeviceAdapter, 'readControls' | 'setControl'>>;
+}
+
+export function getControls(userId: string, id: string): DeviceControls {
+  const row = ownedRow(userId, id);
+  return withControls(row).readControls(adapterDevice(row));
+}
+
+/**
+ * Changes one setting and resolves with the settings once the device
+ * confirmed it; throws if it did not. Queued behind any other command to
+ * the same device. Other sessions hear of it through the device's report.
+ */
+export async function setControl(
+  userId: string,
+  id: string,
+  key: unknown,
+  value: unknown,
+  source: CommandSource,
+  timeoutMs: number = config.ems.commandTimeoutMs,
+): Promise<DeviceControls> {
+  if (typeof key !== 'string' || !key) {
+    throw new ApiError('bad_request', 'key is required.');
+  }
+  ownedRow(userId, id);
+  return serialized(id, async () => {
+    const row = ownedRow(userId, id);
+    const controls = withControls(row);
+    try {
+      await withTimeout(controls.setControl(adapterDevice(row), key, value), timeoutMs);
+    } catch (error) {
+      const known = error instanceof ApiError ? error : new ApiError('device_unreachable', 'The setting could not be changed.');
+      log.warn('Device setting failed', { id, source, setting: key, code: known.code });
+      throw known;
+    }
+    log.info('Device setting changed', { id, source, setting: key });
+    return controls.readControls(adapterDevice(row));
+  });
+}
+
 // ---- Reports from hardware -----------------------------------------------------------
 
 function applyReport(report: HardwareReport): void {
@@ -403,14 +464,28 @@ function applyReport(report: HardwareReport): void {
   // A command in flight decides the state; an announcement racing it does not.
   const power = report.power && !row.pending_power ? report.power : row.power;
   const sealed = report.config ? seal(JSON.stringify(report.config)) : row.adapter_config;
-  if (online === (row.online === 1) && power === row.power && sealed === row.adapter_config) {
+  if (online !== (row.online === 1) || power !== row.power || sealed !== row.adapter_config) {
+    const now = new Date().toISOString();
+    db()
+      .prepare('UPDATE devices SET online = ?, power = ?, adapter_config = ?, last_seen = CASE WHEN ? THEN ? ELSE last_seen END, updated_at = ? WHERE id = ?')
+      .run(online ? 1 : 0, power, sealed, online ? 1 : 0, now, now, row.id);
+    emit(reload(row.id));
+  }
+  if (report.controlsChanged) {
+    pushControls(reload(row.id));
+  }
+}
+
+function pushControls(row: DeviceRow): void {
+  const adapter = adapters.get(row.protocol);
+  if (!adapter?.readControls) {
     return;
   }
-  const now = new Date().toISOString();
-  db()
-    .prepare('UPDATE devices SET online = ?, power = ?, adapter_config = ?, last_seen = CASE WHEN ? THEN ? ELSE last_seen END, updated_at = ? WHERE id = ?')
-    .run(online ? 1 : 0, power, sealed, online ? 1 : 0, now, now, row.id);
-  emit(reload(row.id));
+  try {
+    publish(row.owner_id, { type: 'controls', id: row.id, controls: adapter.readControls(adapterDevice(row)) });
+  } catch {
+    // Not announced yet; the app re-reads when it opens the device.
+  }
 }
 
 export function startAdapters(): void {
