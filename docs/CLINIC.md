@@ -206,21 +206,31 @@ answer 503 "not available yet" (see Limitations).
 
 ## Running it locally
 
+Each of these keeps running, so give each its own terminal.
+
 ```bash
-# 1. Backend (Node >= 22.18, no install needed)
+# Terminal 1: the backend (Node >= 22.18, no install needed)
 cd server
 cp .env.example .env              # optional: add ANTHROPIC_API_KEY, ELEVENLABS_API_KEY
-npm run clinic -- demo-seed       # development only: demo doctors, desk and resident
-npm start                          # http://localhost:8787
+npm run clinic -- demo-seed       # development only, once: demo doctors, desk and resident
+npm start                         # http://localhost:8787; stays running
+```
 
-# 2. Clinic web app
-cd ../../Parklane-clinical-system
-npm install && npm run dev        # http://localhost:5174, proxies /api to :8787
+```bash
+# Terminal 2: the clinic web app (from Park-Lane_Mobile_app's parent folder)
+cd Parklane-clinical-system
+npm install
+npm run dev                       # http://localhost:5174, proxies /api to :8787
+```
 
-# 3. Resident app, against the same backend
-cd ../Park-Lane_Mobile_app
+```bash
+# Terminal 3, optional: the resident app against the same backend
+cd Park-Lane_Mobile_app
 EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787 EXPO_PUBLIC_HEALTH_API=http npx expo start
 ```
+
+If `npm start` reports `EADDRINUSE ... 8787`, a backend is already running
+(`lsof -iTCP:8787 -sTCP:LISTEN` shows it): use that one, or stop it first.
 
 `EXPO_PUBLIC_HEALTH_API=http` matters: in development Health Passport
 otherwise runs on its mock, which has no clinic visits.
