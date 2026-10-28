@@ -59,10 +59,11 @@ function codeOf(error: unknown): string {
   return '';
 }
 
-function toWifiError(error: unknown): WifiProvisioningError {
+/** `network` names the hotspot in messages, e.g. "the AC’s LGE_ network". */
+function toWifiError(error: unknown, network = 'the device’s ITEAD- network'): WifiProvisioningError {
   switch (codeOf(error)) {
     case 'userDenied':
-      return new WifiProvisioningError('cancelled', 'The request to join the device’s network was declined.');
+      return new WifiProvisioningError('cancelled', `The request to join ${network} was declined.`);
     case 'locationPermissionDenied':
     case 'locationPermissionRestricted':
     case 'locationPermissionMissing':
@@ -71,11 +72,11 @@ function toWifiError(error: unknown): WifiProvisioningError {
       return new WifiProvisioningError('locationServicesOff', 'Turn on Location so the phone can scan for the device’s network.');
     case 'didNotFindNetwork':
     case 'couldNotDetectSSID':
-      return new WifiProvisioningError('notFound', 'The phone could not find the device’s ITEAD- network.');
+      return new WifiProvisioningError('notFound', `The phone could not find ${network}.`);
     case 'timeoutOccurred':
-      return new WifiProvisioningError('timeout', 'Joining the device’s network took too long.');
+      return new WifiProvisioningError('timeout', `Joining ${network} took too long.`);
     default:
-      return new WifiProvisioningError('failed', 'The phone could not join the device’s network.');
+      return new WifiProvisioningError('failed', `The phone could not join ${network}.`);
   }
 }
 
@@ -127,15 +128,20 @@ async function loadNearbyNetworks(): Promise<Awaited<ReturnType<typeof WifiManag
   }
 }
 
-/** Android only: setup hotspots in range, strongest first. */
-export async function scanForSetupHotspots(): Promise<NearbyHotspot[]> {
+/** Android only: networks in range whose name matches, strongest first. */
+export async function scanForNetworks(matches: (ssid: string) => boolean): Promise<NearbyHotspot[]> {
   const seen = new Map<string, NearbyHotspot>();
   for (const entry of await loadNearbyNetworks()) {
-    if (isSetupHotspot(entry.SSID) && (seen.get(entry.SSID)?.level ?? -Infinity) < entry.level) {
+    if (entry.SSID && matches(entry.SSID) && (seen.get(entry.SSID)?.level ?? -Infinity) < entry.level) {
       seen.set(entry.SSID, { ssid: entry.SSID, level: entry.level });
     }
   }
   return [...seen.values()].sort((a, b) => b.level - a.level);
+}
+
+/** Android only: setup hotspots in range, strongest first. */
+export function scanForSetupHotspots(): Promise<NearbyHotspot[]> {
+  return scanForNetworks(isSetupHotspot);
 }
 
 /**
@@ -240,6 +246,33 @@ export async function connectToDeviceNetwork(ssid?: string): Promise<string | nu
 }
 
 /**
+ * Joins a device's hotspot by its exact name, for devices whose hotspot
+ * password depends on the name (LG appliances). Same platform behaviour as
+ * `connectToDeviceNetwork`; `password` is null for an open network.
+ */
+export async function joinNetwork(ssid: string, password: string | null, network: string): Promise<string | null> {
+  if (!isNativeWifiAvailable()) {
+    throw new WifiProvisioningError('unavailable', 'Join the device’s network from your phone’s Wi-Fi settings.');
+  }
+  try {
+    if (Platform.OS === 'android') {
+      await ensureWifiPermissions();
+      await WifiManager.connectToProtectedWifiSSID({
+        ssid,
+        password,
+        isHidden: false,
+        timeout: sonoffConfig.joinTimeoutSeconds,
+      });
+    } else {
+      await WifiManager.connectToProtectedSSIDOnce(ssid, password, false, true);
+    }
+  } catch (error) {
+    throw error instanceof WifiProvisioningError ? error : toWifiError(error, network);
+  }
+  return getCurrentSsid();
+}
+
+/**
  * Lets the phone go back to its usual Wi-Fi: on Android, drops the network
  * request and the binding to it; on iOS, removes the hotspot configuration.
  * Best effort: when there is nothing to release it does nothing.
@@ -257,6 +290,19 @@ export async function releaseDeviceNetwork(ssid: string | null): Promise<void> {
   } catch {
     // Already off the hotspot.
   }
+}
+
+/**
+ * Android only: undoes a binding of the whole app to one network, which
+ * react-native-tcp-socket makes when a socket asks for the Wi-Fi interface.
+ * Without this the app keeps routing through a device's hotspot after it
+ * is gone, and every request fails. Best effort.
+ */
+export async function unbindFromDeviceNetwork(): Promise<void> {
+  if (Platform.OS !== 'android' || !isNativeWifiAvailable()) {
+    return;
+  }
+  await WifiManager.forceWifiUsageWithOptions(false, { noInternet: true }).catch(() => undefined);
 }
 
 /**

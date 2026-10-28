@@ -20,6 +20,8 @@ export type RootStackParamList = {
   SmartHome: undefined;
   /** The SONOFF Wi-Fi plug wizard, from Smart Home's Add Device sheet. */
   SonoffPairing: undefined;
+  /** Pairing an LG AC from its setup hotspot, from My Devices' LG panel. */
+  LgPairing: undefined;
   /** Devices registered in EMS, which the app and Alexa both control; `add` opens the add panel on that kind. */
   EmsDevices: { add?: 'virtual' | 'sonoff' | 'lg' } | undefined;
   /** Linking the EMS account to the Alexa skill, and Alexa's device access. */

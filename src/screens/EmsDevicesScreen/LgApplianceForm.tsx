@@ -16,6 +16,8 @@ export interface LgApplianceFormProps {
   onAdd: (input: { name: string; room?: string; applianceId: string }) => Promise<unknown>;
   /** After the appliance was added. */
   onAdded: () => void;
+  /** Opens the wizard that pairs a new AC with rethink from its setup hotspot. */
+  onPairNew: () => void;
 }
 
 type Load =
@@ -23,8 +25,8 @@ type Load =
   | { state: 'failed'; message: string }
   | { state: 'ready'; connected: boolean; appliances: LgAppliance[] };
 
-/** Adds an LG appliance that rethink (the backend's local LG bridge) already knows. */
-export function LgApplianceForm({ onAdd, onAdded }: LgApplianceFormProps) {
+/** Adds an LG appliance that rethink (the backend's local LG bridge) already knows, or pairs a new one. */
+export function LgApplianceForm({ onAdd, onAdded, onPairNew }: LgApplianceFormProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -125,6 +127,9 @@ export function LgApplianceForm({ onAdd, onAdded }: LgApplianceFormProps) {
         <AppText variant="tileCaption" color={load.state === 'failed' ? theme.colors.error : theme.colors.textSupport}>
           {message}
         </AppText>
+        {load.state === 'ready' && load.connected ? (
+          <AppButton title={copy.lgPairNew} variant="gradient" height={BUTTON_HEIGHT} onPress={onPairNew} />
+        ) : null}
         {refreshButton}
       </>
     );
@@ -165,6 +170,7 @@ export function LgApplianceForm({ onAdd, onAdded }: LgApplianceFormProps) {
           disabled={busy}
           onPress={() => void submit()}
         />
+        <AppButton title={copy.lgPairNew} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={onPairNew} />
       </>
     );
   }

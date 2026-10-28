@@ -299,7 +299,11 @@ export function EmsDevicesScreen() {
                       />
                     </View>
                   ) : adding === 'lg' ? (
-                    <LgApplianceForm onAdd={ems.addLg} onAdded={() => setAdding(null)} />
+                    <LgApplianceForm
+                      onAdd={ems.addLg}
+                      onAdded={() => setAdding(null)}
+                      onPairNew={() => navigation.navigate('LgPairing')}
+                    />
                   ) : (
                     <View style={styles.form}>
                       <AppText variant="bodySmall" color={theme.colors.textSupport}>
