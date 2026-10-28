@@ -16,6 +16,7 @@ import { AppIcon } from '../../components/common/AppIcon';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
+import { FilterChip } from '../../components/ui/FilterChip';
 import { cubeConfig } from '../../constants/cubeConfig';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { CubeApiError, addCamera, setZigbeePairing } from '../../services/cube/cubeApi';
@@ -30,7 +31,11 @@ export interface AddDeviceSheetProps {
   refresh: () => Promise<CubeDevice[] | null>;
   /** Opens the SONOFF Wi-Fi pairing wizard. */
   onAddSonoff: () => void;
+  /** Opens My Devices on adding an LG appliance (through rethink). */
+  onAddLg: () => void;
 }
+
+type Brand = 'sonoff' | 'lg';
 
 /*
  * Not in the design. Built from the screen's own parts: a glass panel like
@@ -52,7 +57,7 @@ function errorText(error: unknown): string {
 }
 
 /** Lets the resident add a Zigbee device, a camera or a Wi-Fi device to the unit's CUBE hub. */
-export function AddDeviceSheet({ visible, onClose, refresh, onAddSonoff }: AddDeviceSheetProps) {
+export function AddDeviceSheet({ visible, onClose, refresh, onAddSonoff, onAddLg }: AddDeviceSheetProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -69,6 +74,8 @@ export function AddDeviceSheet({ visible, onClose, refresh, onAddSonoff }: AddDe
   const [cameraErrors, setCameraErrors] = useState<{ name?: string; url?: string }>({});
   const [cameraBusy, setCameraBusy] = useState(false);
   const [cameraNotice, setCameraNotice] = useState<Notice>(null);
+
+  const [brand, setBrand] = useState<Brand>('sonoff');
 
   const stopPairing = useCallback(async (reason: Notice = null) => {
     if (!pairingRef.current) {
@@ -320,16 +327,43 @@ export function AddDeviceSheet({ visible, onClose, refresh, onAddSonoff }: AddDe
                   fillOpacity={theme.glass.subtleFillOpacity}
                   style={styles.option}
                 >
-                  {optionHeading('material', 'power-plug-outline', copy.sonoffTitle, copy.sonoffBody)}
+                  {optionHeading('ionicons', 'wifi-outline', copy.brandTitle, copy.brandBody)}
+                  <View style={styles.brands} accessibilityRole="radiogroup">
+                    <FilterChip
+                      role="radio"
+                      label={copy.brandSonoff}
+                      iconSet="material"
+                      iconName="power-plug-outline"
+                      selected={brand === 'sonoff'}
+                      onPress={() => setBrand('sonoff')}
+                      style={styles.flex}
+                    />
+                    <FilterChip
+                      role="radio"
+                      label={copy.brandLg}
+                      iconSet="material"
+                      iconName="air-conditioner"
+                      selected={brand === 'lg'}
+                      onPress={() => setBrand('lg')}
+                      style={styles.flex}
+                    />
+                  </View>
+                  <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.notice}>
+                    {brand === 'sonoff' ? copy.sonoffBody : copy.lgBody}
+                  </AppText>
                   <AppButton
-                    title={copy.sonoffStart}
+                    title={brand === 'sonoff' ? copy.sonoffStart : copy.lgStart}
                     variant="gradient"
                     gradientColors={ctaColors}
                     height={BUTTON_HEIGHT}
                     labelVariant="statValue"
                     onPress={() => {
                       handleClose();
-                      onAddSonoff();
+                      if (brand === 'sonoff') {
+                        onAddSonoff();
+                      } else {
+                        onAddLg();
+                      }
                     }}
                     style={styles.action}
                   />
@@ -448,6 +482,11 @@ function createStyles(theme: AppTheme) {
       marginLeft: theme.spacing.sm,
     },
     field: {
+      marginTop: theme.spacing.sm,
+    },
+    brands: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
       marginTop: theme.spacing.sm,
     },
     action: {

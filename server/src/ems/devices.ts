@@ -4,6 +4,7 @@ import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { log } from '../log.ts';
 import { cubeAdapter } from './adapters/cube.ts';
+import { rethinkAdapter } from './adapters/rethink.ts';
 import { sonoffLanAdapter } from './adapters/sonoffLan.ts';
 import type { AdapterDevice, DeviceAdapter, DeviceType, HardwareReport, Power } from './adapters/types.ts';
 import { virtualAdapter } from './adapters/virtual.ts';
@@ -70,6 +71,7 @@ const adapters = new Map<string, DeviceAdapter>([
   [virtualAdapter.protocol, virtualAdapter],
   [sonoffLanAdapter.protocol, sonoffLanAdapter],
   [cubeAdapter.protocol, cubeAdapter],
+  [rethinkAdapter.protocol, rethinkAdapter],
 ]);
 
 /** Tests register a stand-in for real hardware here. */
@@ -150,13 +152,21 @@ function text(value: unknown, field: string, max: number, required: boolean): st
   return value.trim();
 }
 
-const TYPES: readonly DeviceType[] = ['switch', 'plug', 'light', 'virtual'];
+const TYPES: readonly DeviceType[] = ['switch', 'plug', 'light', 'ac', 'virtual'];
 
 export function listDevices(userId: string): ApiSmartDevice[] {
   const rows = db()
     .prepare('SELECT * FROM devices WHERE owner_id = ? ORDER BY room IS NULL, room, name')
     .all(userId) as unknown as DeviceRow[];
   return rows.map(toApi);
+}
+
+/** The hardware ids of a user's devices on one protocol, e.g. to mark appliances already added. */
+export function externalIds(userId: string, protocol: string): Set<string> {
+  const rows = db()
+    .prepare('SELECT external_id FROM devices WHERE owner_id = ? AND protocol = ? AND external_id IS NOT NULL')
+    .all(userId, protocol) as { external_id: string }[];
+  return new Set(rows.map((row) => row.external_id));
 }
 
 export function getDevice(userId: string, id: string): ApiSmartDevice {
@@ -172,7 +182,8 @@ export async function createDevice(userId: string, body: Record<string, unknown>
   if (!TYPES.includes(type) || !adapter.types.includes(type)) {
     throw new ApiError('bad_request', `A ${protocol} device cannot be a "${String(body.type)}".`);
   }
-  const settingsKey = protocol === 'sonoff-lan' ? 'sonoff' : protocol === 'cube' ? 'cube' : 'settings';
+  const settingsKey =
+    protocol === 'sonoff-lan' ? 'sonoff' : protocol === 'cube' ? 'cube' : protocol === 'rethink' ? 'lg' : 'settings';
   const input = (body[settingsKey] ?? {}) as Record<string, unknown>;
   if (typeof input !== 'object' || Array.isArray(input)) {
     throw new ApiError('bad_request', 'Device settings must be an object.');

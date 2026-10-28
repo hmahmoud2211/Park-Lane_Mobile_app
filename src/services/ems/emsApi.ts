@@ -1,5 +1,5 @@
 import { emsConfig } from '../../constants/emsConfig';
-import type { AlexaStatus, EmsUser, SmartDevice, SmartDeviceType } from '../../types/ems.types';
+import type { AlexaStatus, EmsUser, LgAppliance, SmartDevice, SmartDeviceType } from '../../types/ems.types';
 
 /**
  * The EMS backend's REST API. Every answer is `{ ok: true, data }` or
@@ -151,6 +151,17 @@ export const addCubeDevice = (input: { name: string; room?: string; serial: stri
   call<SmartDevice>('/api/devices', {
     method: 'POST',
     body: { name: input.name, room: input.room, type: 'plug', protocol: 'cube', cube: { serial: input.serial } },
+    timeoutMs: emsConfig.registerTimeoutMs,
+  });
+
+/** LG appliances the backend's rethink bridge knows; `connected` is false while it cannot reach rethink. */
+export const listLgAppliances = () => call<{ connected: boolean; appliances: LgAppliance[] }>('/api/lg/appliances');
+
+/** Adds an LG appliance paired with rethink; the app and Alexa then switch it through the backend. */
+export const addLgAppliance = (input: { name: string; room?: string; applianceId: string }) =>
+  call<SmartDevice>('/api/devices', {
+    method: 'POST',
+    body: { name: input.name, room: input.room, type: 'ac', protocol: 'rethink', lg: { applianceId: input.applianceId } },
     timeoutMs: emsConfig.registerTimeoutMs,
   });
 

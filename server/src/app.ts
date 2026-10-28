@@ -14,6 +14,7 @@ import { voiceCommand, voiceUser } from './ems/voice.ts';
 import { ApiError } from './errors.ts';
 import { ok, readJson, send } from './http.ts';
 import { log } from './log.ts';
+import * as rethink from './rethink/appliances.ts';
 import { browser, discover, handleDirective, register } from './sonoff/bridge.ts';
 import { directiveSecret } from './sonoff/store.ts';
 
@@ -24,6 +25,7 @@ import { directiveSecret } from './sonoff/store.ts';
  *   POST /api/auth/register | /login | /logout     GET /api/auth/me
  *   GET  /api/devices                              POST /api/devices
  *   GET | PATCH | DELETE /api/devices/:id          POST /api/devices/:id/power { power }
+ *   GET  /api/lg/appliances                        (LG appliances rethink knows, see rethink/appliances.ts)
  *   GET  /api/integrations/alexa/status            POST /api/integrations/alexa/link/start | /unlink
  *   GET  /api/events (WebSocket)
  *   POST /api/voice/command                        (the Alexa skill, with its EMS access token)
@@ -138,6 +140,20 @@ async function emsRoute(req: IncomingMessage, res: ServerResponse, path: string,
       ok(res, { deleted: true });
       return true;
     }
+  }
+
+  // LG appliances rethink knows about, for the app's "Add LG appliance" list.
+  if (path === '/api/lg/appliances' && method === 'GET') {
+    const user = requireUser(req);
+    if (!rethink.isConfigured()) {
+      throw new ApiError('not_configured', 'LG appliances are not set up on this backend (RETHINK_MQTT_URL).');
+    }
+    const added = registry.externalIds(user.id, 'rethink');
+    ok(res, {
+      connected: rethink.isConnected(),
+      appliances: rethink.listAppliances().map((appliance) => ({ ...appliance, added: added.has(appliance.id) })),
+    });
+    return true;
   }
 
   if (path === '/api/integrations/alexa/status' && method === 'GET') {

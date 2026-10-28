@@ -92,7 +92,16 @@ export function useEmsDevices() {
     [upsertDevice],
   );
 
+  const addLg = useCallback(
+    async (input: Parameters<typeof api.addLgAppliance>[0]) => {
+      const device = await api.addLgAppliance(input);
+      upsertDevice(device);
+      return device;
+    },
+    [upsertDevice],
+  );
+
   const clearError = useCallback((id: string) => setErrors(({ [id]: _cleared, ...rest }) => rest), []);
 
-  return { ...ems, busy, errors, setPower, update, remove, addVirtual, clearError };
+  return { ...ems, busy, errors, setPower, update, remove, addVirtual, addLg, clearError };
 }

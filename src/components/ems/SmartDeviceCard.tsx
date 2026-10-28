@@ -26,6 +26,7 @@ const ICONS: Record<SmartDevice['type'], string> = {
   switch: 'toggle-switch-outline',
   plug: 'power-socket-eu',
   light: 'lightbulb-outline',
+  ac: 'air-conditioner',
   virtual: 'toggle-switch-variant',
 };
 
@@ -63,7 +64,8 @@ export function SmartDeviceCard({ device, onToggle, busy = false, error, childre
   const styles = useMemo(() => createStyles(theme), [theme]);
   const pending = busy || device.pendingPower !== null;
   const shownOn = (device.pendingPower ?? device.power) === 'on';
-  const where = [device.room, device.simulated ? 'Virtual switch' : device.type].filter(Boolean).join(' · ');
+  const kind = device.simulated ? 'Virtual switch' : device.type === 'ac' ? 'AC' : device.type;
+  const where = [device.room, kind].filter(Boolean).join(' · ');
   const problem = error ?? (!device.online ? device.lastError : null);
 
   return (

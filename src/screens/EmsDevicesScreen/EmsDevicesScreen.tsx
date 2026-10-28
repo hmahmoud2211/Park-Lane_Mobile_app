@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
@@ -26,6 +26,7 @@ import { EmsError } from '../../services/ems/emsApi';
 import type { SmartDevice, SmartDeviceType } from '../../types/ems.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { addOptions, devicesCopy as copy, virtualTypes, type AddOption } from './EmsDevicesScreen.data';
+import { LgApplianceForm } from './LgApplianceForm';
 import {
   BUTTON_HEIGHT,
   CARD_GAP,
@@ -50,10 +51,21 @@ export function EmsDevicesScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'EmsDevices'>['navigation']>();
+  const route = useRoute<RootStackScreenProps<'EmsDevices'>['route']>();
   const ems = useEmsDevices();
   const { status, devices, devicesLoaded, devicesError, realtime, refreshDevices, busy, errors } = ems;
 
-  const [adding, setAdding] = useState<AddOption['id'] | null>(null);
+  // Smart Home's Add Device sheet opens this screen on the brand the resident picked.
+  const requestedAdd = route.params?.add;
+  const [adding, setAdding] = useState<AddOption['id'] | null>(requestedAdd ?? null);
+  // Navigated here again with a brand while already open.
+  const [seenAdd, setSeenAdd] = useState(requestedAdd);
+  if (requestedAdd !== seenAdd) {
+    setSeenAdd(requestedAdd);
+    if (requestedAdd) {
+      setAdding(requestedAdd);
+    }
+  }
   const [newName, setNewName] = useState('');
   const [newRoom, setNewRoom] = useState('');
   const [newType, setNewType] = useState<SmartDeviceType>('switch');
@@ -286,6 +298,8 @@ export function EmsDevicesScreen() {
                         onPress={() => void addVirtual()}
                       />
                     </View>
+                  ) : adding === 'lg' ? (
+                    <LgApplianceForm onAdd={ems.addLg} onAdded={() => setAdding(null)} />
                   ) : (
                     <View style={styles.form}>
                       <AppText variant="bodySmall" color={theme.colors.textSupport}>

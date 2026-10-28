@@ -1,0 +1,38 @@
+# rethink-cloud (https://github.com/anszom/rethink): a local replacement for LG's ThinQ cloud,
+# translating appliances to MQTT. Upstream runs it with `network_mode: host`, which Docker
+# Desktop on macOS doesn't expose to the LAN, so the ports are published explicitly instead.
+#
+#   docker compose up -d        # start
+#   docker compose logs -f rethink
+#
+# Appliances must resolve config.json's `hostname` (default rethink.lan) and, during setup,
+# common.lgthinq.com to this machine's LAN IP.
+services:
+  rethink:
+    container_name: rethink
+    image: ghcr.io/anszom/rethink:dev
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    volumes:
+      - ./data:/app/data # CA key/cert and bridge state
+      - ./config.json:/app/data/config.json
+    ports:
+      - '443:443' # HTTPS (ThinQ2 provisioning)
+      - '8883:8883' # MQTTS for appliances
+      - '46030:46030' # ThinQ1 HTTPS
+      - '47878:47878' # ThinQ1
+      - '44401:44401' # management UI - anyone who can reach it can manage rethink
+
+  mosquitto:
+    container_name: rethink-mosquitto
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    ports:
+      - '1883:1883'
+
+volumes:
+  mosquitto-data:
