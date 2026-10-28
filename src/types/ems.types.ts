@@ -21,6 +21,8 @@ export interface SmartDevice {
   protocol: string;
   /** No hardware behind it: a virtual switch. Always labelled as such. */
   simulated: boolean;
+  /** Has settings beyond power, e.g. an AC's mode and set point (see DeviceControls). */
+  hasControls: boolean;
   online: boolean;
   /** The last state the device itself confirmed. */
   power: SmartDevicePower;
@@ -49,6 +51,45 @@ export interface LgAppliance {
   added: boolean;
 }
 
+export type ControlValue = string | number | boolean | null;
+
+/**
+ * One setting or reading beyond power, e.g. an AC's mode, set point, swing,
+ * Jet, a timer or its filter hours. The device only lists what it supports.
+ * `select`, `number`, `switch` and `button` can be set; `sensor` only reads.
+ */
+export interface ControlSetting {
+  /** e.g. `mode`, `temperature`, `fan_mode`, `swing_mode`, `jet`, `sleeptimer`, `filterused`. */
+  key: string;
+  kind: 'select' | 'number' | 'switch' | 'button' | 'sensor';
+  name: string;
+  /** What the device last reported; null when it has not said. */
+  value: ControlValue;
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+  unit: string | null;
+  /** False while the device would ignore it, e.g. Jet outside Cooling. */
+  available: boolean;
+  /** What it needs to be available, as the manufacturer puts it. */
+  requires: string | null;
+  description: string | null;
+  /** A technical reading most people never need. */
+  diagnostic: boolean;
+}
+
+/** A device's settings beyond power and its live readings (GET /api/devices/:id/controls). */
+export interface DeviceControls {
+  online: boolean;
+  power: SmartDevicePower;
+  /** What it is doing now, e.g. cooling, idle, off; null when it does not say. */
+  action: string | null;
+  currentTemperature: number | null;
+  currentHumidity: number | null;
+  settings: ControlSetting[];
+}
+
 export type AlexaLinkStatus = 'linked' | 'unlinked' | 'failed' | 'expired';
 
 export interface AlexaStatus {
@@ -67,6 +108,7 @@ export type RealtimeState = 'offline' | 'connecting' | 'live';
 export type EmsEvent =
   | { type: 'ready' }
   | { type: 'device'; device: SmartDevice }
+  | { type: 'controls'; id: string; controls: DeviceControls }
   | { type: 'device_removed'; id: string }
   | { type: 'alexa'; status: AlexaLinkStatus }
   | { type: 'error'; code: string };

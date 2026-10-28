@@ -70,6 +70,10 @@ export function createStyles(theme: AppTheme) {
       flexGrow: 1,
       paddingHorizontal: theme.spacing.md,
     },
+    /** A row of its own in the actions, e.g. an AC's Controls. */
+    fullWidth: {
+      width: '100%',
+    },
     toggleRow: {
       flexDirection: 'row',
       alignItems: 'center',

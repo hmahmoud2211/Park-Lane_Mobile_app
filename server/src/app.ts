@@ -25,6 +25,8 @@ import { directiveSecret } from './sonoff/store.ts';
  *   POST /api/auth/register | /login | /logout     GET /api/auth/me
  *   GET  /api/devices                              POST /api/devices
  *   GET | PATCH | DELETE /api/devices/:id          POST /api/devices/:id/power { power }
+ *   GET  /api/devices/:id/controls                 POST /api/devices/:id/controls { key, value }
+ *                                                  (an AC's settings beyond power: mode, set point, swing, timers)
  *   GET  /api/lg/appliances                        (LG appliances rethink knows, see rethink/appliances.ts)
  *   GET  /api/integrations/alexa/status            POST /api/integrations/alexa/link/start | /unlink
  *   GET  /api/events (WebSocket)
@@ -117,14 +119,25 @@ async function emsRoute(req: IncomingMessage, res: ServerResponse, path: string,
     }
   }
 
-  const device = /^\/api\/devices\/([^/]+)(\/power)?$/.exec(path);
+  const device = /^\/api\/devices\/([^/]+)(\/power|\/controls)?$/.exec(path);
   if (device) {
     const user = requireUser(req);
     const id = decodeURIComponent(device[1]);
-    if (device[2] && method === 'POST') {
+    if (device[2] === '/power' && method === 'POST') {
       limit('device-power', user.id, 60, 60_000);
       const body = await readJson(req);
       ok(res, await registry.setPower(user.id, id, body.power, 'app'));
+      return true;
+    }
+    if (device[2] === '/controls' && method === 'GET') {
+      ok(res, registry.getControls(user.id, id));
+      return true;
+    }
+    if (device[2] === '/controls' && method === 'POST') {
+      // Set point taps come quicker than power taps.
+      limit('device-control', user.id, 120, 60_000);
+      const body = await readJson(req);
+      ok(res, await registry.setControl(user.id, id, body.key, body.value, 'app'));
       return true;
     }
     if (!device[2] && method === 'GET') {

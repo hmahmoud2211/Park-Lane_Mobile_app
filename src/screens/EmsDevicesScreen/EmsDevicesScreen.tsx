@@ -186,6 +186,16 @@ export function EmsDevicesScreen() {
                 />
               </View>
             ) : null}
+            {device.hasControls ? (
+              <AppButton
+                title={copy.controls}
+                variant="gradient"
+                height={SMALL_BUTTON_HEIGHT}
+                onPress={() => navigation.navigate('AcControl', { deviceId: device.id })}
+                accessibilityHint="Opens the mode, temperature, airflow, timer and filter settings"
+                style={styles.fullWidth}
+              />
+            ) : null}
             <AppButton
               title={copy.rename}
               variant="secondary"

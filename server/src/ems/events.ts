@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 
+import type { DeviceControls } from './adapters/types.ts';
 import type { ApiSmartDevice } from './devices.ts';
 
 /**
@@ -9,6 +10,8 @@ import type { ApiSmartDevice } from './devices.ts';
  */
 export type UserEvent =
   | { type: 'device'; device: ApiSmartDevice }
+  /** A device's settings beyond power, or its readings, changed (GET /api/devices/:id/controls). */
+  | { type: 'controls'; id: string; controls: DeviceControls }
   | { type: 'device_removed'; id: string }
   | { type: 'alexa'; status: string };
 

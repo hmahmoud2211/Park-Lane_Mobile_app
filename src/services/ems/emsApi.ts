@@ -1,5 +1,13 @@
 import { emsConfig } from '../../constants/emsConfig';
-import type { AlexaStatus, EmsUser, LgAppliance, SmartDevice, SmartDeviceType } from '../../types/ems.types';
+import type {
+  AlexaStatus,
+  ControlValue,
+  DeviceControls,
+  EmsUser,
+  LgAppliance,
+  SmartDevice,
+  SmartDeviceType,
+} from '../../types/ems.types';
 
 /**
  * The EMS backend's REST API. Every answer is `{ ok: true, data }` or
@@ -176,6 +184,17 @@ export const removeDevice = (id: string) =>
 /** Resolves with the state the device confirmed; throws if it did not. */
 export const setDevicePower = (id: string, power: 'on' | 'off') =>
   call<SmartDevice>(`/api/devices/${encodeURIComponent(id)}/power`, { method: 'POST', body: { power } });
+
+/** An AC's settings beyond power and its readings; `not_controllable` for devices without any. */
+export const getDeviceControls = (id: string) => call<DeviceControls>(`/api/devices/${encodeURIComponent(id)}/controls`);
+
+/**
+ * Changes one setting (`null` presses a button). Resolves with the settings
+ * once the device confirmed it; throws `not_controllable` when the device
+ * would ignore it right now (e.g. Jet outside Cooling), with the reason.
+ */
+export const setDeviceControl = (id: string, key: string, value: ControlValue) =>
+  call<DeviceControls>(`/api/devices/${encodeURIComponent(id)}/controls`, { method: 'POST', body: { key, value } });
 
 // ---- Alexa -----------------------------------------------------------------------------
 
