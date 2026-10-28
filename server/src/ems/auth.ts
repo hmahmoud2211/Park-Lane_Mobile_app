@@ -21,7 +21,16 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  role: Role;
 }
+
+/**
+ * `resident` is everyone who registers from the app. `doctor` and
+ * `clinic_staff` (the clinic's front desk) are made with the clinic CLI and
+ * open the clinic's routes (server/src/clinic).
+ */
+export type Role = 'resident' | 'doctor' | 'clinic_staff';
+export const ROLES: readonly Role[] = ['resident', 'doctor', 'clinic_staff'];
 
 export type TokenKind = 'session' | 'alexa_access' | 'alexa_refresh';
 
@@ -55,19 +64,25 @@ export function normalizeEmail(value: unknown): string {
   return email;
 }
 
-export async function createUser(emailInput: unknown, passwordInput: unknown, nameInput: unknown): Promise<User> {
+/** `role` is only ever set by the clinic CLI; the register route always makes a resident. */
+export async function createUser(
+  emailInput: unknown,
+  passwordInput: unknown,
+  nameInput: unknown,
+  role: Role = 'resident',
+): Promise<User> {
   const email = normalizeEmail(emailInput);
   const password = typeof passwordInput === 'string' ? passwordInput : '';
   if (password.length < 8 || password.length > 128) {
     throw new ApiError('bad_request', 'The password must be 8 to 128 characters.');
   }
   const name = typeof nameInput === 'string' && nameInput.trim() ? nameInput.trim().slice(0, 64) : email.split('@')[0];
-  const user: User = { id: randomUUID(), email, name };
+  const user: User = { id: randomUUID(), email, name, role };
   const passwordHash = await hashPassword(password);
   try {
     db()
-      .prepare('INSERT INTO users (id, email, name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(user.id, email, name, passwordHash, new Date().toISOString());
+      .prepare('INSERT INTO users (id, email, name, password_hash, created_at, role) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(user.id, email, name, passwordHash, new Date().toISOString(), role);
   } catch (error) {
     if (/UNIQUE/.test((error as Error).message)) {
       throw new ApiError('conflict', 'An EMS account with this email already exists.');
@@ -80,22 +95,33 @@ export async function createUser(emailInput: unknown, passwordInput: unknown, na
 export async function verifyCredentials(emailInput: unknown, passwordInput: unknown): Promise<User> {
   const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   const password = typeof passwordInput === 'string' ? passwordInput : '';
-  const row = db().prepare('SELECT id, email, name, password_hash FROM users WHERE email = ?').get(email) as
+  const row = db().prepare('SELECT id, email, name, role, password_hash FROM users WHERE email = ?').get(email) as
     | (User & { password_hash: string })
     | undefined;
   const matches = await passwordMatches(password, row?.password_hash ?? DUMMY_HASH);
   if (!row || !matches) {
     throw new ApiError('unauthorized', 'Wrong email or password.');
   }
-  return { id: row.id, email: row.email, name: row.name };
+  return { id: row.id, email: row.email, name: row.name, role: row.role };
+}
+
+/** For the clinic CLI: a doctor's or desk account's new password. */
+export async function setPassword(userId: string, passwordInput: unknown): Promise<void> {
+  const password = typeof passwordInput === 'string' ? passwordInput : '';
+  if (password.length < 10 || password.length > 128) {
+    throw new ApiError('bad_request', 'Clinic passwords must be 10 to 128 characters.');
+  }
+  db().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(password), userId);
+  // Every session signed in with the old password ends.
+  revokeTokens(userId, ['session']);
 }
 
 export function getUser(id: string): User | null {
-  return (db().prepare('SELECT id, email, name FROM users WHERE id = ?').get(id) as User | undefined) ?? null;
+  return (db().prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(id) as User | undefined) ?? null;
 }
 
 export function findUserByEmail(email: string): User | null {
-  return (db().prepare('SELECT id, email, name FROM users WHERE email = ?').get(email) as User | undefined) ?? null;
+  return (db().prepare('SELECT id, email, name, role FROM users WHERE email = ?').get(email) as User | undefined) ?? null;
 }
 
 export function issueToken(userId: string, kind: TokenKind, ttlMs: number, clientId: string | null = null): string {
@@ -107,7 +133,9 @@ export function issueToken(userId: string, kind: TokenKind, ttlMs: number, clien
   return token;
 }
 
-export const createSession = (userId: string) => issueToken(userId, 'session', config.ems.sessionTtlMs);
+/** Doctors and desk staff work on shared clinic machines, so their sessions are hours, not the app's 30 days. */
+export const createSession = (userId: string, role: Role = 'resident') =>
+  issueToken(userId, 'session', role === 'resident' ? config.ems.sessionTtlMs : config.clinic.staffSessionTtlMs);
 
 interface TokenRow {
   user_id: string;
@@ -156,4 +184,13 @@ export function requireUser(req: IncomingMessage, kinds: readonly TokenKind[] = 
     throw new ApiError('unauthorized', 'Sign in to your EMS account again.');
   }
   return found.user;
+}
+
+/** The signed-in user, who must hold one of `roles` (403 otherwise). */
+export function requireRole(req: IncomingMessage, roles: readonly Role[]): User {
+  const user = requireUser(req);
+  if (!roles.includes(user.role)) {
+    throw new ApiError('forbidden', 'This account cannot use this part of the clinic.');
+  }
+  return user;
 }

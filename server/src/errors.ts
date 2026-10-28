@@ -24,6 +24,15 @@ export type ApiErrorCode =
   | 'not_configured'
   | 'amazon_error'
   | 'link_expired'
+  // Health Passport and the clinic (server/src/health, server/src/clinic).
+  | 'invalid'
+  | 'too_large'
+  | 'consent_required'
+  | 'slot_taken'
+  | 'invalid_transition'
+  | 'version_conflict'
+  | 'ai_failed'
+  | 'speech_failed'
   | 'internal';
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -48,17 +57,28 @@ const STATUS: Record<ApiErrorCode, number> = {
   not_configured: 503,
   amazon_error: 502,
   link_expired: 401,
+  invalid: 422,
+  too_large: 413,
+  consent_required: 403,
+  slot_taken: 409,
+  invalid_transition: 409,
+  version_conflict: 409,
+  ai_failed: 502,
+  speech_failed: 502,
   internal: 500,
 };
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly status: number;
+  /** For `invalid`: the field that was refused, which Health Passport shows beside its message. */
+  readonly field?: string;
 
-  constructor(code: ApiErrorCode, message: string) {
+  constructor(code: ApiErrorCode, message: string, field?: string) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = STATUS[code];
+    this.field = field;
   }
 }

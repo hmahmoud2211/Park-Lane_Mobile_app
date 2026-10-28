@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
+import { clinicRoute } from './clinic/routes.ts';
 import { config } from './config.ts';
 import * as cube from './cube/cubeClient.ts';
 import { canSwitch, toApiDevice } from './devices.ts';
@@ -12,6 +13,7 @@ import { clientIp, limit } from './ems/rateLimit.ts';
 import { attachRealtime } from './ems/realtime.ts';
 import { voiceCommand, voiceUser } from './ems/voice.ts';
 import { ApiError } from './errors.ts';
+import { healthRoute } from './health/routes.ts';
 import { ok, readJson, send } from './http.ts';
 import { log } from './log.ts';
 import { browser, discover, handleDirective, register } from './sonoff/bridge.ts';
@@ -29,6 +31,12 @@ import { directiveSecret } from './sonoff/store.ts';
  *   POST /api/voice/command                        (the Alexa skill, with its EMS access token)
  *   GET|POST /oauth/authorize   POST /oauth/token  (account linking)
  *   GET  /alexa/link/callback                      (Login with Amazon returns here)
+ *
+ * Health Passport (the app's HttpHealthService; server/src/health):
+ *   /health/consent  /health/profiles[/:id[/record | /:section[/:itemId]]]  /health/consultations/:id
+ *
+ * The clinic (residents, doctors and the front desk; server/src/clinic/routes.ts):
+ *   /api/clinic/...
  *
  * CUBE hub and SONOFF bridge (BACKEND_API_KEY, unchanged apart from the /api/cube prefix):
  *   GET  /api/health
@@ -88,7 +96,7 @@ async function emsRoute(req: IncomingMessage, res: ServerResponse, path: string,
     limit('auth', clientIp(req), 10, 60_000);
     const body = await readJson(req);
     const user = await verifyCredentials(body.email, body.password);
-    ok(res, { user, token: createSession(user.id) });
+    ok(res, { user, token: createSession(user.id, user.role) });
     return true;
   }
   if (path === '/api/auth/logout' && method === 'POST') {
@@ -276,7 +284,13 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL) {
     return;
   }
 
-  if (path.startsWith('/api/') && ((await emsRoute(req, res, path, url)) || (await hubRoute(req, res, path)))) {
+  if (await healthRoute(req, res, url)) {
+    return;
+  }
+  if (
+    path.startsWith('/api/') &&
+    ((await clinicRoute(req, res, path, url)) || (await emsRoute(req, res, path, url)) || (await hubRoute(req, res, path)))
+  ) {
     return;
   }
   throw new ApiError('not_found', 'Not found.');
@@ -291,7 +305,7 @@ export function createApp(): Server {
 
     res.setHeader('Access-Control-Allow-Origin', config.corsOrigin);
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') {
       res.writeHead(204).end();
       return;

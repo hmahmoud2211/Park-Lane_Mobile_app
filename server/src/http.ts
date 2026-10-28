@@ -45,21 +45,42 @@ export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
-async function readText(req: IncomingMessage): Promise<string> {
+/** A binary answer, e.g. synthesized speech. Never cached: it can carry medical content. */
+export function sendBytes(res: ServerResponse, contentType: string, body: Buffer) {
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Length': body.length,
+    'Cache-Control': 'no-store',
+  });
+  res.end(body);
+}
+
+/** The raw body, up to `maxBytes` (an audio recording, say). Larger bodies are refused as they arrive. */
+export async function readBytes(req: IncomingMessage, maxBytes: number): Promise<Buffer> {
+  // The 16 KB default has always answered 400; routes that raise the limit answer 413.
+  const code = maxBytes === MAX_BODY_BYTES ? 'bad_request' : 'too_large';
+  if (Number(req.headers['content-length'] ?? 0) > maxBytes) {
+    throw new ApiError(code, 'Request body too large.');
+  }
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY_BYTES) {
-      throw new ApiError('bad_request', 'Request body too large.');
+    if (size > maxBytes) {
+      throw new ApiError(code, 'Request body too large.');
     }
     chunks.push(chunk as Buffer);
   }
-  return Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks);
 }
 
-export async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const text = await readText(req);
+async function readText(req: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<string> {
+  return (await readBytes(req, maxBytes)).toString('utf8');
+}
+
+/** `maxBytes` raises the 16 KB default for routes that take long text, such as consultation notes. */
+export async function readJson(req: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
+  const text = await readText(req, maxBytes);
   if (!text) {
     return {};
   }
