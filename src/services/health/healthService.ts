@@ -1,4 +1,5 @@
 import type {
+  ClinicConsultation,
   ConfirmInput,
   Consent,
   HealthDocument,
@@ -67,6 +68,9 @@ export interface HealthService {
    * already running for it) and the caller polls getSummary.
    */
   generateSummary(profileId: string, request: SummaryRequest): Promise<SummaryState>;
+
+  /** A clinic visit the resident's doctor finalized (`consultations` in the record, or a visit's `consultation:<id>` source). */
+  getConsultation(consultationId: string): Promise<ClinicConsultation>;
 
   /** Headers to fetch `file_url` and `audio_url` with: the session and the UI language. */
   mediaHeaders(): Record<string, string>;

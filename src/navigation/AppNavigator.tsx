@@ -16,11 +16,16 @@ import { AlexaIntegrationScreen } from '../screens/AlexaIntegrationScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
+import { ClinicAppointmentScreen } from '../screens/ClinicAppointmentScreen';
+import { ClinicBookingScreen } from '../screens/ClinicBookingScreen';
+import { ClinicDoctorScreen } from '../screens/ClinicDoctorScreen';
+import { ClinicScreen } from '../screens/ClinicScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { DemoControlsScreen } from '../screens/DemoControlsScreen';
 import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { GuestPassScreen } from '../screens/GuestPassScreen';
+import { HealthConsultationScreen } from '../screens/HealthConsultationScreen';
 import { HealthDocumentScreen } from '../screens/HealthDocumentScreen';
 import { HealthItemFormScreen } from '../screens/HealthItemFormScreen';
 import { HealthOnboardingScreen } from '../screens/HealthOnboardingScreen';
@@ -86,6 +91,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       DemoControls: 'parking/demo',
       GuestPass: 'pass/:invite',
       HealthPassport: 'health',
+      Clinic: 'clinic',
     },
   },
 };
@@ -217,6 +223,11 @@ export function AppNavigator() {
           <Stack.Screen name="HealthItemForm" component={HealthItemFormScreen} />
           <Stack.Screen name="HealthSummary" component={HealthSummaryScreen} />
           <Stack.Screen name="HealthSettings" component={HealthSettingsScreen} />
+          <Stack.Screen name="HealthConsultation" component={HealthConsultationScreen} />
+          <Stack.Screen name="Clinic" component={ClinicScreen} />
+          <Stack.Screen name="ClinicDoctor" component={ClinicDoctorScreen} />
+          <Stack.Screen name="ClinicBooking" component={ClinicBookingScreen} />
+          <Stack.Screen name="ClinicAppointment" component={ClinicAppointmentScreen} />
           {/* Register later screens here as their designs land. */}
         </Stack.Navigator>
       </AppShell>

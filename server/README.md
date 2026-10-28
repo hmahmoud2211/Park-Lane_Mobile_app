@@ -18,7 +18,7 @@ It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
 cd server
 cp .env.example .env      # then fill in PUBLIC_URL and CUBE_PASSWORD (or CUBE_TOKEN)
 npm start                 # node src/index.ts
-npm test                  # LAN crypto, mDNS, CUBE directives, EMS registry, OAuth, Alexa linking, realtime
+npm test                  # LAN crypto, mDNS, CUBE directives, EMS registry, OAuth, Alexa linking, realtime, clinic
 npm run typecheck         # uses the app's TypeScript (../node_modules)
 ```
 
@@ -29,6 +29,15 @@ In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this mach
 ## EMS accounts, device registry and Alexa
 
 The same process also runs the EMS device registry (SQLite in `DATA_DIR/ems.db`), user accounts, realtime updates over WebSocket, and the Alexa account-linking and voice APIs. It does not depend on CUBE. See [../ALEXA_INTEGRATION.md](../ALEXA_INTEGRATION.md) for those routes, settings and tests. The hub routes below moved from `/api/devices` to `/api/cube/devices` to make room for the registry.
+
+## Health Passport and the clinic
+
+The same process serves Health Passport (`/health/*`, the app's
+HttpHealthService contract) and the compound clinic (`/api/clinic/*`):
+booking, the doctors' workspace, AI summaries (Claude) and speech
+(ElevenLabs), all in the same `ems.db`. Clinic accounts and doctors are set
+up with `npm run clinic -- <command>`; `npm run clinic -- demo-seed` fills a
+development database. See [../docs/CLINIC.md](../docs/CLINIC.md).
 
 ## API (CUBE hub and SONOFF bridge)
 

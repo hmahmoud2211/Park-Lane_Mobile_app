@@ -114,6 +114,59 @@ export interface HealthRecord {
   labs: LabResult[];
   visits: Visit[];
   gaps: HealthGap[];
+  /** Visits a Park Lane clinic doctor finalized, newest first. Absent from backends without the clinic. */
+  consultations?: ConsultationListing[];
+}
+
+/* ---- Clinic visits (server/src/health/consultations.ts) ------------------------------- */
+
+export interface Localized {
+  en: string;
+  ar: string;
+}
+
+/** The record a clinic doctor approved, SOAP-shaped. Text fields are '' when empty. */
+export interface ClinicalNote {
+  chief_complaint: string;
+  history: string;
+  symptoms: string[];
+  symptom_duration: string;
+  reported_history: string;
+  examination: string;
+  vitals: { name: string; value: string }[];
+  assessment: string;
+  diagnoses: { name: string; certainty: 'confirmed' | 'provisional' }[];
+  plan: string;
+  medications: { name: string; dose: string; frequency: string; duration_days: number | null; route: string; instructions: string }[];
+  investigations: string[];
+  follow_up: { needed: boolean; in_days: number | null; instructions: string };
+  patient_instructions: string;
+}
+
+export interface ConsultationListing {
+  id: string;
+  date: IsoDate;
+  doctor: { id: string; name: Localized; specialty: Localized };
+  chief_complaint: string;
+  diagnoses: string[];
+  follow_up: ClinicalNote['follow_up'];
+}
+
+/** One finalized clinic visit, as its patient reads it: never the transcript or AI output. */
+export interface ClinicConsultation {
+  id: string;
+  appointment_id: string;
+  date: IsoDate;
+  doctor: { id: string; name: Localized; specialty: Localized };
+  doctor_title: string | null;
+  note: ClinicalNote;
+  finalized_at: IsoTime;
+  /** The doctor who approved the record. */
+  approved_by: string;
+  ai_assisted: boolean;
+  addenda: { text: string; created_at: IsoTime; author: string }[];
+  profile_id: string | null;
+  patient_name: string;
 }
 
 export type GapKind = 'missing_blood_type' | 'stale_lab' | 'no_recent_labs' | 'no_allergies_recorded';

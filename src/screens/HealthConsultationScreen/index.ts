@@ -1,0 +1,1 @@
+export { HealthConsultationScreen } from './HealthConsultationScreen';

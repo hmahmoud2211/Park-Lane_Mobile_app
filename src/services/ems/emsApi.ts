@@ -67,7 +67,8 @@ export function reportSessionExpired() {
 
 export const isEmsConfigured = () => emsConfig.url !== '';
 
-async function call<T>(
+/** Exported for the other services on this backend and session (the clinic). */
+export async function call<T>(
   path: string,
   init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; timeoutMs?: number; auth?: boolean } = {},
 ): Promise<T> {

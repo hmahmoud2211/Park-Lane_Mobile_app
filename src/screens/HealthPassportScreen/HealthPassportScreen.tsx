@@ -24,7 +24,9 @@ import {
   useHealthState,
   useHealthSummary,
 } from '../../hooks/useHealthData';
+import { pick } from '../../services/clinic/presenters';
 import type { HealthDocument, HealthRecord, Severity, Summary } from '../../services/health/health.types';
+import { formatDate } from '../../services/health/i18n';
 import {
   awaitingReview,
   gapFix,
@@ -235,6 +237,38 @@ function PassportHome() {
     </Panel>
   );
 
+  // The record's clinic visits; backends without the clinic leave `consultations` out.
+  const clinicVisits = (rec: HealthRecord) => (
+    <Panel icon="medkit-outline" title={copy.clinicVisits} subtitle={copy.clinicVisitsSubtitle}>
+      {(rec.consultations ?? []).length === 0 ? (
+        <AppText variant="caption" color={theme.colors.textSecondary}>
+          {copy.noClinicVisits}
+        </AppText>
+      ) : (
+        (rec.consultations ?? []).slice(0, CARD_LIMIT).map((visit, index) => (
+          <ListRow
+            key={visit.id}
+            divided={index > 0}
+            icon="document-text-outline"
+            title={visit.chief_complaint || pick(visit.doctor.specialty, lang)}
+            lines={[
+              `${formatDate(visit.date, lang)} · ${pick(visit.doctor.name, lang)}`,
+              ...(visit.diagnoses.length ? [visit.diagnoses.join(lang === 'ar' ? '، ' : ', ')] : []),
+            ]}
+            onPress={() => navigation.navigate('HealthConsultation', { consultationId: visit.id })}
+          />
+        ))
+      )}
+      <ListRow
+        divided
+        icon="calendar-number-outline"
+        title={copy.bookClinic}
+        lines={[copy.bookClinicDetail]}
+        onPress={() => navigation.navigate('Clinic')}
+      />
+    </Panel>
+  );
+
   const gaps = (rec: HealthRecord) =>
     rec.gaps.length === 0 || !activeId ? null : (
       <Panel icon="checkmark-done-outline" title={copy.gapsTitle} subtitle={copy.gapsSubtitle}>
@@ -275,6 +309,7 @@ function PassportHome() {
           <>
             <ResourceView resource={record}>{recordCards}</ResourceView>
             <ResourceView resource={documents}>{latestDocuments}</ResourceView>
+            {record.data ? clinicVisits(record.data) : null}
             <Panel>
               <ListRow
                 icon="settings-outline"

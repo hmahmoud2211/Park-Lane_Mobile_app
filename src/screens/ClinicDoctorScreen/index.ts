@@ -1,0 +1,1 @@
+export { ClinicDoctorScreen } from './ClinicDoctorScreen';

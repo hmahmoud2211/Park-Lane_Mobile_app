@@ -37,6 +37,11 @@ export const passportCopy = {
     checkAgain: 'Check again',
     settings: 'Settings & privacy',
     settingsDetail: 'Family profiles, how your data is used, and deleting data.',
+    clinicVisits: 'Clinic visits',
+    clinicVisitsSubtitle: 'Records approved by Park Lane clinic doctors.',
+    noClinicVisits: 'No clinic visits yet.',
+    bookClinic: 'Book a clinic appointment',
+    bookClinicDetail: 'Doctors at the Park Lane clinic, by specialty.',
     noneActive: 'None recorded.',
   },
   ar: {
@@ -72,6 +77,11 @@ export const passportCopy = {
     checkAgain: 'تحقق مرة أخرى',
     settings: 'الإعدادات والخصوصية',
     settingsDetail: 'ملفات العائلة، وكيف تُستخدم بياناتك، وحذف البيانات.',
+    clinicVisits: 'زيارات العيادة',
+    clinicVisitsSubtitle: 'سجلات اعتمدها أطباء عيادة بارك لين.',
+    noClinicVisits: 'لا توجد زيارات للعيادة بعد.',
+    bookClinic: 'حجز موعد في العيادة',
+    bookClinicDetail: 'أطباء عيادة بارك لين حسب التخصص.',
     noneActive: 'لا يوجد.',
   },
 } satisfies Record<HealthLang, unknown>;

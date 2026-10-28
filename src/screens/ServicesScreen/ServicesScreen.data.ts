@@ -18,6 +18,8 @@ export interface ServiceItem {
   description: string;
   /** The illustration in the row's tile. */
   icon: ImageKey;
+  /** Drawn instead of `icon` for services that have no illustration yet. */
+  glyph?: { set: IconSet; name: string };
   /**
    * Drawn on the "Under Development" placeholder the row opens until its
    * screen is designed; that page takes a vector icon.
@@ -60,6 +62,18 @@ export const services: readonly ServiceItem[] = [
     icon: 'serviceMoving',
     iconSet: 'material',
     iconName: 'dolly',
+  },
+  {
+    // Not in the Figma reference; added with the same row. No illustration
+    // exists for it yet, so the tile draws a glyph.
+    id: 'clinic',
+    title: 'Clinical Appointment',
+    description: 'Book a doctor at the Park Lane clinic,\nand see your visits.',
+    icon: 'serviceHealth',
+    glyph: { set: 'ionicons', name: 'calendar-number-outline' },
+    iconSet: 'ionicons',
+    iconName: 'calendar-number-outline',
+    route: 'Clinic',
   },
   {
     // Not in the Figma reference; added after it with the same row.

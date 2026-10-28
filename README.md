@@ -213,6 +213,22 @@ live in [`src/services/parking/`](src/services/parking/) and data is stored on
 the device only. See [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) for the demo
 script, what is simulated and where real integrations connect.
 
+## Clinical Appointment and the clinic
+
+Services → **Clinical Appointment** lets residents find a doctor at the Park
+Lane clinic by specialty or name, pick a free slot and book it for
+themselves or a family member's Health Passport profile, choosing per visit
+whether the doctor may read their Health Passport and whether AI may assist.
+The doctor runs the visit in the clinic web app
+([`../Parklane-clinical-system`](../Parklane-clinical-system)); the record
+they approve appears in Health Passport (Passport home → Clinic visits, and
+the Visits tab).
+
+Both use the EMS backend in [`server/`](server/), signed in with the EMS
+account. Run the app with `EXPO_PUBLIC_HEALTH_API=http` so Health Passport
+uses that backend instead of its mock. See [docs/CLINIC.md](docs/CLINIC.md)
+for the design, API, consent model, setup and tests.
+
 ## Building & deployment
 
 ### Native builds (EAS)

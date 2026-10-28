@@ -67,7 +67,7 @@ export function ServicesScreen() {
                 fill
                 title={service.title}
                 description={service.description}
-                icon={{ image: images[service.icon] }}
+                icon={service.glyph ?? { image: images[service.icon] }}
                 // Services without a screen yet open the same placeholder
                 // Home's unbuilt tiles do.
                 // TODO(nav): route to each service's screen once it is designed.

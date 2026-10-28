@@ -1,5 +1,6 @@
 import { healthConfig } from '../../constants/healthConfig';
 import type {
+  ClinicConsultation,
   ConfirmInput,
   Consent,
   HealthDocument,
@@ -171,6 +172,9 @@ export class HttpHealthService implements HealthService {
   /** Answers at once: 200 with a current summary, or 202 with the background job. */
   generateSummary = (profileId: string, request: SummaryRequest) =>
     this.call<SummaryState>('POST', `/health/profiles/${enc(profileId)}/summary`, { body: request });
+
+  getConsultation = (consultationId: string) =>
+    this.call<ClinicConsultation>('GET', `/health/consultations/${enc(consultationId)}`);
 
   /** Multipart over XMLHttpRequest, since fetch reports no upload progress. */
   async uploadDocument(
