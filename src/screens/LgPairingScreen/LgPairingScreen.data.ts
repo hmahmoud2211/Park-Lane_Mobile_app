@@ -13,6 +13,8 @@ export const lgPairingCopy = {
   beforeTitle: 'Before you start',
   beforeBody:
     'The AC calls LG’s cloud once it is on your Wi-Fi, and rethink has to answer in its place: on your home network, common.lgthinq.com and rethink.lan must resolve to the computer running rethink (a DNS override on your router). Without that, the AC joins your Wi-Fi but never shows up here.',
+  beforeBodyRemote:
+    'The AC is told where rethink is along with your Wi-Fi, so any Wi-Fi with internet access will do. Older ThinQ1 models are the exception: on their network, common.lgthinq.com must still resolve to rethink (a DNS override on the router).',
   rethinkGuide: 'rethink’s setup guide',
   checkingBackend: 'Checking the LG bridge…',
   backendFailed: 'LG bridge not ready',
@@ -94,6 +96,8 @@ export const lgPairingCopy = {
   notFoundTitle: 'The AC has not shown up yet',
   notFoundBody:
     'It took your Wi-Fi but has not reached rethink. Most often the DNS override is missing, so the AC called LG instead: check that common.lgthinq.com resolves to the rethink computer on your network. A typo in the Wi-Fi password has the same effect; then start over.',
+  notFoundBodyRemote:
+    'It took your Wi-Fi but has not reached rethink. Check that this Wi-Fi has internet access; a typo in the Wi-Fi password also keeps the AC off it, then start over. An older ThinQ1 model also needs common.lgthinq.com to resolve to rethink on its network.',
   keepWaiting: 'Keep waiting',
   startOver: 'Start over',
   doneTitle: 'Added',

@@ -51,6 +51,14 @@ export interface LgAppliance {
   added: boolean;
 }
 
+/** rethink's public addresses (GET /api/lg/appliances), given to a ThinQ2 AC while it is paired. */
+export interface LgServers {
+  /** e.g. https://lg.example.com:4443 */
+  apiServer: string;
+  /** e.g. ssl://lg.example.com:8884 */
+  mqttServer: string;
+}
+
 export type ControlValue = string | number | boolean | null;
 
 /**

@@ -55,6 +55,13 @@ export const config = {
     /** rethink's `rethink_prefix` and `discovery_prefix` (its config.json). */
     prefix: env.RETHINK_PREFIX || 'rethink',
     discoveryPrefix: env.RETHINK_DISCOVERY_PREFIX || 'homeassistant',
+    /**
+     * rethink's public addresses (its config.json https_port / mqtts_port `advertise`). The app
+     * hands them to a ThinQ2 AC while pairing, so the AC reaches rethink from any network without
+     * a DNS override. Both or neither, e.g. https://lg.example.com:4443 and ssl://lg.example.com:8884.
+     */
+    apiServer: trimUrl(env.RETHINK_API_SERVER),
+    mqttServer: trimUrl(env.RETHINK_MQTT_SERVER),
     /** How long a power command waits for the appliance to report its new state. */
     confirmMs: 7_500,
   },

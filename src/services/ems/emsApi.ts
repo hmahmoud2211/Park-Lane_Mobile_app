@@ -5,6 +5,7 @@ import type {
   DeviceControls,
   EmsUser,
   LgAppliance,
+  LgServers,
   SmartDevice,
   SmartDeviceType,
 } from '../../types/ems.types';
@@ -162,8 +163,12 @@ export const addCubeDevice = (input: { name: string; room?: string; serial: stri
     timeoutMs: emsConfig.registerTimeoutMs,
   });
 
-/** LG appliances the backend's rethink bridge knows; `connected` is false while it cannot reach rethink. */
-export const listLgAppliances = () => call<{ connected: boolean; appliances: LgAppliance[] }>('/api/lg/appliances');
+/**
+ * LG appliances the backend's rethink bridge knows; `connected` is false while it cannot reach rethink.
+ * `servers` is null (or missing, on an older backend) when ACs find rethink through the network's DNS.
+ */
+export const listLgAppliances = () =>
+  call<{ connected: boolean; appliances: LgAppliance[]; servers?: LgServers | null }>('/api/lg/appliances');
 
 /** Adds an LG appliance paired with rethink; the app and Alexa then switch it through the backend. */
 export const addLgAppliance = (input: { name: string; room?: string; applianceId: string }) =>

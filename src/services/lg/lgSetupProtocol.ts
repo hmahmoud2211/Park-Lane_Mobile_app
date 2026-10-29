@@ -33,6 +33,12 @@ export interface SetupRequest {
   password: string;
   /** The phone's offset from UTC, east positive, for the appliance's clock. */
   utcOffsetMinutes: number;
+  /**
+   * Where rethink is, e.g. https://lg.example.com:4443 and ssl://lg.example.com:8884. A ThinQ2
+   * appliance given these skips common.lgthinq.com/route, so its network needs no DNS override.
+   * ThinQ1 and Whisen setup has no such field.
+   */
+  servers?: { apiServer: string; mqttServer: string } | null;
 }
 
 export type LgSetupErrorKind = 'unreachable' | 'timeout' | 'rejected';
@@ -336,6 +342,7 @@ async function thinq2Setup(open: OpenSocket, request: SetupRequest, replyTimeout
       timezone: formatUtcOffset(request.utcOffsetMinutes),
       publicKey: THINQ2_PUBLIC_KEY,
       constantConnect: 'Y',
+      ...(request.servers ? { mqttServer: request.servers.mqttServer, apiServer: request.servers.apiServer } : {}),
     });
     await send('setCertInfo', {
       otp: '0123456789abcdef0123456789abcdef0123456789abcdef',

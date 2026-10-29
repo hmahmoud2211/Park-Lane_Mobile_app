@@ -162,9 +162,12 @@ async function emsRoute(req: IncomingMessage, res: ServerResponse, path: string,
       throw new ApiError('not_configured', 'LG appliances are not set up on this backend (RETHINK_MQTT_URL).');
     }
     const added = registry.externalIds(user.id, 'rethink');
+    const { apiServer, mqttServer } = config.rethink;
     ok(res, {
       connected: rethink.isConnected(),
       appliances: rethink.listAppliances().map((appliance) => ({ ...appliance, added: added.has(appliance.id) })),
+      // Where a newly paired AC should find rethink; null leaves it to the network's DNS.
+      servers: apiServer && mqttServer ? { apiServer, mqttServer } : null,
     });
     return true;
   }

@@ -3,7 +3,13 @@ import TcpSocket from 'react-native-tcp-socket';
 
 import { lgConfig } from '../../constants/lgConfig';
 import { unbindFromDeviceNetwork } from '../sonoff/wifiProvisioningService';
-import { LgSetupError, provisionLgAppliance, type SetupProtocol, type SetupSocket } from './lgSetupProtocol';
+import {
+  LgSetupError,
+  provisionLgAppliance,
+  type SetupProtocol,
+  type SetupRequest,
+  type SetupSocket,
+} from './lgSetupProtocol';
 
 /**
  * The phone's side of LG pairing: TLS sockets to the appliance over
@@ -51,15 +57,20 @@ function openTls(host: string, port: number): Promise<SetupSocket> {
 }
 
 /**
- * Sends the home Wi-Fi to the appliance whose hotspot the phone is on.
+ * Sends the home Wi-Fi to the appliance whose hotspot the phone is on, and
+ * where rethink is when the backend named it (see SetupRequest.servers).
  * Tries each address an appliance may have on its hotspot, moving on only
  * when nothing answers there.
  */
-export async function sendWifiToAppliance(ssid: string, password: string): Promise<SetupProtocol> {
+export async function sendWifiToAppliance(
+  ssid: string,
+  password: string,
+  servers: SetupRequest['servers'] = null,
+): Promise<SetupProtocol> {
   if (!isLgSetupAvailable()) {
     throw new LgSetupError('unreachable', 'This build cannot talk to LG appliances. Install the latest Parklane build.');
   }
-  const request = { ssid, password, utcOffsetMinutes: -new Date().getTimezoneOffset() };
+  const request: SetupRequest = { ssid, password, utcOffsetMinutes: -new Date().getTimezoneOffset(), servers };
   let lastError: unknown;
   try {
     for (const host of lgConfig.apHosts) {

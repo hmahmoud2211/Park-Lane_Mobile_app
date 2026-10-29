@@ -16,7 +16,7 @@ import {
   scanForNetworks,
   type NearbyHotspot,
 } from '../services/sonoff/wifiProvisioningService';
-import type { LgAppliance } from '../types/ems.types';
+import type { LgAppliance, LgServers } from '../types/ems.types';
 import { useEms } from './useEms';
 
 export type LgPairingStep = 'prepare' | 'wifi' | 'join' | 'finish';
@@ -86,8 +86,11 @@ export function useLgPairing() {
   const [phase, setPhase] = useState<LgFinishPhase>('home');
   const [timedOut, setTimedOut] = useState(false);
   const [found, setFound] = useState<LgAppliance | null>(null);
+  /** The backend named rethink's public addresses, so the AC's network needs no DNS override (ThinQ2). */
+  const [remote, setRemote] = useState(false);
 
   const homeWifi = useRef<HomeWifi | null>(null);
+  const servers = useRef<LgServers | null>(null);
   /** Appliances rethink knew before this pairing; the new one is the first id not among them. */
   const known = useRef<Set<string>>(new Set());
   /** The hotspot the app asked the system to join, so it can be released. */
@@ -124,6 +127,8 @@ export function useLgPairing() {
           return;
         }
         known.current = new Set(result.appliances.map((appliance) => appliance.id));
+        servers.current = result.servers ?? null;
+        setRemote(servers.current !== null);
         setBackend(
           result.connected
             ? { state: 'ready' }
@@ -265,7 +270,7 @@ export function useLgPairing() {
           await joinNetwork(hotspot.ssid, hotspot.password, AC_NETWORK);
         }
         setActivity('Sending your Wi-Fi to the AC…');
-        await sendWifiToAppliance(wifi.ssid, wifi.password);
+        await sendWifiToAppliance(wifi.ssid, wifi.password, servers.current);
       } catch (caught) {
         setError(setupFailure(caught));
         await release();
@@ -332,6 +337,7 @@ export function useLgPairing() {
     canScan: canScanForNetworks(),
     setupAvailable: isLgSetupAvailable(),
     backend,
+    remote,
     checkBackend,
     continueToWifi,
     homeNetwork,

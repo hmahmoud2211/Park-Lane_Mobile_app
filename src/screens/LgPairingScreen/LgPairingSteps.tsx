@@ -75,7 +75,7 @@ export function LgSetupModeStep({ pairing }: { pairing: LgPairing }) {
         style={styles.card}
         actions={<TextAction title={copy.rethinkGuide} onPress={() => void Linking.openURL(lgSources.rethinkSetup)} />}
       >
-        {copy.beforeBody}
+        {pairing.remote ? copy.beforeBodyRemote : copy.beforeBody}
       </Notice>
 
       {!pairing.setupAvailable ? (
@@ -673,7 +673,7 @@ export function LgFinishStep({
             </>
           }
         >
-          {copy.notFoundBody}
+          {pairing.remote ? copy.notFoundBodyRemote : copy.notFoundBody}
         </Notice>
       ) : null}
 
