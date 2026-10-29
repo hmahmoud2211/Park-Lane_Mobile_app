@@ -48,6 +48,22 @@ export const config = {
     defaultPort: 8081,
   },
 
+  /**
+   * SONOFF plugs that connect to this backend instead of eWeLink's cloud, so they can be switched
+   * from any network (sonoff/cloud.ts). Off until SONOFF_CLOUD_PORT is set.
+   */
+  sonoffCloud: {
+    port: Number(env.SONOFF_CLOUD_PORT || 0),
+    /** The name (or IPv4 address) plugs reach this port at: DNS only, not behind Cloudflare's proxy. */
+    host: (env.SONOFF_CLOUD_HOST ?? '').trim(),
+    /** Any certificate will do; the plug does not check it. */
+    certFile: (env.SONOFF_CLOUD_CERT ?? '').trim(),
+    keyFile: (env.SONOFF_CLOUD_KEY ?? '').trim(),
+    /** Plugs ping every 145 s (the hbInterval they are given); a socket quiet for longer is dropped. */
+    idleTimeoutMs: 400_000,
+    commandTimeoutMs: 5_000,
+  },
+
   /** LG appliances through rethink (docker/rethink). Off until RETHINK_MQTT_URL is set. */
   rethink: {
     /** The broker rethink publishes to, e.g. mqtt://localhost:1883 or mqtt://user:pass@host:1883. */

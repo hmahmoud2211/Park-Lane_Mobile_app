@@ -6,12 +6,17 @@ import { startAdapters } from './ems/devices.ts';
 import { log } from './log.ts';
 import { isConfigured as rethinkConfigured, startRethink } from './rethink/appliances.ts';
 import { browser, startBridge } from './sonoff/bridge.ts';
+import { sonoffCloudOptionsFrom, startSonoffCloud } from './sonoff/cloud.ts';
 
 /** Starts the backend: routes in app.ts, EMS storage in ems/, the SONOFF bridge in sonoff/. */
 
 db();
 await startBridge();
 startRethink();
+const sonoffCloud = sonoffCloudOptionsFrom(config.sonoffCloud);
+if (sonoffCloud) {
+  await startSonoffCloud(sonoffCloud);
+}
 startAdapters();
 
 if (config.alexa.devVoiceToken) {
@@ -26,6 +31,9 @@ createApp().listen(config.port, config.host, () => {
     alexaLinking: alexaConfigured(),
     mdns: browser.listening,
     lgAppliances: rethinkConfigured() ? config.rethink.mqttUrl.replace(/\/\/[^@/]*@/, '//') : '(RETHINK_MQTT_URL not set)',
+    sonoffCloud: sonoffCloud
+      ? `${sonoffCloud.tls ? 'https' : 'http'}://${sonoffCloud.host}:${sonoffCloud.port}`
+      : '(SONOFF_CLOUD_PORT not set)',
     auth: config.apiKey ? 'api key' : 'none',
   });
 });
