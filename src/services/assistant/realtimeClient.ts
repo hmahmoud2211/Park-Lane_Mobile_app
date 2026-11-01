@@ -117,6 +117,15 @@ export class RealtimeVoiceClient {
     this.sendJson({ type: 'camera_frame', call_id: callId, image });
   }
 
+  /**
+   * The resident's EMS assistant token, so the voice assistant can control
+   * their devices. A message rather than a query parameter, which would end
+   * up in server logs; sent again after every connect.
+   */
+  sendHomeAuth(token: string): void {
+    this.sendJson({ type: 'home_auth', token });
+  }
+
   /** "Stop talking": the server stops generating; the caller flushes playback. */
   cancelResponse(): void {
     this.sendJson({ type: 'response.cancel' });

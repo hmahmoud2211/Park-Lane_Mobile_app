@@ -48,8 +48,11 @@ function failureText(error: unknown): string {
  * The text conversation (FRONTEND_INTEGRATION.md §4.2): one question at a
  * time, with `session_id` carried forward so follow-ups ("and yesterday?")
  * keep their context. Switching resident starts a new conversation.
+ *
+ * `homeToken` gives the assistant the resident's smart home (EmsContext's
+ * assistantToken); without one it asks them to sign in to control devices.
  */
-export function useAssistantChat(residentId: number | null) {
+export function useAssistantChat(residentId: number | null, homeToken?: () => Promise<string | null>) {
   const [messages, setMessages] = useState<readonly ChatMessage[]>([]);
   const [pending, setPending] = useState(false);
   const sessionId = useRef<string | undefined>(undefined);
@@ -61,11 +64,16 @@ export function useAssistantChat(residentId: number | null) {
       inFlight.current = controller;
       setPending(true);
       try {
+        const home = (await homeToken?.()) ?? null;
+        if (controller.signal.aborted) {
+          return;
+        }
         const reply = await sendChatMessage(
           {
             message: text,
             ...(residentId != null ? { resident_id: residentId } : { user_id: guestUserId }),
             ...(sessionId.current ? { session_id: sessionId.current } : null),
+            ...(home ? { home_token: home } : null),
           },
           controller.signal,
         );
@@ -106,7 +114,7 @@ export function useAssistantChat(residentId: number | null) {
         }
       }
     },
-    [residentId],
+    [homeToken, residentId],
   );
 
   /** Wait for the reply before sending the next question, as the backend asks. */

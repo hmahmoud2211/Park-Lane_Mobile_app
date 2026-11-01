@@ -9,7 +9,9 @@ import { newToken, sha256 } from './secrets.ts';
 
 /**
  * EMS accounts and the bearer tokens EMS issues: `session` tokens for the
- * mobile app, from /api/auth/login.
+ * mobile app, from /api/auth/login, and short-lived `assistant` tokens a
+ * session hands to the Parklane Assistant so it can drive the resident's
+ * devices. app.ts decides which routes take which kind.
  */
 
 export interface User {
@@ -18,7 +20,7 @@ export interface User {
   name: string;
 }
 
-export type TokenKind = 'session';
+export type TokenKind = 'session' | 'assistant';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -93,16 +95,36 @@ export function findUserByEmail(email: string): User | null {
   return (db().prepare('SELECT id, email, name FROM users WHERE email = ?').get(email) as User | undefined) ?? null;
 }
 
-export function issueToken(userId: string, kind: TokenKind, ttlMs: number, clientId: string | null = null): string {
+export function issueToken(
+  userId: string,
+  kind: TokenKind,
+  expiresAt: number,
+  { clientId = null, parentHash = null }: { clientId?: string | null; parentHash?: string | null } = {},
+): string {
   const token = newToken();
-  const now = Date.now();
   db()
-    .prepare('INSERT INTO tokens (token_hash, user_id, kind, client_id, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(sha256(token), userId, kind, clientId, now + ttlMs, now);
+    .prepare(
+      'INSERT INTO tokens (token_hash, user_id, kind, client_id, parent_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(sha256(token), userId, kind, clientId, parentHash, expiresAt, Date.now());
   return token;
 }
 
-export const createSession = (userId: string) => issueToken(userId, 'session', config.ems.sessionTtlMs);
+export const createSession = (userId: string) => issueToken(userId, 'session', Date.now() + config.ems.sessionTtlMs);
+
+/**
+ * An assistant token for the session behind `sessionToken`: it never outlives
+ * that session, and signing out (revokeToken) ends it.
+ */
+export function createAssistantToken(sessionToken: string): { token: string; expiresAt: number } {
+  const session = lookupToken(sessionToken, ['session']);
+  if (!session) {
+    throw new ApiError('unauthorized', 'Sign in to your EMS account again.');
+  }
+  const expiresAt = Math.min(Date.now() + config.ems.assistantTokenTtlMs, session.expires_at);
+  const token = issueToken(session.user_id, 'assistant', expiresAt, { parentHash: sha256(sessionToken) });
+  return { token, expiresAt };
+}
 
 interface TokenRow {
   user_id: string;
@@ -127,8 +149,12 @@ export function lookupToken(token: string, kinds: readonly TokenKind[]): (TokenR
   return user ? { ...row, user } : null;
 }
 
+/** The token, and any assistant tokens issued under it. */
 export function revokeToken(token: string): void {
-  db().prepare('UPDATE tokens SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL').run(Date.now(), sha256(token));
+  const hash = sha256(token);
+  db()
+    .prepare('UPDATE tokens SET revoked_at = ? WHERE (token_hash = ? OR parent_hash = ?) AND revoked_at IS NULL')
+    .run(Date.now(), hash, hash);
 }
 
 /** Every token of these kinds for the user. */
@@ -144,11 +170,14 @@ export function bearerOf(req: IncomingMessage): string {
   return header.startsWith('Bearer ') ? header.slice(7).trim() : '';
 }
 
-/** The signed-in user behind a request, or 401. */
-export function requireUser(req: IncomingMessage, kinds: readonly TokenKind[] = ['session']): User {
+/** The user behind a request and the kind of token they sent, or 401. */
+export function authenticate(req: IncomingMessage, kinds: readonly TokenKind[] = ['session']): { user: User; kind: TokenKind } {
   const found = lookupToken(bearerOf(req), kinds);
   if (!found) {
     throw new ApiError('unauthorized', 'Sign in to your EMS account again.');
   }
-  return found.user;
+  return { user: found.user, kind: found.kind };
 }
+
+/** The signed-in user behind a request, or 401. */
+export const requireUser = (req: IncomingMessage, kinds: readonly TokenKind[] = ['session']): User => authenticate(req, kinds).user;

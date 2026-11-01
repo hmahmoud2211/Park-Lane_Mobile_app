@@ -49,7 +49,15 @@ interface EmsContextValue {
   upsertDevice: (device: Device) => void;
   /** Bumped when the resident's linked accounts change, so screens showing them re-read. */
   accountsVersion: number;
+  /**
+   * A token the Parklane Assistant controls this home's devices with, or null
+   * without an EMS session (the assistant then asks the resident to sign in).
+   */
+  assistantToken: () => Promise<string | null>;
 }
+
+/** An assistant token this close to lapsing is replaced rather than handed out. */
+const ASSISTANT_TOKEN_MARGIN_MS = 10 * 60_000;
 
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
 
@@ -77,10 +85,13 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [realtime, setRealtime] = useState<RealtimeState>('offline');
   const [accountsVersion, setAccountsVersion] = useState(0);
   const channel = useRef<EmsRealtime | null>(null);
+  const assistantGrant = useRef<{ token: string; expiresAt: number } | null>(null);
+  const assistantGrantPending = useRef<Promise<string | null> | null>(null);
 
   const endSession = useCallback(async (notice: string | null) => {
     channel.current?.stop();
     channel.current = null;
+    assistantGrant.current = null;
     api.setSessionToken(null);
     await sessionStore.clear();
     setToken(null);
@@ -95,6 +106,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
   }, []);
 
   const begin = useCallback(async (next: { user: EmsUser; token: string }) => {
+    assistantGrant.current = null;
     api.setSessionToken(next.token);
     await sessionStore.save(next.token);
     setSessionNotice(null);
@@ -239,6 +251,33 @@ export function EmsProvider({ children }: PropsWithChildren) {
     await endSession(null);
   }, [endSession]);
 
+  // Reused until shortly before it lapses; one request at a time.
+  const assistantToken = useCallback(async () => {
+    if (status !== 'signedIn') {
+      return null;
+    }
+    const grant = assistantGrant.current;
+    if (grant && grant.expiresAt - Date.now() > ASSISTANT_TOKEN_MARGIN_MS) {
+      return grant.token;
+    }
+    const session = api.getSessionToken();
+    assistantGrantPending.current ??= api
+      .createAssistantToken()
+      .then((next) => {
+        // Kept only for the session that asked; a sign-out meanwhile ended it.
+        if (api.getSessionToken() === session) {
+          assistantGrant.current = next;
+        }
+        return next.token;
+      })
+      // Offline, or a backend without the route: the assistant still answers, without the home.
+      .catch(() => null)
+      .finally(() => {
+        assistantGrantPending.current = null;
+      });
+    return assistantGrantPending.current;
+  }, [status]);
+
   const value = useMemo<EmsContextValue>(
     () => ({
       status,
@@ -257,6 +296,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       refreshHome,
       upsertDevice,
       accountsVersion,
+      assistantToken,
     }),
     [
       status,
@@ -274,6 +314,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       refreshHome,
       upsertDevice,
       accountsVersion,
+      assistantToken,
     ],
   );
 

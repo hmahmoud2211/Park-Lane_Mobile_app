@@ -28,3 +28,11 @@ export const createAccount = (name: string, email: string, password: string) =>
 export const signOut = () => call<{ signedOut: true }>('/api/auth/logout', { method: 'POST' });
 
 export const getMe = () => call<{ user: EmsUser }>('/api/auth/me');
+
+/**
+ * A short-lived token for the Parklane Assistant, so it can read and control
+ * this home's devices (never the account, never unlocking a door). It ends
+ * with this session. `expiresAt` is milliseconds since the epoch.
+ */
+export const createAssistantToken = () =>
+  call<{ token: string; expiresAt: number }>('/api/auth/assistant-token', { method: 'POST' });

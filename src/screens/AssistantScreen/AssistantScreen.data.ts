@@ -36,6 +36,6 @@ export const chatSuggestions: readonly Suggestion[] = [
 /** Spoken examples on the idle voice screen. */
 export const voiceExamples: readonly string[] = [
   'ايه حالة المولد؟',
-  'Any alarms right now?',
+  'Turn off the living room lights',
   'امتى القسط الجاي؟',
 ];

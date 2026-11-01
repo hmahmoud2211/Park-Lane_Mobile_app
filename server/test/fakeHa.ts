@@ -413,6 +413,12 @@ export class FakeHa {
       setTimeout(() => this.setState(entityId, 'off'), 20);
     } else if (service === 'set_temperature') {
       setTimeout(() => this.setState(entityId, current.s, { temperature: data.temperature }), 20);
+    } else if (service === 'set_hvac_mode') {
+      setTimeout(() => this.setState(entityId, String(data.hvac_mode)), 20);
+    } else if (service === 'set_fan_mode') {
+      setTimeout(() => this.setState(entityId, current.s, { fan_mode: data.fan_mode }), 20);
+    } else if (service === 'open_cover' || service === 'close_cover') {
+      setTimeout(() => this.setState(entityId, service === 'open_cover' ? 'open' : 'closed', { current_position: service === 'open_cover' ? 100 : 0 }), 20);
     } else if (service === 'lock' || service === 'unlock') {
       setTimeout(() => this.setState(entityId, service === 'lock' ? 'locked' : 'unlocked'), 20);
     }

@@ -302,3 +302,73 @@ describe('residents', () => {
     session.socket.close();
   });
 });
+
+describe('assistant tokens', () => {
+  async function assistantToken(session: string) {
+    const issued = await api<{ token: string; expiresAt: number }>('POST', '/api/auth/assistant-token', { token: session });
+    assert.equal(issued.status, 200, JSON.stringify(issued.error));
+    return issued.data;
+  }
+
+  test('a session issues one; it reads the home and runs commands, audited as the assistant', async () => {
+    const { token, expiresAt } = await assistantToken(a.token);
+    assert.ok(expiresAt > Date.now() && expiresAt <= Date.now() + 12 * 3600_000);
+    const devices = await api<DeviceShape[]>('GET', '/api/devices', { token });
+    assert.equal(devices.status, 200);
+    assert.ok(devices.data.some((device) => device.id === 'dev-plug'));
+    assert.equal((await api('GET', '/api/home', { token })).status, 200);
+    assert.equal((await api('GET', '/api/rooms', { token })).status, 200);
+
+    const result = await api<DeviceShape>('POST', '/api/devices/dev-plug/commands', { token, body: { capability: 'power', action: 'off' } });
+    assert.equal(result.status, 200, JSON.stringify(result.error));
+    assert.equal(capability(result.data, 'power')?.value, 'off');
+    const { db } = await import('../src/ems/db.ts');
+    const row = db().prepare('SELECT user_id, action, target, via FROM audit_log ORDER BY id DESC LIMIT 1').get() as Record<string, string>;
+    assert.deepEqual({ ...row }, { user_id: a.user.id, action: 'switch.turn_off', target: 'switch.plug', via: 'assistant' });
+  });
+
+  test('it cannot unlock a door, change the home or the account, or issue tokens', async () => {
+    const { token } = await assistantToken(a.token);
+    const before = homeA.calls.length;
+    const unlock = await api('POST', '/api/devices/dev-lock/commands', { token, body: { capability: 'lock', action: 'unlock' } });
+    assert.equal(unlock.status, 403);
+    assert.equal(unlock.error?.code, 'forbidden');
+    assert.equal(homeA.calls.length, before);
+
+    const refused: [string, string, unknown][] = [
+      ['PATCH', '/api/devices/dev-plug', { name: 'Renamed' }],
+      ['POST', '/api/rooms', { name: 'Study' }],
+      ['GET', '/api/accounts', undefined],
+      ['GET', '/api/auth/me', undefined],
+      ['POST', '/api/auth/assistant-token', undefined],
+      ['POST', '/api/auth/logout', undefined],
+    ];
+    for (const [method, path, body] of refused) {
+      assert.equal((await api(method, path, { token, body })).status, 401, `${method} ${path}`);
+    }
+    assert.equal(homeA.calls.length, before);
+
+    const lock = await api('POST', '/api/devices/dev-lock/commands', { token, body: { capability: 'lock', action: 'lock' } });
+    assert.equal(lock.status, 200, JSON.stringify(lock.error));
+  });
+
+  test('only reaches its own unit', async () => {
+    const { token } = await assistantToken(a.token);
+    const command = await api('POST', '/api/devices/b_dev-plug/commands', { token, body: { capability: 'power', action: 'on' } });
+    assert.equal(command.status, 404);
+  });
+
+  test('signing out ends the session’s assistant tokens, not other sessions’', async () => {
+    const login = await api<{ token: string }>('POST', '/api/auth/login', { body: { email: a.email, password: 'correct horse battery' } });
+    assert.equal(login.status, 200);
+    const other = await assistantToken(a.token);
+    const mine = await assistantToken(login.data.token);
+    assert.equal((await api('POST', '/api/auth/logout', { token: login.data.token })).status, 200);
+    assert.equal((await api('GET', '/api/devices', { token: mine.token })).status, 401);
+    assert.equal((await api('GET', '/api/devices', { token: other.token })).status, 200);
+  });
+
+  test('needs a session', async () => {
+    assert.equal((await api('POST', '/api/auth/assistant-token')).status, 401);
+  });
+});

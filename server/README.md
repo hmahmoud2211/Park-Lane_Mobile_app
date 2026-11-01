@@ -82,8 +82,9 @@ Every answer is `{ "ok": true, "data": … }` or `{ "ok": false, "error": { "cod
 | --- | --- |
 | `POST /api/auth/register` `{ email, password, name? }` | Creates an EMS account. Returns `{ user, token }`. |
 | `POST /api/auth/login` `{ email, password }` | Returns `{ user, token }`. Rate limited per client. |
-| `POST /api/auth/logout` | Revokes the session token. |
+| `POST /api/auth/logout` | Revokes the session token and any assistant tokens issued under it. |
 | `GET /api/auth/me` | The signed-in user. |
+| `POST /api/auth/assistant-token` | Returns `{ token, expiresAt }`: an **assistant token** for the Parklane Assistant (Al_Atal_Voice), valid 12 hours and never longer than the session. See below. |
 | `GET /api/home` | `{ unit, hub: { status, haVersion, lastSeen }, rooms, deviceCount }`. `404 no_home` until the resident is in a unit. |
 | `GET /api/devices` | The unit's devices (`Device` in `src/ha/types.ts`): kind, room, capabilities with their current values, sensors, pending command, last error. |
 | `GET /api/devices/:id` | One of them. Another unit's device is `404`. |
@@ -114,6 +115,8 @@ Commands, by capability:
 | `press` | `press` |
 
 A command is pushed as `pending` to every open app, then the device's reported state. `ha_rejected` (502) means the device or its cloud refused; `hub_offline` (503) means the unit's hub is unreachable, while reads keep serving the last known state.
+
+**Assistant tokens.** The app hands one to the Parklane Assistant so residents can control their devices by voice or chat. It is accepted only on `GET /api/home`, `GET /api/devices`, `GET /api/devices/:id`, `GET /api/rooms` and `POST /api/devices/:id/commands`; every other route answers `401`. It can never unlock a door (`403 forbidden`; unlocking stays a tap in the app). Every command it sends is written to `audit_log` with `via = 'assistant'`. Signing out revokes it with the session that asked for it.
 
 ### Operations and admin (`ADMIN_API_KEY`)
 

@@ -19,6 +19,19 @@ export interface InsightBadgesProps {
 const NATIVE = Platform.OS !== 'web';
 const STAGGER_MS = 70;
 
+/** What tapping a chip does: open the resident picker, or the screen that resolves it. */
+function insightAction(
+  insight: Insight,
+  onSignIn: InsightBadgesProps['onSignIn'],
+  onOpenRoute: InsightBadgesProps['onOpenRoute'],
+): (() => void) | undefined {
+  if (insight.action === 'sign-in') {
+    return onSignIn;
+  }
+  const { route } = insight;
+  return route && onOpenRoute ? () => onOpenRoute(route) : undefined;
+}
+
 /**
  * The topic of a reply and its data caveats, as small chips that pop in one
  * after another under the answer.
@@ -59,7 +72,7 @@ function InsightBadgesView({ summary, onOpenRoute, onSignIn, style }: InsightBad
 
       {insights.map((insight, index) => (
         <PopIn key={insight.id} index={index + 1}>
-          <InsightChip insight={insight} onPress={insight.action === 'sign-in' ? onSignIn : undefined} />
+          <InsightChip insight={insight} onPress={insightAction(insight, onSignIn, onOpenRoute)} />
         </PopIn>
       ))}
     </View>

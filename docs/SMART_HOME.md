@@ -80,7 +80,7 @@ The old device paths were replaced by Home Assistant:
 | `src/ems/db.ts` | SQLite storage (migrations 3 and 4 add units, members, hubs, audit log, linking sessions) |
 | `scripts/fake-hub.ts` | `npm run fake-hub`: the backend with a pretend Home Assistant (Mode 1) |
 | `scripts/attach-hub.ts` | `npm run attach-hub`: connects a Home Assistant you run yourself to an apartment (Mode 2) |
-| `test/` | 49 tests, including a fake Home Assistant and a fake Docker |
+| `test/` | 54 tests, including a fake Home Assistant and a fake Docker |
 
 ### App (`src/`)
 
@@ -409,6 +409,17 @@ curl $API/api/admin/hubs -H "Authorization: Bearer $KEY"
 - **Smart Home** shows the resident's rooms. Pick a room, and the Lighting, AC, Curtains and TV cards control that room's devices; cards with no matching device are hidden.
 - Changes show at once and settle on what the device reports. If the device refuses, the screen goes back and says why. Changes made in the brand's own app appear in Parklane by themselves.
 
+### By voice or chat (Parklane Assistant)
+
+While the resident is signed in to their EMS account, the **Assistant** screen (chat and voice) controls the same devices: "turn off the living room lights", "set the bedroom AC to 22", "اطفي النور واقفل الستارة", "is the AC on?".
+
+- The app asks the backend for an **assistant token** (`POST /api/auth/assistant-token`) and hands it to the assistant service (Al_Atal_Voice). It's sent with each chat message and as a `home_auth` message on the voice connection, never in a URL. It lasts 12 hours, and signing out of EMS ends it.
+- That token can only read the unit's devices and send commands. It can't rename devices, link accounts or unlock a door: unlocking stays a tap in the app. Every command it sends is in the audit log as `via = 'assistant'`.
+- The assistant says a device changed only when the backend confirms it. A failure is reported with its reason, and it asks "which one?" when a name fits several devices. Device screens update live, as with any other change.
+- Signed out of EMS, the assistant answers everything else as before and says to sign in under **Settings → My Devices** to control devices.
+
+The assistant service needs `EMS_BACKEND_URL` pointing at this backend (default `http://127.0.0.1:8787`). In Mode 1 the fake hub's AC, plug and light all respond to the assistant.
+
 ### Linking a brand
 
 1. **My Devices → Add**, the Smart Home **"+"**, or the Smart Home menu → **Connect devices**.
@@ -483,7 +494,8 @@ Restart Expo with `npx expo start -c` after changing it.
 - **Tuya's QR code** must be scanned from a second device (a phone can't scan its own screen).
 - **Not yet tested for real:** Mode 3 provisioning on the company server, and the sign-in brands' browser hand-off on a phone.
 - **Still sample data on Smart Home:** scenes, energy and automations.
-- **Next (Phase 5):** live scenes, automations and energy; the optional Zigbee/Matter box per apartment; voice through Home Assistant's Alexa and Google support; member roles (for example, guests without lock control).
+- **Assistant:** one command per device capability. A power strip with several outlets is switched by its first outlet only, and the assistant can't unlock doors by design.
+- **Next (Phase 5):** live scenes, automations and energy; the optional Zigbee/Matter box per apartment; Alexa and Google through Home Assistant; member roles (for example, guests without lock control).
 
 ### Checks
 

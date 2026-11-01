@@ -58,6 +58,8 @@ export const config = {
     /** Set TRUST_PROXY=1 only behind a reverse proxy that overwrites X-Forwarded-For. */
     trustProxy: env.TRUST_PROXY === '1',
     sessionTtlMs: 30 * 24 * 3600_000,
+    /** Tokens the app hands the Parklane Assistant (see ems/auth.ts); the app asks for a new one when it lapses. */
+    assistantTokenTtlMs: 12 * 3600_000,
   },
 
   /** One Home Assistant container per unit, on this server's Docker (see ha/provisioner.ts). */

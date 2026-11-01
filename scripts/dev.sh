@@ -22,6 +22,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER="$ROOT/server"
 LOGS="$ROOT/.dev-logs"
 BACKEND_PORT="${PORT:-8787}"
+# The Parklane Assistant (Al_Atal_Voice), when it runs on this PC.
+ASSISTANT_PORT="${ASSISTANT_PORT:-8001}"
 HA_PORT=8123
 WSL_DISTRO="${WSL_DISTRO:-Ubuntu-24.04}"
 HA_START='source ~/ha-venv/bin/activate && exec hass -c ~/ha-config'
@@ -100,9 +102,13 @@ start_app() {
   [ "$web" = 1 ] && info "Opening the web browser…" || info "Press w for the web browser, or scan the QR code with your phone."
   echo
   cd "$ROOT"
-  # The variable wins over .env.local, so a changed Wi-Fi address needs no file edit.
+  # The variables win over .env.local, so a changed Wi-Fi address needs no file edit.
   local args=(expo start -c)
   [ "$web" = 1 ] && args+=(--web)
+  if port_open "$ASSISTANT_PORT"; then
+    info "The app reaches the assistant on this PC at http://$host:$ASSISTANT_PORT"
+    export EXPO_PUBLIC_ASSISTANT_URL="http://$host:$ASSISTANT_PORT"
+  fi
   EXPO_PUBLIC_DEVICE_BACKEND_URL="http://$host:$BACKEND_PORT" npx "${args[@]}"
 }
 

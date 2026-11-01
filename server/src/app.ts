@@ -2,7 +2,17 @@ import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
 import { config } from './config.ts';
-import { createSession, createUser, requireUser, revokeToken, bearerOf, verifyCredentials } from './ems/auth.ts';
+import {
+  authenticate,
+  bearerOf,
+  createAssistantToken,
+  createSession,
+  createUser,
+  requireUser,
+  revokeToken,
+  verifyCredentials,
+  type TokenKind,
+} from './ems/auth.ts';
 import { clientIp, limit } from './ems/rateLimit.ts';
 import { attachRealtime } from './ems/realtime.ts';
 import { ApiError } from './errors.ts';
@@ -33,6 +43,7 @@ import { log } from './log.ts';
  *
  * EMS (signed-in users):
  *   POST /api/auth/register | /login | /logout     GET /api/auth/me
+ *   POST /api/auth/assistant-token                 (a token for the Parklane Assistant, below)
  *   GET  /api/events (WebSocket)
  *
  * The resident's home, served from their unit's Home Assistant (src/ha/):
@@ -40,6 +51,10 @@ import { log } from './log.ts';
  *   GET  /api/devices                              GET | PATCH /api/devices/:id
  *   POST /api/devices/:id/commands { capability, action, value?, entityId? }
  *   GET  /api/rooms                                POST /api/rooms { name }
+ *
+ * An assistant token reaches only the reads above and device commands, never
+ * unlocks a door, and every command it sends is audited. Everything else
+ * needs the app's own session.
  *
  * Linking brand accounts (Home Assistant config flows on the unit's hub):
  *   GET  /api/accounts/integrations                GET /api/accounts
@@ -54,6 +69,9 @@ import { log } from './log.ts';
  *   POST /api/admin/units/:id/members { email, role? }
  *   GET  /api/admin/hubs                           POST /api/admin/hubs { unitId, baseUrl, token }
  */
+
+/** Tokens that may read the home and run device commands. */
+const HOME_CALLERS: readonly TokenKind[] = ['session', 'assistant'];
 
 function sameSecret(given: string, expected: string): boolean {
   const a = Buffer.from(given);
@@ -101,6 +119,12 @@ async function emsRoute(req: IncomingMessage, res: ServerResponse, path: string)
     ok(res, { user: requireUser(req) });
     return true;
   }
+  if (path === '/api/auth/assistant-token' && method === 'POST') {
+    const user = requireUser(req);
+    limit('assistant-token', user.id, 20, 60_000);
+    ok(res, createAssistantToken(bearerOf(req)));
+    return true;
+  }
 
   return false;
 }
@@ -109,21 +133,22 @@ async function homeRoute(req: IncomingMessage, res: ServerResponse, path: string
   const method = req.method ?? 'GET';
 
   if (path === '/api/home' && method === 'GET') {
-    ok(res, homeFor(requireUser(req).id));
+    ok(res, homeFor(requireUser(req, HOME_CALLERS).id));
     return true;
   }
   if (path === '/api/devices' && method === 'GET') {
-    ok(res, runtimeForUser(requireUser(req).id).listDevices());
+    ok(res, runtimeForUser(requireUser(req, HOME_CALLERS).id).listDevices());
     return true;
   }
   const device = /^\/api\/devices\/([^/]+)(\/commands)?$/.exec(path);
   if (device) {
-    const user = requireUser(req);
+    // Renaming and moving devices stay with the app.
+    const { user, kind } = authenticate(req, method === 'PATCH' ? ['session'] : HOME_CALLERS);
     const id = decodeURIComponent(device[1]);
     if (device[2] && method === 'POST') {
       limit('device-command', user.id, 60, 60_000);
       const command = parseCommand(await readJson(req));
-      ok(res, await runtimeForUser(user.id).command(user.id, id, command));
+      ok(res, await runtimeForUser(user.id).command(user.id, id, command, kind === 'assistant' ? 'assistant' : 'app'));
       return true;
     }
     if (!device[2] && method === 'GET') {
@@ -190,7 +215,7 @@ async function homeRoute(req: IncomingMessage, res: ServerResponse, path: string
     }
   }
   if (path === '/api/rooms') {
-    const user = requireUser(req);
+    const user = requireUser(req, method === 'GET' ? HOME_CALLERS : ['session']);
     if (method === 'GET') {
       ok(res, runtimeForUser(user.id).listRooms());
       return true;

@@ -6,7 +6,7 @@ import { publish } from '../ems/events.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { ApiError } from '../errors.ts';
 import { log } from '../log.ts';
-import { AUDITED, resolveCommand } from './commands.ts';
+import { ASSISTANT_REFUSED, AUDITED, resolveCommand, type CommandSource } from './commands.ts';
 import { HaConnection, HaError, type ConnectionStatus } from './haClient.ts';
 import { toDevices, toRooms } from './mapping.ts';
 import { membersOfHub, unitForUser } from './units.ts';
@@ -241,10 +241,14 @@ export class HubRuntime {
    * Runs one allowlisted command and resolves with the device as the hub then
    * reports it. Shown as pending to every open app until the hub answers.
    */
-  async command(userId: string, deviceId: string, request: CommandRequest): Promise<Device> {
+  async command(userId: string, deviceId: string, request: CommandRequest, source: CommandSource = 'app'): Promise<Device> {
     this.requireOnline();
     const device = this.getDevice(deviceId);
     const { call } = resolveCommand(device, request);
+    const action = `${call.domain}.${call.service}`;
+    if (source === 'assistant' && ASSISTANT_REFUSED.has(action)) {
+      throw new ApiError('forbidden', 'For safety, doors can only be unlocked from the app.');
+    }
     if (this.inFlight.has(call.entityId)) {
       throw new ApiError('conflict', 'This device is still busy with the last command.');
     }
@@ -252,10 +256,10 @@ export class HubRuntime {
     this.pending.set(deviceId, { entityId: call.entityId, capability: request.capability, action: request.action });
     this.lastErrors.delete(deviceId);
     this.recompute(true);
-    if (AUDITED.has(`${call.domain}.${call.service}`)) {
+    if (AUDITED.has(action) || source === 'assistant') {
       db()
-        .prepare('INSERT INTO audit_log (user_id, hub_id, action, target, at) VALUES (?, ?, ?, ?, ?)')
-        .run(userId, this.hubId, `${call.domain}.${call.service}`, call.entityId, new Date().toISOString());
+        .prepare('INSERT INTO audit_log (user_id, hub_id, action, target, via, at) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(userId, this.hubId, action, call.entityId, source === 'app' ? null : source, new Date().toISOString());
     }
 
     const changed = this.waitForChange(call.entityId, config.ha.commandTimeoutMs);

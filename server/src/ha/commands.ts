@@ -139,8 +139,14 @@ const RULES: Record<CapabilityType, Record<string, Build>> = {
   },
 };
 
-/** Actions that are written to the audit log. */
+/** Actions that are written to the audit log. Every command from the assistant is, too. */
 export const AUDITED = new Set(['lock.unlock']);
+
+/** Where a command came from: the resident's own tap, or the Parklane Assistant acting for them. */
+export type CommandSource = 'app' | 'assistant';
+
+/** What the assistant may not do: a door opens only with the resident's own (second) tap in the app. */
+export const ASSISTANT_REFUSED = new Set(['lock.unlock']);
 
 /** The one service call a command maps to, or a 4xx ApiError. */
 export function resolveCommand(device: Device, request: CommandRequest): { call: ServiceCall; capability: Capability } {

@@ -163,6 +163,14 @@ const MIGRATIONS: readonly string[] = [
     expires_at INTEGER NOT NULL
   );
   `,
+  // Assistant tokens (kind 'assistant') belong to the app session that asked for them, so
+  // signing out ends them too. The audit log says when a command came from the assistant.
+  `
+  ALTER TABLE tokens ADD COLUMN parent_hash TEXT;
+  CREATE INDEX tokens_parent ON tokens(parent_hash) WHERE parent_hash IS NOT NULL;
+  -- via: NULL for the app, 'assistant' for the Parklane Assistant (voice and chat).
+  ALTER TABLE audit_log ADD COLUMN via TEXT;
+  `,
 ];
 
 let instance: DatabaseSync | null = null;
