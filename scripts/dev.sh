@@ -193,8 +193,8 @@ mode_local() {
     wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the backend" "$LOGS/backend.log"
     ok "Backend ready on port $BACKEND_PORT (log: .dev-logs/backend.log)"
   fi
-  info "First time? Create your EMS account in the app, then run:"
-  info "  ./scripts/dev.sh attach --email you@example.com --token <Home Assistant token>"
+  info "First time? Create your EMS account in the app, then double-click ParklaneAttach.exe"
+  info "  (or run: ./scripts/dev.sh attach --email you@example.com --token <Home Assistant token>)"
   echo
 
   if [ "$APP" = 1 ]; then start_app "$HOST" "$WEB"; else wait_until_stopped; fi
@@ -219,11 +219,27 @@ mode_check() {
   fi
 }
 
+# Puts the resident in a test unit and attaches Home Assistant. Starts the backend for the moment
+# if it is not running (and stops it again); Home Assistant itself must already be running.
 mode_attach() {
   require_node
   local has_url=0
   for arg in "$@"; do [ "$arg" = "--url" ] && has_url=1; done
-  port_open "$BACKEND_PORT" || fail "The backend is not running. Start it first: ./scripts/dev.sh local"
+  grep -qE '^ADMIN_API_KEY=.+' "$SERVER/.env" 2>/dev/null ||
+    fail "Set ADMIN_API_KEY in server/.env first (docs/SMART_HOME.md, step 2e)."
+  if [ "$has_url" = 0 ] && ! port_open "$HA_PORT"; then
+    fail "Home Assistant is not running on port $HA_PORT. Start it first (ParklaneDev.exe option 1, or ./scripts/dev.sh local)."
+  fi
+
+  if ! port_open "$BACKEND_PORT"; then
+    mkdir -p "$LOGS"
+    trap cleanup INT TERM EXIT
+    info "Starting the backend for a moment…"
+    (cd "$SERVER" && exec node src/index.ts) >"$LOGS/backend.log" 2>&1 &
+    STARTED_PIDS+=("$!")
+    wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the backend" "$LOGS/backend.log"
+  fi
+
   cd "$SERVER"
   if [ "$has_url" = 1 ]; then
     node scripts/attach-hub.ts "$@"

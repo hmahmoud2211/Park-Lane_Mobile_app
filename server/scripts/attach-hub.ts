@@ -66,5 +66,6 @@ try {
   console.log(`Hub attached: ${values.url} (Home Assistant ${hub.haVersion ?? 'unknown version'}). Open My Devices in the app.`);
 } catch (error) {
   console.error(`Failed: ${(error as Error).message}`);
-  process.exit(1);
+  // Not process.exit(): on Windows, exiting while fetch's sockets close trips a libuv assertion.
+  process.exitCode = 1;
 }

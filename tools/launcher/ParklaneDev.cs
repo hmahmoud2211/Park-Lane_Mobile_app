@@ -1,7 +1,10 @@
-// ParklaneDev.exe: a Windows launcher for scripts/dev.sh (see docs/SMART_HOME.md).
+// ParklaneDev.exe and ParklaneAttach.exe: Windows launchers for scripts/dev.sh (docs/SMART_HOME.md).
 //
-// Double-clicked, it shows a menu; with arguments, it passes them straight to the script:
+// ParklaneDev.exe, double-clicked, shows a menu; with arguments, it passes them to the script:
 //   ParklaneDev.exe local --web
+// ParklaneAttach.exe (this file built with /define:ATTACH_ONLY) only connects Home Assistant to a
+// resident's account: it asks for the email and token, or takes the attach options:
+//   ParklaneAttach.exe --email you@example.com --token <token>
 //
 // It runs the script with Git Bash, never with C:\Windows\System32\bash.exe (that one is WSL's
 // Linux bash, which would not see the Windows Node.js). Build it with tools\launcher\build.cmd.
@@ -17,13 +20,17 @@ internal static class ParklaneDev
 {
     private static int Main(string[] args)
     {
+#if ATTACH_ONLY
+        Console.Title = "Parklane: connect Home Assistant";
+#else
         Console.Title = "Parklane smart home";
+#endif
         bool fromMenu = args.Length == 0;
 
         string root = FindProjectRoot();
         if (root == null)
         {
-            return Fail("Could not find scripts\\dev.sh. Put ParklaneDev.exe in the Park-Lane_Mobile_app folder.", fromMenu);
+            return Fail("Could not find scripts\\dev.sh. Keep this program in the Park-Lane_Mobile_app folder.", fromMenu);
         }
 
         string bash = FindGitBash();
@@ -32,7 +39,15 @@ internal static class ParklaneDev
             return Fail("Git Bash was not found. Install Git for Windows from https://git-scm.com and try again.", fromMenu);
         }
 
+#if ATTACH_ONLY
+        List<string> scriptArgs = fromMenu ? AskAttach() : new List<string>(args);
+        if (scriptArgs != null && !fromMenu)
+        {
+            scriptArgs.Insert(0, "attach");
+        }
+#else
         List<string> scriptArgs = fromMenu ? AskWhatToRun() : new List<string>(args);
+#endif
         if (scriptArgs == null)
         {
             return 0;
@@ -119,8 +134,13 @@ internal static class ParklaneDev
     private static List<string> AskAttach()
     {
         Console.WriteLine();
-        Console.WriteLine("  The backend must be running (option 1 in another window), and your EMS account");
-        Console.WriteLine("  must exist (app: Settings > My Devices > Create account).");
+        Console.WriteLine("  Connect your Home Assistant to your EMS account (first time only)");
+        Console.WriteLine("  ----------------------------------------------------------------");
+        Console.WriteLine("  Before you start:");
+        Console.WriteLine("   - Home Assistant is running (open http://localhost:8123 to check).");
+        Console.WriteLine("   - Your EMS account exists (app: Settings > My Devices > Create account).");
+        Console.WriteLine("   - You have a long-lived token (Home Assistant: your name > Security).");
+        Console.WriteLine("  The backend is started for a moment if it is not running.");
         Console.WriteLine();
         string email = AskRequired("Your EMS account email: ");
         if (email == null)
@@ -132,7 +152,14 @@ internal static class ParklaneDev
         {
             return null;
         }
-        return new List<string> { "attach", "--email", email.Trim(), "--token", token.Trim() };
+        var result = new List<string> { "attach", "--email", email.Trim(), "--token", token.Trim() };
+        string url = Ask("Home Assistant address (press Enter for http://127.0.0.1:8123): ");
+        if (!string.IsNullOrEmpty(url))
+        {
+            result.Add("--url");
+            result.Add(url);
+        }
+        return result;
     }
 
     private static string Ask(string prompt)
