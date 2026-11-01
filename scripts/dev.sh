@@ -6,7 +6,7 @@
 #   ./scripts/dev.sh check     App typecheck and lint, backend typecheck and tests
 #   ./scripts/dev.sh attach --email you@example.com --token <long-lived token> [--url http://127.0.0.1:8123]
 #                              Puts your EMS account in a test unit and attaches Home Assistant (once)
-#   ./scripts/dev.sh server    Mode 3, on the Linux server: the Docker network and the backend container
+#   ./scripts/dev.sh server    Mode 3, on the Linux server: builds the backend image and starts it (server/compose.yaml)
 #
 # Options for fake and local:
 #   --web       open the app in the web browser straight away
@@ -254,37 +254,42 @@ mode_attach() {
   fi
 }
 
-# Mode 3 runs on the Linux server: see docs/SMART_HOME.md, "Mode 3". Expects this repo's server/
-# folder there with its .env filled in, and Docker installed.
+# A value from server/.env, or nothing.
+env_value() { grep -E "^$1=" "$SERVER/.env" | tail -n 1 | cut -d= -f2-; }
+
+# Mode 3 runs on the Linux server: see docs/production.md. Builds the backend image from server/
+# (tagged with the git commit) and starts it with server/compose.yaml, settings from server/.env.
 mode_server() {
   command -v docker >/dev/null 2>&1 || fail "Docker is not installed on this machine."
   [ -f "$SERVER/.env" ] || fail "Create server/.env first (copy server/.env.example and fill it in)."
   grep -qE '^ADMIN_API_KEY=.+' "$SERVER/.env" || fail "Set ADMIN_API_KEY in server/.env."
+  grep -qE '^PARKLANE_DATA=/' "$SERVER/.env" || fail "Set PARKLANE_DATA in server/.env: the folder for the database and the units."
   grep -qE '^PUBLIC_URL=https://' "$SERVER/.env" || info "PUBLIC_URL is not an https:// address; brands that sign in on their own page will stay off."
 
-  local network data
-  network="$(grep -E '^HA_NETWORK=' "$SERVER/.env" | cut -d= -f2-)"
+  local network data port version
+  network="$(env_value HA_NETWORK)"
   network="${network:-parklane-ha}"
-  data="${PARKLANE_DATA:-/srv/parklane}"
+  data="$(env_value PARKLANE_DATA)"
+  port="$(env_value PORT)"
+  port="${port:-8787}"
+  version="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo latest)"
+  [ -z "$(git -C "$ROOT" status --porcelain -- server 2>/dev/null)" ] || version="$version-dirty"
 
   bold "Mode 3: production backend on Docker"
   docker network inspect "$network" >/dev/null 2>&1 || { docker network create "$network" >/dev/null && ok "Created network $network"; }
+  # Created here, as this user: a folder Docker creates for a mount belongs to root.
   mkdir -p "$data"
-  if docker ps -a --format '{{.Names}}' | grep -qx parklane-backend; then
-    info "Replacing the existing parklane-backend container…"
+  # The container earlier versions of this script started, before compose.yaml.
+  if docker ps -a --format '{{.Names}}' | grep -qx parklane-backend &&
+    [ -z "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' parklane-backend)" ]; then
+    info "Replacing the parklane-backend container started without compose…"
     docker rm -f parklane-backend >/dev/null
   fi
-  docker run -d --name parklane-backend --restart unless-stopped \
-    --network "$network" \
-    --env-file "$SERVER/.env" \
-    -v "$SERVER":/app -w /app \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$data":"$data" \
-    -p "127.0.0.1:$BACKEND_PORT:$BACKEND_PORT" \
-    node:22 node src/index.ts >/dev/null
-  wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the backend"
-  ok "Backend running in Docker on 127.0.0.1:$BACKEND_PORT (logs: docker logs -f parklane-backend)"
-  info "Put HTTPS in front (e.g. Caddy: reverse_proxy 127.0.0.1:$BACKEND_PORT), then create units with the admin API."
+  info "Building parklane-backend:$version…"
+  (cd "$SERVER" && PARKLANE_VERSION="$version" DOCKER_GID="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock)}" docker compose up -d --build)
+  wait_for "http://127.0.0.1:$port/api/home" 60 "the backend"
+  ok "Backend $version running on 127.0.0.1:$port (logs: docker logs -f parklane-backend)"
+  info "Back to an earlier build: cd server && PARKLANE_VERSION=<commit> docker compose up -d --no-build"
 }
 
 # ---- Main --------------------------------------------------------------------------------

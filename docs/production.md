@@ -1,4 +1,4 @@
-Here's the full production setup. A summary first: the **server** runs one thing you install, the **backend** (in Docker). The backend then creates a **Home Assistant container for each apartment** by itself. The **mobile app** isn't installed on the server: you build it with EAS, and it already points at `https://api-iot.ems-iot.com`.
+Here's the full production setup. A summary first: the **server** runs one thing you install, the **backend** (in Docker). The backend then creates a **Home Assistant container for each apartment** by itself. The **mobile app** isn't installed on the server: you build it with EAS, and it already points at `https://api-iot-2.ems-iot.com`.
 
 ```
  Phones (Parklane app)
@@ -15,11 +15,11 @@ Here's the full production setup. A summary first: the **server** runs one thing
 
 - **A Linux server:** Ubuntu 24.04 recommended, with SSH access.
 - **Memory:** about **0.5 GB of RAM per apartment**, plus 1–2 GB for the system (for example, 16 GB for about 25 apartments). Disk: roughly 0.5 GB per apartment.
-- **Your domain:** the DNS record for **`api-iot.ems-iot.com`** points at the server's public IP.
+- **Your domain:** the DNS record for **`api-iot-2.ems-iot.com`** points at the server's public IP.
 - **Firewall:** ports **22** (SSH), **80** and **443** open to the internet.
 - **Code access:** permission to clone the GitHub repository, via a deploy key or access token.
 
-> ⚠️ The current server at `api-iot.ems-iot.com` runs the **old** backend. Whatever runs it today (a service, pm2, or a container) must be stopped before the new one takes over. Existing EMS accounts survive: the new backend upgrades the database automatically and only drops the old CUBE and Alexa tables.
+> ⚠️ The **old** backend keeps running at `api-iot.ems-iot.com`; this one is new, at `api-iot-2.ems-iot.com`, so nothing has to be stopped. It starts with an empty database. To bring the old EMS accounts over, stop nothing: copy the old `ems.db` with `sqlite3 ems.db ".backup <DATA_DIR>/ems.db"` and set the old backend's `EMS_ENCRYPTION_KEY`. The new backend upgrades that copy and drops only the CUBE and Alexa tables.
 
 ## 2. Install Docker and Caddy
 
@@ -65,11 +65,15 @@ HOST=0.0.0.0
 PORT=8787
 ADMIN_API_KEY=<first random value>
 EMS_ENCRYPTION_KEY=<second random value>
-PUBLIC_URL=https://api-iot.ems-iot.com
+PUBLIC_URL=https://api-iot-2.ems-iot.com
 APP_RETURN_URL=parklane://accounts
 DATA_DIR=/srv/parklane/data
+TRUST_PROXY=1
 
-HA_IMAGE=ghcr.io/home-assistant/home-assistant:stable
+# The backend's own container: the folder above data/, ha/ and custom_components/
+PARKLANE_DATA=/srv/parklane
+
+HA_IMAGE=ghcr.io/home-assistant/home-assistant:2026.10.4
 HA_NETWORK=parklane-ha
 HA_CONFIG_ROOT=/srv/parklane/ha
 HA_CONFIG_HOST_ROOT=/srv/parklane/ha
@@ -80,7 +84,7 @@ HA_TIME_ZONE=Africa/Cairo
 
 > 🔑 **Keep a copy of `EMS_ENCRYPTION_KEY` somewhere safe.** It encrypts every apartment's Home Assistant token. If it's lost, every apartment has to be set up again.
 
-For production, it's better to **pin** `HA_IMAGE` to a specific release instead of `stable`, so every apartment runs the same tested version.
+`HA_IMAGE` is pinned to one release, not `stable`, so every apartment runs the same tested version. Change it only on purpose (see "Upgrade Home Assistant" below).
 
 ## 5. Start the backend
 
@@ -88,7 +92,7 @@ For production, it's better to **pin** `HA_IMAGE` to a specific release instead 
 cd /opt/parklane
 ./scripts/dev.sh server
 ```
-This creates the private Docker network and starts the `parklane-backend` container. The container restarts by itself after a reboot.
+This creates the private Docker network, builds the backend image (Node and the code in `server/`, tagged with the git commit, e.g. `parklane-backend:117a038`) and starts it with `server/compose.yaml`. The container restarts by itself after a reboot, and `docker ps` shows it as `(healthy)` once it answers.
 
 Check that it's up:
 ```bash
@@ -100,7 +104,7 @@ curl http://127.0.0.1:8787/api/health -H "Authorization: Bearer <ADMIN_API_KEY>"
 
 ```bash
 sudo tee /etc/caddy/Caddyfile >/dev/null <<'EOF'
-api-iot.ems-iot.com {
+api-iot-2.ems-iot.com {
     reverse_proxy 127.0.0.1:8787
 }
 EOF
@@ -108,12 +112,12 @@ sudo systemctl reload caddy
 ```
 Caddy gets the certificate automatically. Live updates in the app (WebSockets) work with no extra settings.
 
-Check from your PC: open `https://api-iot.ems-iot.com/api/home`. It should answer `{"ok":false,"error":{"code":"unauthorized"…}}`. That error means the new backend is live; the old one answered "Not found".
+Check from your PC: open `https://api-iot-2.ems-iot.com/api/home`. It should answer `{"ok":false,"error":{"code":"unauthorized"…}}`. That error means the new backend is live.
 
 ## 7. Create your first apartment (a pilot)
 
 ```bash
-API=https://api-iot.ems-iot.com
+API=https://api-iot-2.ems-iot.com
 KEY=<ADMIN_API_KEY>
 
 # Create the apartment; its Home Assistant is built automatically (1–3 minutes the first time)
@@ -131,7 +135,7 @@ The resident then opens My Devices, sees **Home hub online**, and taps **Add** t
 
 ## 8. Build the mobile app
 
-The app builds already point at `https://api-iot.ems-iot.com` (`eas.json`). From your PC:
+The app builds already point at `https://api-iot-2.ems-iot.com` (`eas.json`). From your PC:
 ```bash
 npx eas-cli@latest build --profile preview --platform android     # an APK to test and share
 npx eas-cli@latest build --profile production --platform all      # store builds
@@ -144,6 +148,7 @@ npx eas-cli@latest build --profile production --platform all      # store builds
 | Task | How |
 |---|---|
 | **Update the backend** | `cd /opt/parklane && git pull && ./scripts/dev.sh server` |
+| **Go back to an earlier build** | `docker images parklane-backend` lists them; then `cd /opt/parklane/server && PARKLANE_VERSION=<commit> docker compose up -d --no-build` |
 | **Backend logs** | `docker logs -f parklane-backend` |
 | **One apartment's logs** | `docker ps` (find `parklane-ha-…`), then `docker logs -f parklane-ha-…` |
 | **Retry a failed apartment** | `curl -X POST $API/api/admin/units/<id>/provision -H "Authorization: Bearer $KEY"` |

@@ -312,7 +312,7 @@ The backend creates a Home Assistant container for each apartment by itself. Res
 
 - A Linux server (Ubuntu 24.04 or similar) with **Docker** installed and internet access.
 - About **300–500 MB of RAM per apartment**, plus disk for each apartment's history (a few hundred MB).
-- The domain `api-iot.ems-iot.com` pointing at the server, with HTTPS (Caddy or nginx in front).
+- The domain `api-iot-2.ems-iot.com` pointing at the server, with HTTPS (Caddy or nginx in front).
 - Node.js 22.18+ only if you run the backend outside Docker.
 
 #### 3b. Configure `server/.env`
@@ -322,7 +322,7 @@ HOST=0.0.0.0
 PORT=8787
 ADMIN_API_KEY=<long random secret>                 # openssl rand -base64 32
 EMS_ENCRYPTION_KEY=<32 random bytes, base64>       # openssl rand -base64 32; back it up, it seals every hub token
-PUBLIC_URL=https://api-iot.ems-iot.com
+PUBLIC_URL=https://api-iot-2.ems-iot.com
 APP_RETURN_URL=parklane://accounts
 DATA_DIR=/srv/parklane/data
 
@@ -359,17 +359,17 @@ docker run -d --name parklane-backend --restart unless-stopped \
 
 Put HTTPS in front with a reverse proxy that also passes WebSockets (`/api/events`). With Caddy:
 ```
-api-iot.ems-iot.com {
+api-iot-2.ems-iot.com {
     reverse_proxy 127.0.0.1:8787
 }
 ```
 
-The app builds already point at `https://api-iot.ems-iot.com` (`eas.json`).
+The app builds already point at `https://api-iot-2.ems-iot.com` (`eas.json`).
 
 #### 3d. Brands that sign in on their own page
 
 SmartThings, Google Nest, Netatmo, August, Yale, Miele and Home Connect show as "Not available yet" until, for each brand:
-1. You register an app with the brand, with redirect URI `https://api-iot.ems-iot.com/api/accounts/oauth/auth/external/callback` (one address for every apartment).
+1. You register an app with the brand, with redirect URI `https://api-iot-2.ems-iot.com/api/accounts/oauth/auth/external/callback` (one address for every apartment).
 2. You add its client ID and secret to `HA_OAUTH_CREDENTIALS`, and restart the backend.
 
 New apartments get the credentials when they're created.
@@ -377,7 +377,7 @@ New apartments get the credentials when they're created.
 #### 3e. Set up an apartment
 
 ```bash
-API=https://api-iot.ems-iot.com
+API=https://api-iot-2.ems-iot.com
 KEY=<ADMIN_API_KEY>
 
 # 1. Create the apartment; its Home Assistant starts being created in the background (a minute or two)
@@ -459,7 +459,7 @@ Full list with comments: `server/.env.example`.
 
 | Setting | Mode 1 | Mode 2 | Mode 3 |
 | --- | --- | --- | --- |
-| `EXPO_PUBLIC_DEVICE_BACKEND_URL` | `http://127.0.0.1:8787` (web) or `http://<PC Wi-Fi IP>:8787` (phone) | `http://<PC Wi-Fi IP>:8787` | `https://api-iot.ems-iot.com` (already in `eas.json`) |
+| `EXPO_PUBLIC_DEVICE_BACKEND_URL` | `http://127.0.0.1:8787` (web) or `http://<PC Wi-Fi IP>:8787` (phone) | `http://<PC Wi-Fi IP>:8787` | `https://api-iot-2.ems-iot.com` (already in `eas.json`) |
 
 Restart Expo with `npx expo start -c` after changing it.
 

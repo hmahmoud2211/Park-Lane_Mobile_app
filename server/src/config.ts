@@ -42,7 +42,7 @@ export const config = {
   /** Guards the operations and admin routes. BACKEND_API_KEY is its old name. */
   apiKey: env.ADMIN_API_KEY || env.BACKEND_API_KEY || '',
   /**
-   * The HTTPS address browsers reach this backend at, e.g. https://api-iot.ems-iot.com.
+   * The HTTPS address browsers reach this backend at, e.g. https://api-iot-2.ems-iot.com.
    * Brand sign-in pages (OAuth) return here; those brands stay off until it is set.
    */
   publicUrl: trimUrl(env.PUBLIC_URL),
