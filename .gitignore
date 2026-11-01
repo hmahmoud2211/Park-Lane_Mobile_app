@@ -43,3 +43,6 @@ yarn-error.*
 # device backend: secrets and its device store
 server/.env
 server/data/
+
+# scripts/dev.sh logs
+.dev-logs/

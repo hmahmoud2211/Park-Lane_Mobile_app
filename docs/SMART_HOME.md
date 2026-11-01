@@ -114,6 +114,20 @@ Supporting code: `src/services/home/` (API calls, device helpers), `src/hooks/us
 
 Run **only one backend at a time**. `npm run fake-hub` and `npm start` both use port 8787.
 
+### One command: `scripts/dev.sh`
+
+From **Git Bash** in the project folder (or bash on Linux/macOS), one script starts everything for a mode, in the right order. It waits for each part to be ready, points the app at this PC's current network address (no `.env.local` edit needed), and stops what it started when you press `Ctrl + C`:
+
+```bash
+./scripts/dev.sh fake            # Mode 1: fake hub + app
+./scripts/dev.sh local           # Mode 2: Home Assistant (WSL) + backend + app
+./scripts/dev.sh attach --email you@example.com --token <token>   # Mode 2, once: attach Home Assistant to your account
+./scripts/dev.sh check           # all checks: app types and lint, backend types and tests
+./scripts/dev.sh server          # Mode 3, on the Linux server: Docker network + backend container
+```
+
+Add `--web` to open the app in the browser straight away, `--no-app` to start everything but the app, or `--host <IP>` to choose the address the app uses. A Home Assistant or backend that is already running is reused and left running. Logs are in `.dev-logs/`. The sections below describe the same steps by hand, plus the one-time setup the script can't do for you (installing Home Assistant, creating your accounts).
+
 ---
 
 ### Mode 1: Fake hub
