@@ -126,7 +126,7 @@ From **Git Bash** in the project folder (or bash on Linux/macOS), one script sta
 ./scripts/dev.sh server          # Mode 3, on the Linux server: Docker network + backend container
 ```
 
-**On Windows you can also double-click `ParklaneDev.exe`** in the project folder. It shows a menu (real Home Assistant, fake hub, connect Home Assistant to your account, checks), asks whether to open the app in the browser, and runs the same script through Git Bash. It needs Git for Windows installed. From a terminal it takes the same arguments: `ParklaneDev.exe local --web`. Its source is `tools/launcher/ParklaneDev.cs`; rebuild it with `tools\launcher\build.cmd`, which uses the C# compiler built into Windows. The first time, Windows SmartScreen may warn that the file is unsigned: choose **More info → Run anyway**.
+**On Windows you can also double-click `ParklaneDev.exe`** in the project folder. It shows a menu (real Home Assistant, fake hub, connect Home Assistant to your account, checks), asks whether to open the app in the browser, and runs the same script through Git Bash. It needs Git for Windows installed. From a terminal it takes the same arguments: `ParklaneDev.exe local --web`. For the one-time step of connecting Home Assistant to your account, double-click **`ParklaneAttach.exe`**. It asks for your EMS email and Home Assistant token, plus the address (press Enter for `http://127.0.0.1:8123`). It starts the backend for a moment if it isn't running, then connects them. Home Assistant must already be running. Both programs come from `tools/launcher/ParklaneDev.cs`; rebuild them with `tools\launcher\build.cmd`, which uses the C# compiler built into Windows. The first time, Windows SmartScreen may warn that the file is unsigned: choose **More info → Run anyway**.
 
 Add `--web` to open the app in the browser straight away, `--no-app` to start everything but the app, or `--host <IP>` to choose the address the app uses. A Home Assistant or backend that is already running is reused and left running. Logs are in `.dev-logs/`. The sections below describe the same steps by hand, plus the one-time setup the script can't do for you (installing Home Assistant, creating your accounts).
 
@@ -272,7 +272,7 @@ Start the app (`npx expo start -c`), go to **Settings → My Devices**, and use 
 
 #### 2g. Attach Home Assistant to your account (once)
 
-In a **new** terminal. Put the `cd` and the `npm` command on separate lines:
+Easiest on Windows: double-click **`ParklaneAttach.exe`** in the project folder and type your email and token. To do it by hand instead, open a **new** terminal. Put the `cd` and the `npm` command on separate lines:
 ```bash
 cd server
 npm run attach-hub -- --email you@example.com --url http://127.0.0.1:8123 --token <your token>
