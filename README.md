@@ -213,6 +213,15 @@ live in [`src/services/parking/`](src/services/parking/) and data is stored on
 the device only. See [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) for the demo
 script, what is simulated and where real integrations connect.
 
+## Smart home
+
+Residents control their devices and add new ones by linking the brand app
+they already use (Smart Life, SONOFF/eWeLink, SwitchBot, SmartThings, …).
+The app talks only to the EMS backend in [`server/`](server/), which runs one
+Home Assistant (the [`IOT/`](IOT/) project) per apartment. See
+[docs/SMART_HOME.md](docs/SMART_HOME.md) for what was built and how to run it
+with a fake hub, a real Home Assistant on your PC, or in production.
+
 ## Building & deployment
 
 ### Native builds (EAS)
