@@ -284,12 +284,41 @@ export async function reconnectAccount(userId: string, accountId: string): Promi
   return getFlow(userId, flow.flow_id);
 }
 
-export async function reloadAccount(userId: string, accountId: string): Promise<void> {
-  const { runtime } = await accountFor(userId, accountId);
-  const result = await haRest(runtime.hubId, 'POST', `/api/config/config_entries/entry/${encodeURIComponent(accountId)}/reload`);
+async function reloadEntry(hubId: string, accountId: string): Promise<void> {
+  const result = await haRest(hubId, 'POST', `/api/config/config_entries/entry/${encodeURIComponent(accountId)}/reload`);
   if (result.status >= 400) {
     throw new ApiError('ha_rejected', restMessage(result, 'The account could not be reloaded.'));
   }
+}
+
+export async function reloadAccount(userId: string, accountId: string): Promise<void> {
+  const { runtime } = await accountFor(userId, accountId);
+  await reloadEntry(runtime.hubId, accountId);
+}
+
+export interface RefreshResult {
+  refreshed: number;
+  failed: { id: string; brand: string; message: string }[];
+}
+
+/**
+ * Reloads every linked account, so each brand lists its devices again and ones
+ * added in the brand's own app since linking come in. Resolves once the hub's
+ * registries are re-read, so the next device list already has them.
+ */
+export async function refreshAccounts(userId: string): Promise<RefreshResult> {
+  const runtime = runtimeForUser(userId);
+  const accounts = await listAccounts(userId);
+  const failed: RefreshResult['failed'] = [];
+  await Promise.all(
+    accounts.map((account) =>
+      reloadEntry(runtime.hubId, account.id).catch((error: unknown) => {
+        failed.push({ id: account.id, brand: account.brand, message: (error as Error).message });
+      }),
+    ),
+  );
+  await runtime.resync();
+  return { refreshed: accounts.length - failed.length, failed };
 }
 
 /** Unlinks the account; its devices leave the home with it. */

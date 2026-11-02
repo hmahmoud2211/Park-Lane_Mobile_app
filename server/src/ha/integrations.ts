@@ -13,6 +13,11 @@ import { config } from '../config.ts';
  *  - oauth: the brand's sign-in page in a browser; needs the company's OAuth
  *    app for that brand in HA_OAUTH_CREDENTIALS and PUBLIC_URL for the callback
  *
+ * `webostv` is the one local exception. LG's ThinQ cloud has no TVs (its
+ * thinqconnect API lists appliances only), so LG TVs link by address instead:
+ * the hub opens a connection to the TV, and the resident accepts the pairing
+ * prompt on screen. It only works for TVs on a network the server can reach.
+ *
  * `sonoff` is not part of Home Assistant: it is the community SonoffLAN
  * integration (github.com/AlexxIT/SonoffLAN), which signs in to the eWeLink
  * cloud. A hub has it once it is in the hub's custom_components
@@ -36,6 +41,7 @@ const INTEGRATIONS: readonly Integration[] = [
   { id: 'smartthings', name: 'Samsung SmartThings', method: 'oauth', hint: 'Sign in with your Samsung account.' },
   { id: 'switchbot_cloud', name: 'SwitchBot', method: 'credentials', hint: 'The token and secret from the SwitchBot app (Profile → Preferences → Developer options).' },
   { id: 'lg_thinq', name: 'LG ThinQ', method: 'credentials', hint: 'A personal access token from the LG ThinQ developer site.' },
+  { id: 'webostv', name: 'LG TV (webOS)', method: 'credentials', hint: 'Turn the TV on. You need its IP address (TV Settings → Network), then accept the pairing request on the TV.' },
   { id: 'nest', name: 'Google Nest', method: 'oauth', hint: 'Sign in with the Google account your Nest devices use.' },
   { id: 'ring', name: 'Ring', method: 'credentials', hint: 'Your Ring email and password, and the code Ring sends you.' },
   { id: 'ecobee', name: 'ecobee', method: 'credentials', hint: 'An API key, then a PIN you enter at ecobee.com.' },

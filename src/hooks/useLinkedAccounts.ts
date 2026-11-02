@@ -88,5 +88,18 @@ export function useLinkedAccounts() {
     [track, refresh, refreshHome],
   );
 
-  return { hasHome, accounts, loaded, error, busy, refresh, reconnect, remove };
+  /** Has every brand list its devices again, then re-reads the accounts; names the brands that failed. */
+  const sync = useCallback(async () => {
+    let problem: string | null = null;
+    try {
+      const { failed } = await homeApi.refreshAccounts();
+      problem = failed.length > 0 ? failed.map((failure) => `${failure.brand}: ${failure.message}`).join('\n') : null;
+    } catch (caught) {
+      problem = messageOf(caught);
+    }
+    await refresh();
+    if (problem) setError(problem);
+  }, [refresh]);
+
+  return { hasHome, accounts, loaded, error, busy, refresh, reconnect, remove, sync };
 }

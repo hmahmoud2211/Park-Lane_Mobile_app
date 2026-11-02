@@ -148,6 +148,8 @@ export class FakeHa {
   readonly calls: { domain: string; service: string; entityId: string; data: Record<string, unknown> }[] = [];
   /** Entities whose service calls fail, as when a cloud device is offline. */
   readonly failing = new Set<string>();
+  /** Accounts whose reload fails, as when the brand's cloud is down. */
+  readonly failingReloads = new Set<string>();
   /** When false, service calls succeed but the device never reports back. */
   reportBack = true;
   onboarded = false;
@@ -160,6 +162,7 @@ export class FakeHa {
   /** The HA-Frontend-Base header of the last flow request, which OAuth redirects are built from. */
   lastFrontendBase: string | null = null;
   private flowCounter = 0;
+  private readonly addedOnReload = new Map<string, string[]>();
   private states: Record<string, { s: string; a: Record<string, unknown>; lc: number }> = {};
 
   constructor(setup: FakeSetup, token = 'fake-ha-token-0123456789') {
@@ -535,17 +538,27 @@ export class FakeHa {
     }
   }
 
+  /** A plug the brand registers for an account, with HA's registry events and its first state. */
+  private registerDevice(entry: FakeEntry, name: string, key: string) {
+    const deviceId = `dev-${key}`;
+    const entityId = `switch.${key.replace(/\W/g, '_')}`;
+    this.setup.devices.push({ id: deviceId, name, manufacturer: entry.title, config_entry_id: entry.entry_id });
+    this.setup.entities.push({ entity_id: entityId, device_id: deviceId, platform: entry.domain, config_entry_id: entry.entry_id });
+    this.fire('device_registry_updated', { action: 'create', device_id: deviceId });
+    this.fire('entity_registry_updated', { action: 'create', entity_id: entityId });
+    this.setState(entityId, 'off', { device_class: 'outlet' });
+  }
+
+  /** A device added in the brand's own app: HA only learns of it when the account reloads. */
+  addDeviceOnReload(entry: FakeEntry, name: string) {
+    this.addedOnReload.set(entry.entry_id, [...(this.addedOnReload.get(entry.entry_id) ?? []), name]);
+  }
+
   /** A linked account brings its devices in, as a real brand's integration does once set up. */
   private finish(flow: FakeFlow, title: string) {
     this.flows.delete(flow.flow_id);
     const entry = this.addEntry(flow.handler, title);
-    const deviceId = `dev-${entry.entry_id}`;
-    const entityId = `switch.${entry.entry_id.replace(/\W/g, '_')}`;
-    this.setup.devices.push({ id: deviceId, name: `${title} Plug`, manufacturer: title, config_entry_id: entry.entry_id });
-    this.setup.entities.push({ entity_id: entityId, device_id: deviceId, platform: flow.handler, config_entry_id: entry.entry_id });
-    this.fire('device_registry_updated', { action: 'create', device_id: deviceId });
-    this.fire('entity_registry_updated', { action: 'create', entity_id: entityId });
-    this.setState(entityId, 'off', { device_class: 'outlet' });
+    this.registerDevice(entry, `${title} Plug`, entry.entry_id);
     return { flow_id: flow.flow_id, handler: flow.handler, type: 'create_entry', title, result: { entry_id: entry.entry_id } };
   }
 
@@ -591,7 +604,13 @@ export class FakeHa {
     if (entryMatch) {
       const index = this.entries.findIndex((entry) => entry.entry_id === entryMatch[1]);
       if (index === -1) return json(404, { message: 'Entry not found' });
-      if (entryMatch[2] && method === 'POST') return json(200, { require_restart: false });
+      if (entryMatch[2] && method === 'POST') {
+        const entry = this.entries[index];
+        if (this.failingReloads.has(entry.entry_id)) return json(500, { message: 'Error reloading entry' });
+        (this.addedOnReload.get(entry.entry_id) ?? []).forEach((name, n) => this.registerDevice(entry, name, `${entry.entry_id}-new${n}`));
+        this.addedOnReload.delete(entry.entry_id);
+        return json(200, { require_restart: false });
+      }
       if (!entryMatch[2] && method === 'DELETE') {
         const [entry] = this.entries.splice(index, 1);
         this.fireEntries('removed', entry);

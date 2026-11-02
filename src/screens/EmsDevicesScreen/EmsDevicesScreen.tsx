@@ -44,11 +44,17 @@ export function EmsDevicesScreen() {
   const linked = useLinkedAccounts();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
+  const { hasHome, sync: syncAccounts } = linked;
+
+  // Reloading the linked accounts is what brings in devices added in the brands' own apps.
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    if (hasHome) {
+      await syncAccounts();
+    }
     await refreshHome();
     setRefreshing(false);
-  }, [refreshHome]);
+  }, [hasHome, syncAccounts, refreshHome]);
 
   const reconnect = async (account: LinkedAccount) => {
     const step = await linked.reconnect(account);
@@ -224,6 +230,16 @@ export function EmsDevicesScreen() {
                   divider
                 />
                 {renderDevices()}
+                {linked.hasHome ? (
+                  <AppButton
+                    title={copy.refresh}
+                    variant="secondary"
+                    height={SMALL_BUTTON_HEIGHT}
+                    loading={refreshing}
+                    onPress={() => void onRefresh()}
+                    accessibilityHint={copy.refreshHint}
+                  />
+                ) : null}
               </NeonPanel>
 
               {linked.hasHome ? (

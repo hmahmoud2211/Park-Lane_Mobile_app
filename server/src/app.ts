@@ -22,6 +22,7 @@ import {
   listAccounts,
   oauthCallback,
   reconnectAccount,
+  refreshAccounts,
   reloadAccount,
   removeAccount,
   startFlow,
@@ -60,6 +61,7 @@ import { log } from './log.ts';
  *   GET  /api/accounts/integrations                GET /api/accounts
  *   POST /api/accounts/flows { integration }       GET | POST { data } | DELETE /api/accounts/flows/:id
  *   POST /api/accounts/:id/reconnect | /reload     DELETE /api/accounts/:id
+ *   POST /api/accounts/refresh                     (reloads every account: picks up devices added in brand apps)
  *   GET  /api/accounts/oauth/auth/external/callback (brand sign-in pages return here)
  *
  * Operations and admin (ADMIN_API_KEY):
@@ -195,8 +197,14 @@ async function homeRoute(req: IncomingMessage, res: ServerResponse, path: string
       return true;
     }
   }
+  if (path === '/api/accounts/refresh' && method === 'POST') {
+    const user = requireUser(req);
+    limit('account-refresh', user.id, 6, 60_000);
+    ok(res, await refreshAccounts(user.id));
+    return true;
+  }
   const account = /^\/api\/accounts\/([^/]+?)(\/reconnect|\/reload)?$/.exec(path);
-  if (account && account[1] !== 'flows' && account[1] !== 'integrations') {
+  if (account && account[1] !== 'flows' && account[1] !== 'integrations' && account[1] !== 'refresh') {
     const user = requireUser(req);
     const accountId = decodeURIComponent(account[1]);
     if (account[2] === '/reconnect' && method === 'POST') {

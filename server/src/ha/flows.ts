@@ -73,13 +73,22 @@ type Serialized = Record<string, unknown> & { name?: string };
 
 const humanize = (name: string) => name.replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
 
+/** HA writes flow text in Markdown; the app shows plain text, and HA's images are paths on the hub. */
+const plain = (text: string) =>
+  text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
 function fill(text: string | undefined, placeholders: Record<string, unknown> | null | undefined): string | null {
   if (!text) {
     return null;
   }
-  return text.replace(/\{(\w+)\}/g, (match, key: string) =>
+  const filled = text.replace(/\{(\w+)\}/g, (match, key: string) =>
     placeholders && key in placeholders && placeholders[key] !== null ? String(placeholders[key]) : match,
   );
+  return plain(filled) || null;
 }
 
 function options(raw: unknown): { value: string; label: string }[] {

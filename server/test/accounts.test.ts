@@ -258,6 +258,32 @@ describe('linking brand accounts', () => {
     assert.equal((await api('DELETE', '/api/accounts/entry-not-here', { token })).status, 404);
   });
 
+  test('refresh reloads every account: devices added in a brand’s app are listed right away', async () => {
+    const entry = ha.addEntry('switchbot_cloud', 'Growing SwitchBot');
+    const broken = ha.addEntry('tuya', 'Down Smart Life');
+    ha.addDeviceOnReload(entry, 'New Hall Plug');
+    ha.failingReloads.add(broken.entry_id);
+    const before = await api<{ name: string }[]>('GET', '/api/devices', { token });
+    assert.ok(!before.data.some((device) => device.name === 'New Hall Plug'));
+
+    const refreshed = await api<{ refreshed: number; failed: { id: string; brand: string }[] }>('POST', '/api/accounts/refresh', { token });
+    assert.equal(refreshed.status, 200);
+    assert.deepEqual(
+      refreshed.data.failed.map((failure) => [failure.id, failure.brand]),
+      [[broken.entry_id, 'Tuya / Smart Life']],
+    );
+    assert.ok(refreshed.data.refreshed >= 1);
+    const after = await api<{ name: string; accountId: string }[]>('GET', '/api/devices', { token });
+    assert.equal(after.data.find((device) => device.name === 'New Hall Plug')?.accountId, entry.entry_id);
+    ha.failingReloads.delete(broken.entry_id);
+  });
+
+  test('LG TVs link through webOS: LG’s ThinQ cloud has none', async () => {
+    const list = await api<{ id: string; method: string; available: boolean }[]>('GET', '/api/accounts/integrations', { token });
+    const webos = list.data.find((entry) => entry.id === 'webostv');
+    assert.deepEqual([webos?.method, webos?.available], ['credentials', true]);
+  });
+
   test('residents without a unit cannot link anything', async () => {
     const loner = await resident();
     assert.equal((await api('POST', '/api/accounts/flows', { token: loner, body: { integration: 'tuya' } })).status, 404);

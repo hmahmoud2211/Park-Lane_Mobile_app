@@ -351,6 +351,16 @@ export class HubRuntime {
 
   // ---- Keeping current ---------------------------------------------------------------------
 
+  /** Re-reads every registry now rather than after HA's events, e.g. once accounts were reloaded. */
+  async resync() {
+    this.requireOnline();
+    try {
+      await Promise.all((['areas', 'devices', 'entities'] as const).map((registry) => this.reloadRegistry(registry)));
+    } catch {
+      throw new ApiError('hub_offline', 'Your home hub is not reachable right now. Try again in a moment.');
+    }
+  }
+
   private async bootstrap(connection: HaConnection) {
     const [areas, devices, entities] = await Promise.all([
       connection.command<HaArea[]>({ type: 'config/area_registry/list' }),

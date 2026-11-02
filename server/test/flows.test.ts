@@ -78,4 +78,16 @@ describe('flow steps', () => {
     assert.equal(toFlowStep({ ...base, type: 'abort', reason: 'already_configured' }, translations).message, 'Already linked');
     assert.equal(toFlowStep({ ...base, type: 'progress', progress_action: 'wait_for_device' }, translations).message, 'Waiting for the device…');
   });
+
+  test('Markdown in step text becomes plain text, without the hub’s images', () => {
+    // As webostv's pairing step reads in HA.
+    const step = toFlowStep(
+      { ...base, step_id: 'pairing', type: 'form', data_schema: [] },
+      {
+        'component.demo.config.step.pairing.description':
+          'Select **Submit** and accept the pairing request on your TV.\n\n![Image](/static/images/config_webos.png)',
+      },
+    );
+    assert.equal(step.description, 'Select Submit and accept the pairing request on your TV.');
+  });
 });

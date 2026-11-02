@@ -6,6 +6,8 @@ export const devicesCopy = {
   accountIntro: 'Sign in to your EMS account to see and control your devices.',
   devicesTitle: 'Devices',
   add: 'Add',
+  refresh: 'Refresh devices',
+  refreshHint: 'Checks your linked accounts for devices added in their apps',
   empty: 'No devices yet. Connect the app your devices already use, such as Smart Life or SmartThings.',
   loadFailed: 'Your devices could not be loaded.',
   noHomeTitle: 'Not linked to a unit yet',

@@ -57,3 +57,10 @@ export const reconnectAccount = (id: string) =>
   call<{ step: FlowStep | null }>(`/api/accounts/${encodeURIComponent(id)}/reconnect`, { method: 'POST', timeoutMs: FLOW_TIMEOUT_MS });
 
 export const removeAccount = (id: string) => call<{ removed: true }>(`/api/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+/** Reloads every linked account, so devices added in the brands' own apps come in; lists the ones that failed. */
+export const refreshAccounts = () =>
+  call<{ refreshed: number; failed: { id: string; brand: string; message: string }[] }>('/api/accounts/refresh', {
+    method: 'POST',
+    timeoutMs: FLOW_TIMEOUT_MS,
+  });
