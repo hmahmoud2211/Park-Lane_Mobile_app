@@ -14,7 +14,7 @@ import {
   joinHotspot,
   releaseHotspot,
   scanForHotspots,
-} from '../../../services/provisioning/wifiJoin';
+} from '../../provisioning/services/wifiJoin';
 import type { Brand, ProvisioningSession } from '../../../types/gateway.types';
 import { useGateway } from '../../../hooks/useGateway';
 import { useProvisioningSession } from '../../../hooks/useProvisioningSession';

@@ -23,7 +23,7 @@ import {
   parseLgQrCode,
   type LgQrCode,
 } from '../../features/lg/services/lgHotspot';
-import { canOpenWifiSettings } from '../../services/provisioning/wifiJoin';
+import { canOpenWifiSettings } from '../../features/provisioning/services/wifiJoin';
 import { finishPhases, lgPairingCopy as copy, lgSetupInstructions } from './LgPairingScreen.data';
 import { Notice, PrimaryAction, SecondaryAction, TextAction } from './LgPairingParts';
 import { FIELD_HEIGHT, ROW_ICON_SIZE, createStyles } from './LgPairingScreen.styles';

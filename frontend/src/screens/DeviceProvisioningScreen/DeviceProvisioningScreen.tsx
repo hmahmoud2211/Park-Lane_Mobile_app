@@ -22,10 +22,10 @@ import { useGateway } from '../../hooks/useGateway';
 import { useProvisioningSession } from '../../hooks/useProvisioningSession';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as api from '../../services/gateway/gatewayApi';
-import { deviceRequest } from '../../services/provisioning/deviceHttp';
-import { openDeviceSetupPage } from '../../services/provisioning/setupPage';
-import { cloudLoginFrom, detectShelly, sendCloudSetupToShelly, sendWifiToShelly } from '../../services/provisioning/shellySoftap';
-import { readSonoffDevice, type SonoffSetupInfo } from '../../services/provisioning/sonoffSoftap';
+import { deviceRequest } from '../../features/provisioning/services/deviceHttp';
+import { openDeviceSetupPage } from '../../features/provisioning/services/setupPage';
+import { cloudLoginFrom, detectShelly, sendCloudSetupToShelly, sendWifiToShelly } from '../../features/provisioning/services/shellySoftap';
+import { readSonoffDevice, type SonoffSetupInfo } from '../../features/provisioning/services/sonoffSoftap';
 import {
   WifiJoinError,
   canJoinInApp,
@@ -34,7 +34,7 @@ import {
   openWifiSettings,
   releaseHotspot,
   waitForDevice,
-} from '../../services/provisioning/wifiJoin';
+} from '../../features/provisioning/services/wifiJoin';
 import type { ProvisioningPlugin } from '../../types/gateway.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { provisioningCopy as copy } from './DeviceProvisioningScreen.data';
