@@ -103,8 +103,8 @@ const linking: LinkingOptions<RootStackParamList> = {
       ReservationHistory: 'parking/history',
       ParkingMap: 'parking/map',
       ChargingSession: 'parking/charging/:reservationId',
-      SecurityConsole: 'parking/security',
-      DemoControls: 'parking/demo',
+      // The demo's own tools get addresses only while the build includes them (config/flags.ts).
+      ...(flags.demoTools ? { SecurityConsole: 'parking/security', DemoControls: 'parking/demo' } : {}),
       GuestPass: 'pass/:invite',
     },
   },

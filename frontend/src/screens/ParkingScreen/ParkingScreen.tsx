@@ -57,6 +57,7 @@ import {
   createStyles,
 } from './ParkingScreen.styles';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
+import { flags } from '../../config/flags';
 
 /** Upcoming and active guest bookings shown before "View All". */
 const GUEST_LIMIT = 3;
@@ -89,15 +90,20 @@ export function ParkingScreen() {
           navigation.navigate('ReservationHistory');
         },
       },
-      {
-        id: 'demo',
-        label: 'Demo controls',
-        icon: 'construct-outline',
-        onPress: () => {
-          setMenuOpen(false);
-          navigation.navigate('DemoControls');
-        },
-      },
+      // The demo's own tools, unless this build turns them off (config/flags.ts).
+      ...(flags.demoTools
+        ? [
+            {
+              id: 'demo',
+              label: 'Demo controls',
+              icon: 'construct-outline' as const,
+              onPress: () => {
+                setMenuOpen(false);
+                navigation.navigate('DemoControls');
+              },
+            },
+          ]
+        : []),
       logoutItem,
     ],
     [logoutItem, navigation, setMenuOpen],
@@ -322,18 +328,20 @@ export function ParkingScreen() {
                 )}
               </Panel>
 
-              {/* Demo tooling, kept apart from the resident's own actions. */}
-              <Pressable
-                onPress={() => navigation.navigate('DemoControls')}
-                accessibilityRole="button"
-                accessibilityLabel="Open demo controls"
-                style={({ pressed }) => [styles.demoStrip, pressed && styles.pressed]}
-              >
-                <AppIcon set="ionicons" name="construct-outline" size={16} color={theme.colors.textSupport} />
-                <AppText variant="label" color={theme.colors.textSupport} style={styles.flex}>
-                  {`Demo · simulated time ${formatDateTime(now)} · open demo controls`}
-                </AppText>
-              </Pressable>
+              {/* Demo tooling, kept apart from the resident's own actions (config/flags.ts). */}
+              {flags.demoTools ? (
+                <Pressable
+                  onPress={() => navigation.navigate('DemoControls')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open demo controls"
+                  style={({ pressed }) => [styles.demoStrip, pressed && styles.pressed]}
+                >
+                  <AppIcon set="ionicons" name="construct-outline" size={16} color={theme.colors.textSupport} />
+                  <AppText variant="label" color={theme.colors.textSupport} style={styles.flex}>
+                    {`Demo · simulated time ${formatDateTime(now)} · open demo controls`}
+                  </AppText>
+                </Pressable>
+              ) : null}
             </>
           </ResponsiveColumns>
         </ScrollView>
