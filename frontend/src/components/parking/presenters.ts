@@ -28,7 +28,7 @@ export function reservationIcon(view: ReservationView): keyof typeof Ionicons.gl
  * "Today · 02:10 PM–05:10 PM": short enough for one line beside a status chip.
  * Without `now` (e.g. for history) it falls back to the full date.
  */
-export function shortRange(start: string, end: string, now?: number): string {
+function shortRange(start: string, end: string, now?: number): string {
   if (now === undefined) return formatRange(start, end);
   const sameDay = cairoDateKey(Date.parse(start)) === cairoDateKey(Date.parse(end));
   return `${relativeDayLabel(cairoDateKey(Date.parse(start)), now)} · ${formatTime(start)}–${formatTime(end)}${sameDay ? '' : ' (+1 day)'}`;

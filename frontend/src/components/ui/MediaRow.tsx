@@ -54,7 +54,7 @@ export interface MediaRowProps {
 
 /*
  * From the Community design (assets/Screens/screen8.png), with the extra room
- * the inner screens are given: rows at least 46dp tall, as ActivityRow's, the
+ * the inner screens are given: rows at least 46dp tall, as VisitorRow's, the
  * chevron where the panel heading's "View All" chevron sits. Only the text
  * column gives way on narrow screens.
  */

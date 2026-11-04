@@ -16,7 +16,7 @@ export interface NavTab {
  * rail tablets and desktops get instead. Add or reorder tabs here and both
  * follow.
  */
-export const HOME_TAB: NavTab = {
+const HOME_TAB: NavTab = {
   id: 'home',
   label: 'Home',
   iconSet: 'ionicons',

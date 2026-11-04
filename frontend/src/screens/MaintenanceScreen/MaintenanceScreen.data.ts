@@ -160,7 +160,7 @@ export const initialRequests: readonly MaintenanceRequest[] = [
   },
 ];
 
-export const REQUEST_STAGES: readonly RequestStatus[] = ['submitted', 'assigned', 'in-progress', 'completed'];
+const REQUEST_STAGES: readonly RequestStatus[] = ['submitted', 'assigned', 'in-progress', 'completed'];
 
 export type RequestFormKey = 'issue' | 'category' | 'date' | 'window' | 'details';
 

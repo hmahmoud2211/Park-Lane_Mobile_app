@@ -5,7 +5,6 @@ import { breakpointFor, layout, type Breakpoint } from '../theme';
  * size). Helpers below scale those measurements to the running device.
  */
 export const BASE_WIDTH = 390;
-export const BASE_HEIGHT = 844;
 
 /** Small-phone breakpoint, below which type and spacing tighten up. */
 export const COMPACT_HEIGHT = 700;
@@ -13,7 +12,7 @@ export const COMPACT_HEIGHT = 700;
 /** Above this width the phone layout stops growing and centres instead. */
 export const MAX_CONTENT_WIDTH = layout.phoneMaxWidth;
 
-export function scaleWidth(size: number, windowWidth: number): number {
+function scaleWidth(size: number, windowWidth: number): number {
   return (windowWidth / BASE_WIDTH) * size;
 }
 

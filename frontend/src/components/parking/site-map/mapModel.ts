@@ -1,5 +1,5 @@
 import { chargerFreeNow, isAvailableNow } from '../../../services/parking/availability';
-import { MAP_SIZE, levels, type LevelDef } from '../../../services/parking/site';
+import { levels, type LevelDef } from '../../../services/parking/site';
 import type { Charger, LevelId, MapPoint, MapRect, ParkingDb, ParkingSpace, RouteStep } from '../../../services/parking/types';
 
 /** What a bay shows: live status, or availability for a chosen time when booking. */
@@ -23,13 +23,6 @@ export function chargerState(db: ParkingDb, charger: Charger, now: number): Char
 /* -------------------------------------------------------------- Geometry */
 
 export const rectCentre = (r: MapRect): MapPoint => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
-
-export function centroid(points: readonly MapPoint[]): MapPoint {
-  if (points.length === 0) return { x: MAP_SIZE.width / 2, y: MAP_SIZE.height / 2 };
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
-  return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
-}
 
 export function boundsOf(rects: readonly MapRect[], pad = 0): MapRect {
   const x = Math.min(...rects.map((r) => r.x)) - pad;

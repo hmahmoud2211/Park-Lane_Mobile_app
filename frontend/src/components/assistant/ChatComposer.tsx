@@ -265,6 +265,3 @@ function createStyles(theme: AppTheme) {
     },
   });
 }
-
-/** Re-exported so the screen can size its scroll padding. */
-export const COMPOSER_MIN_HEIGHT = MIN_HEIGHT;

@@ -16,7 +16,7 @@ export interface BrandLockupProps {
 }
 
 /** The Park Lane wordmark at its one size, 132 x 40 as on the Home design. */
-export const BRAND_LOCKUP_WIDTH = 132;
+const BRAND_LOCKUP_WIDTH = 132;
 export const BRAND_LOCKUP_HEIGHT = 40;
 
 /**

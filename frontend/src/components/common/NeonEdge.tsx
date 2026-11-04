@@ -213,7 +213,7 @@ export const NeonEdge = memo(
 );
 
 /** How far the edge's halo reaches past the card, for callers that need room. */
-export function neonEdgeOverhang(haloRingCount: number): number {
+function neonEdgeOverhang(haloRingCount: number): number {
   return Math.ceil(1 + haloRingCount * RING_WIDTH);
 }
 

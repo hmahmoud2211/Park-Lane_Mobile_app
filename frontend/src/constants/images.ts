@@ -20,10 +20,8 @@ export const images = {
    * transparent at roughly 2x. Replace with the official export at this path;
    * nothing else needs to change.
    */
-  brandLockup: require('../assets/images/logos/brand-lockup.png') as number,
 
   /** Google's official four-colour mark, rasterised from their brand paths. */
-  googleMark: require('../assets/images/icons/google-mark.png') as number,
 
   homeBackground: require('../assets/images/backgrounds/home-background.jpg') as number,
 

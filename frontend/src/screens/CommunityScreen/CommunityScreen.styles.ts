@@ -53,14 +53,14 @@ const LIST_BOTTOM = 6;
  * The photo gives up a little width so the title keeps one line in Inter.
  */
 const FEEDBACK_INSET = 12;
-export const FEEDBACK_PHOTO = { width: 46, height: 34 } as const;
+const FEEDBACK_PHOTO = { width: 46, height: 34 } as const;
 const FEEDBACK_PHOTO_TO_TEXT = 10;
 const FEEDBACK_TEXT_TO_BUTTON = 6;
 const FEEDBACK_ICON_INSET = 2;
 export const FEEDBACK_ICON_SIZE = 15;
 const FEEDBACK_BODY_TOP = 3;
 /** Taller than drawn, so the tap target and Inter's wider label fit. */
-export const FEEDBACK_BUTTON_HEIGHT = 26;
+const FEEDBACK_BUTTON_HEIGHT = 26;
 const FEEDBACK_BUTTON_WIDTH = 98;
 export const FEEDBACK_CHEVRON_SIZE = 10;
 

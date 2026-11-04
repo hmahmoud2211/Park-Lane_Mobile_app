@@ -45,14 +45,14 @@ export const ROOM_ICON_SIZE = 15;
 const ROOM_GLOW_ROOM = 4;
 
 /** The two-by-two control cards, drawn 7dp apart. */
-export const GRID_GAP = 12;
+const GRID_GAP = 12;
 const CONTROL_ROW_TOP = 8;
 
 /** Curtains: three round buttons, drawn 39dp. */
 export const CURTAIN_BUTTON_SIZE = 42;
 export const CURTAIN_ICON_SIZE = 15;
 /** TV & Media: four app tiles, drawn 29dp. */
-export const MEDIA_TILE_SIZE = 29;
+const MEDIA_TILE_SIZE = 29;
 export const MEDIA_LOGO_HEIGHT = 15;
 export const MEDIA_ICON_SIZE = 15;
 

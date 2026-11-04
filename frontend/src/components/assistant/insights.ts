@@ -64,7 +64,7 @@ function homeErrorLabel(code: string): string {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "Sep 20, 4:40 PM", in the reading's own wall-clock time (as the backend wrote it). */
-export function formatReadingTime(iso: string | undefined): string | null {
+function formatReadingTime(iso: string | undefined): string | null {
   if (!iso) {
     return null;
   }

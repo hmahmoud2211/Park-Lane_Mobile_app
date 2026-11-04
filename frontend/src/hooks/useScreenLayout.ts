@@ -44,17 +44,12 @@ export function useScreenLayout(): ScreenLayoutWithStyles {
   }, [windowWidth, frameWidth, theme]);
 }
 
-/**
- * Picks a value for the current device class. Classes left out inherit from
- * the next smaller one, so `{ mobile: 2, laptop: 4 }` is 2 on tablets.
- */
-export function useResponsiveValue<T>(values: { mobile: T } & Partial<Record<Breakpoint, T>>): T {
-  const { breakpoint } = useScreenLayout();
-  return pickResponsive(values, breakpoint);
-}
-
 const ORDER: readonly Breakpoint[] = ['mobile', 'tablet', 'laptop', 'desktop'];
 
+/**
+ * Picks a value for a device class. Classes left out inherit from the next
+ * smaller one, so `{ mobile: 2, laptop: 4 }` is 2 on tablets.
+ */
 export function pickResponsive<T>(values: { mobile: T } & Partial<Record<Breakpoint, T>>, breakpoint: Breakpoint): T {
   for (let i = ORDER.indexOf(breakpoint); i >= 0; i -= 1) {
     const value = values[ORDER[i]];

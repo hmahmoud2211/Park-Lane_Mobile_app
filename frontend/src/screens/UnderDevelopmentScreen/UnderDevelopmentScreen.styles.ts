@@ -12,7 +12,7 @@ const GUTTER = 16;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
 const HEADER_GUTTER = 35;
 
-export const ICON_DISC_SIZE = 72;
+const ICON_DISC_SIZE = 72;
 export const ICON_SIZE = 32;
 
 export function createStyles(theme: AppTheme) {
