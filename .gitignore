@@ -47,5 +47,8 @@ backend/data/
 server/.env
 server/data/
 
+# rethink's runtime state (its CA key and certificate, device state): docker/rethink
+docker/rethink/data/
+
 # scripts/dev.sh logs
 .dev-logs/
