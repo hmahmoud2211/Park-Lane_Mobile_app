@@ -1,4 +1,5 @@
 import { deviceRequest } from './deviceHttp';
+import { vendorDevices } from '../../../config/vendorDevices';
 
 /**
  * Talks to a SONOFF on its ITEAD- setup network (Compatible Pairing Mode).
@@ -13,7 +14,7 @@ import { deviceRequest } from './deviceHttp';
  * Nothing here logs; the apikey never appears in an error.
  */
 
-export const SONOFF_SETUP_IP = '10.10.7.1';
+const SONOFF_SETUP_IP = vendorDevices.sonoffSetupIp;
 const DETECT_TIMEOUT_MS = 4_000;
 
 /** Device ids are 10 hex digits on every eWeLink Wi-Fi device seen so far. */

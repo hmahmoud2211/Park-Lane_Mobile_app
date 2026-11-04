@@ -1,4 +1,4 @@
-import { gatewayConfig } from '../../../constants/gatewayConfig';
+import { gatewayConfig } from '../../../config/gateway';
 import type {
   AdapterInfo,
   Brand,

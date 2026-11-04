@@ -17,7 +17,7 @@ import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { gatewayConfig } from '../../constants/gatewayConfig';
+import { gatewayConfig } from '../../config/gateway';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useBrands } from '../../features/gateway/hooks/useBrands';

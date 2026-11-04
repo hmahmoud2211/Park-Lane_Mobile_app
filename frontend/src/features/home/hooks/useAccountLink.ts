@@ -5,9 +5,10 @@ import { EmsError } from '../../ems/services/emsApi';
 import * as homeApi from '../services/homeApi';
 import type { FlowStep } from '../../../types/home.types';
 import { useEms } from '../../ems/hooks/useEms';
+import { brand } from '../../../config/brand';
 
 /** Where brand sign-in pages send the browser back to (APP_RETURN_URL on the backend). */
-const RETURN_URL = 'parklane://accounts';
+const RETURN_URL = brand.accountsReturnUrl;
 /** A background step (the brand finishing on its side) is re-read this often. */
 const PROGRESS_POLL_MS = 2_000;
 

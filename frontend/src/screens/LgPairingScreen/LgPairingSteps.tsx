@@ -12,7 +12,7 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PairingStep, type PairingStepState } from '../../components/ui/PairingStep';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { WifiCredentialForm, validateWifiCredentials } from '../../components/ui/WifiCredentialForm';
-import { lgSources } from '../../constants/lgConfig';
+import { lgSources } from '../../config/lg';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { LgPairing } from '../../features/lg/hooks/useLgPairing';
 import type { LgPairingError } from '../../features/lg/types';

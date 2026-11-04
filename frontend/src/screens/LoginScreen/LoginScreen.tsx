@@ -24,7 +24,7 @@ import { GlassSurface } from '../../components/common/GlassSurface';
 import { GradientText } from '../../components/common/GradientText';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
-import { assistantConfig } from '../../constants/assistantConfig';
+import { assistantConfig } from '../../config/assistant';
 import { images } from '../../constants/images';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -48,6 +48,7 @@ import {
   SUBMIT_HEIGHT_WIDE,
   createStyles,
 } from './LoginScreen.styles';
+import { brand } from '../../config/brand';
 
 const FIELD_ICON_SIZE = 17;
 
@@ -154,7 +155,7 @@ export function LoginScreen() {
               source={images.brandWordmark}
               style={styles.lockup}
               resizeMode="contain"
-              accessibilityLabel="Park Lane Compoundhood, New Capital"
+              accessibilityLabel={brand.wordmarkLabel}
             />
           </View>
 

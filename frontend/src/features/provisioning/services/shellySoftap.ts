@@ -1,4 +1,5 @@
 import { DeviceHttpError, deviceRequest } from './deviceHttp';
+import { vendorDevices } from '../../../config/vendorDevices';
 
 /**
  * Sends the home Wi-Fi to a Shelly on its own setup network, with Shelly's
@@ -13,7 +14,7 @@ import { DeviceHttpError, deviceRequest } from './deviceHttp';
  * stored or sent to the gateway.
  */
 
-export const SHELLY_SETUP_IP = '192.168.33.1';
+const SHELLY_SETUP_IP = vendorDevices.shellySetupIp;
 const DETECT_TIMEOUT_MS = 3_000;
 const SEND_TIMEOUT_MS = 8_000;
 

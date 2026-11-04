@@ -5,6 +5,7 @@ import { ShellContext } from '../../context/ShellContext';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
+import { brand } from '../../config/brand';
 
 export interface BrandLockupProps {
   style?: StyleProp<ImageStyle>;
@@ -39,7 +40,7 @@ export function BrandLockup({ style, yieldsToRail = false }: BrandLockupProps) {
       source={images.brandWordmark}
       style={[styles.lockup, style]}
       resizeMode="contain"
-      accessibilityLabel="Park Lane Compoundhood, New Capital"
+      accessibilityLabel={brand.wordmarkLabel}
     />
   );
 }

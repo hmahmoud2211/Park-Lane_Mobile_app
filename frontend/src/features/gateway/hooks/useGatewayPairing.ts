@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { gatewayConfig } from '../../../constants/gatewayConfig';
+import { gatewayConfig } from '../../../config/gateway';
 import * as api from '../services/gatewayApi';
 import { GatewayError } from '../services/gatewayHttp';
 import type { Pairing } from '../../../types/gateway.types';

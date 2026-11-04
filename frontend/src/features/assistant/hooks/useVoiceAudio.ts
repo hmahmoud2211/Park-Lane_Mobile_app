@@ -11,7 +11,7 @@ import {
 import { File, Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
 
-import { assistantConfig } from '../../../constants/assistantConfig';
+import { assistantConfig } from '../../../config/assistant';
 import {
   StreamResampler,
   bytesFromBase64,

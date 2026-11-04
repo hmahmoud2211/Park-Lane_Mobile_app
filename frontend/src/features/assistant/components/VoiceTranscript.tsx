@@ -11,6 +11,7 @@ import { AssistantAvatar } from './AssistantAvatar';
 import { InsightBadges } from './InsightBadges';
 import type { IntentMeta } from './insights';
 import { isRtlText } from './RichText';
+import { brand } from '../../../config/brand';
 
 export interface VoiceTranscriptProps {
   turns: readonly VoiceTurn[];
@@ -100,7 +101,7 @@ const TurnRow = memo(function TurnRow({ turn, latest, onOpenRoute, onSignIn }: T
       <View style={styles.assistantHead}>
         <AssistantAvatar size={14} />
         <AppText variant="chatMeta" color={theme.colors.textSupport} style={styles.assistantName}>
-          Parklane Assistant
+          {brand.assistantName}
         </AppText>
         {turn.interrupted ? (
           <AppText variant="chatMeta" color={theme.colors.textMuted}>

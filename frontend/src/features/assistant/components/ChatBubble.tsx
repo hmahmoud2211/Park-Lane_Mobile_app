@@ -11,6 +11,7 @@ import { AssistantAvatar } from './AssistantAvatar';
 import { InsightBadges } from './InsightBadges';
 import type { IntentMeta } from './insights';
 import { RichText, isRtlText } from './RichText';
+import { brand } from '../../../config/brand';
 
 export interface ChatBubbleProps {
   message: ChatMessage;
@@ -140,7 +141,7 @@ function ChatBubbleView({ message, animateIn, reduceMotion, onRetry, onSignIn, o
             <AssistantAvatar size={14} />
           )}
           <AppText variant="chatMeta" color={theme.colors.textSupport} style={styles.sender}>
-            Parklane Assistant
+            {brand.assistantName}
           </AppText>
           <AppText variant="chatMeta" color={theme.colors.textMuted}>
             {timeOf(message.createdAt)}

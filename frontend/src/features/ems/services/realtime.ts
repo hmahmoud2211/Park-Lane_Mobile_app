@@ -1,4 +1,4 @@
-import { emsConfig } from '../../../constants/emsConfig';
+import { emsConfig } from '../../../config/ems';
 import type { EmsEvent, RealtimeState } from '../../../types/ems.types';
 
 /**

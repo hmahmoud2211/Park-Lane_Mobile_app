@@ -1,4 +1,4 @@
-import { gatewayConfig } from '../../../constants/gatewayConfig';
+import { gatewayConfig } from '../../../config/gateway';
 
 /**
  * Requests to a CUBE Gateway. Every answer is `{ ok: true, data }` or

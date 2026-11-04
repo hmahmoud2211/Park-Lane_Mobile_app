@@ -1,3 +1,6 @@
+import { DEMO_ASSISTANT_RESIDENT_ID } from './demo';
+import { env } from './env';
+
 /**
  * The Parklane Assistant backend (FRONTEND_INTEGRATION.md). REST answers text
  * questions; the WebSocket carries the realtime voice and camera session.
@@ -8,20 +11,15 @@
  */
 const DEFAULT_ASSISTANT_URL = 'https://attal_voice_2.ems-iot.com';
 
-const httpBase = (process.env.EXPO_PUBLIC_ASSISTANT_URL ?? DEFAULT_ASSISTANT_URL).replace(/\/+$/, '');
+const httpBase = (env.assistantUrl ?? DEFAULT_ASSISTANT_URL).replace(/\/+$/, '');
 
 export const assistantConfig = {
   httpBase,
   wsBase: httpBase.replace(/^http/, 'ws'),
   apiPrefix: '/api/v1',
 
-  /**
-   * Who the assistant answers for until the app has real sign-in. The
-   * backend's demo residents are 1001 (Youssef, H-601) and 1002 (Ali, B-305);
-   * the assistant's menu switches between them. `null` asks as a guest.
-   * TODO(auth): take this from the signed-in user once login is wired up.
-   */
-  defaultResidentId: 1001 as number | null,
+  /** Who the assistant answers for until the app has real sign-in (config/demo.ts). */
+  defaultResidentId: DEMO_ASSISTANT_RESIDENT_ID,
 
   /** A typical answer takes 2-5s; beyond this the request is abandoned. */
   chatTimeoutMs: 45_000,

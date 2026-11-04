@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
+import { flags } from '../config/flags';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
 import { AddDeviceScreen } from '../screens/AddDeviceScreen';
@@ -70,7 +71,7 @@ const ROUTE_NAMES = [
  * product's own addresses below are listed after these and win.
  */
 function visualRoutePaths(): Partial<Record<keyof RootStackParamList, string>> {
-  if (process.env.EXPO_PUBLIC_VISUAL_ROUTES !== '1') {
+  if (!flags.visualRoutes) {
     return {};
   }
   return Object.fromEntries(ROUTE_NAMES.map((name) => [name, `visual/${name}`]));

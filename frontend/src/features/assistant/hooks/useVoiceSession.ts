@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Animated, AppState, Platform } from 'react-native';
 
-import { assistantConfig } from '../../../constants/assistantConfig';
+import { assistantConfig } from '../../../config/assistant';
 import type { RealtimeServerEvent } from '../services/assistant.types';
 import { useVoiceAudio } from './useVoiceAudio';
 import type { DuplexMode } from './voiceAudio.types';

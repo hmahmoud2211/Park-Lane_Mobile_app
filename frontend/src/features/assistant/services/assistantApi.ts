@@ -1,4 +1,4 @@
-import { assistantConfig } from '../../../constants/assistantConfig';
+import { assistantConfig } from '../../../config/assistant';
 import type {
   AssistantHealth,
   AssistantResident,

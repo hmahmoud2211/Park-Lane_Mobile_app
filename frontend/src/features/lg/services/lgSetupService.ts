@@ -1,7 +1,7 @@
 import { NativeModules, Platform } from 'react-native';
 import TcpSocket from 'react-native-tcp-socket';
 
-import { lgConfig } from '../../../constants/lgConfig';
+import { lgConfig } from '../../../config/lg';
 import { unbindProcessNetwork } from '../../provisioning/services/wifiJoin';
 import {
   LgSetupError,

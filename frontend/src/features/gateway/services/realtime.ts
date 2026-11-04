@@ -1,4 +1,4 @@
-import { gatewayConfig } from '../../../constants/gatewayConfig';
+import { gatewayConfig } from '../../../config/gateway';
 import type { RealtimeState } from '../../../types/ems.types';
 import type { GatewayEvent } from '../../../types/gateway.types';
 

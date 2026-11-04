@@ -1,3 +1,5 @@
+import { brand } from '../../../config/brand';
+
 /**
  * Booking and access rules. Every scheduling rule reads its numbers from
  * here, so changing a buffer or limit is a configuration change, not a code
@@ -51,7 +53,7 @@ export const SITE_TIME_ZONE = 'Africa/Cairo';
 
 /** Fictional compound identity shown on passes. */
 export const siteInfo = {
-  compoundName: 'Park Lane Compoundhood',
+  compoundName: brand.compoundName,
   city: 'New Capital (demo)',
   /** Fictional number for the demo; replace with the real security desk. */
   securityPhone: '+20 2 0000 0100',

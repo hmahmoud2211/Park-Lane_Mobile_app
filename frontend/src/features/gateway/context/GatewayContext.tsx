@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { gatewayBaseUrl } from '../../../constants/gatewayConfig';
+import { gatewayBaseUrl } from '../../../config/gateway';
 import * as api from '../services/gatewayApi';
 import { resolveEndpoint } from '../services/gatewayDiscovery';
 import { GatewayError, onTokenRefused, type GatewayTarget } from '../services/gatewayHttp';
@@ -9,6 +9,7 @@ import { gatewayStore, type StoredGateway } from '../services/gatewayStore';
 import { GatewayRealtime } from '../services/realtime';
 import type { RealtimeState } from '../../../types/ems.types';
 import type { ClaimResult, GatewayDevice, GatewayEvent, GatewayRoom } from '../../../types/gateway.types';
+import { brand } from '../../../config/brand';
 
 /**
  * The resident's CUBE Gateway: the box on their own Wi-Fi that finds, sets
@@ -57,7 +58,7 @@ interface GatewayContextValue {
 
 export const GatewayContext = createContext<GatewayContextValue | undefined>(undefined);
 
-const CLIENT_NAME = `Parklane on ${Platform.OS === 'ios' ? 'iPhone' : Platform.OS === 'android' ? 'Android' : 'the web'}`;
+const CLIENT_NAME = `${brand.appName} on ${Platform.OS === 'ios' ? 'iPhone' : Platform.OS === 'android' ? 'Android' : 'the web'}`;
 
 function sortDevices(devices: GatewayDevice[]): GatewayDevice[] {
   return [...devices].sort((a, b) => (a.room ?? '￿').localeCompare(b.room ?? '￿') || a.name.localeCompare(b.name));

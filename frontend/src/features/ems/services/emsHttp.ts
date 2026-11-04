@@ -1,5 +1,5 @@
 import type { ApiErrorCode } from '../../../../../shared/contracts/errors';
-import { emsConfig } from '../../../constants/emsConfig';
+import { emsConfig } from '../../../config/ems';
 
 /**
  * Requests to the EMS backend. Every answer is `{ ok: true, data }` or

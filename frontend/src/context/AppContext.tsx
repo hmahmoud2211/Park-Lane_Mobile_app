@@ -1,6 +1,6 @@
 import { createContext, useCallback, useMemo, useState, type PropsWithChildren } from 'react';
 
-import { assistantConfig } from '../constants/assistantConfig';
+import { assistantConfig } from '../config/assistant';
 
 interface AppContextValue {
   /**

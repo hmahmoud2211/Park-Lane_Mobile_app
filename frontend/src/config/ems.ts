@@ -1,9 +1,11 @@
+import { env } from './env';
+
 /**
  * The EMS backend (backend/ in this repo), at EXPO_PUBLIC_DEVICE_BACKEND_URL,
  * e.g. `http://192.168.1.50:8787` in .env.local. Nothing secret is configured
  * here: the app authenticates with the signed-in user's own session token.
  */
-const backendUrl = (process.env.EXPO_PUBLIC_DEVICE_BACKEND_URL ?? '').replace(/\/+$/, '');
+const backendUrl = (env.deviceBackendUrl ?? '').replace(/\/+$/, '');
 
 export const emsConfig = {
   url: backendUrl,
