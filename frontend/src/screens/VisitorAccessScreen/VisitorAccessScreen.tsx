@@ -41,7 +41,6 @@ import {
   dateOptions,
   formFields,
   guestOptions,
-  guestsLabel,
   initialForm,
   initialVisitors,
   initialsOf,
@@ -57,16 +56,10 @@ import {
   type VisitorForm,
   type VisitorPass,
 } from './VisitorAccessScreen.data';
+import { guestsLabel } from '../../utils/format';
 import { buildPassDocument } from './VisitorAccessScreen.documents';
-import {
-  CTA_ARROW_SIZE,
-  CTA_HEIGHT,
-  FIELD_CHEVRON_SIZE,
-  FIELD_HEIGHT,
-  FORM_ICON_SIZE,
-  PARKING_CHEVRON_SIZE,
-  createStyles,
-} from './VisitorAccessScreen.styles';
+import { PARKING_CHEVRON_SIZE, createStyles } from './VisitorAccessScreen.styles';
+import { CTA_ARROW_SIZE, CTA_HEIGHT, FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
 
 type SelectKey = Extract<FormFieldKey, 'date' | 'time' | 'guests'>;
 

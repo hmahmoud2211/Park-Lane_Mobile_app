@@ -1,6 +1,6 @@
 import type { StatusTone } from '../../components/ui/StatusChip';
-import type { IconSet } from '../../components/ui/ServiceTile';
-import { formatDate } from '../VisitorAccessScreen/VisitorAccessScreen.data';
+import type { IconSet } from '../../types/icons.types';
+import { formatDate } from '../../utils/format';
 
 /**
  * Mock content for the Maintenance screen. Shaped the way a real API response

@@ -6,7 +6,7 @@ import {
   section,
 } from '../../features/documents/services/documentPage';
 import type { PdfDocument } from '../../features/documents/services/pdf.types';
-import { resident } from '../HomeScreen/HomeScreen.data';
+import { resident } from '../../data/demoResident';
 import {
   financial,
   maintenanceFees,

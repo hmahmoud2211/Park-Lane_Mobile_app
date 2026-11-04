@@ -7,7 +7,7 @@ import type { TypographyVariant } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
-import type { IconSet } from './ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import { NeonPanel } from './NeonPanel';
 
 /** An illustration, or a glyph drawn in the primary text colour. */

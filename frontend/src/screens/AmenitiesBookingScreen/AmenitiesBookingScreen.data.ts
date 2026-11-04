@@ -1,6 +1,6 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import type { ImageKey } from '../../constants/images';
-import { formatDate, guestsLabel } from '../VisitorAccessScreen/VisitorAccessScreen.data';
+import { formatDate, guestsLabel } from '../../utils/format';
 
 /**
  * Mock content for the Amenities Booking screen. Shaped the way a real API

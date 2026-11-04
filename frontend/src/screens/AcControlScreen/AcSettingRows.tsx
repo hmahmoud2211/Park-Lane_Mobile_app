@@ -6,7 +6,7 @@ import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { FilterChip } from '../../components/ui/FilterChip';
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { ControlSetting, ControlValue } from '../../types/controls.types';
 import { acCopy } from './AcControlScreen.data';

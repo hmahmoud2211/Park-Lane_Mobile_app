@@ -7,7 +7,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
-import type { IconSet } from './ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 
 export interface PanelHeadingProps {
   title: string;

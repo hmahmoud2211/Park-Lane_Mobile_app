@@ -6,7 +6,7 @@ import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 

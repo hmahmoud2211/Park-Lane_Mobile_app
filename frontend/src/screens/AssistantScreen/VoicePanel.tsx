@@ -11,7 +11,8 @@ import { VoiceStatusPill } from '../../features/assistant/components/VoiceStatus
 import { VoiceTranscript } from '../../features/assistant/components/VoiceTranscript';
 import { AppText } from '../../components/common/AppText';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useVoiceSession, type VoicePhase } from '../../features/assistant/hooks/useVoiceSession';
+import { useVoiceSession } from '../../features/assistant/hooks/useVoiceSession';
+import type { VoicePhase } from '../../features/assistant/types';
 import { assistantCopy as copy, voiceExamples } from './AssistantScreen.data';
 import { VOICE_ORB_SIZE, VOICE_ORB_SIZE_COMPACT, createStyles } from './AssistantScreen.styles';
 

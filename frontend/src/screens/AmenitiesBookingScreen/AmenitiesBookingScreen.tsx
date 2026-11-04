@@ -20,7 +20,7 @@ import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { guestsLabel } from '../VisitorAccessScreen/VisitorAccessScreen.data';
+import { guestsLabel } from '../../utils/format';
 import { AmenityCard } from './AmenityCard';
 import {
   amenities,

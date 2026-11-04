@@ -3,7 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, ScrollView, StyleSheet, View, type ScrollViewInstance, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../../hooks/useAppTheme';
-import type { VoiceQueryResult, VoiceTurn } from '../hooks/useVoiceSession';
+import type { VoiceQueryResult, VoiceTurn } from '../types';
 import { HOME_FUNCTIONS } from '../services/assistant.types';
 import type { AppTheme } from '../../../types/theme.types';
 import { AppText } from '../../../components/common/AppText';

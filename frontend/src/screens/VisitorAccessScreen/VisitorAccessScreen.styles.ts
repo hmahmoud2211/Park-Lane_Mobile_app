@@ -33,14 +33,9 @@ const FORM_ICON_LEFT = 5.5;
 const FORM_ICON_BOX = 24;
 const FORM_TITLE_LEFT = 8.5;
 const FORM_HEADER_TO_FIELDS = 14;
-export const FIELD_HEIGHT = 38;
 const FIELD_GAP = 10;
-export const FORM_ICON_SIZE = 23;
-export const FIELD_CHEVRON_SIZE = 11;
 const CTA_TOP = 16;
-export const CTA_HEIGHT = 34;
 const FORM_BOTTOM = 14;
-export const CTA_ARROW_SIZE = 11;
 
 /** Upcoming card: the rows (see VisitorRow) under a PanelHeading. */
 const LIST_TOP = 4;

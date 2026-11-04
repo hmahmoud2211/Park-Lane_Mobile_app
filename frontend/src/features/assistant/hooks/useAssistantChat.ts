@@ -1,24 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { AnswerSummary } from '../services/assistant.types';
 import { AssistantApiError, sendChatMessage } from '../services/assistantApi';
-
-/**
- * `answered` and `declined` are both replies from the assistant (`ok` true
- * or false); `failed` means it could not be reached, and offers a retry.
- */
-export type ChatMessageStatus = 'sent' | 'answered' | 'declined' | 'failed';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  status: ChatMessageStatus;
-  createdAt: number;
-  summary?: AnswerSummary;
-  /** On a failed reply: the question to send again. */
-  retryText?: string;
-}
+import type { ChatMessage } from '../types';
 
 let sequence = 0;
 const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(sequence++).toString(36)}`;

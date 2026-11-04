@@ -1,4 +1,4 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import type { ParamlessRoute } from '../../types/navigation.types';
 
 /**

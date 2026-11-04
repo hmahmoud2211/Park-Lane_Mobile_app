@@ -1,5 +1,5 @@
 import type { IconBadge } from '../../components/common/AppIcon';
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import type { DashboardCounts } from '../../features/parking/services/selectors';
 
 /**

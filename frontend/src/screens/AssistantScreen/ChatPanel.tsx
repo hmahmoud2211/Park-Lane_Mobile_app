@@ -11,7 +11,7 @@ import { TypingIndicator } from '../../features/assistant/components/TypingIndic
 import { AppText } from '../../components/common/AppText';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { ChatMessage } from '../../features/assistant/hooks/useAssistantChat';
+import type { ChatMessage } from '../../features/assistant/types';
 import { useReduceMotion } from '../../hooks/useReduceMotion';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { assistantCopy as copy, chatSuggestions } from './AssistantScreen.data';

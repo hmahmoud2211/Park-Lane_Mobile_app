@@ -1,4 +1,4 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import type { ImageKey } from '../../constants/images';
 import type { colors } from '../../theme/colors';
 

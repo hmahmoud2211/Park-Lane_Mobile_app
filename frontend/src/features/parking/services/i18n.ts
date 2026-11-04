@@ -10,8 +10,9 @@
 import { gateDefs, levels } from './site';
 import { cairoParts, formatDate, formatDuration, formatRange, formatTime } from './time';
 import type { LevelId, RouteStep, RouteStepInfo, RouteStepKind, WalkTarget } from './types';
+import type { Lang } from '../../../types/i18n.types';
 
-export type Lang = 'en' | 'ar';
+export type { Lang };
 
 export const isLang = (value: unknown): value is Lang => value === 'en' || value === 'ar';
 

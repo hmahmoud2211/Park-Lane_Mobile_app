@@ -6,7 +6,7 @@ import type { AppTheme } from '../../types/theme.types';
 import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
 import { GlassSurface } from '../common/GlassSurface';
-import type { IconSet } from './ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 
 export interface FilterChipProps {
   label: string;

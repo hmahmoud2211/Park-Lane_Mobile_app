@@ -1,6 +1,6 @@
 import type { StatItemData } from '../../components/ui/StatItem';
-import type { IconSet } from '../../components/ui/ServiceTile';
-import { unit } from '../HomeScreen/HomeScreen.data';
+import type { IconSet } from '../../types/icons.types';
+import { unit } from '../../data/demoResident';
 
 /**
  * Mock content for the My Unit screen, shaped like a future API response so

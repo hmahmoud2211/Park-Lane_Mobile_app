@@ -12,13 +12,7 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 // Visitor Access's form sizes, so the app's forms read as one.
-import {
-  CTA_ARROW_SIZE,
-  CTA_HEIGHT,
-  FIELD_CHEVRON_SIZE,
-  FIELD_HEIGHT,
-  FORM_ICON_SIZE,
-} from '../VisitorAccessScreen/VisitorAccessScreen.styles';
+import { CTA_ARROW_SIZE, CTA_HEIGHT, FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
 import {
   amenitiesCopy as copy,
   bookingDates,

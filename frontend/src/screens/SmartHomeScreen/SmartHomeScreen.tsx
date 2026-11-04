@@ -24,7 +24,7 @@ import { capabilityOf, isOn, kindGlyph, kindLabel, roomGlyph, toggleCommand } fr
 import type { Command, Device, DeviceKind } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 // My Unit's own scale, so the two screens' small type is drawn at one size.
-import { statScaleFor } from '../MyUnitScreen/MyUnitScreen.styles';
+import { statScaleFor } from '../../utils/responsive';
 import { AutomationRow } from './AutomationRow';
 import { ClimateControls } from './ClimateControls';
 import { ControlCard } from './ControlCard';

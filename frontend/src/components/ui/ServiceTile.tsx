@@ -12,11 +12,11 @@ import {
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { TypographyVariant } from '../../theme';
+import type { IconSet } from '../../types/icons.types';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { GlassSurface } from '../common/GlassSurface';
 
-export type IconSet = 'ionicons' | 'material';
 
 export interface ServiceTileProps {
   title: string;

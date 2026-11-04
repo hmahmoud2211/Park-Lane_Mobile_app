@@ -1,4 +1,4 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 import type { ParamlessRoute } from '../../types/navigation.types';
 
 /**
@@ -6,19 +6,6 @@ import type { ParamlessRoute } from '../../types/navigation.types';
  * be, so wiring this to a backend later replaces this module rather than the
  * screen. Wording matches the Figma reference exactly.
  */
-
-export interface ResidentSummary {
-  greeting: string;
-  firstName: string;
-  /** Mock surname; the design only ever shows the first name. */
-  lastName: string;
-  tagline: string;
-}
-
-export interface UnitSummary {
-  title: string;
-  meta: string;
-}
 
 export interface WeatherSummary {
   temperature: string;
@@ -36,23 +23,6 @@ export interface ServiceTileItem {
   /** Opens the "Under Development" placeholder until the feature is built. */
   underDevelopment?: boolean;
 }
-
-export const resident: ResidentSummary = {
-  greeting: 'Good evening,',
-  firstName: 'Ahmed',
-  lastName: 'Hassan',
-  tagline: 'Home Feels Better Together.',
-};
-
-/** First letter of each name, for the header avatar. */
-export function initialsOf({ firstName, lastName }: ResidentSummary): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-}
-
-export const unit: UnitSummary = {
-  title: 'Unit A-302',
-  meta: '3 Bedrooms • Tower A',
-};
 
 export const weather: WeatherSummary = {
   temperature: '24 C',

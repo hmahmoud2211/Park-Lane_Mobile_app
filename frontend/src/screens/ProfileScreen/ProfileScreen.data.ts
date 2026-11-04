@@ -1,4 +1,4 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 
 /**
  * Mock content for the profile screen, shaped like a future API response so

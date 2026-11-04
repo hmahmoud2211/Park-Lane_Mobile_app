@@ -8,9 +8,9 @@ import {
 import type { PdfDocument } from '../../features/documents/services/pdf.types';
 import { qrSvg } from '../../features/documents/services/qrSvg';
 import { colors } from '../../theme';
-import { resident, unit } from '../HomeScreen/HomeScreen.data';
+import { resident, unit } from '../../data/demoResident';
+import { guestsLabel } from '../../utils/format';
 import {
-  guestsLabel,
   passPayload,
   statusDisplay,
   visitorAccessCopy as copy,

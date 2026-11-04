@@ -1,7 +1,8 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { StatusTone } from '../../components/ui/StatusChip';
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
+import { formatDate, guestsLabel } from '../../utils/format';
 
 /**
  * Mock content for the Visitor Access screen. Shaped the way a real API
@@ -217,14 +218,6 @@ export interface Option {
   label: string;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** "05 Oct 2026". Built by hand so it reads the same on every locale. */
-export function formatDate(date: Date): string {
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${day} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
-}
-
 /** Visits can be booked from today up to two weeks ahead. */
 export function dateOptions(from: Date = new Date(), days = 14): Option[] {
   return Array.from({ length: days }, (_, offset) => {
@@ -244,10 +237,6 @@ export const timeOptions: readonly Option[] = Array.from({ length: 29 }, (_, ind
   }`;
   return { id: label, label };
 });
-
-export function guestsLabel(count: number): string {
-  return count === 1 ? '1 Guest' : `${count} Guests`;
-}
 
 export const guestOptions: readonly Option[] = Array.from({ length: 10 }, (_, index) => {
   const label = guestsLabel(index + 1);

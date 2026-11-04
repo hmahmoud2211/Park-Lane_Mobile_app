@@ -3,7 +3,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StyleSheet, View, type StyleProp, type TextStyle } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { IconSet } from '../ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 
 /** A ringed plus or minus over the glyph's bottom-right corner, e.g. "add a vehicle". */
 export type IconBadge = 'add' | 'remove';

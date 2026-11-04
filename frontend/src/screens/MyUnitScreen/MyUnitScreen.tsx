@@ -37,8 +37,8 @@ import {
   CARD_GAP,
   columns,
   createStyles,
-  statScaleFor,
 } from './MyUnitScreen.styles';
+import { statScaleFor } from '../../utils/responsive';
 
 /** Placeholder for links whose destination screens are not designed yet. */
 function notYetRouted() {

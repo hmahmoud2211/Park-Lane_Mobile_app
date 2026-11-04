@@ -5,8 +5,7 @@ import { applyOptimistic } from '../services/capabilities';
 import * as homeApi from '../services/homeApi';
 import type { Command, Device } from '../../../types/home.types';
 import { useEms } from '../../ems/hooks/useEms';
-
-export type DeviceBusy = 'command' | 'edit';
+import type { DeviceBusy } from '../types';
 
 function messageOf(error: unknown): string {
   return error instanceof EmsError ? error.message : 'Something went wrong. Try again.';

@@ -15,7 +15,7 @@ import { ServiceTile } from '../../components/ui/ServiceTile';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { initialsOf, resident } from '../HomeScreen/HomeScreen.data';
+import { initialsOf, resident } from '../../data/demoResident';
 import { accessPassPayload, profileCopy, profileMenu } from './ProfileScreen.data';
 import { PASS_SIZE, createStyles } from './ProfileScreen.styles';
 

@@ -6,7 +6,7 @@ import { toAppDevice, toAppRoom, toGatewayCommand, toGatewayDeviceId } from '../
 import { GatewayError } from '../services/gatewayHttp';
 import type { Command, Device, Room } from '../../../types/home.types';
 import type { CommandResult } from '../../../types/gateway.types';
-import type { DeviceBusy } from '../../home/hooks/useHomeDevices';
+import type { DeviceBusy } from '../../home/types';
 import { useGateway } from './useGateway';
 
 function messageOf(error: unknown): string {

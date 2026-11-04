@@ -1,4 +1,4 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
+import type { IconSet } from '../../types/icons.types';
 
 /** Copy for AC Controls: every setting an air conditioner announces through the CUBE Gateway, and its readings. */
 

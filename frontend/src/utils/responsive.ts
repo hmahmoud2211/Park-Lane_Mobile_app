@@ -1,4 +1,5 @@
 import { breakpointFor, layout, type Breakpoint } from '../theme';
+import type { AppTheme } from '../types/theme.types';
 
 /**
  * The design was measured against a 390 x 844 frame (iPhone 14 / 15 logical
@@ -96,4 +97,23 @@ export function resolveScreenLayout(windowWidth: number, frameWidth: number): Sc
     columnWidth,
     columnFrameWidth: columnWidth + 2 * PHONE_GUTTER,
   };
+}
+
+/** The inner screens' 16dp gutter (My Unit's), which the figure rows were fitted with. */
+const STAT_CARD_GUTTER = 16;
+
+/**
+ * Inside width of a card when the figure rows were fitted to the reference:
+ * a 390dp frame, 10dp gutter and 16dp card padding.
+ */
+const FITTED_CARD_INNER_WIDTH = 338;
+
+/**
+ * Where a card is narrower inside than the rows were fitted to, the rows
+ * shrink in step, so every value keeps its one-line layout rather than
+ * truncating. Wider cards keep the reference size.
+ */
+export function statScaleFor(windowWidth: number, theme: AppTheme): number {
+  const inner = Math.min(windowWidth, MAX_CONTENT_WIDTH) - 2 * (STAT_CARD_GUTTER + theme.spacing.md);
+  return clamp(inner / FITTED_CARD_INNER_WIDTH, 0.8, 1);
 }

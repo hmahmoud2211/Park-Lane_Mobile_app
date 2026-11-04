@@ -3,7 +3,7 @@ import { Animated, Easing, Platform, StyleSheet, View, type StyleProp, type View
 
 import { useAppTheme } from '../../../hooks/useAppTheme';
 import { useReduceMotion } from '../../../hooks/useReduceMotion';
-import type { VoicePhase } from '../hooks/useVoiceSession';
+import type { VoicePhase } from '../types';
 import type { AppTheme } from '../../../types/theme.types';
 import { AppText } from '../../../components/common/AppText';
 

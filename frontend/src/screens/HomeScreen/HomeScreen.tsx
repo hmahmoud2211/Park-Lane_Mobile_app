@@ -18,7 +18,8 @@ import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { initialsOf, promo, resident, serviceTiles, unit, weather } from './HomeScreen.data';
+import { initialsOf, resident, unit } from '../../data/demoResident';
+import { promo, serviceTiles, weather } from './HomeScreen.data';
 import { GREETING_TO_UNIT, MIN_TILE_WIDTH, TILE_GAP, TILE_ROW_GAP, createStyles } from './HomeScreen.styles';
 
 export function HomeScreen() {

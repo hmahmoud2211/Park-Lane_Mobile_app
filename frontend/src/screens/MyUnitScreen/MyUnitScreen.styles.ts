@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
-import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
+import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
 
 /**
  * Element sizes are measured from the Figma screen (assets/Screens/screen4.png),
@@ -31,22 +31,6 @@ export const columns = {
   maintenance: { weights: [56, 51, 52, 85], gap: 14 },
   utilities: { weights: [96, 90, 85], gap: 11 },
 } as const;
-
-/**
- * Inside width of a card when the figure rows were fitted to the reference:
- * a 390dp frame, 10dp gutter and 16dp card padding.
- */
-const FITTED_CARD_INNER_WIDTH = 338;
-
-/**
- * Where a card is narrower inside than the rows were fitted to, the rows
- * shrink in step, so every value keeps its one-line layout rather than
- * truncating. Wider cards keep the reference size.
- */
-export function statScaleFor(windowWidth: number, theme: AppTheme): number {
-  const inner = Math.min(windowWidth, MAX_CONTENT_WIDTH) - 2 * (GUTTER + theme.spacing.md);
-  return clamp(inner / FITTED_CARD_INNER_WIDTH, 0.8, 1);
-}
 
 export const UTILITY_ICON_SIZE = 22;
 export const UTILITY_ICON_GAP = 9;

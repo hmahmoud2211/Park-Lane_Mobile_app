@@ -14,7 +14,8 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { WifiCredentialForm, validateWifiCredentials } from '../../components/ui/WifiCredentialForm';
 import { lgSources } from '../../constants/lgConfig';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { LgPairing, LgPairingError } from '../../features/lg/hooks/useLgPairing';
+import type { LgPairing } from '../../features/lg/hooks/useLgPairing';
+import type { LgPairingError } from '../../features/lg/types';
 import {
   hotspotForQrCode,
   isLgApplianceCode,

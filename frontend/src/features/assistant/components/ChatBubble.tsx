@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import type { ChatMessage } from '../hooks/useAssistantChat';
+import type { ChatMessage } from '../types';
 import { useAppTheme } from '../../../hooks/useAppTheme';
 import type { AppTheme } from '../../../types/theme.types';
 import { AppText } from '../../../components/common/AppText';
