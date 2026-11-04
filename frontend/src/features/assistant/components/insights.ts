@@ -2,6 +2,7 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { AnswerSummary } from '../services/assistant.types';
 import type { ParamlessRoute } from '../../../types/navigation.types';
+import { SHORT_MONTHS } from '../../../utils/format';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -61,7 +62,6 @@ function homeErrorLabel(code: string): string {
   }
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "Sep 20, 4:40 PM", in the reading's own wall-clock time (as the backend wrote it). */
 function formatReadingTime(iso: string | undefined): string | null {
@@ -73,7 +73,7 @@ function formatReadingTime(iso: string | undefined): string | null {
     return null;
   }
   const [, , month, day, hour, minute] = match;
-  const date = `${MONTHS[Number(month) - 1] ?? month} ${Number(day)}`;
+  const date = `${SHORT_MONTHS[Number(month) - 1] ?? month} ${Number(day)}`;
   if (hour === undefined) {
     return date;
   }

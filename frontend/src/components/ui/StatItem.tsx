@@ -8,6 +8,7 @@ import type { AppTheme } from '../../types/theme.types';
 import { AppIcon } from '../common/AppIcon';
 import { AppText } from '../common/AppText';
 import type { IconSet } from '../../types/icons.types';
+import { scaledType } from '../../utils/typography';
 
 /** Change against a previous period, e.g. "▼ 12% vs. last month". */
 export interface StatTrend {
@@ -165,12 +166,7 @@ function createStyles(
   scale: number,
 ) {
   // Type overrides only when scaled, so the reference size is the token itself.
-  const sized = (variant: TypographyVariant): TextStyle => {
-    const { fontSize, lineHeight } = theme.typography[variant] as TextStyle;
-    return scale === 1 || fontSize === undefined || lineHeight === undefined
-      ? {}
-      : { fontSize: fontSize * scale, lineHeight: lineHeight * scale };
-  };
+  const sized = (variant: TypographyVariant): TextStyle => scaledType(theme, variant, scale);
 
   // Tall enough for a label and a value, so the icon centres on that pair
   // whether or not a caption and trend follow beneath it.

@@ -1,3 +1,5 @@
+import { formatClock12, pad2, SHORT_MONTHS } from '../../../utils/format';
+
 /**
  * Africa/Cairo time handling.
  *
@@ -19,7 +21,6 @@ export const DAY_MS = 24 * HOUR;
 export { MINUTE as MINUTE_MS, HOUR as HOUR_MS };
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Day of month of the last `weekday` (0 = Sunday) in a UTC month. */
 function lastWeekdayOfMonth(year: number, month: number, weekday: number): number {
@@ -63,7 +64,7 @@ export function cairoParts(utcMs: number): CairoParts {
   };
 }
 
-const pad = (value: number) => String(value).padStart(2, '0');
+const pad = pad2;
 
 /** "2026-10-13": the Cairo calendar date of an instant. */
 export function cairoDateKey(utcMs: number): string {
@@ -105,22 +106,19 @@ const toMs = (value: string | number) => (typeof value === 'number' ? value : Da
 /** "02:30 PM". */
 export function formatTime(value: string | number): string {
   const p = cairoParts(toMs(value));
-  const hour12 = p.hour % 12 === 0 ? 12 : p.hour % 12;
-  return `${pad(hour12)}:${pad(p.minute)} ${p.hour < 12 ? 'AM' : 'PM'}`;
+  return formatClock12(p.hour, p.minute);
 }
 
 /** "02:30 PM" for a minute of the day, for pickers. */
 export function formatMinuteOfDay(minuteOfDay: number): string {
   const m = ((minuteOfDay % 1440) + 1440) % 1440;
-  const hour = Math.floor(m / 60);
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${pad(hour12)}:${pad(m % 60)} ${hour < 12 ? 'AM' : 'PM'}`;
+  return formatClock12(Math.floor(m / 60), m % 60);
 }
 
 /** "Tue 13 Oct 2026". */
 export function formatDate(value: string | number, withYear = true): string {
   const p = cairoParts(toMs(value));
-  const base = `${WEEKDAYS[p.weekday]} ${pad(p.day)} ${MONTHS[p.month - 1]}`;
+  const base = `${WEEKDAYS[p.weekday]} ${pad(p.day)} ${SHORT_MONTHS[p.month - 1]}`;
   return withYear ? `${base} ${p.year}` : base;
 }
 

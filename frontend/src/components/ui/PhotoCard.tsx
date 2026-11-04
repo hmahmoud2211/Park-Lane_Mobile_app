@@ -19,6 +19,7 @@ import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { NeonPanel } from './NeonPanel';
 import { PanelHeading } from './PanelHeading';
+import { scaledType } from '../../utils/typography';
 
 /**
  * `backdrop` is a scene filling the card's height at the right, fading into
@@ -202,12 +203,7 @@ export function PhotoCard({
 
 function createStyles(theme: AppTheme, scale: number) {
   // Type overrides only when scaled, so the reference size is the token itself.
-  const sized = (variant: TypographyVariant): TextStyle => {
-    const { fontSize, lineHeight } = theme.typography[variant] as TextStyle;
-    return scale === 1 || fontSize === undefined || lineHeight === undefined
-      ? {}
-      : { fontSize: fontSize * scale, lineHeight: lineHeight * scale };
-  };
+  const sized = (variant: TypographyVariant): TextStyle => scaledType(theme, variant, scale);
 
   return StyleSheet.create({
     // The glowing surface leaves children unclipped, so the photo carries its

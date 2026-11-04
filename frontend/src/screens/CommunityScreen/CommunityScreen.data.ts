@@ -1,6 +1,7 @@
 import type { IconSet } from '../../types/icons.types';
 import type { StatusTone } from '../../components/ui/StatusChip';
 import type { ImageKey } from '../../constants/images';
+import { SHORT_MONTHS } from '../../utils/format';
 
 /**
  * Mock content for the Community screen. Shaped the way a real API response
@@ -186,7 +187,6 @@ export const upcomingEvents: readonly CommunityEvent[] = [
   },
 ];
 
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /**
  * "2026-10-05" as the date column draws it: "05" over "OCT". Read from the
@@ -194,7 +194,7 @@ const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', '
  */
 export function dateParts(isoDate: string): { day: string; month: string } {
   const [, month, day] = isoDate.split('-');
-  return { day, month: MONTHS[Number(month) - 1] ?? '' };
+  return { day, month: SHORT_MONTHS[Number(month) - 1]?.toUpperCase() ?? '' };
 }
 
 /** "07:00 PM – 10:00 PM". */

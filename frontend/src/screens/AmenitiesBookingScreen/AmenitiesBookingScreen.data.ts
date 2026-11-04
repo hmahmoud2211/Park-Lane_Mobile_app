@@ -1,6 +1,6 @@
 import type { IconSet } from '../../types/icons.types';
 import type { ImageKey } from '../../constants/images';
-import { formatDate, guestsLabel } from '../../utils/format';
+import { formatDate, guestsLabel, pad2 } from '../../utils/format';
 
 /**
  * Mock content for the Amenities Booking screen. Shaped the way a real API
@@ -216,7 +216,7 @@ export function bookingDates(from: Date = new Date(), days = 14): string[] {
   );
 }
 
-const pad = (value: number) => String(value).padStart(2, '0');
+const pad = pad2;
 
 /**
  * One-hour slots across the amenity's opening hours, as "10:00 - 11:00".

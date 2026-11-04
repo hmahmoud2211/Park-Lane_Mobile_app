@@ -2,7 +2,7 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { StatusTone } from '../../components/ui/StatusChip';
 import type { IconSet } from '../../types/icons.types';
-import { formatDate, guestsLabel } from '../../utils/format';
+import { formatClock12, formatDate, guestsLabel } from '../../utils/format';
 
 /**
  * Mock content for the Visitor Access screen. Shaped the way a real API
@@ -230,11 +230,7 @@ export function dateOptions(from: Date = new Date(), days = 14): Option[] {
 /** Half-hour arrival slots across visiting hours, 08:00 AM to 10:00 PM. */
 export const timeOptions: readonly Option[] = Array.from({ length: 29 }, (_, index) => {
   const minutes = 8 * 60 + index * 30;
-  const hours24 = Math.floor(minutes / 60);
-  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
-  const label = `${String(hours12).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${
-    hours24 < 12 ? 'AM' : 'PM'
-  }`;
+  const label = formatClock12(Math.floor(minutes / 60), minutes % 60);
   return { id: label, label };
 });
 

@@ -1,6 +1,6 @@
 import type { StatusTone } from '../../components/ui/StatusChip';
 import type { IconSet } from '../../types/icons.types';
-import { formatDate } from '../../utils/format';
+import { formatClock12, formatDate } from '../../utils/format';
 
 /**
  * Mock content for the Maintenance screen. Shaped the way a real API response
@@ -276,9 +276,7 @@ export function validateRequest(form: RequestForm): RequestFormErrors {
 
 /** "10:15 AM". */
 function formatTime(date: Date): string {
-  const hours = date.getHours() % 12 || 12;
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${String(hours).padStart(2, '0')}:${minutes} ${date.getHours() < 12 ? 'AM' : 'PM'}`;
+  return formatClock12(date.getHours(), date.getMinutes());
 }
 
 /**

@@ -16,6 +16,7 @@ import type { IconSet } from '../../types/icons.types';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { GlassSurface } from '../common/GlassSurface';
+import { scaledType } from '../../utils/typography';
 
 
 export interface ServiceTileProps {
@@ -197,12 +198,7 @@ export function ServiceTile({
 
 function createStyles(theme: AppTheme, scale: number) {
   // Type overrides only when scaled, so the reference size is the token itself.
-  const sized = (variant: TypographyVariant): TextStyle => {
-    const { fontSize, lineHeight } = theme.typography[variant] as TextStyle;
-    return scale === 1 || fontSize === undefined || lineHeight === undefined
-      ? {}
-      : { fontSize: fontSize * scale, lineHeight: lineHeight * scale };
-  };
+  const sized = (variant: TypographyVariant): TextStyle => scaledType(theme, variant, scale);
 
   return StyleSheet.create({
     surface: {

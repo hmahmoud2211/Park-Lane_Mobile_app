@@ -1,6 +1,7 @@
 import type { StatItemData } from '../../components/ui/StatItem';
 import type { IconSet } from '../../types/icons.types';
 import { unit } from '../../data/demoResident';
+import { SHORT_MONTHS } from '../../utils/format';
 
 /**
  * Mock content for the My Unit screen, shaped like a future API response so
@@ -216,7 +217,6 @@ export interface PaymentRecord {
   amount: number;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 const DOWN_PAYMENT = 1_175_000;
 const INSTALLMENT = 145_000;
 /** Monthly installments paid so far, on the 5th from Apr 2024 to Sep 2026. */
@@ -234,7 +234,7 @@ export const paymentHistory: readonly PaymentRecord[] = [
     const year = 2024 + Math.floor((3 + index) / 12);
     return {
       id: `RCP-${year}-${String(index + 2).padStart(4, '0')}`,
-      date: `05 ${MONTHS[month]} ${year}`,
+      date: `05 ${SHORT_MONTHS[month]} ${year}`,
       description: `Installment ${index + 1}`,
       amount: INSTALLMENT,
     };

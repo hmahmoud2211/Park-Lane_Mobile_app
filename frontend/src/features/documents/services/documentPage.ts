@@ -1,4 +1,5 @@
 import { colors } from '../../../theme';
+import { formatDate } from '../../../utils/format';
 
 /*
  * The page every generated document shares: a self-contained A4 page in the
@@ -6,12 +7,8 @@ import { colors } from '../../../theme';
  * brand is set in type rather than the wordmark image.
  */
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 /** "14 Oct 2026", as the screens write dates. */
-export function formatDocumentDate(date: Date): string {
-  return `${String(date.getDate()).padStart(2, '0')} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
-}
+export const formatDocumentDate = formatDate;
 
 export function escapeHtml(text: string): string {
   return text
