@@ -2,17 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as api from '../services/gatewayApi';
 import { toDeviceControls, toGatewayDeviceId } from '../services/deviceMapping';
-import { GatewayError } from '../services/gatewayHttp';
+import { GatewayError, gatewayErrorText } from '../services/gatewayHttp';
 import type { ControlValue } from '../../../types/controls.types';
 import type { GatewayCommand } from '../../../types/gateway.types';
 import { useGateway } from './useGateway';
-
-function messageOf(error: unknown): string {
-  if (error instanceof GatewayError) {
-    return error.recovery ? `${error.message} ${error.recovery}` : error.message;
-  }
-  return 'Something went wrong. Try again.';
-}
 
 /** The key the screen uses for the power switch; every other key is one of the device's settings. */
 export const POWER_KEY = 'power';
@@ -81,7 +74,7 @@ export function useAcControls(deviceId: string) {
       upsertDevice(await api.refreshDevice(target, gatewayId));
       if (mounted.current) setLoadError(null);
     } catch (error) {
-      if (mounted.current) setLoadError(messageOf(error));
+      if (mounted.current) setLoadError(gatewayErrorText(error));
     }
   }, [target, gatewayId, upsertDevice]);
 
@@ -114,7 +107,7 @@ export function useAcControls(deviceId: string) {
         }
       } catch (error) {
         if (mounted.current) {
-          setErrors((current) => ({ ...current, [key]: messageOf(error) }));
+          setErrors((current) => ({ ...current, [key]: gatewayErrorText(error) }));
         }
       } finally {
         if (mounted.current && latest.current.get(key) === request) {

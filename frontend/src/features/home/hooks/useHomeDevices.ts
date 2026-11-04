@@ -1,15 +1,11 @@
 import { useCallback, useState } from 'react';
 
-import { EmsError } from '../../ems/services/emsApi';
+import { emsErrorText } from '../../ems/services/emsHttp';
 import { applyOptimistic } from '../services/capabilities';
 import * as homeApi from '../services/homeApi';
 import type { Command, Device } from '../../../types/home.types';
 import { useEms } from '../../ems/hooks/useEms';
 import type { DeviceBusy } from '../types';
-
-function messageOf(error: unknown): string {
-  return error instanceof EmsError ? error.message : 'Something went wrong. Try again.';
-}
 
 /**
  * Device actions over the shared list in EmsContext.
@@ -30,7 +26,7 @@ export function useHomeDevices() {
     try {
       return await work();
     } catch (error) {
-      setErrors((current) => ({ ...current, [id]: messageOf(error) }));
+      setErrors((current) => ({ ...current, [id]: emsErrorText(error) }));
       return null;
     } finally {
       setBusy(({ [id]: _done, ...rest }) => rest);

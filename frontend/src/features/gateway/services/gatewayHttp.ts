@@ -83,6 +83,14 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
   return error instanceof GatewayError ? error.message : fallback;
 }
 
+/** What to tell the resident about a failed gateway request: its message and, when it suggests one, the next step. */
+export function gatewayErrorText(error: unknown): string {
+  if (error instanceof GatewayError) {
+    return error.recovery ? `${error.message} ${error.recovery}` : error.message;
+  }
+  return 'Something went wrong. Try again.';
+}
+
 export async function gatewayCall<T>(target: GatewayTarget, path: string, init: CallInit = {}): Promise<T> {
   return timedFetch(`${target.baseUrl}${gatewayConfig.apiPrefix}${path}`, {
     init: jsonRequest(init.method ?? 'GET', init.body, target.token),

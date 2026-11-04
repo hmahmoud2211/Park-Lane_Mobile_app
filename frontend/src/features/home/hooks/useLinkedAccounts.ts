@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { EmsError } from '../../ems/services/emsApi';
+import { emsErrorText } from '../../ems/services/emsHttp';
 import * as homeApi from '../services/homeApi';
 import type { FlowStep, LinkedAccount } from '../../../types/home.types';
 import { useEms } from '../../ems/hooks/useEms';
-
-function messageOf(error: unknown): string {
-  return error instanceof EmsError ? error.message : 'Something went wrong. Try again.';
-}
 
 /**
  * The brand accounts linked to the resident's home. Re-read whenever the
@@ -26,7 +22,7 @@ export function useLinkedAccounts() {
       setAccounts(await homeApi.listAccounts());
       setError(null);
     } catch (caught) {
-      setError(messageOf(caught));
+      setError(emsErrorText(caught));
     } finally {
       setLoaded(true);
     }
@@ -46,7 +42,7 @@ export function useLinkedAccounts() {
           setError(null);
         },
         (caught: unknown) => {
-          if (!cancelled) setError(messageOf(caught));
+          if (!cancelled) setError(emsErrorText(caught));
         },
       )
       .finally(() => {
@@ -62,7 +58,7 @@ export function useLinkedAccounts() {
     try {
       return await work();
     } catch (caught) {
-      setError(messageOf(caught));
+      setError(emsErrorText(caught));
       return null;
     } finally {
       setBusy(({ [id]: _done, ...rest }) => rest);
@@ -95,7 +91,7 @@ export function useLinkedAccounts() {
       const { failed } = await homeApi.refreshAccounts();
       problem = failed.length > 0 ? failed.map((failure) => `${failure.brand}: ${failure.message}`).join('\n') : null;
     } catch (caught) {
-      problem = messageOf(caught);
+      problem = emsErrorText(caught);
     }
     await refresh();
     if (problem) setError(problem);

@@ -28,6 +28,11 @@ export class EmsError extends Error {
   }
 }
 
+/** What to tell the resident about a failed EMS request: the backend's own message when it gave one. */
+export function emsErrorText(error: unknown): string {
+  return error instanceof EmsError ? error.message : 'Something went wrong. Try again.';
+}
+
 let sessionToken: string | null = null;
 const expiredListeners = new Set<() => void>();
 

@@ -3,18 +3,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { applyOptimistic, sortDevices } from '../../home/services/capabilities';
 import * as api from '../services/gatewayApi';
 import { toAppDevice, toAppRoom, toGatewayCommand, toGatewayDeviceId } from '../services/deviceMapping';
-import { GatewayError } from '../services/gatewayHttp';
+import { GatewayError, gatewayErrorText } from '../services/gatewayHttp';
 import type { Command, Device, Room } from '../../../types/home.types';
 import type { CommandResult } from '../../../types/gateway.types';
 import type { DeviceBusy } from '../../home/types';
 import { useGateway } from './useGateway';
-
-function messageOf(error: unknown): string {
-  if (error instanceof GatewayError) {
-    return error.recovery ? `${error.message} ${error.recovery}` : error.message;
-  }
-  return 'Something went wrong. Try again.';
-}
 
 /**
  * Gateway devices in the app's device model, with the same actions as
@@ -44,7 +37,7 @@ export function useGatewayDevices() {
     try {
       return await work();
     } catch (error) {
-      setErrors((current) => ({ ...current, [id]: messageOf(error) }));
+      setErrors((current) => ({ ...current, [id]: gatewayErrorText(error) }));
       return null;
     } finally {
       setBusy(({ [id]: _done, ...rest }) => rest);

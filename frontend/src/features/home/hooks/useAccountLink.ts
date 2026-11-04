@@ -2,6 +2,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { EmsError } from '../../ems/services/emsApi';
+import { emsErrorText } from '../../ems/services/emsHttp';
 import * as homeApi from '../services/homeApi';
 import type { FlowStep } from '../../../types/home.types';
 import { useEms } from '../../ems/hooks/useEms';
@@ -11,10 +12,6 @@ import { brand } from '../../../config/brand';
 const RETURN_URL = brand.accountsReturnUrl;
 /** A background step (the brand finishing on its side) is re-read this often. */
 const PROGRESS_POLL_MS = 2_000;
-
-function messageOf(error: unknown): string {
-  return error instanceof EmsError ? error.message : 'Something went wrong. Try again.';
-}
 
 /**
  * One brand-linking flow: start, answer each step, sign in on the brand's
@@ -43,7 +40,7 @@ export function useAccountLink() {
           void refreshHome();
         }
       } catch (caught) {
-        setError(messageOf(caught));
+        setError(emsErrorText(caught));
         if (caught instanceof EmsError && caught.code === 'flow_expired') {
           setStep(null);
         }
