@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * Measured from the Figma screen (assets/Screens/screen6.png), exported at
@@ -12,10 +13,10 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
  * edge to edge, so the three inner screens share one rhythm.
  */
 /** My Unit's gutter, so the cards span its width (358dp at 390dp). */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
-const CARD_GAP = 18;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
+const CARD_GAP = layout.innerScreen.cardGap;
 
 /** Panel width the tiles and visit details were fitted to: a 390dp frame. */
 const FITTED_PANEL_WIDTH = 320;
@@ -33,7 +34,7 @@ export function contentScaleFor(windowWidth: number): number {
 const HEADER_TO_BANNER = 30;
 
 /** Service categories: three stacked tiles across, 12dp in from the panel edge. */
-const PANEL_INSET = 14;
+const PANEL_INSET = layout.innerScreen.panelInset;
 const TILE_GAP = 10;
 /** The tiles keep the 12dp inset they were fitted to, so labels stay on one line. */
 const GRID_INSET = 12;

@@ -2,9 +2,10 @@ import { StyleSheet } from 'react-native';
 
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
+import { layout } from '../../theme';
 
 /** The gutter PageHeader is drawn for, against this screen's 36dp one. */
-const HEADER_GUTTER = 35;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
 const HEADER_TO_IDENTITY = 24;
 const IDENTITY_TO_PASS = 18;
 const PASS_TO_MENU = 22;

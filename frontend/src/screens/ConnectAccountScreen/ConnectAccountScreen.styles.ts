@@ -3,20 +3,21 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * No Figma reference: the same frame as My Devices (16dp gutter, 44/30/18
  * rhythm, NeonPanels with PanelHeadings).
  */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
-const HEADER_TO_CONTENT = 30;
-export const CARD_GAP = 18;
-const PANEL_INSET = 14;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
+const HEADER_TO_CONTENT = layout.innerScreen.headerToContent;
+export const CARD_GAP = layout.innerScreen.cardGap;
+const PANEL_INSET = layout.innerScreen.panelInset;
 const ROW_GAP = 12;
 export const FIELD_HEIGHT = 54;
-export const BUTTON_HEIGHT = 46;
+export const BUTTON_HEIGHT = layout.innerScreen.buttonHeight;
 export const QR_SIZE = 200;
 const BRAND_PADDING = 12;
 

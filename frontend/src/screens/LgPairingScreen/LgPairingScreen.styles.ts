@@ -7,6 +7,7 @@ import { StyleSheet } from 'react-native';
 
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * Not in the Figma exports. Laid out on the inner screens' shared rhythm
@@ -14,12 +15,12 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * from header to the first card and 18dp between cards, panels inset 14dp.
  * A focused setup task, so no bottom bar.
  */
-const GUTTER = 16;
-const HEADER_GUTTER = 35;
+const GUTTER = layout.innerScreen.gutter;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
 const HEADER_TO_STEPPER = 24;
 const STEPPER_TO_CARD = 22;
-const CARD_GAP = 18;
-const PANEL_INSET = 14;
+const CARD_GAP = layout.innerScreen.cardGap;
+const PANEL_INSET = layout.innerScreen.panelInset;
 const BOTTOM_SPACE = 40;
 
 /** The CTA and secondary buttons, Maintenance's 42dp actions. */

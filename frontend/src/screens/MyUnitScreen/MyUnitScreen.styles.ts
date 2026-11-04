@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * Element sizes are measured from the Figma screen (assets/Screens/screen4.png),
@@ -10,11 +11,11 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * and inside the cards is deliberately roomier than that reference, which
  * packed the cards almost edge to edge.
  */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 export const CARD_GAP = 14;
 
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
 const HEADER_TO_HERO = 18;
 const MORE_SIZE = 22;
 

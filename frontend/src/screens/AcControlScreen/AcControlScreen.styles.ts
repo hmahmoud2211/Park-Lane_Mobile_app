@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * No Figma reference: the same frame as My Devices (16dp gutter, 35dp
@@ -10,12 +11,12 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * language for the set point (a blue minus ring and a violet plus ring either
  * side of the hero figure), drawn larger here as the screen's focus.
  */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
-const HEADER_TO_CONTENT = 30;
-export const CARD_GAP = 18;
-const PANEL_INSET = 14;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
+const HEADER_TO_CONTENT = layout.innerScreen.headerToContent;
+export const CARD_GAP = layout.innerScreen.cardGap;
+const PANEL_INSET = layout.innerScreen.panelInset;
 const ROW_GAP = 12;
 const STEP_BUTTON_SIZE = 44;
 export const STEP_ICON_SIZE = 22;

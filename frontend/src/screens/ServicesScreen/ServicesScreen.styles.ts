@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * Measured from the Figma screen (assets/Screens/screen12.png), exported at
@@ -11,9 +12,9 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * theirs: roomier than the reference, which sets the cards 8dp apart. Sizes
  * and colours follow the reference; the type is My Unit's.
  */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
 const HEADER_TO_LIST = 30;
 export const CARD_GAP = 12;
 /** Narrowest a card gets beside another; a phone's 358dp card stands alone. */

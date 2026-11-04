@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * Measured from the Figma screen (assets/Screens/screen11.png), exported at
@@ -11,9 +12,9 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * theirs: roomier than the reference, which packs the cards almost edge to
  * edge. Sizes and colours follow the reference; the type is My Unit's.
  */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
 const HEADER_TO_BANNER = 30;
 
 /** The banner, drawn 100dp tall, its two lines centred in it. */

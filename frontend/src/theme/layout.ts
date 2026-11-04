@@ -55,4 +55,19 @@ export const layout = {
 
   /** Space under the last card when no bottom bar needs clearing. */
   endGap: 32,
+
+  /**
+   * The inner screens' phone rhythm, set by My Unit and shared by the screens built after
+   * it: a 16dp gutter (358dp cards at 390dp), the page header still drawn for the Figma's
+   * 35dp gutter, 30dp from the header to the first card, 18dp between cards and panels
+   * inset 14dp. Roomier than the Figma exports, which pack cards edge to edge.
+   */
+  innerScreen: {
+    gutter: 16,
+    headerGutter: 35,
+    headerToContent: 30,
+    cardGap: 18,
+    panelInset: 14,
+    buttonHeight: 46,
+  },
 } as const;

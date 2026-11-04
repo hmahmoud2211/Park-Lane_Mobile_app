@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { NAV_BAR_CLEARANCE } from '../../components/layout/BottomBar';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { layout } from '../../theme';
 
 /**
  * Measured from the Figma screen (assets/Screens/screen9.png, continued in
@@ -14,10 +15,10 @@ import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
  * colours follow the reference; the type is My Unit's, shared by the inner
  * screens.
  */
-const GUTTER = 16;
+const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
-const HEADER_GUTTER = 35;
-export const CARD_GAP = 18;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
+export const CARD_GAP = layout.innerScreen.cardGap;
 
 const HEADER_TO_BANNER = 30;
 

@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 import { HALO_SPAN } from '../../features/assistant/components/AssistantOrb';
-import { spacing } from '../../theme';
+import { layout, spacing } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
 
@@ -15,7 +15,7 @@ import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';
  * more compact than the reference, and the screen has no bottom bar: chat
  * gets the full height.
  */
-const HEADER_GUTTER = 35;
+const HEADER_GUTTER = layout.innerScreen.headerGutter;
 /** Home's gutter: 318dp frames at 390dp. */
 const GUTTER = spacing.screenGutter;
 const TOOLBAR_GAP = 18;

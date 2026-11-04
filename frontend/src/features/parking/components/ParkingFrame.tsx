@@ -13,6 +13,7 @@ import { BottomBar, NAV_BAR_CLEARANCE } from '../../../components/layout/BottomB
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
+import { layout as themeLayout } from '../../../theme';
 
 export interface ParkingFrameProps {
   title: string;
@@ -55,8 +56,8 @@ export interface ParkingFrameProps {
 }
 
 /** Gutter shared with the Parking screen, so cards line up across the flow. */
-const GUTTER = 16;
-const HEADER_GUTTER = 35;
+const GUTTER = themeLayout.innerScreen.gutter;
+const HEADER_GUTTER = themeLayout.innerScreen.headerGutter;
 const HEADER_TO_CONTENT = 22;
 /** Space between the cards of a page; screens laying out their own columns use it too. */
 export const PARKING_BODY_GAP = 14;
