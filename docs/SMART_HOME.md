@@ -28,7 +28,7 @@ All work is on the branch `feature/home-assistant-integration`.
  ② EMS backend  (backend/ in this repo, Node)
         │  one Home Assistant per apartment
         ▼
- ③ Home Assistant  (the IOT project: IOT/core)
+ ③ Home Assistant  (home-assistant/core)
         │  each brand's own integration
         ▼
  ④ Brand clouds  (Tuya / Smart Life, eWeLink, SwitchBot, SmartThings, …)
@@ -189,7 +189,7 @@ wsl --install -d Ubuntu-24.04
 ```
 Restart if asked, then choose a Linux username and password when Ubuntu opens.
 
-#### 2b. Install Home Assistant from the IOT project (once)
+#### 2b. Install Home Assistant from source (once)
 
 In the **Ubuntu** window, one line at a time:
 ```bash
@@ -205,10 +205,11 @@ source ~/.local/bin/env
 uv venv --python 3.14 ~/ha-venv
 source ~/ha-venv/bin/activate
 
-# Copy the IOT project into Ubuntu's disk, without its 940 MB .git history.
-# Installing straight from /mnt/d fails with "Operation not permitted".
-tar -C /mnt/d/EMS/AL-Atal/Park-Lane_Mobile_app/IOT -cf - --exclude=core/.git core | tar -C ~ -xf -
-mv ~/core ~/ha-core
+# Home Assistant core, at the commit this project was built against (it used to sit in
+# the repo as IOT/core). Clone it onto Ubuntu's own disk: installing from /mnt/d fails
+# with "Operation not permitted".
+git clone --filter=blob:none https://github.com/home-assistant/core.git ~/ha-core
+git -C ~/ha-core checkout 817cea76d0cb660ec9fc829a9f0cd80498bc2387
 
 uv pip install -e ~/ha-core
 

@@ -4,7 +4,7 @@ import { config } from '../config.ts';
  * The brands a resident can link from the app. Each is a Home Assistant
  * integration that reaches its devices through the maker's cloud, so it
  * works from a hub on the company server (local-only integrations would
- * not). Handlers are checked against IOT/core/homeassistant/components:
+ * not). Handlers are checked against Home Assistant core's homeassistant/components:
  * `iot_class` cloud_polling or cloud_push, with a config flow.
  *
  * `method` tells the app what to expect:

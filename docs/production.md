@@ -47,7 +47,7 @@ cd /tmp && curl -fsSL https://github.com/AlexxIT/SonoffLAN/archive/refs/tags/v3.
 cp -r /tmp/SonoffLAN-3.13.2/custom_components/sonoff /srv/parklane/custom_components/
 ```
 
-The `IOT/` folder isn't needed on the server; the official Home Assistant image is used instead.
+The server uses the official Home Assistant image; no Home Assistant source is needed there.
 
 ## 4. Create `backend/.env`
 

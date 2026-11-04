@@ -1,6 +1,6 @@
 # Parklane device backend
 
-A small Node service between the Parklane app and the smart-home platform. It runs EMS user accounts (SQLite in `DATA_DIR/ems.db`), gives every apartment its own Home Assistant (see `../IOT`), and pushes realtime updates to the app over WebSocket.
+A small Node service between the Parklane app and the smart-home platform. It runs EMS user accounts (SQLite in `DATA_DIR/ems.db`), gives every apartment its own Home Assistant (the official image, one container per unit), and pushes realtime updates to the app over WebSocket.
 
 ```
 App ──HTTPS / WS──▶ backend ──private Docker network──▶ Home Assistant (one container per unit) ──▶ Tuya, SmartThings, … clouds

@@ -238,7 +238,7 @@ security, test results and limits. The API is in
 Brands without a local protocol can still be linked through their cloud
 account. This is offered inside Add Device as "Link manufacturer account
 (cloud)", through the EMS backend in [`backend/`](backend/), which runs one Home
-Assistant (the [`IOT/`](IOT/) project) per apartment. Devices linked that way,
+Assistant (the official Home Assistant image) per apartment. Devices linked that way,
 and the Parklane Assistant's device control, work as before. See
 [docs/SMART_HOME.md](docs/SMART_HOME.md) for that backend.
 

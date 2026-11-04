@@ -8,7 +8,7 @@ import type { Capability, Device, DeviceKind, HaEntity, HaState, Registries, Roo
  * own device (`e.<entity_id>`). Hidden, disabled and configuration entities
  * are left out, and so are devices with nothing the app can show.
  *
- * Feature bits are Home Assistant's own (see each domain's const.py in IOT/core).
+ * Feature bits are Home Assistant's own (see each domain's const.py in Home Assistant core).
  */
 
 const CLIMATE_TARGET_TEMPERATURE = 1;
