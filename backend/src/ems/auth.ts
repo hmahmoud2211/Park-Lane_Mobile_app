@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import type { User } from '../../../shared/contracts/auth.ts';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
+import { trimmedText } from '../lib/text.ts';
 import { findToken, insertToken, revokeTokenAndChildren, revokeUserTokens, type TokenKind, type TokenRow } from '../repositories/tokens.ts';
 import { findUserById, findUserWithPassword, insertUser } from '../repositories/users.ts';
 import { newToken, sha256 } from './secrets.ts';
@@ -55,7 +56,7 @@ export async function createUser(emailInput: unknown, passwordInput: unknown, na
   if (password.length < 8 || password.length > 128) {
     throw new ApiError('bad_request', 'The password must be 8 to 128 characters.');
   }
-  const name = typeof nameInput === 'string' && nameInput.trim() ? nameInput.trim().slice(0, 64) : email.split('@')[0];
+  const name = trimmedText(nameInput) || email.split('@')[0];
   const user: User = { id: randomUUID(), email, name };
   const passwordHash = await hashPassword(password);
   try {

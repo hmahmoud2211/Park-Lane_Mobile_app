@@ -1,6 +1,7 @@
 import { config } from '../config.ts';
 import { publish } from '../ems/events.ts';
 import { ApiError } from '../errors.ts';
+import { trimmedText } from '../lib/text.ts';
 import { log } from '../log.ts';
 import { recordAudit } from '../repositories/audit.ts';
 import type { Hub } from '../repositories/hubs.ts';
@@ -188,7 +189,7 @@ export class HubRuntime {
     this.getDevice(deviceId);
     const update: Record<string, unknown> = {};
     if (changes.name !== undefined) {
-      const name = typeof changes.name === 'string' ? changes.name.trim().slice(0, 64) : '';
+      const name = trimmedText(changes.name);
       if (!name) {
         throw new ApiError('bad_request', 'The name cannot be empty.');
       }

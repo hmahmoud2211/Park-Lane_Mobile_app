@@ -1,6 +1,7 @@
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { hubCredentials } from './hubs.ts';
+import { parseJsonOrText } from '../lib/json.ts';
 
 /**
  * Home Assistant's REST API, for what its WebSocket API has no command for:
@@ -41,14 +42,8 @@ export async function haRest(hubId: string, method: 'GET' | 'POST' | 'DELETE', p
   if (response.status === 401) {
     throw new ApiError('hub_auth', 'Your home hub refused the backend. Building management has been told.');
   }
-  const text = await response.text();
-  let parsed: unknown = text;
-  try {
-    parsed = text ? JSON.parse(text) : null;
-  } catch {
-    // Some errors are plain text, e.g. "Failed dependencies …".
-  }
-  return { status: response.status, body: parsed };
+  // Some errors are plain text, e.g. "Failed dependencies …".
+  return { status: response.status, body: parseJsonOrText(await response.text()) };
 }
 
 /** The message of a failed call, for the resident. */

@@ -2,6 +2,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { adminApi } from './lib/adminApi.ts';
+
 /**
  * DEVELOPMENT ONLY: the backend on :8787 against the test suite's stand-in
  * Home Assistant, so the app's smart-home screens can be tried without Docker
@@ -36,17 +38,14 @@ await ha.listen();
 const app = createApp();
 await new Promise<void>((resolve) => app.listen(PORT, '0.0.0.0', resolve));
 
+const call = adminApi(`http://127.0.0.1:${PORT}`, 'fake-hub-admin');
+
 async function api(method: string, path: string, body?: unknown) {
-  const response = await fetch(`http://127.0.0.1:${PORT}${path}`, {
-    method,
-    headers: { Authorization: 'Bearer fake-hub-admin', 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const parsed = (await response.json()) as { ok: boolean; data: Record<string, string>; error?: { message: string } };
-  if (!parsed.ok) {
-    throw new Error(`${method} ${path}: ${parsed.error?.message}`);
+  try {
+    return await call(method, path, body);
+  } catch (error) {
+    throw new Error(`${method} ${path}: ${(error as Error).message}`);
   }
-  return parsed.data;
 }
 
 await api('POST', '/api/auth/register', { email: 'demo@parklane.test', password: 'correct horse battery', name: 'Demo resident' });

@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 
 import { config } from '../src/config.ts';
+import { AdminApiError, adminApi } from './lib/adminApi.ts';
 
 /**
  * Attaches a Home Assistant you run yourself (on this PC, in WSL, or a box in
@@ -34,22 +35,17 @@ if (!config.apiKey) {
   process.exit(1);
 }
 
+const call = adminApi(values.backend ?? '', config.apiKey);
+
 async function admin<T>(method: string, path: string, body?: unknown): Promise<T> {
-  let response: Response;
   try {
-    response = await fetch(`${values.backend}${path}`, {
-      method,
-      headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
+    return await call<T>(method, path, body);
+  } catch (error) {
+    if (error instanceof AdminApiError) {
+      throw new Error(`${error.message} (${error.code})`);
+    }
     throw new Error(`The backend is not running at ${values.backend}. Start it with "npm start" in backend/.`);
   }
-  const parsed = (await response.json()) as { ok: boolean; data: T; error?: { code: string; message: string } };
-  if (!parsed.ok) {
-    throw new Error(`${parsed.error?.message} (${parsed.error?.code})`);
-  }
-  return parsed.data;
 }
 
 try {

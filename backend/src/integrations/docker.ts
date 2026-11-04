@@ -2,6 +2,7 @@ import { request } from 'node:http';
 
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
+import { parseJsonOrText } from '../lib/json.ts';
 
 /**
  * The Docker Engine API over its socket (DOCKER_SOCKET), which the provisioner uses to
@@ -28,14 +29,8 @@ export function docker(method: string, path: string, body?: unknown): Promise<Do
         const chunks: Buffer[] = [];
         res.on('data', (chunk: Buffer) => chunks.push(chunk));
         res.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8');
-          let parsed: unknown = text;
-          try {
-            parsed = text ? JSON.parse(text) : null;
-          } catch {
-            // Image pulls stream one JSON object per line; callers only need the status.
-          }
-          resolve({ status: res.statusCode ?? 0, body: parsed });
+          // Image pulls stream one JSON object per line, which stays text; callers only need the status.
+          resolve({ status: res.statusCode ?? 0, body: parseJsonOrText(Buffer.concat(chunks).toString('utf8')) });
         });
       },
     );

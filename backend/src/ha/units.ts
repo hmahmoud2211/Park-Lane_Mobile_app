@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { findUserByEmail, normalizeEmail } from '../ems/auth.ts';
 import { ApiError } from '../errors.ts';
+import { trimmedText } from '../lib/text.ts';
 import * as units from '../repositories/units.ts';
 import type { MemberRole, Unit } from '../repositories/units.ts';
 
@@ -10,11 +11,11 @@ import type { MemberRole, Unit } from '../repositories/units.ts';
 export type { MemberRole, Unit };
 
 export function createUnit(nameInput: unknown, buildingInput: unknown): Unit {
-  const name = typeof nameInput === 'string' ? nameInput.trim().slice(0, 64) : '';
+  const name = trimmedText(nameInput);
   if (!name) {
     throw new ApiError('bad_request', 'name is required, e.g. "Tower A · 1203".');
   }
-  const building = typeof buildingInput === 'string' && buildingInput.trim() ? buildingInput.trim().slice(0, 64) : null;
+  const building = trimmedText(buildingInput) || null;
   const unit: Unit = { id: randomUUID(), name, building, createdAt: new Date().toISOString() };
   units.insertUnit(unit);
   return unit;

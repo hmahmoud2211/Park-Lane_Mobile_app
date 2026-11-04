@@ -137,3 +137,28 @@ The admin routes refuse every request until `ADMIN_API_KEY` is set.
 - EMS tokens are stored as SHA-256 hashes. Hub tokens and the facade user's password are sealed with `EMS_ENCRYPTION_KEY`.
 - Each unit's `/config` holds its linked accounts' tokens; the folders are created owner-only.
 - Logs never include request bodies, query strings or fields whose names look secret.
+
+## Code layout
+
+```
+src/
+  index.ts          start: open the database, connect the hubs, listen
+  app.ts            the HTTP server: CORS, the brands' OAuth callback, dispatch, errors, access log
+  config.ts         every setting, read once from the environment and backend/.env
+  http/             request plumbing: context, router, guards (who may call what), rate limits,
+                    JSON bodies and answers, CORS, error answers, the access log
+  routes/           one file per API area (auth, home, accounts, ops), each listing its endpoints
+  ems/              EMS accounts and tokens, the realtime channel, database migrations, sealing secrets
+  ha/               the home facade: hubs (hubStore, hubRuntime, the registry in hubs.ts), mapping
+                    Home Assistant to devices and rooms, the command allowlist, linking brand
+                    accounts, provisioning a unit's Home Assistant
+  repositories/     every SQL statement, one file per table
+  integrations/     outside systems besides Home Assistant: the Docker Engine API
+  lib/              small pure helpers
+test/               HTTP-level tests against a real server, plus a stand-in Home Assistant (fakeHa.ts)
+scripts/            development tools: fake-hub (the backend against fakeHa), attach-hub
+```
+
+The API's types are shared with the app in `../shared/contracts`, imported with `import type` only: Node's type stripping erases them, so the image (which has no `shared/` folder) runs without them. Routes check the caller before the method, and a method a route does not take ends as 404; `test/routing.test.ts` pins this.
+
+**One process only.** Rate-limit windows, the realtime event bus and the hub connections live in memory, so the backend must run as a single process (one container). Running two would split residents' live updates between them and double every hub connection.
