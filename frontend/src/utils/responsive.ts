@@ -58,7 +58,8 @@ export interface ScreenLayout {
   columnFrameWidth: number;
 }
 
-const PHONE_GUTTER = 16;
+/** The phone layout's gutter (the inner screens' 16dp). */
+const PHONE_GUTTER = layout.gutter.mobile;
 
 export function resolveScreenLayout(windowWidth: number, frameWidth: number): ScreenLayout {
   const breakpoint = breakpointFor(windowWidth);

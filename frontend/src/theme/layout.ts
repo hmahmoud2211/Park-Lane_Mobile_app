@@ -1,5 +1,8 @@
 import type { Breakpoint } from './breakpoints';
 
+/** Where the phone layout stops growing and centres instead. */
+const PHONE_MAX_WIDTH = 520;
+
 /**
  * Page geometry per device class. On mobile the screens keep their own
  * measured gutters and the 520dp cap (they were drawn for a 390dp frame);
@@ -8,7 +11,7 @@ import type { Breakpoint } from './breakpoints';
  */
 export const layout = {
   /** The phone layout stops growing here and centres instead. */
-  phoneMaxWidth: 520,
+  phoneMaxWidth: PHONE_MAX_WIDTH,
 
   sideNav: {
     /** Icon-over-label rail, for tablets and small windows. */
@@ -22,7 +25,7 @@ export const layout = {
 
   /** Widest the page content gets, per device class. */
   contentMaxWidth: {
-    mobile: 520,
+    mobile: PHONE_MAX_WIDTH,
     tablet: 680,
     laptop: 1040,
     desktop: 1180,

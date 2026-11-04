@@ -12,6 +12,36 @@ export const fontFamily = {
   bold: 'Inter_700Bold',
 } as const;
 
+/*
+ * Variants that other roles reuse under their own names (the assistant screen sets its
+ * text in the inner screens' sizes), defined once so they cannot drift apart.
+ */
+const screenTitle = {
+  fontFamily: fontFamily.medium,
+  fontSize: 14,
+  lineHeight: 19,
+};
+const sectionTitle = {
+  fontFamily: fontFamily.semiBold,
+  fontSize: 13.5,
+  lineHeight: 18,
+};
+const statValue = {
+  fontFamily: fontFamily.medium,
+  fontSize: 9.5,
+  lineHeight: 13,
+};
+const tileCaption = {
+  fontFamily: fontFamily.regular,
+  fontSize: 7,
+  lineHeight: 10,
+};
+const chatBody = {
+  fontFamily: fontFamily.regular,
+  fontSize: 9.5,
+  lineHeight: 15,
+};
+
 export const typography = {
   /** "Smart / Community / Living" on screen 1. */
   displayLarge: {
@@ -108,11 +138,7 @@ export const typography = {
    */
 
   /** Title beside a back arrow, e.g. "My Unit". */
-  screenTitle: {
-    fontFamily: fontFamily.medium,
-    fontSize: 14,
-    lineHeight: 19,
-  },
+  screenTitle,
   /** The unit name on the hero card. */
   heroTitle: {
     fontFamily: fontFamily.bold,
@@ -127,11 +153,7 @@ export const typography = {
     lineHeight: 16,
   },
   /** Card headings, e.g. "Unit Overview". */
-  sectionTitle: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 13.5,
-    lineHeight: 18,
-  },
+  sectionTitle,
   /** Caption above a figure, e.g. "Building", "Unit Price". */
   statLabel: {
     fontFamily: fontFamily.regular,
@@ -139,11 +161,7 @@ export const typography = {
     lineHeight: 11,
   },
   /** The figure itself, e.g. "Tower A", "EGP 145,000". */
-  statValue: {
-    fontFamily: fontFamily.medium,
-    fontSize: 9.5,
-    lineHeight: 13,
-  },
+  statValue,
   /** Headline figures, e.g. the unit price row. */
   statValueLarge: {
     fontFamily: fontFamily.semiBold,
@@ -151,11 +169,7 @@ export const typography = {
     lineHeight: 15,
   },
   /** Supporting line on a compact tile, e.g. "View & download". */
-  tileCaption: {
-    fontFamily: fontFamily.regular,
-    fontSize: 7,
-    lineHeight: 10,
-  },
+  tileCaption,
 
   /*
    * Assistant screen, set in the same sizes as Visitor Access and the other
@@ -165,35 +179,15 @@ export const typography = {
    */
 
   /** "How can I help?" over the empty chat: `screenTitle`, the banner title. */
-  assistantTitle: {
-    fontFamily: fontFamily.medium,
-    fontSize: 14,
-    lineHeight: 19,
-  },
+  assistantTitle: screenTitle,
   /** A message bubble's text: `statValue`'s size. */
-  chatBody: {
-    fontFamily: fontFamily.regular,
-    fontSize: 9.5,
-    lineHeight: 15,
-  },
+  chatBody,
   /** A `###` heading inside an answer: `sectionTitle`. */
-  chatHeading: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 13.5,
-    lineHeight: 18,
-  },
+  chatHeading: sectionTitle,
   /** Sender line and timestamps around a bubble: `tileCaption`. */
-  chatMeta: {
-    fontFamily: fontFamily.regular,
-    fontSize: 7,
-    lineHeight: 10,
-  },
+  chatMeta: tileCaption,
   /** Suggestion chips, badges and segmented-control labels: `statValue`. */
-  chipLabel: {
-    fontFamily: fontFamily.medium,
-    fontSize: 9.5,
-    lineHeight: 13,
-  },
+  chipLabel: statValue,
   /** The assistant's live spoken reply: `screenTitle`'s size. */
   voiceCaption: {
     fontFamily: fontFamily.medium,
@@ -201,11 +195,7 @@ export const typography = {
     lineHeight: 20,
   },
   /** The resident's own words, above the reply: `statValue`'s size. */
-  voiceCaptionMuted: {
-    fontFamily: fontFamily.regular,
-    fontSize: 9.5,
-    lineHeight: 15,
-  },
+  voiceCaptionMuted: chatBody,
   /** "LISTENING", "SPEAKING" in the status pill: `statLabel`'s size. */
   voiceStatus: {
     fontFamily: fontFamily.semiBold,
