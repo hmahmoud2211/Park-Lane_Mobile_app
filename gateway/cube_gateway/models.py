@@ -1,6 +1,6 @@
 """The gateway's data model, as the REST API and WebSocket events serialize it.
 
-The app mirrors these in src/types/gateway.types.ts: change both together. Field names are snake_case
+The app mirrors these in frontend/src/types/gateway.types.ts: change both together. Field names are snake_case
 on the wire. Every state value says whether the device confirmed it (`confirmed`) or the gateway
 assumes it (`confirmed: false`, e.g. after a command to a device that does not report back).
 """

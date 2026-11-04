@@ -70,7 +70,7 @@ def test_identity_proof_matches_the_shared_formula(harness: Harness):
     proof = response.json()["data"]["proof"]
     pin_key = base64.urlsafe_b64decode(data["pin_key"] + "=" * (-len(data["pin_key"]) % 4))
     assert proof == identity_proof(pin_key, data["gateway"]["id"], nonce)
-    # The app's HMAC (src/services/gateway/hmac.ts) uses this exact message layout.
+    # The app's HMAC (frontend/src/features/gateway/services/hmac.ts) uses this exact message layout.
     import hashlib
     import hmac
 

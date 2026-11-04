@@ -38,8 +38,27 @@ Run lint and typecheck before declaring any task done.
   Routes are registered in `src/navigation/AppNavigator.tsx` and typed in
   `src/types/navigation.types.ts`. Add a screen in both places.
 - Screens live in `src/screens/<Name>/` as `<Name>.tsx`, `.styles.ts`, `.data.ts`
-  and `index.ts`.
+  and `index.ts`. A screen never imports another screen's files and never calls
+  `fetch`; it uses components and feature hooks.
 - Docs: https://reactnavigation.org/docs/native-stack-navigator
+
+## Where code goes
+
+See docs/PROJECT_STRUCTURE.md. In short:
+
+- Domain code goes in `src/features/<domain>/` (`services/` without React, `hooks/`,
+  `context/`, `components/`, `types.ts`). Services reach other systems only through
+  `src/lib/http` (`timedFetch`) and `src/lib/realtime` (`ReconnectingSocket`).
+- UI any screen may use goes in `src/components/` (`common`, `ui`, `layout`, `feedback`,
+  `forms`). Inner screens are built on `InnerScreenFrame`; use `LoadingState`, `ErrorNotice`,
+  `SelectableCard` and `useScreenMenu` rather than re-implementing them.
+- Settings go in `src/config/`. A new `EXPO_PUBLIC_*` variable is read only in
+  `src/config/env.ts`, written out in full (`process.env.EXPO_PUBLIC_X`) so Expo inlines it.
+- API types the backend shares live in `../shared/contracts`, imported with `import type`
+  only (CI checks it); `src/types/home.types.ts` and `ems.types.ts` build on them.
+- Backend: routes in `backend/src/routes`, SQL in `backend/src/repositories`; keep it one
+  process. Run `./scripts/dev.sh check` before declaring a change done.
+- Changing UI? Compare with `frontend/scripts/visual-regression.mjs` (docs/DEVELOPMENT_GUIDE.md).
 
 ## Building with EAS
 
@@ -61,7 +80,8 @@ Docs: https://docs.expo.dev/eas/index.md
   buttons on it rather than re-implementing the effect.
 - Screens are measured against their Figma export in `assets/Screens/`. Values in
   a screen's `.styles.ts` are real measurements, so change them against the
-  reference, not by eye.
+  reference, not by eye. The inner screens' shared rhythm (16dp gutter, 35dp header
+  gutter, 30 / 18 / 14 spacing, 46dp buttons) is `layout.innerScreen` in `src/theme/layout.ts`.
 - Responsive: the Figma layouts are the phone (< 768dp) layouts and must stay as
   drawn. Wider device classes reflow through `useScreenLayout()`,
   `ResponsiveColumns` and `ResponsiveGrid` (see README, "Responsive layout"), with

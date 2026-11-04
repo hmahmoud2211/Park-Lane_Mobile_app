@@ -9,7 +9,7 @@ Hotspot passwords: a plugin only fills in a password from a published, model-spe
 
 Transports:
 - phone:   the app joins the device's hotspot and runs the documented setup call itself
-           (src/services/provisioning/ in the app). The home Wi-Fi password goes phone -> device only.
+           (frontend/src/features/provisioning/services/ in the app). The home Wi-Fi password goes phone -> device only.
 - guided:  the app joins the hotspot and opens the device's own setup page; the user enters the Wi-Fi there.
 - gateway: the gateway joins the hotspot with its own Wi-Fi radio (CUBE_SOFTAP_INTERFACE) and runs a
            protocol a phone cannot (raw TLS, encrypted TCP). See provisioning/gateway_wifi.py.

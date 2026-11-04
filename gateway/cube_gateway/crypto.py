@@ -69,6 +69,6 @@ def constant_time_equal(a: str, b: str) -> bool:
 
 def identity_proof(pin_key: bytes, gateway_id: str, nonce: str) -> str:
     """What the gateway answers a client's identity challenge with. The app computes the same with
-    expo-crypto (src/services/gateway/hmac.ts); change both together."""
+    expo-crypto (frontend/src/features/gateway/services/hmac.ts); change both together."""
     message = f"cube-gw-v1|{gateway_id}|{nonce}".encode()
     return hmac.new(pin_key, message, hashlib.sha256).hexdigest()

@@ -37,7 +37,7 @@ The booking logic has no UI or React dependencies, so it also runs in Node.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/services/parking/types.ts` | Data model: properties, residents, vehicles, zones, spaces, gates, reservations, invitations, QR credentials, parking sessions, scan events, occupancy events, chargers, connectors, charging allocations and sessions, notifications, audit events |
+| `frontend/src/features/parking/services/types.ts` | Data model: properties, residents, vehicles, zones, spaces, gates, reservations, invitations, QR credentials, parking sessions, scan events, occupancy events, chargers, connectors, charging allocations and sessions, notifications, audit events |
 | `policy.ts` | Configurable rules: turnover buffer (10 min), late-arrival grace (20 min), early arrival (30 min), 2 guests at once per property, 8 h visitor stay, 14-day horizon, EV limits |
 | `time.ts` | Africa/Cairo input and display. Storage is UTC. Egypt's daylight-saving rule is implemented directly, so results are identical on Hermes, browsers and Node |
 | `availability.ts` | Half-open `[start, end)` intervals, blocking rules, bay and connector checks, charger concurrency, search and recommendation |
@@ -55,15 +55,15 @@ The booking logic has no UI or React dependencies, so it also runs in Node.
 | `seed.ts` | Seed data relative to the demo clock |
 | `checks.ts`, `run-checks.ts` | Acceptance checks |
 
-UI pieces are in `src/components/parking/`: frame, panel, notice, buttons, chips, stepper, fields, list rows, QR, timeline, turn-by-turn steps, the guest tracker card, the language toggle, the camera scanner, and the site map in `site-map/` (its wording is in `site-map/mapStrings.ts`). Outside that folder:
+UI pieces are in `frontend/src/features/parking/components/`: frame, panel, chips, stepper, fields, list rows, QR, timeline, turn-by-turn steps, the guest tracker card, the language toggle, and the site map in `site-map/` (its wording is in `site-map/mapStrings.ts`). The notice (`components/feedback/Notice`), the buttons (`components/ui/ParkingButton`) and the camera scanner (`components/common/QrScanner`) are shared with the rest of the app. Outside that folder:
 
-- `src/components/common/DirectionView.tsx` lays a page out right to left for Arabic: Yoga's `direction` style on iOS and Android, the HTML `dir` attribute on web, where react-native-web has no `direction` style. `AppText` inside it follows the same direction, so a line that starts with a plate or bay code still starts at the right.
-- `src/utils/share.ts` builds the WhatsApp (`wa.me`) link and turns a local number such as 0100 123 4567 into +20 100 123 4567.
-- `src/utils/passImage.web.ts` draws the saved pass card on a canvas; `src/utils/passImage.ts` is the iOS and Android version.
+- `frontend/src/components/common/DirectionView.tsx` lays a page out right to left for Arabic: Yoga's `direction` style on iOS and Android, the HTML `dir` attribute on web, where react-native-web has no `direction` style. `AppText` inside it follows the same direction, so a line that starts with a plate or bay code still starts at the right.
+- `frontend/src/utils/share.ts` builds the WhatsApp (`wa.me`) link and turns a local number such as 0100 123 4567 into +20 100 123 4567.
+- `frontend/src/utils/passImage.web.ts` draws the saved pass card on a canvas; `frontend/src/utils/passImage.ts` is the iOS and Android version.
 
 ### The site map
 
-The map (`src/components/parking/site-map/`) is drawn in SVG from `site.ts`, so a real site replaces the data, not the code.
+The map (`frontend/src/features/parking/components/site-map/`) is drawn in SVG from `site.ts`, so a real site replaces the data, not the code.
 
 - **Levels.** Ground, Basement 1 (EV Hub) and Basement 2 (Residents) each have their own plan, chosen with tabs. On the directions screen the map switches level by itself as the route goes down a ramp. Tapping a ramp also switches level.
 - **Structure.** The compound wall, named roads with kerbs and lane markings, one-way aisle arrows underground, buildings with their entrances, the clubhouse and pool, gardens, ramps, lifts, columns, zone outlines, a compass, and the gates (Gate 3 marked "exit only").
@@ -71,7 +71,7 @@ The map (`src/components/parking/site-map/`) is drawn in SVG from `site.ts`, so 
 - **Live status.** Bays are coloured free, occupied, reserved, closed or unknown. Chargers show available, in use or fault, with lines to the bays they reach. Zone cards show free counts and jump to that zone.
 - **Interaction.** Zoom in and out, fit the whole level, and drag to pan when zoomed. Tapping a bay or charger opens its details. Toggles control the walking route and bay numbers. In the booking flow, free bays are tappable to choose them.
 - **Privacy.** On a visitor's pass, other bays have no numbers or status and only the levels on the visitor's own route are offered.
-- **Accessibility.** Animation stops when the system's reduce-motion setting is on, and every tappable element has a screen-reader label. `src/context/ParkingDemoContext.tsx` owns the store, the clock and the 30-second rule sweep.
+- **Accessibility.** Animation stops when the system's reduce-motion setting is on, and every tappable element has a screen-reader label. `frontend/src/features/parking/context/ParkingDemoContext.tsx` owns the store, the clock and the 30-second rule sweep.
 
 ### Sending the pass and following the visit
 
@@ -86,7 +86,8 @@ The map (`src/components/parking/site-map/`) is drawn in SVG from `site.ts`, so 
 ## Run, reset and check
 
 ```bash
-npm install
+cd frontend
+npm ci
 npx expo start --web          # then open http://localhost:8081/parking
 npm run check:parking         # acceptance checks in Node, using a private in-memory store
 ```
@@ -130,7 +131,7 @@ Seed times are relative to when the data was seeded. "Now" means the demo clock.
 ## Persistence and cross-device limits
 
 - **Web.** Data is stored in `localStorage` for that browser profile. **Native.** It is a JSON file in the app's document directory.
-- **There is no shared backend.** To make the WhatsApp flow work across phones anyway, the pass link carries the booking itself (`d=` in the link; `src/services/parking/passLink.ts`): guest name, times, bay, plate, reference, the QR code and any charging slot. On the guest's phone, the pass and its map are rebuilt from the link and the site plan, which ships with the app. A link is about 230 characters.
+- **There is no shared backend.** To make the WhatsApp flow work across phones anyway, the pass link carries the booking itself (`d=` in the link; `frontend/src/features/parking/services/passLink.ts`): guest name, times, bay, plate, reference, the QR code and any charging slot. On the guest's phone, the pass and its map are rebuilt from the link and the site plan, which ships with the app. A link is about 230 characters.
   - **Demo only.** Nothing signs these links, so anyone could write one. Later edits or cancellations by the host never reach a link already sent (the pass says so). Plate entry and help requests are hidden on a pass opened this way. The gate check still happens only on the device that holds the booking.
   - **Production** removes `d=` and looks the invitation up on the server.
   - **Native app:** links built in the native app use `siteInfo.nativeInviteBaseUrl` (`policy.ts`), a placeholder. Set it to the deployed web address.

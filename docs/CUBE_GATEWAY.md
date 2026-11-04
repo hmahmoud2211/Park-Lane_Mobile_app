@@ -218,7 +218,7 @@ republishes it as Home Assistant-style MQTT. The gateway is an MQTT client of th
 
 Notes:
 - ReThink is GPL-2.0. The gateway doesn't include ReThink code: it talks MQTT to it and can start its setup
-  tool as a separate program. **The app's** `src/services/lg/lgSetupProtocol.ts` (from Master) re-implements
+  tool as a separate program. **The app's** `frontend/src/features/lg/services/lgSetupProtocol.ts` (from Master) re-implements
   `rethink-setup.ts` in TypeScript. Have it reviewed for GPL obligations before publishing the app to the
   stores.
 - Only models in ReThink's support table are translated. Others appear as unsupported.

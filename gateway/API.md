@@ -12,7 +12,7 @@ Every JSON answer is an envelope:
 
 Authentication: `Authorization: Bearer <client token>` on every route except those marked **public**.
 Roles: `owner` (everything) and `member` (view and control devices; cannot pair, remove, rename or manage
-access). Data models are in `cube_gateway/models.py` (mirrored in the app's `src/types/gateway.types.ts`).
+access). Data models are in `cube_gateway/models.py` (mirrored in the app's `frontend/src/types/gateway.types.ts`).
 
 ## Gateway, ownership and access
 

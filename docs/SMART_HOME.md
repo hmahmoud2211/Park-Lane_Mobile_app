@@ -93,7 +93,7 @@ The old device paths were replaced by Home Assistant:
 | **Connect Devices** (`ConnectAccount`, new) | The brand list, then each step the brand asks for, until "Account linked" |
 | **Smart Home** (updated) | For a signed-in resident: their rooms and devices, with the Lighting, AC, Curtains and TV cards bound to real devices; "+" and the menu open Connect Devices. Visitors and signed-out users still see the designed sample home. Scenes, energy and automations are still sample data |
 
-Supporting code: `src/services/home/` (API calls, device helpers), `src/hooks/useHomeDevices.ts`, `useAccountLink.ts` and `useLinkedAccounts.ts`, `src/components/home/` (device card, controls, slider), `src/context/EmsContext.tsx` (session, home, live device list) and `src/types/home.types.ts`.
+Supporting code: `frontend/src/features/home/services/` (API calls, device helpers), `features/home/hooks/` (`useHomeDevices`, `useAccountLink`, `useLinkedAccounts`), `features/home/components/` (device card, controls, slider), `features/ems/context/EmsContext.tsx` (session, home, live device list) and `src/types/home.types.ts` (built on `shared/contracts`).
 
 **Controls supported:** power, brightness, colour, colour temperature, AC (temperature, mode, fan), curtains and blinds (open, stop, close, position), locks (unlock asks for a second tap and is audited), fans (speed, preset), TVs and speakers (play, pause, volume, mute, source), buttons, and sensor readings.
 
@@ -153,6 +153,7 @@ npm run fake-hub
 
 **3. Start the app.** Open a second terminal in the project folder:
 ```bash
+cd frontend
 npx expo start -c
 ```
 Press `w` for the web browser, or scan the QR code with your phone.
@@ -299,9 +300,9 @@ Keep three windows open:
 | --- | --- |
 | Ubuntu | `source ~/ha-venv/bin/activate` then `hass -c ~/ha-config` |
 | Terminal 1 | `cd backend` then `npm start` |
-| Terminal 2 | `npx expo start` |
+| Terminal 2 | `cd frontend` then `npx expo start` |
 
-The apartment, hub and linked accounts are remembered. If your PC's Wi-Fi address changes, update `.env.local` and restart Expo with `-c`.
+The apartment, hub and linked accounts are remembered. If your PC's Wi-Fi address changes, update `frontend/.env.local` and restart Expo with `-c`.
 
 ---
 
@@ -503,9 +504,12 @@ Restart Expo with `npx expo start -c` after changing it.
 ### Checks
 
 ```bash
+cd frontend
 npx tsc --noEmit          # app types
 npx expo lint             # app lint
-cd backend
+cd ../backend
 npm run typecheck         # backend types
-npm test                  # 49 backend tests: accounts, realtime, mapping, commands, home facade, linking, provisioning
+npm test                  # backend tests: accounts, realtime, mapping, commands, home facade, linking, provisioning, routing
 ```
+
+Or all of it from the project folder: `./scripts/dev.sh check`.
