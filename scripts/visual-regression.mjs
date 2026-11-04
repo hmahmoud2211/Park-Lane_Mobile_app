@@ -192,7 +192,7 @@ const DUMP = `(() => {
     const isSvg = el instanceof SVGElement;
     const media = isSvg || ['img', 'canvas', 'video', 'input', 'textarea', 'iframe'].includes(tag);
     const bg = cs.backgroundColor === 'rgba(0, 0, 0, 0)' ? '' : cs.backgroundColor;
-    const bgImage = cs.backgroundImage === 'none' ? '' : cs.backgroundImage.slice(0, 160);
+    const bgImage = cs.backgroundImage === 'none' ? '' : cs.backgroundImage.replaceAll(location.origin, '').slice(0, 160);
     const borderWidth = ['Top', 'Right', 'Bottom', 'Left'].map((s) => cs['border' + s + 'Width']).join(' ');
     const border = borderWidth === '0px 0px 0px 0px' ? '' : borderWidth + ' ' + cs.borderTopColor + ' ' + cs.borderBottomColor;
     const shadow = cs.boxShadow === 'none' ? '' : cs.boxShadow;
@@ -255,6 +255,10 @@ async function launchChrome(port) {
     '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--force-color-profile=srgb',
     '--font-render-hinting=none', '--disable-features=Translate,OptimizationHints', '--mute-audio',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+    // Software rendering, images decoded before drawing, and every compositor stage run
+    // before a frame is drawn: the same pixels on every run.
+    '--disable-gpu', '--disable-gpu-compositing', '--disable-checker-imaging', '--disable-partial-raster',
+    '--run-all-compositor-stages-before-draw', '--disable-lcd-text', '--disable-threaded-animation',
   ], { stdio: 'ignore' });
   for (let i = 0; i < 100; i++) {
     try {
@@ -492,8 +496,10 @@ function compare() {
         console.log(`PIXELS   ${rel}: ${result.stderr.trim() || `exit ${result.status}`}`);
       }
     } else if (rel.endsWith('.json')) {
-      const boxesA = JSON.parse(readFileSync(fileA, 'utf8'));
-      const boxesB = JSON.parse(readFileSync(fileB, 'utf8'));
+      // Older captures kept the local server's origin (a random port) in image URLs.
+      const read = (file) => JSON.parse(readFileSync(file, 'utf8').replace(/http:\/\/127\.0\.0\.1:\d+/g, ''));
+      const boxesA = read(fileA);
+      const boxesB = read(fileB);
       const setA = new Set(boxesA.boxes);
       const setB = new Set(boxesB.boxes);
       const removed = boxesA.boxes.filter((line) => !setB.has(line));
