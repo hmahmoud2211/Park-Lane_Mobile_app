@@ -18,7 +18,7 @@ import { UnitHeroCard } from '../../components/ui/UnitHeroCard';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { downloadPdf, viewPdf } from '../../services/documents/exportPdf';
+import { downloadPdf, viewPdf } from '../../features/documents/services/exportPdf';
 import {
   documents,
   financial,

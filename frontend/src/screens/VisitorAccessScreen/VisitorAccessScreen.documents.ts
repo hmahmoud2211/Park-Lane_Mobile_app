@@ -4,9 +4,9 @@ import {
   escapeHtml,
   formatDocumentDate,
   section,
-} from '../../services/documents/documentPage';
-import type { PdfDocument } from '../../services/documents/pdf.types';
-import { qrSvg } from '../../services/documents/qrSvg';
+} from '../../features/documents/services/documentPage';
+import type { PdfDocument } from '../../features/documents/services/pdf.types';
+import { qrSvg } from '../../features/documents/services/qrSvg';
 import { colors } from '../../theme';
 import { resident, unit } from '../HomeScreen/HomeScreen.data';
 import {

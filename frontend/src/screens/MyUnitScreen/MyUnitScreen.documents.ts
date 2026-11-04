@@ -4,8 +4,8 @@ import {
   escapeHtml,
   formatDocumentDate,
   section,
-} from '../../services/documents/documentPage';
-import type { PdfDocument } from '../../services/documents/pdf.types';
+} from '../../features/documents/services/documentPage';
+import type { PdfDocument } from '../../features/documents/services/pdf.types';
 import { resident } from '../HomeScreen/HomeScreen.data';
 import {
   financial,

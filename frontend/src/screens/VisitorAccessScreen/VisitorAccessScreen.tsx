@@ -33,7 +33,7 @@ import { VisitorRow } from '../../components/ui/VisitorRow';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { downloadPdf } from '../../services/documents/exportPdf';
+import { downloadPdf } from '../../features/documents/services/exportPdf';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   SEPARATOR,

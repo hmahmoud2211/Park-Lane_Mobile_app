@@ -1,4 +1,4 @@
-import { colors } from '../../theme';
+import { colors } from '../../../theme';
 
 /*
  * The page every generated document shares: a self-contained A4 page in the
