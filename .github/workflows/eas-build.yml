@@ -1,0 +1,99 @@
+name: App build (EAS)
+
+# Builds the CUBE OS / Parklane app on EAS from the Actions tab: Actions → App build (EAS) → Run workflow.
+# The build runs on Expo's servers under the account that owns the EXPO_TOKEN secret, in the EAS project
+# named in app.json (@emscompany2016s-team/parklane). The job's summary links to the build page, where the
+# APK or app file can be downloaded or installed.
+#
+# One-time setup: create a personal access token at https://expo.dev/settings/access-tokens (logged in as
+# emscompany2016), then add it in GitHub → Settings → Secrets and variables → Actions → New repository secret,
+# named EXPO_TOKEN. iOS builds also need Apple credentials stored on EAS (run `eas build -p ios` locally once).
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform
+        type: choice
+        options: [android, ios, all]
+        default: android
+      profile:
+        description: Build profile in eas.json (preview = installable APK, production = store build)
+        type: choice
+        options: [preview, production, development]
+        default: preview
+      wait:
+        description: Wait for the build to finish and link the download here (uses GitHub minutes while it waits)
+        type: boolean
+        default: false
+      message:
+        description: Optional note shown on the build in EAS
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-build-${{ github.ref }}-${{ inputs.platform }}-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check the Expo token is set
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add the EXPO_TOKEN repository secret first (see the comment at the top of this workflow)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build on EAS
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          PROFILE: ${{ inputs.profile }}
+          WAIT: ${{ inputs.wait }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          eas whoami
+          args=(build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --json)
+          if [ "$WAIT" != "true" ]; then args+=(--no-wait); fi
+          if [ -n "$MESSAGE" ]; then args+=(--message "$MESSAGE"); fi
+          eas "${args[@]}" > builds.json
+
+      - name: Summary
+        if: always() && hashFiles('builds.json') != ''
+        run: |
+          node -e '
+            const fs = require("fs");
+            const app = require("./app.json").expo;
+            let builds = [];
+            try { builds = JSON.parse(fs.readFileSync("builds.json", "utf8")); } catch { process.exit(0); }
+            const lines = ["### EAS builds", "", "| Platform | Profile | Status | Build page | Download |", "| --- | --- | --- | --- | --- |"];
+            for (const b of builds) {
+              const page = `https://expo.dev/accounts/${app.owner}/projects/${app.slug}/builds/${b.id}`;
+              const file = b.artifacts && b.artifacts.buildUrl ? `[file](${b.artifacts.buildUrl})` : "on the build page when finished";
+              lines.push(`| ${b.platform} | ${b.buildProfile} | ${b.status} | [open](${page}) | ${file} |`);
+            }
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            console.log(lines.join("\n"));
+          '
