@@ -1,5 +1,8 @@
 import type { ApiErrorCode } from '../../../../../shared/contracts/errors';
 import { emsConfig } from '../../../config/ems';
+import { readEnvelope } from '../../../lib/http/envelope';
+import { jsonRequest, timedFetch } from '../../../lib/http/request';
+import { withRetry } from '../../../lib/http/retry';
 
 /**
  * Requests to the EMS backend. Every answer is `{ ok: true, data }` or
@@ -25,8 +28,6 @@ export class EmsError extends Error {
   }
 }
 
-type Envelope<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
-
 let sessionToken: string | null = null;
 const expiredListeners = new Set<() => void>();
 
@@ -44,10 +45,21 @@ export function onSessionExpired(listener: () => void): () => void {
 
 export const isEmsConfigured = () => emsConfig.url !== '';
 
-export async function call<T>(
-  path: string,
-  init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; timeoutMs?: number; auth?: boolean } = {},
-): Promise<T> {
+export interface CallInit {
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  body?: unknown;
+  timeoutMs?: number;
+  /** Send the session token (default). Sign-in and sign-up do not. */
+  auth?: boolean;
+  /**
+   * For reads that are safe to repeat: a GET that could not reach the backend is tried
+   * once more after a short pause, so a moment without signal does not show an error.
+   * Timeouts and the backend's own errors are never retried.
+   */
+  retry?: boolean;
+}
+
+export async function call<T>(path: string, init: CallInit = {}): Promise<T> {
   if (!isEmsConfigured()) {
     throw new EmsError('not_configured', 'The EMS backend is not set up in this build (EXPO_PUBLIC_DEVICE_BACKEND_URL).');
   }
@@ -55,45 +67,37 @@ export async function call<T>(
   if (useAuth && !sessionToken) {
     throw new EmsError('unauthorized', 'Sign in to your EMS account first.');
   }
+  const method = init.method ?? 'GET';
 
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, init.timeoutMs ?? emsConfig.requestTimeoutMs);
+  const once = () =>
+    timedFetch(`${emsConfig.url}${path}`, {
+      init: jsonRequest(method, init.body, useAuth ? sessionToken : null),
+      timeoutMs: init.timeoutMs ?? emsConfig.requestTimeoutMs,
+      noAnswer: ({ timedOut }) =>
+        timedOut
+          ? new EmsError('timeout', 'The EMS backend took too long to answer.')
+          : new EmsError('network', 'Could not reach the EMS backend. Check your internet connection.'),
+      read: async (response) => {
+        const body = await readEnvelope<T>(response);
+        if (!body) {
+          throw new EmsError('internal', `The EMS backend answered ${response.status}.`, response.status);
+        }
+        if (!body.ok) {
+          if (body.error.code === 'unauthorized' && useAuth) {
+            expiredListeners.forEach((listener) => listener());
+          }
+          throw new EmsError(body.error.code, body.error.message, response.status);
+        }
+        return body.data;
+      },
+    });
 
-  try {
-    let response: Response;
-    try {
-      response = await fetch(`${emsConfig.url}${path}`, {
-        method: init.method ?? 'GET',
-        headers: {
-          Accept: 'application/json',
-          ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-          ...(useAuth && sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-        },
-        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-        signal: controller.signal,
-      });
-    } catch {
-      throw timedOut
-        ? new EmsError('timeout', 'The EMS backend took too long to answer.')
-        : new EmsError('network', 'Could not reach the EMS backend. Check your internet connection.');
-    }
-
-    const body = (await response.json().catch(() => undefined)) as Envelope<T> | undefined;
-    if (!body || typeof body.ok !== 'boolean') {
-      throw new EmsError('internal', `The EMS backend answered ${response.status}.`, response.status);
-    }
-    if (!body.ok) {
-      if (body.error.code === 'unauthorized' && useAuth) {
-        expiredListeners.forEach((listener) => listener());
-      }
-      throw new EmsError(body.error.code, body.error.message, response.status);
-    }
-    return body.data;
-  } finally {
-    clearTimeout(timer);
+  if (init.retry && method === 'GET') {
+    return withRetry(once, {
+      retries: 1,
+      delayMs: emsConfig.retryDelayMs,
+      shouldRetry: (error) => error instanceof EmsError && error.code === 'network',
+    });
   }
+  return once();
 }

@@ -1,4 +1,5 @@
 import { assistantConfig } from '../../../config/assistant';
+import { timedFetch } from '../../../lib/http/request';
 import type {
   AssistantHealth,
   AssistantResident,
@@ -46,51 +47,39 @@ function detailMessage(body: unknown): string | undefined {
 
 async function request<T>(
   path: string,
-  init: RequestInit,
+  init: Omit<RequestInit, 'signal'>,
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<T> {
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
-  const forwardAbort = () => controller.abort();
-  signal?.addEventListener('abort', forwardAbort);
-
-  try {
-    let response: Response;
-    try {
-      response = await fetch(url(path), { ...init, signal: controller.signal });
-    } catch {
+  return timedFetch(url(path), {
+    init,
+    timeoutMs,
+    signal,
+    noAnswer: ({ timedOut, aborted }) => {
       if (timedOut) {
-        throw new AssistantApiError('timeout', 'The assistant took too long to answer.');
+        return new AssistantApiError('timeout', 'The assistant took too long to answer.');
       }
-      if (signal?.aborted) {
-        throw new AssistantApiError('aborted', 'Request cancelled.');
+      if (aborted) {
+        return new AssistantApiError('aborted', 'Request cancelled.');
       }
-      throw new AssistantApiError('network', 'Could not reach the assistant.');
-    }
-
-    const body: unknown = await response.json().catch(() => undefined);
-    if (response.ok) {
-      return body as T;
-    }
-
-    const message = detailMessage(body) ?? `HTTP ${response.status}`;
-    switch (response.status) {
-      case 404:
-        throw new AssistantApiError('not_found', message, 404);
-      case 422:
-        throw new AssistantApiError('validation', message, 422);
-      default:
-        throw new AssistantApiError('server', message, response.status);
-    }
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener('abort', forwardAbort);
-  }
+      return new AssistantApiError('network', 'Could not reach the assistant.');
+    },
+    read: async (response) => {
+      const body: unknown = await response.json().catch(() => undefined);
+      if (response.ok) {
+        return body as T;
+      }
+      const message = detailMessage(body) ?? `HTTP ${response.status}`;
+      switch (response.status) {
+        case 404:
+          throw new AssistantApiError('not_found', message, 404);
+        case 422:
+          throw new AssistantApiError('validation', message, 422);
+        default:
+          throw new AssistantApiError('server', message, response.status);
+      }
+    },
+  });
 }
 
 /** One question to the text assistant. Send `session_id` back for follow-ups. */

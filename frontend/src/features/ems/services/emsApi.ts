@@ -27,7 +27,7 @@ export const createAccount = (name: string, email: string, password: string) =>
 
 export const signOut = () => call<{ signedOut: true }>('/api/auth/logout', { method: 'POST' });
 
-export const getMe = () => call<{ user: EmsUser }>('/api/auth/me');
+export const getMe = () => call<{ user: EmsUser }>('/api/auth/me', { retry: true });
 
 /**
  * A short-lived token for the Parklane Assistant, so it can read and control

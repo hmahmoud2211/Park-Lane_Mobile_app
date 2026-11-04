@@ -12,6 +12,8 @@ export const emsConfig = {
   /** The realtime channel: the same host over ws(s). */
   eventsUrl: backendUrl ? `${backendUrl.replace(/^http/, 'ws')}/api/events` : '',
   requestTimeoutMs: 12_000,
+  /** A read that could not reach the backend (CallInit.retry) is tried again after this pause. */
+  retryDelayMs: 500,
   /** Realtime reconnects back off from 1 s to 30 s. */
   reconnectMinMs: 1_000,
   reconnectMaxMs: 30_000,

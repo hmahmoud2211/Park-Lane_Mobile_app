@@ -10,11 +10,11 @@ import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room 
 /** A command waits for the device to report back, which a cloud device can take a few seconds to do. */
 const COMMAND_TIMEOUT_MS = 20_000;
 
-export const getHome = () => call<Home>('/api/home');
+export const getHome = () => call<Home>('/api/home', { retry: true });
 
-export const listDevices = () => call<Device[]>('/api/devices');
+export const listDevices = () => call<Device[]>('/api/devices', { retry: true });
 
-export const getDevice = (id: string) => call<Device>(`/api/devices/${encodeURIComponent(id)}`);
+export const getDevice = (id: string) => call<Device>(`/api/devices/${encodeURIComponent(id)}`, { retry: true });
 
 export const sendCommand = (id: string, command: Command) =>
   call<Device>(`/api/devices/${encodeURIComponent(id)}/commands`, {
@@ -28,7 +28,7 @@ export type DeviceChanges = { name?: string; roomId?: string | null };
 export const updateDevice = (id: string, changes: DeviceChanges) =>
   call<Device>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PATCH', body: changes });
 
-export const listRooms = () => call<Room[]>('/api/rooms');
+export const listRooms = () => call<Room[]>('/api/rooms', { retry: true });
 
 export const createRoom = (name: string) => call<Room>('/api/rooms', { method: 'POST', body: { name } });
 
@@ -37,9 +37,9 @@ export const createRoom = (name: string) => call<Room>('/api/rooms', { method: '
 /** Brands sign in against their own clouds, which can take a while (the backend allows 60 s). */
 const FLOW_TIMEOUT_MS = 70_000;
 
-export const listIntegrations = () => call<Integration[]>('/api/accounts/integrations');
+export const listIntegrations = () => call<Integration[]>('/api/accounts/integrations', { retry: true });
 
-export const listAccounts = () => call<LinkedAccount[]>('/api/accounts');
+export const listAccounts = () => call<LinkedAccount[]>('/api/accounts', { retry: true });
 
 export const startFlow = (integration: string) =>
   call<FlowStep>('/api/accounts/flows', { method: 'POST', body: { integration }, timeoutMs: FLOW_TIMEOUT_MS });

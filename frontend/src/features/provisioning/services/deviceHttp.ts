@@ -1,3 +1,5 @@
+import { jsonRequest, timedFetch } from '../../../lib/http/request';
+
 /**
  * One HTTP request to a device on its own setup network, with a timeout.
  * Nothing here logs: request bodies can carry the home Wi-Fi password.
@@ -21,40 +23,25 @@ export async function deviceRequest(
   url: string,
   init: { method?: 'GET' | 'POST'; body?: unknown; timeoutMs: number; signal?: AbortSignal },
 ): Promise<unknown> {
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, init.timeoutMs);
-  const forwardAbort = () => controller.abort();
-  init.signal?.addEventListener('abort', forwardAbort);
-
-  try {
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: init.method ?? 'GET',
-        headers: { Accept: 'application/json', ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
-        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-        signal: controller.signal,
-      });
-    } catch {
-      if (init.signal?.aborted) {
-        throw new DeviceHttpError('aborted', 'Stopped.');
+  return timedFetch(url, {
+    init: jsonRequest(init.method ?? 'GET', init.body),
+    timeoutMs: init.timeoutMs,
+    signal: init.signal,
+    noAnswer: ({ timedOut, aborted }) => {
+      if (aborted) {
+        return new DeviceHttpError('aborted', 'Stopped.');
       }
-      throw timedOut
+      return timedOut
         ? new DeviceHttpError('timeout', 'The device did not answer in time.')
         : new DeviceHttpError('unreachable', 'Could not reach the device on its setup network.');
-    }
-    if (!response.ok) {
-      throw new DeviceHttpError('httpError', `The device answered ${response.status}.`, response.status);
-    }
-    return await response.json().catch(() => {
-      throw new DeviceHttpError('invalidResponse', 'The device’s answer was not valid JSON.');
-    });
-  } finally {
-    clearTimeout(timer);
-    init.signal?.removeEventListener('abort', forwardAbort);
-  }
+    },
+    read: async (response) => {
+      if (!response.ok) {
+        throw new DeviceHttpError('httpError', `The device answered ${response.status}.`, response.status);
+      }
+      return await response.json().catch(() => {
+        throw new DeviceHttpError('invalidResponse', 'The device’s answer was not valid JSON.');
+      });
+    },
+  });
 }

@@ -1,4 +1,6 @@
 import { gatewayConfig } from '../../../config/gateway';
+import { readEnvelope } from '../../../lib/http/envelope';
+import { jsonRequest, timedFetch } from '../../../lib/http/request';
 
 /**
  * Requests to a CUBE Gateway. Every answer is `{ ok: true, data }` or
@@ -50,7 +52,11 @@ export class GatewayError extends Error {
   }
 }
 
-type Envelope<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string; recovery?: string | null } };
+interface GatewayErrorBody {
+  code: string;
+  message: string;
+  recovery?: string | null;
+}
 
 export interface GatewayTarget {
   baseUrl: string;
@@ -78,50 +84,30 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
 }
 
 export async function gatewayCall<T>(target: GatewayTarget, path: string, init: CallInit = {}): Promise<T> {
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, init.timeoutMs ?? gatewayConfig.requestTimeoutMs);
-  const forwardAbort = () => controller.abort();
-  init.signal?.addEventListener('abort', forwardAbort);
-
-  try {
-    let response: Response;
-    try {
-      response = await fetch(`${target.baseUrl}${gatewayConfig.apiPrefix}${path}`, {
-        method: init.method ?? 'GET',
-        headers: {
-          Accept: 'application/json',
-          ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-          ...(target.token ? { Authorization: `Bearer ${target.token}` } : {}),
-        },
-        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-        signal: controller.signal,
-      });
-    } catch {
-      if (init.signal?.aborted) {
-        throw new GatewayError('cancelled', 'Stopped.');
+  return timedFetch(`${target.baseUrl}${gatewayConfig.apiPrefix}${path}`, {
+    init: jsonRequest(init.method ?? 'GET', init.body, target.token),
+    timeoutMs: init.timeoutMs ?? gatewayConfig.requestTimeoutMs,
+    signal: init.signal,
+    noAnswer: ({ timedOut, aborted }) => {
+      if (aborted) {
+        return new GatewayError('cancelled', 'Stopped.');
       }
-      throw timedOut
+      return timedOut
         ? new GatewayError('timeout', 'The gateway took too long to answer.', 'Check that it is running and that your phone is on the same network.')
         : new GatewayError('network', 'Could not reach the gateway.', 'Check that it is running and that your phone is on the same network, or use its remote address.');
-    }
-
-    const body = (await response.json().catch(() => undefined)) as Envelope<T> | undefined;
-    if (!body || typeof body.ok !== 'boolean') {
-      throw new GatewayError('internal', `The gateway answered ${response.status}.`, null, response.status);
-    }
-    if (!body.ok) {
-      if (body.error.code === 'unauthorized' && target.token) {
-        refusedListeners.forEach((listener) => listener(target.baseUrl));
+    },
+    read: async (response) => {
+      const body = await readEnvelope<T, GatewayErrorBody>(response);
+      if (!body) {
+        throw new GatewayError('internal', `The gateway answered ${response.status}.`, null, response.status);
       }
-      throw new GatewayError(body.error.code, body.error.message, body.error.recovery ?? null, response.status);
-    }
-    return body.data;
-  } finally {
-    clearTimeout(timer);
-    init.signal?.removeEventListener('abort', forwardAbort);
-  }
+      if (!body.ok) {
+        if (body.error.code === 'unauthorized' && target.token) {
+          refusedListeners.forEach((listener) => listener(target.baseUrl));
+        }
+        throw new GatewayError(body.error.code, body.error.message, body.error.recovery ?? null, response.status);
+      }
+      return body.data;
+    },
+  });
 }

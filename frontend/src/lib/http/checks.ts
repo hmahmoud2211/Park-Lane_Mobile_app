@@ -193,6 +193,39 @@ async function main() {
     stop();
   });
 
+  check('EMS: a read marked retry tries once more after a network failure, and only then', async () => {
+    ems.setSessionToken('tok');
+    let attempts = 0;
+    handler = async () => {
+      attempts += 1;
+      if (attempts === 1) throw new TypeError('Failed to fetch');
+      return json({ ok: true, data: 'second time' });
+    };
+    equal(await ems.call('/api/home', { retry: true }), 'second time', 'data');
+    equal(sent.length, 2, 'requests');
+    attempts = 0;
+    sent = [];
+    handler = async () => {
+      attempts += 1;
+      throw new TypeError('Failed to fetch');
+    };
+    await rejects(ems.call('/api/home', { retry: true }), { class: 'EmsError', code: 'network' });
+    equal(sent.length, 2, 'requests when both fail');
+    sent = [];
+    await rejects(ems.call('/api/rooms', { method: 'POST', body: {}, retry: true }), { class: 'EmsError', code: 'network' });
+    equal(sent.length, 1, 'a POST is never retried');
+    sent = [];
+    handler = async () => json({ ok: false, error: { code: 'hub_offline', message: 'Hub is offline.' } }, 503);
+    await rejects(ems.call('/api/home', { retry: true }), { class: 'EmsError', code: 'hub_offline' });
+    equal(sent.length, 1, "the backend's own errors are not retried");
+    sent = [];
+    handler = async () => {
+      throw new TypeError('Failed to fetch');
+    };
+    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'network' });
+    equal(sent.length, 1, 'without retry');
+  });
+
   // ---- CUBE gateway ------------------------------------------------------------------------
 
   const target = { baseUrl: 'http://192.168.1.9:8686', token: 'gw-token' };
