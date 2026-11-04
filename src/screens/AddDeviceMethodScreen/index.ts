@@ -1,0 +1,1 @@
+export { AddDeviceMethodScreen } from './AddDeviceMethodScreen';

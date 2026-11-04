@@ -29,7 +29,16 @@ export function statusLabel(phase: VoicePhase, queryFn: string | null, muted: bo
     case 'thinking':
       return 'Thinking';
     case 'searching':
-      return queryFn === 'query_resident_services' ? 'Checking your records' : 'Checking building data';
+      switch (queryFn) {
+        case 'control_home_devices':
+          return 'Controlling your devices';
+        case 'get_home_devices':
+          return 'Checking your devices';
+        case 'query_resident_services':
+          return 'Checking your records';
+        default:
+          return 'Checking building data';
+      }
     case 'looking':
       return 'Looking';
     case 'speaking':

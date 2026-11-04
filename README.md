@@ -195,9 +195,12 @@ Router**. All routes are:
 - Registered in [`src/navigation/AppNavigator.tsx`](src/navigation/AppNavigator.tsx)
 - Typed in [`src/types/navigation.types.ts`](src/types/navigation.types.ts)
 
-Current routes (`RootStackParamList`): `FirstScreen` (initial), `Login`, `Home`,
-`Profile`. Headers are disabled app-wide (`headerShown: false`); each screen renders
-its own header via `ScreenHeader` where needed.
+Current routes (`RootStackParamList`) include `FirstScreen` (initial), `Login`, `Home`,
+`Profile`, and the smart-home screens: `EmsDevices` (My Devices), `DeviceDetail`,
+`ConnectAccount` (cloud-account fallback), and the Add Device flow: `AddDevice` (brand)
+→ `AddDeviceMethod` → `DeviceDiscovery` or `DeviceProvisioning` → `DeviceSetup`, plus
+`GatewaySetup` (connect and manage the CUBE Gateway). Headers are disabled app-wide
+(`headerShown: false`); each screen renders its own header via `ScreenHeader` where needed.
 
 Docs: https://reactnavigation.org/docs/native-stack-navigator
 
@@ -212,6 +215,32 @@ saved as an image. On web, open `/parking`; demo controls are at `/parking/demo`
 live in [`src/services/parking/`](src/services/parking/) and data is stored on
 the device only. See [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) for the demo
 script, what is simulated and where real integrations connect.
+
+## Smart home
+
+**Adding a device starts in one place: Add Device** (My Devices → Add, or Smart
+Home's +). The resident picks the manufacturer, then finds a device already on
+the Wi-Fi, sets up a new one through its setup hotspot, or uses an advanced
+method. Devices are paired and controlled locally by the **CUBE Gateway**, a
+Linux service in one Docker image on the home network ([`gateway/`](gateway/)):
+
+```bash
+docker run -d --name cube-os-gateway --network host --restart unless-stopped \
+  -v cube-os-data:/data ghcr.io/hmahmoud2211/cube-os-gateway:latest
+docker logs cube-os-gateway    # setup code for the app
+```
+
+See [docs/CUBE_GATEWAY.md](docs/CUBE_GATEWAY.md) for installing it, connecting
+the app, brand compatibility, remote access (Tailscale or the CUBE relay),
+security, test results and limits. The API is in
+[gateway/API.md](gateway/API.md).
+
+Brands without a local protocol can still be linked through their cloud
+account. This is offered inside Add Device as "Link manufacturer account
+(cloud)", through the EMS backend in [`server/`](server/), which runs one Home
+Assistant (the [`IOT/`](IOT/) project) per apartment. Devices linked that way,
+and the Parklane Assistant's device control, work as before. See
+[docs/SMART_HOME.md](docs/SMART_HOME.md) for that backend.
 
 ## Building & deployment
 

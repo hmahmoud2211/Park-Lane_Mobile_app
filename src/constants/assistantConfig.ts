@@ -6,7 +6,7 @@
  * `http://192.168.1.20:8001` for a backend on the LAN. The WebSocket base is
  * derived from it (https -> wss), as the mic and camera need a secure origin.
  */
-const DEFAULT_ASSISTANT_URL = 'https://attal_voice_demo.ems-iot.com';
+const DEFAULT_ASSISTANT_URL = 'https://attal_voice_2.ems-iot.com';
 
 const httpBase = (process.env.EXPO_PUBLIC_ASSISTANT_URL ?? DEFAULT_ASSISTANT_URL).replace(/\/+$/, '');
 

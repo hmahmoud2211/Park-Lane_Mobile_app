@@ -1,222 +1,259 @@
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
-import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
-import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { EmsAccountPanel } from '../../components/ems/EmsAccountPanel';
-import { SmartDeviceCard } from '../../components/ems/SmartDeviceCard';
+import { GatewayStatusRow } from '../../components/gateway/GatewayStatusRow';
+import { DeviceCard } from '../../components/home/DeviceCard';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/parking/Notice';
-import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useEmsDevices } from '../../hooks/useEmsDevices';
+import { useGatewayDevices } from '../../hooks/useGatewayDevices';
+import { useHomeDevices } from '../../hooks/useHomeDevices';
+import { useLinkedAccounts } from '../../hooks/useLinkedAccounts';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { EmsError } from '../../services/ems/emsApi';
-import type { SmartDevice, SmartDeviceType } from '../../types/ems.types';
+import { toggleCommand } from '../../services/home/capabilities';
+import type { Device, LinkedAccount } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { addOptions, devicesCopy as copy, virtualTypes, type AddOption } from './EmsDevicesScreen.data';
-import { LgApplianceForm } from './LgApplianceForm';
-import {
-  BUTTON_HEIGHT,
-  CARD_GAP,
-  FIELD_HEIGHT,
-  MIN_DEVICE_WIDTH,
-  SMALL_BUTTON_HEIGHT,
-  createStyles,
-} from './EmsDevicesScreen.styles';
-
-interface Draft {
-  name: string;
-  room: string;
-}
+import { devicesCopy as copy } from './EmsDevicesScreen.data';
+import { BUTTON_HEIGHT, CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
 
 /**
- * Every device registered in EMS, the same list Alexa uses. Switching goes
- * through the backend's controller, so the card shows the state the device
- * confirmed, and changes made by Alexa or another phone arrive live.
+ * The resident's devices: first those their CUBE Gateway controls on the home
+ * Wi-Fi, then those linked through the building's hub (brand cloud accounts,
+ * through the EMS backend). Either way a card settles on the state the
+ * device reports and changes made elsewhere arrive live; a card opens the
+ * device's own screen. Adding a device always goes through Add Device.
  */
 export function EmsDevicesScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'EmsDevices'>['navigation']>();
-  const route = useRoute<RootStackScreenProps<'EmsDevices'>['route']>();
-  const ems = useEmsDevices();
-  const { status, devices, devicesLoaded, devicesError, realtime, refreshDevices, busy, errors } = ems;
-
-  // Smart Home's Add Device sheet opens this screen on the brand the resident picked.
-  const requestedAdd = route.params?.add;
-  const [adding, setAdding] = useState<AddOption['id'] | null>(requestedAdd ?? null);
-  // Navigated here again with a brand while already open.
-  const [seenAdd, setSeenAdd] = useState(requestedAdd);
-  if (requestedAdd !== seenAdd) {
-    setSeenAdd(requestedAdd);
-    if (requestedAdd) {
-      setAdding(requestedAdd);
-    }
-  }
-  const [newName, setNewName] = useState('');
-  const [newRoom, setNewRoom] = useState('');
-  const [newType, setNewType] = useState<SmartDeviceType>('switch');
-  const [addBusy, setAddBusy] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Record<string, Draft>>({});
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const ems = useHomeDevices();
+  const { status, home, homeProblem, devices, devicesLoaded, realtime, refreshHome, busy, errors } = ems;
   const [refreshing, setRefreshing] = useState(false);
+  const linked = useLinkedAccounts();
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const local = useGatewayDevices();
+  const [showHidden, setShowHidden] = useState(false);
 
+  const { hasHome, sync: syncAccounts } = linked;
+
+  // Reloading the linked accounts is what brings in devices added in the brands' own apps.
+  const { refresh: refreshLocal } = local;
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshDevices();
+    const work: Promise<unknown>[] = [refreshLocal()];
+    if (status === 'signedIn') {
+      work.push((hasHome ? syncAccounts() : Promise.resolve()).then(() => refreshHome()));
+    }
+    await Promise.all(work);
     setRefreshing(false);
-  }, [refreshDevices]);
+  }, [status, hasHome, syncAccounts, refreshHome, refreshLocal]);
 
-  const addVirtual = useCallback(async () => {
-    if (!newName.trim()) {
-      setAddError('Give the switch a name, e.g. “Bedroom light”.');
+  const reconnect = async (account: LinkedAccount) => {
+    const step = await linked.reconnect(account);
+    if (step) {
+      navigation.navigate('ConnectAccount', { flowId: step.flowId });
+    }
+  };
+
+  const unlink = (account: LinkedAccount) => {
+    if (confirmRemove !== account.id) {
+      setConfirmRemove(account.id);
       return;
     }
-    setAddBusy(true);
-    setAddError(null);
-    try {
-      await ems.addVirtual({ name: newName.trim(), room: newRoom.trim() || undefined, type: newType });
-      setNewName('');
-      setNewRoom('');
-      setAdding(null);
-    } catch (error) {
-      setAddError(error instanceof EmsError ? error.message : 'The switch could not be added.');
-    } finally {
-      setAddBusy(false);
-    }
-  }, [ems, newName, newRoom, newType]);
+    setConfirmRemove(null);
+    void linked.remove(account);
+  };
 
-  const saveEdit = useCallback(
-    async (device: SmartDevice) => {
-      const draft = editing[device.id];
-      if (!draft?.name.trim()) {
-        return;
-      }
-      const updated = await ems.update(device, { name: draft.name.trim(), room: draft.room.trim() || null });
-      if (updated) {
-        setEditing(({ [device.id]: _done, ...rest }) => rest);
-      }
-    },
-    [editing, ems],
-  );
-
-  const removeDevice = useCallback(
-    async (device: SmartDevice) => {
-      if (confirmRemove !== device.id) {
-        setConfirmRemove(device.id);
-        return;
-      }
-      setConfirmRemove(null);
-      await ems.remove(device);
-    },
-    [confirmRemove, ems],
+  const renderAccount = (account: LinkedAccount) => (
+    <View key={account.id} style={styles.account}>
+      <View style={styles.accountRow}>
+        <View style={styles.flex}>
+          <AppText variant="statValue">{account.brand}</AppText>
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {`${account.title} · ${copy.deviceCount(account.deviceCount)}`}
+          </AppText>
+        </View>
+        {account.needsReconnect ? <StatusChip label={copy.needsReconnect} tone="amber" icon="alert-circle-outline" /> : null}
+      </View>
+      {account.problem ? (
+        <AppText variant="tileCaption" color={theme.colors.error}>
+          {account.problem}
+        </AppText>
+      ) : null}
+      <View style={styles.accountActions}>
+        {account.needsReconnect ? (
+          <AppButton
+            title={copy.reconnect}
+            variant="gradient"
+            height={SMALL_BUTTON_HEIGHT}
+            loading={linked.busy[account.id]}
+            onPress={() => void reconnect(account)}
+            style={styles.accountAction}
+          />
+        ) : null}
+        <AppButton
+          title={confirmRemove === account.id ? copy.confirmRemove : copy.remove}
+          variant="secondary"
+          height={SMALL_BUTTON_HEIGHT}
+          loading={linked.busy[account.id]}
+          onPress={() => unlink(account)}
+          accessibilityHint="Removes the account and its devices from your home"
+          style={styles.accountAction}
+        />
+      </View>
+    </View>
   );
 
   const liveLabel = realtime === 'live' ? copy.live : realtime === 'connecting' ? copy.connecting : copy.offline;
+  const hubStatus = home?.hub.status;
 
-  const renderDevice = (device: SmartDevice) => {
-    const draft = editing[device.id];
-    const deviceBusy = busy[device.id];
+  const renderDevice = (device: Device) => {
+    const canToggle = toggleCommand(device, true) !== null;
     return (
-      <SmartDeviceCard
+      <DeviceCard
         device={device}
-        busy={deviceBusy === 'power'}
+        busy={busy[device.id] === 'command'}
         error={errors[device.id]}
-        onToggle={(on) => void ems.setPower(device, on)}
-      >
-        {draft ? (
-          <View style={styles.form}>
-            <AppInput
-              variant="field"
-              label={copy.name}
-              value={draft.name}
-              onChangeText={(name) => setEditing((current) => ({ ...current, [device.id]: { ...draft, name } }))}
-              height={FIELD_HEIGHT}
-            />
-            <AppInput
-              variant="field"
-              label={copy.room}
-              value={draft.room}
-              onChangeText={(room) => setEditing((current) => ({ ...current, [device.id]: { ...draft, room } }))}
-              height={FIELD_HEIGHT}
-            />
-            <View style={styles.actions}>
-              <AppButton
-                title={copy.save}
-                variant="gradient"
-                height={SMALL_BUTTON_HEIGHT}
-                loading={deviceBusy === 'edit'}
-                onPress={() => void saveEdit(device)}
-                style={styles.action}
-              />
-              <AppButton
-                title={copy.cancel}
-                variant="secondary"
-                height={SMALL_BUTTON_HEIGHT}
-                onPress={() => setEditing(({ [device.id]: _done, ...rest }) => rest)}
-                style={styles.action}
-              />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.actions}>
-            {device.simulated ? (
-              <View style={[styles.toggleRow, styles.flex]}>
-                <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                  {copy.simulateOffline}
-                </AppText>
-                <ToggleSwitch
-                  value={!device.online}
-                  onValueChange={(offline) => void ems.update(device, { online: !offline })}
-                  accessibilityLabel={`${copy.simulateOffline}: ${device.name}`}
-                />
-              </View>
-            ) : null}
-            {device.hasControls ? (
-              <AppButton
-                title={copy.controls}
-                variant="gradient"
-                height={SMALL_BUTTON_HEIGHT}
-                onPress={() => navigation.navigate('AcControl', { deviceId: device.id })}
-                accessibilityHint="Opens the mode, temperature, airflow, timer and filter settings"
-                style={styles.fullWidth}
-              />
-            ) : null}
-            <AppButton
-              title={copy.rename}
-              variant="secondary"
-              height={SMALL_BUTTON_HEIGHT}
-              onPress={() =>
-                setEditing((current) => ({ ...current, [device.id]: { name: device.name, room: device.room ?? '' } }))
+        onPress={() => navigation.navigate('DeviceDetail', { deviceId: device.id })}
+        onToggle={
+          canToggle
+            ? (on) => {
+                const next = toggleCommand(device, on);
+                if (next) void ems.command(device, next);
               }
-              style={styles.action}
-            />
-            <AppButton
-              title={confirmRemove === device.id ? copy.confirmRemove : copy.remove}
-              variant="secondary"
-              height={SMALL_BUTTON_HEIGHT}
-              loading={deviceBusy === 'remove'}
-              onPress={() => void removeDevice(device)}
-              accessibilityHint="Removes the device from EMS and from Alexa"
-              style={styles.action}
-            />
-          </View>
-        )}
-      </SmartDeviceCard>
+            : undefined
+        }
+      />
+    );
+  };
+
+  const renderLocalDevice = (device: Device) => {
+    const canToggle = toggleCommand(device, true) !== null;
+    return (
+      <DeviceCard
+        device={device}
+        busy={local.busy[device.id] === 'command'}
+        error={local.errors[device.id]}
+        onPress={() => navigation.navigate('DeviceDetail', { deviceId: device.id })}
+        onToggle={
+          canToggle
+            ? (on) => {
+                const next = toggleCommand(device, on);
+                if (next) void local.command(device, next);
+              }
+            : undefined
+        }
+      />
+    );
+  };
+
+  const renderLocal = () => {
+    if (local.status === 'none') {
+      return (
+        <Notice
+          tone="info"
+          title={copy.noGatewayTitle}
+          actions={
+            <AppButton title={copy.connectGateway} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('GatewaySetup')} />
+          }
+        >
+          {copy.noGatewayBody}
+        </Notice>
+      );
+    }
+    const hidden = new Set(local.rawDevices.filter((raw) => !raw.dashboard).map((raw) => `gw:${raw.id}`));
+    const shown = showHidden ? local.devices : local.devices.filter((device) => !hidden.has(device.id));
+    return (
+      <>
+        <GatewayStatusRow
+          status={local.status}
+          name={local.active?.name ?? null}
+          detail={local.status === 'online' ? null : local.problem}
+          manageLabel={copy.manageGateway}
+          onManage={() => navigation.navigate('GatewaySetup')}
+        />
+        {local.status === 'online' && !local.devicesLoaded ? <ActivityIndicator color={theme.colors.textPrimary} /> : null}
+        {hidden.size > 0 ? (
+          <AppButton
+            title={showHidden ? copy.hideHidden : copy.showHidden(hidden.size)}
+            variant="secondary"
+            height={SMALL_BUTTON_HEIGHT}
+            onPress={() => setShowHidden((value) => !value)}
+          />
+        ) : null}
+        {local.devicesLoaded && shown.length === 0 ? (
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.localEmpty}
+          </AppText>
+        ) : null}
+        {shown.length > 0 ? (
+          <ResponsiveGrid
+            data={shown}
+            keyExtractor={(device) => device.id}
+            minItemWidth={MIN_DEVICE_WIDTH}
+            maxColumns={2}
+            gap={CARD_GAP - 6}
+            renderItem={renderLocalDevice}
+          />
+        ) : null}
+      </>
+    );
+  };
+
+  const renderDevices = () => {
+    if (!devicesLoaded) {
+      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading devices" />;
+    }
+    if (homeProblem?.code === 'no_home' || homeProblem?.code === 'provisioning') {
+      return (
+        <Notice tone="info" title={homeProblem.code === 'no_home' ? copy.noHomeTitle : copy.provisioningTitle}>
+          {homeProblem.message}
+        </Notice>
+      );
+    }
+    if (homeProblem && devices.length === 0) {
+      return (
+        <Notice
+          tone="error"
+          title={copy.loadFailed}
+          actions={<AppButton title={copy.retry} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => void refreshHome()} />}
+        >
+          {homeProblem.message}
+        </Notice>
+      );
+    }
+    if (devices.length === 0) {
+      return (
+        <>
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.empty}
+          </AppText>
+        </>
+      );
+    }
+    return (
+      <ResponsiveGrid
+        data={devices}
+        keyExtractor={(device) => device.id}
+        minItemWidth={MIN_DEVICE_WIDTH}
+        maxColumns={2}
+        gap={CARD_GAP - 6}
+        renderItem={renderDevice}
+      />
     );
   };
 
@@ -228,16 +265,25 @@ export function EmsDevicesScreen() {
           contentContainerStyle={[styles.content, layout.contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          refreshControl={
-            status === 'signedIn' ? (
-              <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.colors.textPrimary} />
-            ) : undefined
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.colors.textPrimary} />}
         >
-          <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
+          <PageHeader title={copy.title} subtitle={home?.unit.name ?? copy.subtitle} style={styles.header} />
+
+          <NeonPanel style={styles.panel}>
+            <PanelHeading
+              title={copy.localTitle}
+              iconSet="ionicons"
+              iconName="wifi-outline"
+              subtitle={copy.localIntro}
+              actionLabel={copy.add}
+              onActionPress={() => navigation.navigate('AddDevice')}
+              divider
+            />
+            {renderLocal()}
+          </NeonPanel>
 
           {status !== 'signedIn' ? (
-            <EmsAccountPanel intro={copy.accountIntro} />
+            <EmsAccountPanel intro={copy.accountIntroHub} />
           ) : (
             <>
               <View style={styles.live} accessibilityLiveRegion="polite">
@@ -250,120 +296,52 @@ export function EmsDevicesScreen() {
                   {liveLabel}
                 </AppText>
               </View>
-
-              {adding ? (
-                <NeonPanel style={styles.panel}>
-                  <PanelHeading
-                    title={copy.addTitle}
-                    iconSet="ionicons"
-                    iconName="add-circle-outline"
-                    actionLabel={copy.close}
-                    onActionPress={() => setAdding(null)}
-                    divider
+              {hubStatus && hubStatus !== 'provisioning' ? (
+                <View style={styles.live}>
+                  <StatusChip
+                    label={hubStatus === 'online' ? copy.hubOnline : hubStatus === 'auth_failed' ? copy.hubAuth : copy.hubOffline}
+                    tone={hubStatus === 'online' ? 'teal' : hubStatus === 'auth_failed' ? 'red' : 'amber'}
+                    icon="home-outline"
                   />
-                  <View style={styles.chips} accessibilityRole="radiogroup">
-                    {addOptions.map((option) => (
-                      <FilterChip
-                        key={option.id}
-                        role="radio"
-                        label={option.label}
-                        iconSet="ionicons"
-                        iconName={option.iconName}
-                        selected={adding === option.id}
-                        onPress={() => setAdding(option.id)}
-                      />
-                    ))}
-                  </View>
-                  {adding === 'virtual' ? (
-                    <View style={styles.form}>
-                      <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                        {copy.virtualNote}
-                      </AppText>
-                      <View style={styles.chips} accessibilityRole="radiogroup">
-                        {virtualTypes.map((type) => (
-                          <FilterChip
-                            key={type.id}
-                            role="radio"
-                            label={type.label}
-                            iconSet="ionicons"
-                            iconName={type.iconName}
-                            selected={newType === type.id}
-                            onPress={() => setNewType(type.id)}
-                          />
-                        ))}
-                      </View>
-                      <AppInput variant="field" label={copy.name} value={newName} onChangeText={setNewName} height={FIELD_HEIGHT} />
-                      <AppInput variant="field" label={copy.room} value={newRoom} onChangeText={setNewRoom} height={FIELD_HEIGHT} />
-                      {addError ? (
-                        <AppText variant="tileCaption" color={theme.colors.error} accessibilityRole="alert">
-                          {addError}
-                        </AppText>
-                      ) : null}
-                      <AppButton
-                        title={copy.addVirtual}
-                        variant="gradient"
-                        height={BUTTON_HEIGHT}
-                        loading={addBusy}
-                        disabled={addBusy}
-                        onPress={() => void addVirtual()}
-                      />
-                    </View>
-                  ) : adding === 'lg' ? (
-                    <LgApplianceForm
-                      onAdd={ems.addLg}
-                      onAdded={() => setAdding(null)}
-                      onPairNew={() => navigation.navigate('LgPairing')}
-                    />
-                  ) : (
-                    <View style={styles.form}>
-                      <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                        {copy.sonoffNote}
-                      </AppText>
-                      <AppButton
-                        title={copy.startPairing}
-                        variant="gradient"
-                        height={BUTTON_HEIGHT}
-                        onPress={() => navigation.navigate('SonoffPairing')}
-                      />
-                    </View>
-                  )}
-                </NeonPanel>
+                </View>
               ) : null}
 
               <NeonPanel style={styles.panel}>
                 <PanelHeading
-                  title={copy.devicesTitle}
+                  title={copy.hubTitle}
                   iconSet="material"
                   iconName="devices"
-                  actionLabel={adding ? undefined : copy.add}
-                  onActionPress={adding ? undefined : () => setAdding('virtual')}
+                  // Every way of adding a device starts at Add Device; cloud linking is one of its methods.
+                  actionLabel={home && home.hub.status !== 'provisioning' ? copy.add : undefined}
+                  onActionPress={() => navigation.navigate('AddDevice')}
                   divider
                 />
-                {!devicesLoaded ? (
-                  <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading devices" />
-                ) : devicesError && devices.length === 0 ? (
-                  <Notice
-                    tone="error"
-                    title={copy.loadFailed}
-                    actions={<AppButton title={copy.retry} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => void refreshDevices()} />}
-                  >
-                    {devicesError}
-                  </Notice>
-                ) : devices.length === 0 ? (
-                  <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                    {copy.empty}
-                  </AppText>
-                ) : (
-                  <ResponsiveGrid
-                    data={devices}
-                    keyExtractor={(device) => device.id}
-                    minItemWidth={MIN_DEVICE_WIDTH}
-                    maxColumns={2}
-                    gap={CARD_GAP - 6}
-                    renderItem={renderDevice}
+                {renderDevices()}
+                {linked.hasHome ? (
+                  <AppButton
+                    title={copy.refresh}
+                    variant="secondary"
+                    height={SMALL_BUTTON_HEIGHT}
+                    loading={refreshing}
+                    onPress={() => void onRefresh()}
+                    accessibilityHint={copy.refreshHint}
                   />
-                )}
+                ) : null}
               </NeonPanel>
+
+              {linked.hasHome ? (
+                <NeonPanel style={styles.panel}>
+                  <PanelHeading title={copy.accountsTitle} iconSet="ionicons" iconName="link-outline" divider />
+                  {linked.error ? <Notice tone="error">{linked.error}</Notice> : null}
+                  {linked.loaded && linked.accounts.length === 0 ? (
+                    <AppText variant="bodySmall" color={theme.colors.textSupport}>
+                      {copy.accountsEmpty}
+                    </AppText>
+                  ) : null}
+                  {linked.accounts.map(renderAccount)}
+                  <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('AddDevice')} />
+                </NeonPanel>
+              ) : null}
             </>
           )}
         </ScrollView>

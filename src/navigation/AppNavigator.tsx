@@ -11,15 +11,22 @@ import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { AlexaIntegrationScreen } from '../screens/AlexaIntegrationScreen';
+import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
+import { AddDeviceScreen } from '../screens/AddDeviceScreen';
+import { AcControlScreen } from '../screens/AcControlScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
+import { ConnectAccountScreen } from '../screens/ConnectAccountScreen';
 import { DemoControlsScreen } from '../screens/DemoControlsScreen';
-import { AcControlScreen } from '../screens/AcControlScreen';
+import { DeviceDetailScreen } from '../screens/DeviceDetailScreen';
+import { DeviceDiscoveryScreen } from '../screens/DeviceDiscoveryScreen';
+import { DeviceProvisioningScreen } from '../screens/DeviceProvisioningScreen';
+import { DeviceSetupScreen } from '../screens/DeviceSetupScreen';
 import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
+import { GatewaySetupScreen } from '../screens/GatewaySetupScreen';
 import { GuestPassScreen } from '../screens/GuestPassScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LgPairingScreen } from '../screens/LgPairingScreen';
@@ -36,7 +43,6 @@ import { SecurityConsoleScreen } from '../screens/SecurityConsoleScreen';
 import { ServicesScreen } from '../screens/ServicesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { SmartHomeScreen } from '../screens/SmartHomeScreen';
-import { SonoffPairingScreen } from '../screens/SonoffPairingScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import type { RootStackParamList } from '../types/navigation.types';
@@ -156,11 +162,17 @@ export function AppNavigator() {
           <Stack.Screen name="Parking" component={ParkingScreen} />
           <Stack.Screen name="Community" component={CommunityScreen} />
           <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
-          <Stack.Screen name="SonoffPairing" component={SonoffPairingScreen} />
-          <Stack.Screen name="LgPairing" component={LgPairingScreen} />
           <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
+          <Stack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
+          <Stack.Screen name="ConnectAccount" component={ConnectAccountScreen} />
+          <Stack.Screen name="GatewaySetup" component={GatewaySetupScreen} />
+          <Stack.Screen name="AddDevice" component={AddDeviceScreen} />
+          <Stack.Screen name="AddDeviceMethod" component={AddDeviceMethodScreen} />
+          <Stack.Screen name="DeviceDiscovery" component={DeviceDiscoveryScreen} />
+          <Stack.Screen name="DeviceProvisioning" component={DeviceProvisioningScreen} />
+          <Stack.Screen name="DeviceSetup" component={DeviceSetupScreen} />
+          <Stack.Screen name="LgPairing" component={LgPairingScreen} />
           <Stack.Screen name="AcControl" component={AcControlScreen} />
-          <Stack.Screen name="AlexaIntegration" component={AlexaIntegrationScreen} />
           <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />

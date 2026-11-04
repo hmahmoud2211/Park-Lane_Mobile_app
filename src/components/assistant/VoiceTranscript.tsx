@@ -4,6 +4,7 @@ import { Animated, Easing, Platform, ScrollView, StyleSheet, View, type ScrollVi
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { VoiceQueryResult, VoiceTurn } from '../../hooks/useVoiceSession';
+import { HOME_FUNCTIONS } from '../../services/assistant/assistant.types';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
 import { AssistantAvatar } from './AssistantAvatar';
@@ -118,6 +119,47 @@ const TurnRow = memo(function TurnRow({ turn, latest, onOpenRoute, onSignIn }: T
   );
 });
 
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+/** Where the lookup went, and how it went. Device commands count what went through. */
+function cardHead(query: VoiceQueryResult): {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  status: string;
+  tone: 'good' | 'warn' | 'none';
+} {
+  const { summary } = query;
+  if (HOME_FUNCTIONS.includes(query.fn)) {
+    const head = { icon: 'bulb-outline' as const, title: 'Your devices' };
+    if (summary.home_connected === false) {
+      return { ...head, status: 'Not signed in', tone: 'none' };
+    }
+    if (summary.home_error) {
+      return { ...head, status: 'Unavailable', tone: 'warn' };
+    }
+    if (query.fn === 'control_home_devices') {
+      const done = summary.done ?? 0;
+      const failed = summary.failed ?? 0;
+      if (done === 0 && failed === 0) {
+        return { ...head, status: 'Nothing done', tone: 'none' };
+      }
+      return {
+        ...head,
+        status: failed ? `${done} done, ${failed} failed` : `${done} done`,
+        tone: failed ? 'warn' : 'good',
+      };
+    }
+    return { ...head, status: query.found ? plural(query.recordsFound, 'device') : 'No devices', tone: query.found ? 'good' : 'none' };
+  }
+  const resident = query.fn === 'query_resident_services';
+  return {
+    icon: resident ? 'home-outline' : 'business-outline',
+    title: resident ? 'Your records' : 'Building data',
+    status: query.found ? plural(query.recordsFound, 'record') : 'Nothing found',
+    tone: query.found ? 'good' : 'none',
+  };
+}
+
 /** The lookup the assistant made for this reply: where it looked and what it found. */
 function QueryCard({
   query,
@@ -130,24 +172,20 @@ function QueryCard({
 }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const resident = query.fn === 'query_resident_services';
-  const records = query.recordsFound;
+  const head = cardHead(query);
+  const tone = { good: theme.colors.success, warn: theme.colors.warning, none: theme.colors.textMuted }[head.tone];
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <View style={styles.cardIcon}>
-          <Ionicons
-            name={resident ? 'home-outline' : 'business-outline'}
-            size={13}
-            color={theme.colors.accent}
-          />
+          <Ionicons name={head.icon} size={13} color={theme.colors.accent} />
         </View>
         <AppText variant="chatMeta" color={theme.colors.textAccentSoft} style={styles.cardTitle}>
-          {resident ? 'Your records' : 'Building data'}
+          {head.title}
         </AppText>
-        <AppText variant="chatMeta" color={query.found ? theme.colors.success : theme.colors.textMuted}>
-          {query.found ? `${records} ${records === 1 ? 'record' : 'records'}` : 'Nothing found'}
+        <AppText variant="chatMeta" color={tone}>
+          {head.status}
         </AppText>
       </View>
       <InsightBadges summary={query.summary} onOpenRoute={onOpenRoute} onSignIn={onSignIn} style={styles.cardBadges} />

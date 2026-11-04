@@ -24,7 +24,7 @@ export type VoicePhase =
   | 'error';
 
 export interface VoiceQueryResult {
-  /** `query_building_systems` or `query_resident_services`. */
+  /** `query_building_systems`, `query_resident_services`, or one of HOME_FUNCTIONS. */
   fn: string;
   found: boolean;
   recordsFound: number;
@@ -48,6 +48,8 @@ export interface VoiceSessionOptions {
   cameraEnabled: boolean;
   /** Base64 JPEG of the current camera frame, or '' when there is none. */
   captureFrame: () => Promise<string>;
+  /** The EMS assistant token, so the voice assistant can control the home (EmsContext). */
+  homeToken?: () => Promise<string | null>;
 }
 
 type Status = 'idle' | 'connecting' | 'live' | 'error';
@@ -109,7 +111,7 @@ const LEVEL_FALL = 0.16;
  * `level` is an Animated value (0..1) of whoever is talking, updated every
  * frame without re-rendering, for the orb to breathe with.
  */
-export function useVoiceSession({ residentId, cameraEnabled, captureFrame }: VoiceSessionOptions) {
+export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeToken }: VoiceSessionOptions) {
   const engine = useVoiceAudio();
   const [phase, setPhase] = useState<VoicePhase>('idle');
   const [turns, setTurns] = useState<readonly VoiceTurn[]>([]);
@@ -124,6 +126,7 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame }: Voi
   const mutedRef = useRef(false);
   const cameraRef = useRef(cameraEnabled);
   const captureRef = useRef(captureFrame);
+  const homeTokenRef = useRef(homeToken);
   const pendingQuery = useRef<VoiceQueryResult | null>(null);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ready = useRef(false);
@@ -253,6 +256,11 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame }: Voi
             if (cameraRef.current) {
               client.sendCameraStatus(true);
             }
+            void homeTokenRef.current?.().then((token) => {
+              if (token) {
+                client.sendHomeAuth(token);
+              }
+            });
             void startMic();
           }
           break;
@@ -401,6 +409,7 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame }: Voi
   useLayoutEffect(() => {
     handlers.current = { handleEvent, handleClose };
     captureRef.current = captureFrame;
+    homeTokenRef.current = homeToken;
   });
 
   // Playback running dry may be the moment to reopen the mic.

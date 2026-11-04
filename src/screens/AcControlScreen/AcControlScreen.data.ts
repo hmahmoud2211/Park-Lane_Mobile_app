@@ -1,12 +1,15 @@
 import type { IconSet } from '../../components/ui/ServiceTile';
 
-/** Copy for AC Controls: every setting an EMS air conditioner announces, and its readings. */
+/** Copy for AC Controls: every setting an air conditioner announces through the CUBE Gateway, and its readings. */
 
 export const acCopy = {
   fallbackTitle: 'Air conditioner',
   subtitle: 'Every setting your AC supports, live.',
-  accountIntro: 'Sign in to your EMS account to control your AC.',
+  noGateway: 'Connect your CUBE Gateway to control this AC.',
+  connectGateway: 'Connect gateway',
   notFound: 'This AC is no longer one of your devices.',
+  notConfirmed: 'Not confirmed: the AC has not reported this yet.',
+  experimental: 'Experimental',
   loading: 'Reading the AC’s settings…',
   loadFailed: 'The AC’s settings could not be read.',
   retry: 'Try again',

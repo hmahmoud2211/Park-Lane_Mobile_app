@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
@@ -7,7 +7,6 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
-import { EmsAccountPanel } from '../../components/ems/EmsAccountPanel';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
@@ -18,11 +17,11 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip, type StatusTone } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
-import { useAcControls } from '../../hooks/useAcControls';
+import { POWER_KEY, useAcControls } from '../../hooks/useAcControls';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useEmsDevices } from '../../hooks/useEmsDevices';
+import { useGateway } from '../../hooks/useGateway';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import type { ControlSetting, ControlValue } from '../../types/ems.types';
+import type { ControlSetting, ControlValue } from '../../types/controls.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   STEPPER_DEBOUNCE_MS,
@@ -43,7 +42,7 @@ import {
   timerIcons,
 } from './AcControlScreen.data';
 import { CARD_GAP, FILTER_BAR_HEIGHT, SMALL_BUTTON_HEIGHT, STEP_ICON_SIZE, createStyles } from './AcControlScreen.styles';
-import { ChoiceChips, ErrorLine, ReadingRow, StepperRow, SwitchRow } from './AcSettingRows';
+import { ChoiceChips, ErrorLine, ReadingRow, StepperRow, SwitchRow, UnconfirmedLine } from './AcSettingRows';
 
 const ACTION_TONES: Record<string, StatusTone> = {
   cooling: 'indigo',
@@ -75,33 +74,39 @@ function formatDate(value: ControlValue): string | null {
 const isTimer = (setting: ControlSetting) => setting.kind === 'number' && setting.unit === 'h';
 
 /**
- * Everything an EMS air conditioner announces beyond power: mode, set point,
- * fan speed, both airflow directions, its features (Jet, Air purify, Energy
- * saving…), timers, filter hours, and readings. Only what this model supports
- * is shown, from what the backend reads off the AC.
+ * Everything an air conditioner announces through the CUBE Gateway beyond
+ * power: mode, set point, fan speed, both airflow directions, its features
+ * (Jet, Air purify, Energy saving…), timers, filter hours, and readings. Only
+ * what this model supports is shown, from what the gateway reads off the AC
+ * (an LG AC through ReThink). Ported from Master's screen
+ * (archive/master-2026-11-04).
  *
- * Each change shows at once as asked for, then as the AC confirmed it; the
- * same values arrive live when someone uses the remote. Settings the AC would
- * ignore right now (the mode while it is off, Jet outside Cooling) are dimmed
- * and say what they need.
+ * Each change shows at once as asked for, then as the AC reports it; the
+ * same values arrive live when someone uses the remote. A value the AC has
+ * not echoed back is marked "Not confirmed". Settings the AC would ignore
+ * right now (the mode while it is off, Jet outside Cooling) are dimmed and
+ * say what they need.
  */
 export function AcControlScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const layout = useScreenLayout();
   const { deviceId } = useRoute<RootStackScreenProps<'AcControl'>['route']>().params;
-  const ems = useEmsDevices();
+  const navigation = useNavigation<RootStackScreenProps<'AcControl'>['navigation']>();
+  const gateway = useGateway();
   const ac = useAcControls(deviceId);
   const [showDetails, setShowDetails] = useState(false);
   const [confirmFilter, setConfirmFilter] = useState(false);
 
-  const device = ems.devices.find((entry) => entry.id === deviceId) ?? null;
+  const device = ac.device;
   const controls = ac.controls;
   const settings = controls?.settings ?? [];
   const byKey = new Map(settings.map((setting) => [setting.key, setting]));
   const shown = (setting: ControlSetting): ControlValue =>
     setting.key in ac.pending ? ac.pending[setting.key] : setting.value;
   const isPending = (key: string) => key in ac.pending;
+  /** The AC has not echoed this value (the gateway said so, or the last change was only assumed). */
+  const isUnconfirmed = (setting: ControlSetting) => !setting.confirmed || setting.key in ac.unconfirmed;
 
   const placed = new Set([...climateKeys, ...filterKeys, ...summaryKeys]);
   const rest = settings.filter((setting) => !placed.has(setting.key));
@@ -117,8 +122,8 @@ export function AcControlScreen() {
 
   // ---- Summary --------------------------------------------------------------------------
 
-  const powerPending = device ? ems.busy[device.id] === 'power' || device.pendingPower !== null : false;
-  const poweredOn = device ? (device.pendingPower ?? device.power) === 'on' : controls?.power === 'on';
+  const powerPending = isPending(POWER_KEY);
+  const poweredOn = powerPending ? ac.pending[POWER_KEY] === true : controls?.power === 'on';
   const action = controls?.action ? (actionLabels[controls.action] ?? humanize(controls.action)) : null;
   const fault = byKey.get('error')?.value;
   const hasFault = fault !== null && fault !== undefined && fault !== 0 && fault !== '0' && fault !== false;
@@ -171,6 +176,7 @@ export function AcControlScreen() {
       <View style={styles.heroTop}>
         <View style={styles.chips}>
           <StatusChip label={controls.online ? 'Online' : 'Offline'} tone={controls.online ? 'teal' : 'red'} />
+          {device?.experimental ? <StatusChip label={copy.experimental} tone="amber" icon="flask-outline" /> : null}
           {action ? <StatusChip label={action} tone={ACTION_TONES[controls.action ?? ''] ?? 'slate'} /> : null}
           {hasFault ? <StatusChip label={copy.fault(String(fault))} tone="red" icon="warning-outline" /> : null}
         </View>
@@ -178,8 +184,8 @@ export function AcControlScreen() {
           {powerPending ? <ActivityIndicator size="small" color={theme.colors.textAccentSoft} /> : null}
           <ToggleSwitch
             value={poweredOn}
-            onValueChange={(on) => device && void ems.setPower(device, on)}
-            disabled={!device || powerPending}
+            onValueChange={(on) => ac.set(POWER_KEY, on)}
+            disabled={!device || powerPending || !controls.online}
             accessibilityLabel={`${copy.power}: ${device?.name ?? copy.fallbackTitle}`}
           />
         </View>
@@ -220,7 +226,9 @@ export function AcControlScreen() {
           {copy.turnOnHint}
         </AppText>
       ) : null}
-      <ErrorLine error={(device && ems.errors[device.id]) || ac.errors.temperature} />
+      <UnconfirmedLine show={POWER_KEY in ac.unconfirmed} note={ac.unconfirmed[POWER_KEY] || undefined} />
+      {temperature ? <UnconfirmedLine show={isUnconfirmed(temperature)} /> : null}
+      <ErrorLine error={ac.errors[POWER_KEY] || ac.errors.temperature} />
     </NeonPanel>
   ) : null;
 
@@ -236,6 +244,7 @@ export function AcControlScreen() {
         onSelect={(option) => ac.set('mode', option)}
         choice={(option) => modeChoices[option] ?? { label: humanize(option), iconSet: 'material', iconName: 'tune-variant' }}
       />
+      <UnconfirmedLine show={isUnconfirmed(mode)} />
       <ErrorLine error={ac.errors.mode} />
     </NeonPanel>
   ) : null;
@@ -257,6 +266,7 @@ export function AcControlScreen() {
             iconName,
           })}
         />
+        <UnconfirmedLine show={isUnconfirmed(setting)} />
         <ErrorLine error={ac.errors[setting.key]} />
       </View>
     ) : null;
@@ -288,6 +298,7 @@ export function AcControlScreen() {
           value={value}
           pending={isPending(setting.key)}
           error={ac.errors[setting.key]}
+          unconfirmed={isUnconfirmed(setting)}
           iconName={iconName}
           divider={divider}
           onChange={(next) => ac.set(setting.key, next)}
@@ -310,6 +321,7 @@ export function AcControlScreen() {
               {copy.needs(setting.requires)}
             </AppText>
           ) : null}
+          <UnconfirmedLine show={isUnconfirmed(setting)} />
           <ErrorLine error={ac.errors[setting.key]} />
         </View>
       );
@@ -323,6 +335,7 @@ export function AcControlScreen() {
           shown={formatReading(current, setting.unit)}
           pending={isPending(setting.key)}
           error={ac.errors[setting.key]}
+          unconfirmed={isUnconfirmed(setting)}
           iconName={iconName}
           divider={divider}
           lower={stepFrom(current, setting, -1)}
@@ -369,6 +382,7 @@ export function AcControlScreen() {
               shown={hours > 0 ? formatHours(hours) : copy.timerOff}
               pending={isPending(setting.key)}
               error={ac.errors[setting.key]}
+              unconfirmed={isUnconfirmed(setting)}
               iconName={timerIcons[setting.key] ?? 'timer-outline'}
               divider={index > 0}
               lower={hours > 0 ? stepFrom(hours, setting, -1, step) : null}
@@ -462,9 +476,22 @@ export function AcControlScreen() {
   // ---- Page -------------------------------------------------------------------------------
 
   let body: ReactNode;
-  if (ems.status !== 'signedIn') {
-    body = <EmsAccountPanel intro={copy.accountIntro} />;
-  } else if (ems.devicesLoaded && !device) {
+  if (gateway.status === 'none') {
+    body = (
+      <Notice
+        tone="info"
+        title={copy.noGateway}
+        actions={
+          <AppButton
+            title={copy.connectGateway}
+            variant="secondary"
+            height={SMALL_BUTTON_HEIGHT}
+            onPress={() => navigation.navigate('GatewaySetup')}
+          />
+        }
+      />
+    );
+  } else if (ac.missing) {
     body = <Notice tone="error" title={copy.notFound} />;
   } else if (!controls) {
     body = ac.loadError ? (

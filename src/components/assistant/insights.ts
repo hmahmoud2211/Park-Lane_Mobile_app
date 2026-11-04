@@ -25,6 +25,8 @@ const INTENTS: Record<string, IntentMeta> = {
   maintenance: { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
   community: { label: 'Community', icon: 'megaphone-outline' },
   weather: { label: 'Weather', icon: 'partly-sunny-outline' },
+  home_control: { label: 'My Devices', icon: 'bulb-outline', route: 'EmsDevices' },
+  home_devices: { label: 'My Devices', icon: 'bulb-outline', route: 'EmsDevices' },
   general_knowledge: { label: 'General', icon: 'sparkles-outline' },
 };
 
@@ -41,6 +43,22 @@ export interface Insight {
   label: string;
   /** `sign-in` opens the resident picker. */
   action?: 'sign-in';
+  /** A screen that resolves it, e.g. My Devices to sign in to the smart home. */
+  route?: IntentMeta['route'];
+}
+
+/** Why the smart home couldn't help, in a few words (the answer has the rest). */
+function homeErrorLabel(code: string): string {
+  switch (code) {
+    case 'unauthorized':
+      return 'Sign in to My Devices again';
+    case 'no_home':
+      return 'Not linked to a unit yet';
+    case 'provisioning':
+      return 'Smart home still being set up';
+    default:
+      return 'Smart home unreachable';
+  }
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -109,6 +127,35 @@ export function insightsFor(summary: AnswerSummary | undefined): Insight[] {
 
   if (summary.error) {
     insights.push({ id: 'error', tone: 'error', icon: 'warning-outline', label: 'Building data is unreachable' });
+  }
+
+  if (summary.home_connected === false) {
+    insights.push({
+      id: 'home-sign-in',
+      tone: 'info',
+      icon: 'log-in-outline',
+      label: 'Sign in to My Devices to control your home',
+      route: 'EmsDevices',
+    });
+  }
+
+  if (summary.home_error) {
+    insights.push({
+      id: 'home-error',
+      tone: 'warning',
+      icon: 'cloud-offline-outline',
+      label: homeErrorLabel(summary.home_error.code),
+      route: 'EmsDevices',
+    });
+  }
+
+  if (summary.intent === 'home_control' && typeof summary.failed === 'number' && summary.failed > 0) {
+    insights.push({
+      id: 'home-failed',
+      tone: 'warning',
+      icon: 'alert-circle-outline',
+      label: summary.failed === 1 ? "1 command didn't go through" : `${summary.failed} commands didn't go through`,
+    });
   }
 
   return insights;

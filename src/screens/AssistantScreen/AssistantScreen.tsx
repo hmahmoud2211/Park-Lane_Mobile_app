@@ -15,6 +15,7 @@ import { images } from '../../constants/images';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useAssistantChat } from '../../hooks/useAssistantChat';
+import { useEms } from '../../hooks/useEms';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { useSideNav } from '../../hooks/useSideNav';
 import type { AssistantResident } from '../../services/assistant/assistant.types';
@@ -48,7 +49,9 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
   const [menuOpen, setMenuOpen] = useState(false);
   const [residents, setResidents] = useState<readonly AssistantResident[]>([]);
   const [health, setHealth] = useState<AssistantHealthState>('checking');
-  const chat = useAssistantChat(residentId);
+  // The EMS session's smart home, which the assistant can read and control.
+  const { assistantToken } = useEms();
+  const chat = useAssistantChat(residentId, assistantToken);
   const resetChat = chat.reset;
 
   const probeHealth = useCallback((signal?: AbortSignal) => {
@@ -181,7 +184,12 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
               onOpenRoute={openRoute}
             />
           ) : (
-            <VoicePanel residentId={residentId} onSignIn={openResidentMenu} onOpenRoute={openRoute} />
+            <VoicePanel
+              residentId={residentId}
+              homeToken={assistantToken}
+              onSignIn={openResidentMenu}
+              onOpenRoute={openRoute}
+            />
           )}
         </FadeSwap>
       </View>

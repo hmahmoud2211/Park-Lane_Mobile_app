@@ -1,29 +1,45 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import * as api from '../services/ems/emsApi';
-import type { ControlValue, DeviceControls } from '../types/ems.types';
-import { useEms } from './useEms';
+import * as api from '../services/gateway/gatewayApi';
+import { toDeviceControls, toGatewayDeviceId } from '../services/gateway/deviceMapping';
+import { GatewayError } from '../services/gateway/gatewayHttp';
+import type { ControlValue } from '../types/controls.types';
+import type { GatewayCommand } from '../types/gateway.types';
+import { useGateway } from './useGateway';
 
 function messageOf(error: unknown): string {
-  return error instanceof api.EmsError ? error.message : 'Something went wrong. Try again.';
+  if (error instanceof GatewayError) {
+    return error.recovery ? `${error.message} ${error.recovery}` : error.message;
+  }
+  return 'Something went wrong. Try again.';
 }
 
+/** The key the screen uses for the power switch; every other key is one of the device's settings. */
+export const POWER_KEY = 'power';
+
 /**
- * One device's settings beyond power (an AC's mode, set point, fan, swing,
- * timers, filter), kept live by the realtime channel, so a change made with
- * the remote shows up here too.
+ * One gateway device's settings beyond power (an AC's mode, set point, fan,
+ * swing, Jet, timers, filter), kept live by the gateway's event channel, so a
+ * change made with the remote shows up here too. Ported from Master's hook
+ * (archive/master-2026-11-04), now on the CUBE Gateway.
  *
- * A change shows as pending at once, then as the value the device
- * confirmed. If the device does not confirm, the setting goes back to what
- * it last reported and `errors` says why. With `debounceMs`, quick repeated
- * taps (a stepper) send only the last value.
+ * A change shows as pending at once, then as the gateway reports it. When the
+ * gateway answers `assumed` or `pending` (the appliance has not echoed the
+ * value), the setting is listed in `unconfirmed` with the gateway's note, and
+ * the screen says "Not confirmed" rather than presenting it as fact. If the
+ * change fails, the setting goes back to what it last reported and `errors`
+ * says why. With `debounceMs`, quick repeated taps (a stepper) send only the
+ * last value.
  */
 export function useAcControls(deviceId: string) {
-  const { subscribeControls, realtime } = useEms();
-  const [controls, setControls] = useState<DeviceControls | null>(null);
+  const { target, devices, devicesLoaded, status, upsertDevice } = useGateway();
+  const gatewayId = toGatewayDeviceId(deviceId);
+  const device = devices.find((entry) => entry.id === gatewayId) ?? null;
+  const controls = useMemo(() => (device ? toDeviceControls(device) : null), [device]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<Record<string, ControlValue>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [unconfirmed, setUnconfirmed] = useState<Record<string, string>>({});
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   /** The latest request per setting, so an older answer does not clear a newer one's pending value. */
   const latest = useRef(new Map<string, number>());
@@ -39,41 +55,62 @@ export function useAcControls(deviceId: string) {
     };
   }, []);
 
-  const load = useCallback(async () => {
+  // A value the appliance later reports itself is confirmed: drop the note once the gateway marks it so.
+  useEffect(() => {
+    if (!controls) return;
+    setUnconfirmed((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const key of Object.keys(current)) {
+        const setting = controls.settings.find((entry) => entry.key === key);
+        if (setting?.confirmed && key !== POWER_KEY) {
+          delete next[key];
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [controls]);
+
+  const reload = useCallback(async () => {
+    if (!target) {
+      setLoadError('Your gateway is not reachable right now.');
+      return;
+    }
     try {
-      const next = await api.getDeviceControls(deviceId);
-      if (mounted.current) {
-        setControls(next);
-        setLoadError(null);
-      }
+      upsertDevice(await api.refreshDevice(target, gatewayId));
+      if (mounted.current) setLoadError(null);
     } catch (error) {
-      if (mounted.current) {
-        setLoadError(messageOf(error));
+      if (mounted.current) setLoadError(messageOf(error));
+    }
+  }, [target, gatewayId, upsertDevice]);
+
+  const commandFor = useCallback(
+    (key: string, value: ControlValue): GatewayCommand => {
+      if (key === POWER_KEY) {
+        return { command: value ? 'turn_on' : 'turn_off', params: {} };
       }
-    }
-  }, [deviceId]);
-
-  useEffect(() => subscribeControls(deviceId, setControls), [deviceId, subscribeControls]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // Pushes sent while the channel was down are lost; read again once it is back.
-  const wasLive = useRef(realtime === 'live');
-  useEffect(() => {
-    if (realtime === 'live' && !wasLive.current) {
-      void load();
-    }
-    wasLive.current = realtime === 'live';
-  }, [realtime, load]);
+      const setting = device?.settings.find((entry) => entry.key === key);
+      if (setting?.kind === 'button') {
+        return { command: 'press', params: { key } };
+      }
+      return { command: 'set_setting', params: { key, value } };
+    },
+    [device],
+  );
 
   const send = useCallback(
     async (key: string, value: ControlValue, request: number) => {
       try {
-        const confirmed = await api.setDeviceControl(deviceId, key, value);
+        if (!target) {
+          throw new GatewayError('offline', 'Your gateway is not reachable right now.');
+        }
+        const response = await api.sendCommand(target, gatewayId, commandFor(key, value));
+        upsertDevice(response.device);
         if (mounted.current) {
-          setControls(confirmed);
+          setUnconfirmed(({ [key]: _previous, ...rest }) =>
+            response.result.status === 'confirmed' ? rest : { ...rest, [key]: response.result.message ?? '' },
+          );
         }
       } catch (error) {
         if (mounted.current) {
@@ -86,7 +123,7 @@ export function useAcControls(deviceId: string) {
         }
       }
     },
-    [deviceId],
+    [target, gatewayId, commandFor, upsertDevice],
   );
 
   /** Asks for `value` (`null` presses a button); with `debounceMs`, waits that long for a newer value first. */
@@ -113,5 +150,17 @@ export function useAcControls(deviceId: string) {
     [send],
   );
 
-  return { controls, loadError, pending, errors, set, reload: load };
+  const missing = devicesLoaded && !device;
+  return {
+    device,
+    controls,
+    /** The device is not (or no longer) on the gateway. */
+    missing,
+    loadError: loadError ?? (status === 'offline' && !controls ? 'Your gateway is not reachable right now.' : null),
+    pending,
+    errors,
+    unconfirmed,
+    set,
+    reload,
+  };
 }

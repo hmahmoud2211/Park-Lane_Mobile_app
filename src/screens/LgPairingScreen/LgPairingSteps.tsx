@@ -5,7 +5,6 @@ import { ActivityIndicator, Linking, Platform, Pressable, View } from 'react-nat
 
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
-import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { DeviceConnectionStatus, type ConnectionTone } from '../../components/ui/DeviceConnectionStatus';
 import { QrScanner } from '../../components/parking/QrScanner';
 import { FilterChip } from '../../components/ui/FilterChip';
@@ -24,10 +23,9 @@ import {
   parseLgQrCode,
   type LgQrCode,
 } from '../../services/lg/lgHotspot';
-import { canOpenWifiSettings } from '../../services/sonoff/wifiProvisioningService';
-import { wifiPasswordStore } from '../../services/sonoff/wifiPasswordStore';
-import { Notice, PrimaryAction, SecondaryAction, TextAction } from '../SonoffPairingScreen/PairingParts';
+import { canOpenWifiSettings } from '../../services/provisioning/wifiJoin';
 import { finishPhases, lgPairingCopy as copy, lgSetupInstructions } from './LgPairingScreen.data';
+import { Notice, PrimaryAction, SecondaryAction, TextAction } from './LgPairingParts';
 import { FIELD_HEIGHT, ROW_ICON_SIZE, createStyles } from './LgPairingScreen.styles';
 
 function ErrorNotice({ error, onRetry }: { error: LgPairingError; onRetry?: () => void }) {
@@ -45,7 +43,7 @@ function ErrorNotice({ error, onRetry }: { error: LgPairingError; onRetry?: () =
   );
 }
 
-/** Stage 1: setup mode on the AC, and whether the backend can reach rethink at all. */
+/** Stage 1: setup mode on the AC, and whether the gateway can set up LG appliances (ReThink configured). */
 export function LgSetupModeStep({ pairing }: { pairing: LgPairing }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -75,7 +73,7 @@ export function LgSetupModeStep({ pairing }: { pairing: LgPairing }) {
         style={styles.card}
         actions={<TextAction title={copy.rethinkGuide} onPress={() => void Linking.openURL(lgSources.rethinkSetup)} />}
       >
-        {pairing.remote ? copy.beforeBodyRemote : copy.beforeBody}
+        {`${copy.beforeBody} ${copy.experimentalNote}`}
       </Notice>
 
       {!pairing.setupAvailable ? (
@@ -121,11 +119,8 @@ export function LgHomeWifiStep({ pairing }: { pairing: LgPairing }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [initialSsid] = useState(() => pairing.homeNetwork ?? '');
-  const [ssid, setSsid] = useState(initialSsid);
+  const [ssid, setSsid] = useState(() => pairing.homeNetwork ?? '');
   const [password, setPassword] = useState('');
-  const [passwordRemembered, setPasswordRemembered] = useState(false);
-  const [remember, setRemember] = useState(wifiPasswordStore.available);
   const [errors, setErrors] = useState<{ ssid?: string; password?: string }>({});
 
   const { scanHomeNetworks } = pairing;
@@ -133,41 +128,17 @@ export function LgHomeWifiStep({ pairing }: { pairing: LgPairing }) {
     void scanHomeNetworks();
   }, [scanHomeNetworks]);
 
-  useEffect(() => {
-    if (!initialSsid) {
-      return;
-    }
-    let current = true;
-    void wifiPasswordStore.load(initialSsid).then((saved) => {
-      if (current && saved) {
-        setPassword((typed) => typed || saved);
-        setPasswordRemembered(true);
-      }
-    });
-    return () => {
-      current = false;
-    };
-  }, [initialSsid]);
-
-  const chooseNetwork = useCallback(async (name: string) => {
+  const chooseNetwork = useCallback((name: string) => {
     setSsid(name);
     setPassword('');
-    setPasswordRemembered(false);
-    const saved = await wifiPasswordStore.load(name);
-    if (saved) {
-      setPassword(saved);
-      setPasswordRemembered(true);
-    }
   }, []);
 
+  // The password is never stored: it goes from this form to the AC, and is dropped on leaving.
   const submit = () => {
     const next = validateWifiCredentials(ssid, password);
     setErrors(next);
     if (Object.keys(next).length > 0) {
       return;
-    }
-    if (remember) {
-      void wifiPasswordStore.save(ssid, password);
     }
     pairing.submitWifi({ ssid: ssid.trim(), password });
   };
@@ -198,7 +169,7 @@ export function LgHomeWifiStep({ pairing }: { pairing: LgPairing }) {
                     iconSet="ionicons"
                     iconName="wifi"
                     selected={network.ssid === ssid}
-                    onPress={() => void chooseNetwork(network.ssid)}
+                    onPress={() => chooseNetwork(network.ssid)}
                   />
                 ))}
               </View>
@@ -208,14 +179,8 @@ export function LgHomeWifiStep({ pairing }: { pairing: LgPairing }) {
           <WifiCredentialForm
             ssid={ssid}
             password={password}
-            onChangeSsid={(value) => {
-              setSsid(value);
-              setPasswordRemembered(false);
-            }}
-            onChangePassword={(value) => {
-              setPassword(value);
-              setPasswordRemembered(false);
-            }}
+            onChangeSsid={setSsid}
+            onChangePassword={setPassword}
             errors={errors}
             onSubmit={submit}
             style={styles.gapTop}
@@ -223,27 +188,8 @@ export function LgHomeWifiStep({ pairing }: { pairing: LgPairing }) {
 
           <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.gapTop}>
             {pairing.homeNetwork && ssid === pairing.homeNetwork ? `${copy.wifiDetected(pairing.homeNetwork)} ` : ''}
-            {passwordRemembered ? copy.wifiPasswordRemembered : copy.wifiPasswordNote} {copy.wifiBand}
+            {copy.wifiPasswordNote} {copy.wifiBand}
           </AppText>
-
-          {wifiPasswordStore.available ? (
-            <View style={[styles.toggleRow, styles.gapTop]}>
-              <AppText variant="statValue" style={styles.flex}>
-                {copy.wifiRemember}
-              </AppText>
-              <ToggleSwitch
-                value={remember}
-                onValueChange={(next) => {
-                  setRemember(next);
-                  if (!next && ssid) {
-                    void wifiPasswordStore.forget(ssid);
-                    setPasswordRemembered(false);
-                  }
-                }}
-                accessibilityLabel={copy.wifiRemember}
-              />
-            </View>
-          ) : null}
         </View>
       </NeonPanel>
 
@@ -257,15 +203,10 @@ export function LgHomeWifiStep({ pairing }: { pairing: LgPairing }) {
  * hotspot, so the hotspot is then looked for among those in range.
  */
 type QrOutcome =
-  | { kind: 'looking' | 'joining' | 'notInRange' | 'several' | 'typeName' | 'unknown'; code: LgQrCode };
+  | { kind: 'looking' | 'joining' | 'confirm' | 'notInRange' | 'several' | 'typeName' | 'unknown'; code: LgQrCode };
 
 /** "LG S4NW24K2RME", as the label names it. */
 const applianceLabel = (code: LgQrCode) => (code.model ? `LG ${code.model}` : 'your LG AC');
-
-/** Signal bars for a hotspot's dBm, as Android's own picker draws them. */
-function signalIcon(level: number): keyof typeof Ionicons.glyphMap {
-  return level >= -60 ? 'wifi' : level >= -75 ? 'wifi-outline' : 'cellular-outline';
-}
 
 /** Stage 3: onto the AC's hotspot (from its QR code or the list), and the home Wi-Fi over to the AC. */
 export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing; onOpenWifiSettings: () => void }) {
@@ -344,14 +285,17 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
       });
       return;
     }
-    setQrOutcome({ kind: 'joining', code });
     chooseHotspot(ssid);
-    const fromCode = code.password !== undefined;
-    if (fromCode) {
+    if (code.password !== undefined) {
+      // The appliance's own code carries the password: use it as given.
+      setQrOutcome({ kind: 'joining', code });
       setPasswordOverride(code.password ?? '');
       setPasswordFromQr(true);
+      void pairing.send({ ssid, password: code.password ?? null });
+      return;
     }
-    void pairing.send({ ssid, password: fromCode ? (code.password ?? null) : lgHotspotPassword(ssid) });
+    // Only a documented default is known: show it, labelled, and let the resident confirm or change it.
+    setQrOutcome({ kind: 'confirm', code });
   };
 
   const onQrScanned = (data: string) => {
@@ -403,6 +347,7 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
     const body = {
       looking: copy.qrLooking,
       joining: copy.qrJoining,
+      confirm: copy.qrConfirm,
       notInRange: copy.qrNotInRange,
       several: copy.qrSeveral,
       typeName: copy.qrTypeName,
@@ -499,7 +444,7 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
                     accessibilityState={{ checked, disabled: busy }}
                     style={({ pressed }) => [styles.option, checked && styles.optionSelected, pressed && styles.pressed]}
                   >
-                    <Ionicons name={signalIcon(entry.level)} size={ROW_ICON_SIZE} color={theme.colors.textPrimary} />
+                    <Ionicons name="wifi" size={ROW_ICON_SIZE} color={theme.colors.textPrimary} />
                     <AppText variant="statValue" style={styles.optionText} numberOfLines={1}>
                       {entry.ssid}
                     </AppText>
@@ -613,36 +558,32 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
   );
 }
 
-/** Stage 4: the AC joins home Wi-Fi and reaches rethink; then it is named and added. */
+/**
+ * Stage 4: the AC joins home Wi-Fi and reaches ReThink; the gateway finds it
+ * there and pairs it. Only the gateway's `connected` counts as done.
+ */
 export function LgFinishStep({
   pairing,
   onStartOver,
-  onDone,
+  onFind,
+  onSetup,
+  onAcSettings,
 }: {
   pairing: LgPairing;
   onStartOver: () => void;
-  onDone: () => void;
+  onFind: () => void;
+  onSetup: (deviceId: string) => void;
+  onAcSettings: (deviceId: string) => void;
 }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [name, setName] = useState<string>(copy.defaultName);
-  const [room, setRoom] = useState('');
-  const [nameError, setNameError] = useState<string | undefined>();
-  const { phase, timedOut, found, busy, error } = pairing;
+  const { phase, timedOut, finishError, deviceId } = pairing;
 
   const order = ['sent', 'home', 'find', 'added'] as const;
-  const reached = phase === 'home' ? 1 : phase === 'find' ? 2 : phase === 'name' ? 3 : 4;
+  const reached = phase === 'home' ? 1 : phase === 'find' ? 2 : 4;
+  const failed = finishError !== null;
   const stateOf = (index: number): PairingStepState =>
-    index < reached ? 'done' : index === reached ? (timedOut ? 'failed' : 'active') : 'pending';
-
-  const submit = () => {
-    if (!name.trim()) {
-      setNameError(copy.nameMissing);
-      return;
-    }
-    setNameError(undefined);
-    void pairing.add({ name: name.trim(), room: room.trim() || undefined });
-  };
+    index < reached ? 'done' : index === reached ? (failed ? 'failed' : 'active') : 'pending';
 
   return (
     <View>
@@ -668,47 +609,28 @@ export function LgFinishStep({
           style={styles.card}
           actions={
             <>
-              <TextAction title={copy.keepWaiting} onPress={() => void pairing.keepWaiting()} />
+              <TextAction title={copy.keepWaiting} onPress={onFind} />
               <TextAction title={copy.startOver} onPress={onStartOver} />
             </>
           }
         >
           {pairing.remote ? copy.notFoundBodyRemote : copy.notFoundBody}
         </Notice>
+      ) : finishError ? (
+        <Notice tone="error" title={copy.failedTitle} style={styles.card} actions={<TextAction title={copy.startOver} onPress={onStartOver} />}>
+          {[finishError.message, finishError.recovery].filter(Boolean).join(' ')}
+        </Notice>
       ) : null}
 
-      {phase === 'name' && found ? (
-        <NeonPanel style={[styles.card, styles.panelTight]}>
-          <PanelHeading
-            title={copy.addTitle}
-            subtitle={copy.foundTitle([found.name, found.model].filter(Boolean).join(' · '))}
-            iconSet="material"
-            iconName="air-conditioner"
-            iconSize={19}
-          />
-          <View style={[styles.panelBody, styles.gapTop, styles.actions]}>
-            <AppInput
-              variant="field"
-              height={FIELD_HEIGHT}
-              label={copy.name}
-              value={name}
-              onChangeText={setName}
-              error={nameError}
-              editable={!busy}
-            />
-            <AppInput variant="field" height={FIELD_HEIGHT} label={copy.room} value={room} onChangeText={setRoom} editable={!busy} />
-            {error ? <ErrorNotice error={error} /> : null}
-            <PrimaryAction title={copy.add} onPress={submit} loading={busy} disabled={busy} />
-          </View>
-        </NeonPanel>
-      ) : null}
-
-      {phase === 'done' ? (
+      {phase === 'done' && deviceId ? (
         <>
           <Notice tone="success" title={copy.doneTitle} style={styles.card}>
             {copy.doneBody}
           </Notice>
-          <PrimaryAction title={copy.done} onPress={onDone} />
+          <View style={styles.actions}>
+            <PrimaryAction title={copy.nameAndRoom} onPress={() => onSetup(deviceId)} />
+            <SecondaryAction title={copy.acSettings} icon="options-outline" onPress={() => onAcSettings(deviceId)} />
+          </View>
         </>
       ) : null}
     </View>

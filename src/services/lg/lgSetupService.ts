@@ -2,7 +2,7 @@ import { NativeModules, Platform } from 'react-native';
 import TcpSocket from 'react-native-tcp-socket';
 
 import { lgConfig } from '../../constants/lgConfig';
-import { unbindFromDeviceNetwork } from '../sonoff/wifiProvisioningService';
+import { unbindProcessNetwork } from '../provisioning/wifiJoin';
 import {
   LgSetupError,
   provisionLgAppliance,
@@ -68,7 +68,7 @@ export async function sendWifiToAppliance(
   servers: SetupRequest['servers'] = null,
 ): Promise<SetupProtocol> {
   if (!isLgSetupAvailable()) {
-    throw new LgSetupError('unreachable', 'This build cannot talk to LG appliances. Install the latest Parklane build.');
+    throw new LgSetupError('unreachable', 'This build cannot talk to LG appliances. Install the latest CUBE OS build (not Expo Go or the web).');
   }
   const request: SetupRequest = { ssid, password, utcOffsetMinutes: -new Date().getTimezoneOffset(), servers };
   let lastError: unknown;
@@ -86,6 +86,6 @@ export async function sendWifiToAppliance(
     throw lastError;
   } finally {
     // The sockets bound the whole app to the hotspot, which the AC is about to take down.
-    await unbindFromDeviceNetwork();
+    await unbindProcessNetwork();
   }
 }

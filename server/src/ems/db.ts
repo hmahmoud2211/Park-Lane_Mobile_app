@@ -5,11 +5,13 @@ import { DatabaseSync } from 'node:sqlite';
 import { config } from '../config.ts';
 
 /**
- * EMS accounts, the device registry and the Alexa link, in DATA_DIR/ems.db
- * (SQLite, built into Node, so the backend stays dependency-free).
+ * EMS accounts and their tokens, in DATA_DIR/ems.db (SQLite, built into
+ * Node, so the backend stays dependency-free).
  *
- * Tokens and codes are stored as SHA-256 hashes, never as issued. Amazon's
- * tokens and plug keys are sealed with secrets.ts before they are written.
+ * Tokens are stored as SHA-256 hashes, never as issued. Other secrets are
+ * sealed with secrets.ts before they are written.
+ *
+ * Append a migration to change the schema; never edit one that has shipped.
  */
 
 const MIGRATIONS: readonly string[] = [
@@ -92,6 +94,82 @@ const MIGRATIONS: readonly string[] = [
     code_verifier TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   );
+  `,
+  // The CUBE / SONOFF device registry and the custom Alexa skill are gone.
+  `
+  DROP TABLE devices;
+  DROP TABLE oauth_codes;
+  DROP TABLE alexa_links;
+  DROP TABLE link_states;
+  DELETE FROM tokens WHERE kind <> 'session';
+  `,
+  // Units, their residents and the Home Assistant hub behind each (src/ha/).
+  `
+  CREATE TABLE units (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    building TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  -- One unit per resident for now. role: owner, member.
+  CREATE TABLE unit_members (
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (unit_id, user_id)
+  );
+
+  -- kind: container (provisioned here) or box (a hub in the unit, attached by an admin).
+  -- status: provisioning, online, offline, auth_failed, failed.
+  CREATE TABLE hubs (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL UNIQUE REFERENCES units(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    base_url TEXT,
+    -- The facade's long-lived Home Assistant token, sealed.
+    token_sealed TEXT,
+    -- The facade user's password, sealed, to issue a new token if one is lost.
+    admin_password_sealed TEXT,
+    container_name TEXT,
+    ha_version TEXT,
+    status TEXT NOT NULL,
+    last_seen TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    hub_id TEXT,
+    action TEXT NOT NULL,
+    target TEXT,
+    at TEXT NOT NULL
+  );
+  `,
+  // Account-linking flows in progress: which resident started which HA config flow, on which hub.
+  `
+  CREATE TABLE pairing_sessions (
+    flow_id TEXT PRIMARY KEY,
+    hub_id TEXT NOT NULL REFERENCES hubs(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    handler TEXT NOT NULL,
+    -- The current form's fields (name, section), to nest the answers as HA expects.
+    fields TEXT,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  `,
+  // Assistant tokens (kind 'assistant') belong to the app session that asked for them, so
+  // signing out ends them too. The audit log says when a command came from the assistant.
+  `
+  ALTER TABLE tokens ADD COLUMN parent_hash TEXT;
+  CREATE INDEX tokens_parent ON tokens(parent_hash) WHERE parent_hash IS NOT NULL;
+  -- via: NULL for the app, 'assistant' for the Parklane Assistant (voice and chat).
+  ALTER TABLE audit_log ADD COLUMN via TEXT;
   `,
 ];
 

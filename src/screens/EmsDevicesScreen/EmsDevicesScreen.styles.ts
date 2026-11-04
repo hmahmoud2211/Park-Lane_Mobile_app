@@ -16,7 +16,6 @@ const HEADER_TO_CONTENT = 30;
 export const CARD_GAP = 18;
 const PANEL_INSET = 14;
 const ROW_GAP = 12;
-export const FIELD_HEIGHT = 54;
 export const BUTTON_HEIGHT = 46;
 export const SMALL_BUTTON_HEIGHT = 36;
 /** Narrowest a device card gets beside another; phones show one column. */
@@ -44,40 +43,28 @@ export function createStyles(theme: AppTheme) {
       padding: PANEL_INSET,
       gap: ROW_GAP,
     },
-    live: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-    },
-    chips: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
-    },
-    form: {
-      gap: ROW_GAP,
-    },
-    actions: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-      paddingTop: theme.spacing.xs,
+    account: {
+      gap: theme.spacing.xs,
+      paddingVertical: theme.spacing.sm,
       borderTopWidth: theme.glass.strokeWidth,
       borderTopColor: theme.colors.dividerSubtle,
     },
-    action: {
+    accountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+    },
+    accountActions: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+    },
+    accountAction: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing.md,
     },
-    /** A row of its own in the actions, e.g. an AC's Controls. */
-    fullWidth: {
-      width: '100%',
-    },
-    toggleRow: {
+    live: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       gap: theme.spacing.sm,
     },
   });

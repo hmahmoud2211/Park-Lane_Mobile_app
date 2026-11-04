@@ -1,8 +1,8 @@
 /**
- * Pairing an LG appliance from its setup hotspot, the way rethink's
+ * Pairing an LG appliance from its setup hotspot, the way ReThink's
  * rethink-setup does (https://github.com/anszom/rethink), so neither LG's
- * ThinQ app nor a computer is needed. The backend's rethink bridge then finds
- * it (EXPO_PUBLIC_DEVICE_BACKEND_URL, see emsConfig).
+ * ThinQ app nor a computer is needed. The CUBE Gateway's ReThink adapter then
+ * finds it and finishes pairing (plugin lg_thinq_softap).
  */
 export const lgConfig = {
   /**
@@ -14,10 +14,6 @@ export const lgConfig = {
   connectTimeoutMs: 8_000,
   /** One reply; a ThinQ2 appliance may also stay silent to the ThinQ1 framing, then this decides. */
   replyTimeoutMs: 10_000,
-
-  /** Joining home Wi-Fi, then calling (DNS-redirected) LG hosts, can take the appliance a few minutes. */
-  discoveryWindowMs: 240_000,
-  discoveryPollMs: 5_000,
 } as const;
 
 export const lgSources = {

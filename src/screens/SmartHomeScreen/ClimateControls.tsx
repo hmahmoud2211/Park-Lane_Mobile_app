@@ -6,16 +6,26 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '../../components/common/AppText';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
-import { climate, type AcMode } from './SmartHomeScreen.data';
+import { climate } from './SmartHomeScreen.data';
 
 export interface ClimateControlsProps {
   temperature: number;
   onTemperatureChange: (next: number) => void;
   fanSpeed: number;
   onFanSpeedChange: (next: number) => void;
-  mode: AcMode;
-  onModeChange: (next: AcMode) => void;
+  mode: string;
+  onModeChange: (next: string) => void;
+  /** A real AC's range and modes; the design's sample values otherwise. */
+  minTemperature?: number;
+  maxTemperature?: number;
+  step?: number;
+  unit?: string;
+  modes?: readonly string[];
+  /** 0 hides the fan bars, for an AC without fan speeds. */
+  fanLevels?: number;
 }
+
+const modeLabel = (mode: string) => mode.replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
 
 /*
  * Measured on the Smart Home reference: minus and plus rings either side of
@@ -40,20 +50,26 @@ export function ClimateControls({
   onFanSpeedChange,
   mode,
   onModeChange,
+  minTemperature = climate.minTemperature,
+  maxTemperature = climate.maxTemperature,
+  step = 1,
+  unit = '°C',
+  modes = climate.modes,
+  fanLevels = climate.fanLevels,
 }: ClimateControlsProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const atMin = temperature <= climate.minTemperature;
-  const atMax = temperature >= climate.maxTemperature;
+  const atMin = temperature <= minTemperature;
+  const atMax = temperature >= maxTemperature;
   // No dropdown is designed yet, so the picker steps through the modes.
-  const nextMode = climate.modes[(climate.modes.indexOf(mode) + 1) % climate.modes.length];
+  const nextMode = modes.length > 0 ? modes[(modes.indexOf(mode) + 1) % modes.length] : mode;
 
   return (
     <View>
       <View style={styles.setPointRow}>
         <Pressable
-          onPress={() => onTemperatureChange(temperature - 1)}
+          onPress={() => onTemperatureChange(Math.max(minTemperature, temperature - step))}
           disabled={atMin}
           hitSlop={8}
           accessibilityRole="button"
@@ -75,11 +91,11 @@ export function ClimateControls({
           accessibilityLiveRegion="polite"
           accessibilityLabel={`${temperature} degrees`}
         >
-          {`${temperature}°C`}
+          {`${temperature}${unit}`}
         </AppText>
 
         <Pressable
-          onPress={() => onTemperatureChange(temperature + 1)}
+          onPress={() => onTemperatureChange(Math.min(maxTemperature, temperature + step))}
           disabled={atMax}
           hitSlop={8}
           accessibilityRole="button"
@@ -100,7 +116,7 @@ export function ClimateControls({
       <View style={styles.fanRow}>
         <MaterialCommunityIcons name="fan" size={FAN_ICON_SIZE} color={theme.colors.textPrimary} />
         <View style={styles.bars}>
-          {Array.from({ length: climate.fanLevels }, (_, index) => {
+          {Array.from({ length: fanLevels }, (_, index) => {
             const level = index + 1;
             const lit = level <= fanSpeed;
             return (
@@ -120,11 +136,11 @@ export function ClimateControls({
           onPress={() => onModeChange(nextMode)}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={`Mode, ${mode}`}
-          accessibilityHint={`Switches to ${nextMode}`}
+          accessibilityLabel={`Mode, ${modeLabel(mode)}`}
+          accessibilityHint={`Switches to ${modeLabel(nextMode)}`}
           style={({ pressed }) => [styles.mode, pressed && styles.pressed]}
         >
-          <AppText variant="statValue">{mode}</AppText>
+          <AppText variant="statValue">{modeLabel(mode)}</AppText>
           <Ionicons name="chevron-down" size={MODE_CHEVRON_SIZE} color={theme.colors.textPrimary} />
         </Pressable>
       </View>

@@ -8,7 +8,7 @@ import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { FilterChip } from '../../components/ui/FilterChip';
 import type { IconSet } from '../../components/ui/ServiceTile';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { ControlSetting, ControlValue } from '../../types/ems.types';
+import type { ControlSetting, ControlValue } from '../../types/controls.types';
 import { acCopy } from './AcControlScreen.data';
 import { ROW_ICON_SIZE, SMALL_STEP_ICON_SIZE, createStyles } from './AcControlScreen.styles';
 
@@ -27,6 +27,20 @@ export function ErrorLine({ error }: { error?: string }) {
   ) : null;
 }
 
+/**
+ * Shown under a setting whose value the appliance has not echoed back (the
+ * gateway answered `assumed`/`pending`, or the setting is not reported in
+ * every state), so it is never presented as fact.
+ */
+export function UnconfirmedLine({ show, note }: { show: boolean; note?: string }) {
+  const { theme } = useStyles();
+  return show ? (
+    <AppText variant="tileCaption" color={theme.colors.textAccentSoft}>
+      {note ? `${acCopy.notConfirmed} ${note}` : acCopy.notConfirmed}
+    </AppText>
+  ) : null;
+}
+
 /** Rethink's descriptions start with the feature's name ("Jet: strong airflow…"), already shown above them. */
 function withoutName(description: string): string {
   const rest = description.replace(/^[^:.]{1,40}:\s*/, '');
@@ -34,7 +48,7 @@ function withoutName(description: string): string {
 }
 
 /** A setting's name, what it does, and what it needs while the AC would ignore it. */
-function RowText({ setting, error }: { setting: ControlSetting; error?: string }) {
+function RowText({ setting, error, unconfirmed }: { setting: ControlSetting; error?: string; unconfirmed?: boolean }) {
   const { theme, styles } = useStyles();
   return (
     <View style={styles.rowText}>
@@ -49,6 +63,7 @@ function RowText({ setting, error }: { setting: ControlSetting; error?: string }
           {acCopy.needs(setting.requires)}
         </AppText>
       ) : null}
+      <UnconfirmedLine show={Boolean(unconfirmed)} />
       <ErrorLine error={error} />
     </View>
   );
@@ -91,18 +106,20 @@ export interface SwitchRowProps {
   value: ControlValue;
   pending: boolean;
   error?: string;
+  /** The value shown has not been confirmed by the appliance. */
+  unconfirmed?: boolean;
   iconName: string;
   divider: boolean;
   onChange: (next: boolean) => void;
 }
 
 /** A feature switch, e.g. Jet or Air purify. */
-export function SwitchRow({ setting, value, pending, error, iconName, divider, onChange }: SwitchRowProps) {
+export function SwitchRow({ setting, value, pending, error, unconfirmed, iconName, divider, onChange }: SwitchRowProps) {
   const { theme, styles } = useStyles();
   return (
     <View style={[styles.row, divider && styles.rowDivider]}>
       <AppIcon set="material" name={iconName} size={ROW_ICON_SIZE} style={!setting.available && styles.dim} />
-      <RowText setting={setting} error={error} />
+      <RowText setting={setting} error={error} unconfirmed={unconfirmed} />
       {pending ? <ActivityIndicator size="small" color={theme.colors.textAccentSoft} /> : null}
       <ToggleSwitch
         value={value === true}
@@ -120,6 +137,8 @@ export interface StepperRowProps {
   shown: string;
   pending: boolean;
   error?: string;
+  /** The value shown has not been confirmed by the appliance. */
+  unconfirmed?: boolean;
   iconName: string;
   divider: boolean;
   /** One step down and up, already on the setting's grid; null at the end of the range. */
@@ -129,7 +148,7 @@ export interface StepperRowProps {
 }
 
 /** A number setting with minus and plus, e.g. a timer. */
-export function StepperRow({ setting, shown, pending, error, iconName, divider, lower, higher, onChange }: StepperRowProps) {
+export function StepperRow({ setting, shown, pending, error, unconfirmed, iconName, divider, lower, higher, onChange }: StepperRowProps) {
   const { theme, styles } = useStyles();
   const step = (next: number | null, label: string, icon: 'remove' | 'add') => {
     const disabled = next === null || !setting.available;
@@ -151,7 +170,7 @@ export function StepperRow({ setting, shown, pending, error, iconName, divider, 
     <View style={[styles.group, divider && styles.rowDivider]}>
       <View style={styles.row}>
         <AppIcon set="material" name={iconName} size={ROW_ICON_SIZE} style={!setting.available && styles.dim} />
-        <RowText setting={setting} error={error} />
+        <RowText setting={setting} error={error} unconfirmed={unconfirmed} />
       </View>
       <View style={styles.stepper}>
         {pending ? <ActivityIndicator size="small" color={theme.colors.textAccentSoft} /> : null}

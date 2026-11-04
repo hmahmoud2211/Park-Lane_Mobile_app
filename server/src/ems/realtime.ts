@@ -6,7 +6,7 @@ import { lookupToken } from './auth.ts';
 import { subscribe, type UserEvent } from './events.ts';
 
 /**
- * GET /api/events (WebSocket): device and Alexa changes pushed to the app.
+ * GET /api/events (WebSocket): changes pushed to the app.
  *
  * A minimal RFC 6455 server, so the backend stays dependency-free: text
  * frames out, and in only the client's auth message, pings and close.

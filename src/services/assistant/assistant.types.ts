@@ -16,6 +16,8 @@ export type AssistantIntent =
   | 'maintenance'
   | 'community'
   | 'weather'
+  | 'home_control'
+  | 'home_devices'
   | 'general_knowledge';
 
 /** The structured data behind an answer. Shared by `/chat` and `x.db_query_complete`. */
@@ -35,6 +37,13 @@ export interface AnswerSummary {
   as_of?: string;
   error?: string;
   devices?: readonly AnswerDevice[];
+  /** Smart-home answers: false when no EMS session was handed over. */
+  home_connected?: boolean;
+  /** Smart-home answers: why the EMS backend couldn't help (hub offline, session ended, ...). */
+  home_error?: { code: string; message: string };
+  /** Smart-home commands: how many went through, and how many didn't. */
+  done?: number;
+  failed?: number;
   [field: string]: unknown;
 }
 
@@ -53,6 +62,8 @@ export interface ChatRequest {
   session_id?: string;
   response_mode?: 'summary' | 'raw';
   user_id?: string;
+  /** The EMS assistant token (EmsContext.assistantToken), so the assistant can control the home. */
+  home_token?: string;
 }
 
 export interface ChatResponse {
@@ -81,7 +92,14 @@ export interface AssistantHealth {
  * event set; only the ones the client acts on are modelled.
  */
 
-export type QueryFunction = 'query_building_systems' | 'query_resident_services';
+export type QueryFunction =
+  | 'query_building_systems'
+  | 'query_resident_services'
+  | 'get_home_devices'
+  | 'control_home_devices';
+
+/** The voice tools that reach the resident's own devices. */
+export const HOME_FUNCTIONS: readonly string[] = ['get_home_devices', 'control_home_devices'];
 
 export type RealtimeServerEvent =
   | { type: 'session.created' }

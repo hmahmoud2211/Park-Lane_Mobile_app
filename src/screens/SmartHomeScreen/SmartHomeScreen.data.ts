@@ -91,6 +91,9 @@ export interface LightPreset {
   id: string;
   label: string;
   color: ColorToken;
+  /** What a real light is set to: a hue for colour lights, a temperature for white ones. */
+  hue?: number;
+  kelvin?: number;
 }
 
 export const lighting = {
@@ -99,11 +102,11 @@ export const lighting = {
   /** Arrow keys and screen-reader swipes move it by this much. */
   brightnessStep: 0.1,
   presets: [
-    { id: 'warm', label: 'Warm white', color: 'lightWarm' },
-    { id: 'amber', label: 'Amber', color: 'lightAmber' },
-    { id: 'daylight', label: 'Daylight', color: 'lightDaylight' },
-    { id: 'blue', label: 'Blue', color: 'lightBlue' },
-    { id: 'violet', label: 'Violet', color: 'lightViolet' },
+    { id: 'warm', label: 'Warm white', color: 'lightWarm', kelvin: 2700 },
+    { id: 'amber', label: 'Amber', color: 'lightAmber', hue: 35, kelvin: 2200 },
+    { id: 'daylight', label: 'Daylight', color: 'lightDaylight', kelvin: 5000 },
+    { id: 'blue', label: 'Blue', color: 'lightBlue', hue: 220 },
+    { id: 'violet', label: 'Violet', color: 'lightViolet', hue: 275 },
   ] satisfies readonly LightPreset[],
   /** Six hues around the custom-colour ring, clockwise from the top. */
   ringHues: ['hueRed', 'hueOrange', 'hueYellow', 'hueGreen', 'hueBlue', 'hueMagenta'] satisfies readonly ColorToken[],
@@ -230,67 +233,17 @@ export const devices: readonly SmartDevice[] = [
 
 export const deviceStatusLabel = { online: 'Online', offline: 'Offline' } as const;
 
-/**
- * The badge for a device on the eWeLink CUBE hub, by its `display_category`
- * (Open API "Supported Device Type"). Anything else falls back to `chip`.
- */
-export const cubeCategoryGlyphs: Record<string, Glyph> = {
-  plug: { iconSet: 'material', iconName: 'power-plug-outline' },
-  switch: { iconSet: 'material', iconName: 'toggle-switch-outline' },
-  light: { iconSet: 'material', iconName: 'lightbulb-on-outline' },
-  curtain: { iconSet: 'material', iconName: 'curtains' },
-  contactSensor: { iconSet: 'material', iconName: 'window-closed-variant' },
-  motionSensor: { iconSet: 'material', iconName: 'motion-sensor' },
-  temperatureSensor: { iconSet: 'material', iconName: 'thermometer' },
-  humiditySensor: { iconSet: 'material', iconName: 'water-percent' },
-  temperatureAndHumiditySensor: { iconSet: 'material', iconName: 'thermometer-water' },
-  waterLeakDetector: { iconSet: 'material', iconName: 'water-alert-outline' },
-  smokeDetector: { iconSet: 'material', iconName: 'smoke-detector-variant' },
-  button: { iconSet: 'material', iconName: 'gesture-tap-button' },
-  camera: { iconSet: 'material', iconName: 'cctv' },
-  fanLight: { iconSet: 'material', iconName: 'ceiling-fan-light' },
-  airConditioner: { iconSet: 'material', iconName: 'snowflake' },
-  fan: { iconSet: 'material', iconName: 'fan' },
-  thermostat: { iconSet: 'material', iconName: 'thermostat' },
-  chip: { iconSet: 'material', iconName: 'chip' },
-};
-
-/** Not in the design: the "+" in the Smart Devices heading and the sheet it opens. */
+/** Not in the design: the "+" in the Smart Devices heading. */
 export const addDeviceCopy = {
-  buttonLabel: 'Add a device',
-  title: 'Add Device',
-  subtitle: 'Connect a device to your home hub.',
-  hubConnecting: 'Connecting to your home hub…',
-  hubUnreachable: 'Home hub not reachable. Showing sample devices.',
-  noDevices: 'No devices on your hub yet. Tap + to add one.',
-  zigbeeTitle: 'Zigbee device',
-  zigbeeBody: 'Sensors, switches, plugs and bulbs that pair with the hub.',
-  zigbeeStart: 'Start pairing',
-  zigbeeStop: 'Stop pairing',
-  zigbeeSearching: 'Searching… put the device in pairing mode now.',
-  zigbeeFound: (count: number) => `${count} new device${count === 1 ? '' : 's'} added.`,
-  cameraTitle: 'Camera',
-  cameraBody: 'An RTSP or ESP32 camera on your network.',
-  cameraName: 'Name',
-  cameraNamePlaceholder: 'e.g. Balcony Camera',
-  cameraUrl: 'Stream address',
-  cameraUrlPlaceholder: 'rtsp://user:pass@192.168.1.50:554/stream1',
-  cameraAdd: 'Add camera',
-  cameraAdded: 'Camera added.',
-  cameraNameMissing: 'Give the camera a name.',
-  cameraUrlInvalid: 'Use an address starting rtsp:// or http://',
-  brandTitle: 'Wi-Fi device',
-  brandBody: 'Choose the brand of the device you are adding.',
-  brandSonoff: 'SONOFF',
-  brandLg: 'LG',
-  sonoffBody: 'Pair a SONOFF Wi-Fi plug straight from Parklane, without the eWeLink app.',
-  sonoffStart: 'Add SONOFF Wi-Fi Device',
-  lgBody: 'Add an LG air conditioner paired with rethink, the LG bridge on your home network.',
-  lgStart: 'Add LG Appliance',
-  wifiTitle: 'eWeLink Wi-Fi device',
-  wifiBody: 'Wi-Fi devices are linked from your eWeLink account in the hub console.',
-  wifiOpen: 'Open hub console',
-  close: 'Close',
+  buttonLabel: 'Connect devices',
+} as const;
+
+/** Not in the design: what the live screen says about the resident's own home. */
+export const liveCopy = {
+  allRooms: 'All rooms',
+  noDevices: 'No devices in this room yet.',
+  deviceCount: (count: number) => `${count} device${count === 1 ? '' : 's'}`,
+  hubOffline: 'Home hub offline · showing the last known state',
 } as const;
 
 export interface Automation extends Glyph {

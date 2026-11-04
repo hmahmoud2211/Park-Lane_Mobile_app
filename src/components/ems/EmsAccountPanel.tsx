@@ -19,9 +19,9 @@ const FIELD_HEIGHT = 54;
 const BUTTON_HEIGHT = 48;
 
 /**
- * The EMS account that owns the devices and that Alexa links to. Separate
- * from the app's own login screen, which is still frontend-only: devices and
- * Alexa need a real account on the backend.
+ * The EMS account that owns the devices. Separate from the app's own login
+ * screen, which is still frontend-only: devices need a real account on the
+ * backend.
  */
 export function EmsAccountPanel({ intro }: { intro: string }) {
   const theme = useAppTheme();

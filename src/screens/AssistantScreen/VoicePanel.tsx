@@ -17,6 +17,8 @@ import { VOICE_ORB_SIZE, VOICE_ORB_SIZE_COMPACT, createStyles } from './Assistan
 
 export interface VoicePanelProps {
   residentId: number | null;
+  /** The EMS assistant token, so the assistant can control the home. */
+  homeToken?: () => Promise<string | null>;
   onSignIn: () => void;
   onOpenRoute: (route: NonNullable<IntentMeta['route']>) => void;
 }
@@ -32,7 +34,7 @@ const INTERRUPTIBLE: readonly VoicePhase[] = ['speaking', 'thinking', 'searching
  * an optional camera the assistant can look through. Leaving voice mode
  * unmounts this panel, which hangs up.
  */
-export function VoicePanel({ residentId, onSignIn, onOpenRoute }: VoicePanelProps) {
+export function VoicePanel({ residentId, homeToken, onSignIn, onOpenRoute }: VoicePanelProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { height } = useWindowDimensions();
@@ -44,7 +46,7 @@ export function VoicePanel({ residentId, onSignIn, onOpenRoute }: VoicePanelProp
   const camera = useRef<CameraPeekHandle>(null);
   const captureFrame = useCallback(() => camera.current?.capture() ?? Promise.resolve(''), []);
 
-  const session = useVoiceSession({ residentId, cameraEnabled: cameraOn, captureFrame });
+  const session = useVoiceSession({ residentId, cameraEnabled: cameraOn, captureFrame, homeToken });
   const { phase } = session;
   const inCall = phase !== 'idle' && phase !== 'error';
 

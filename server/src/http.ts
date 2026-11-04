@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { ApiError } from './errors.ts';
 
-/** Small response and body helpers shared by the API, OAuth and linking routes. */
+/** Small response and body helpers shared by the API routes. */
 
 const MAX_BODY_BYTES = 16 * 1024;
 
@@ -22,17 +22,11 @@ export const ok = (res: ServerResponse, data: unknown) => send(res, 200, { ok: t
 const PAGE_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8',
   'Cache-Control': 'no-store',
-  // The pages carry no scripts and load nothing from elsewhere. form-action
-  // also governs the redirect after a submit, which goes back to Amazon.
+  // The pages carry no scripts and load nothing from elsewhere.
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https:; frame-ancestors 'none'",
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'no-referrer',
 };
-
-export function html(res: ServerResponse, status: number, page: string) {
-  res.writeHead(status, { ...PAGE_HEADERS, 'Content-Length': Buffer.byteLength(page) });
-  res.end(page);
-}
 
 /** A redirect with a short page for browsers that do not follow it (e.g. to an app scheme). */
 export function redirect(res: ServerResponse, location: string) {
@@ -74,7 +68,3 @@ export async function readJson(req: IncomingMessage): Promise<Record<string, unk
   }
 }
 
-/** application/x-www-form-urlencoded, as OAuth clients and HTML forms send. */
-export async function readForm(req: IncomingMessage): Promise<Record<string, string>> {
-  return Object.fromEntries(new URLSearchParams(await readText(req)));
-}

@@ -1,0 +1,7 @@
+# The Dockerfile copies only what it names; this keeps secrets and data out of the build.
+.env
+.env.*
+data/
+test/
+node_modules/
+*.md

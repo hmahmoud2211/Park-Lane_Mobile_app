@@ -3,7 +3,7 @@ import type { EmsEvent, RealtimeState } from '../../types/ems.types';
 
 /**
  * The backend's realtime channel (/api/events). Authenticates with the first
- * message, then delivers device and Alexa changes as they happen, whoever
+ * message, then delivers device changes as they happen, whoever
  * caused them. Drops reconnect with exponential back-off (1 s up to 30 s,
  * with jitter); `wake()` reconnects at once, e.g. when the app returns to
  * the foreground. A refused token stops it: the session is no longer valid.

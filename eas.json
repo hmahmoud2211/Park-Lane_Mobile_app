@@ -9,8 +9,8 @@
       "distribution": "internal",
       "environment": "development",
       "env": {
-        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
-        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
+        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com"
       }
     },
     "preview": {
@@ -20,16 +20,16 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
-        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
+        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com"
       }
     },
     "production": {
       "environment": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_CUBE_URL": "https://cube.ems-iot.com",
-        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot.ems-iot.com"
+        "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com"
       }
     }
   },

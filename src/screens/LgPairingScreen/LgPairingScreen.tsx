@@ -11,16 +11,18 @@ import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useLgPairing } from '../../hooks/useLgPairing';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { openWifiSettings } from '../../services/sonoff/wifiProvisioningService';
+import { toAppDeviceId } from '../../services/gateway/deviceMapping';
+import { openWifiSettings } from '../../services/provisioning/wifiJoin';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { lgPairingCopy as copy, lgWizardSteps } from './LgPairingScreen.data';
 import { createStyles } from './LgPairingScreen.styles';
 import { LgFinishStep, LgHomeWifiStep, LgSendStep, LgSetupModeStep } from './LgPairingSteps';
 
 /**
- * Adds an LG AC without LG's ThinQ app: setup mode, home Wi-Fi, the AC's
- * hotspot, then rethink on the backend. One route, so the Wi-Fi password
- * stays in memory here rather than in navigation params.
+ * Adds an LG AC without LG's ThinQ app (ported from Master,
+ * archive/master-2026-11-04): setup mode, home Wi-Fi, the AC's hotspot, then
+ * the CUBE Gateway finds it on ReThink and pairs it. One route, so the Wi-Fi
+ * password stays in memory here rather than in navigation params.
  */
 export function LgPairingScreen() {
   const theme = useAppTheme();
@@ -75,8 +77,13 @@ export function LgPairingScreen() {
 
   const startOver = useCallback(async () => {
     await pairing.cancel();
-    // A new screen instance resets the hook and checks the bridge again.
+    // A new screen instance resets the hook, its session and the gateway check.
     navigation.replace('LgPairing');
+  }, [navigation, pairing]);
+
+  const findOnRethink = useCallback(async () => {
+    await pairing.cancel();
+    navigation.replace('DeviceDiscovery', { brandId: 'lg', adapterId: 'lg_thinq_rethink', mode: 'scan' });
   }, [navigation, pairing]);
 
   return (
@@ -117,7 +124,13 @@ export function LgPairingScreen() {
             <LgSendStep pairing={pairing} onOpenWifiSettings={() => void openWifiSettings()} />
           ) : null}
           {pairing.step === 'finish' ? (
-            <LgFinishStep pairing={pairing} onStartOver={() => void startOver()} onDone={() => void leave()} />
+            <LgFinishStep
+              pairing={pairing}
+              onStartOver={() => void startOver()}
+              onFind={() => void findOnRethink()}
+              onSetup={(deviceId) => navigation.replace('DeviceSetup', { deviceId })}
+              onAcSettings={(deviceId) => navigation.replace('AcControl', { deviceId: toAppDeviceId(deviceId) })}
+            />
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
