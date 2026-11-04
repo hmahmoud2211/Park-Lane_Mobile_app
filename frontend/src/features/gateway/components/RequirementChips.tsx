@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { Candidate, ConnectionMethod, SupportLevel } from '../../types/gateway.types';
-import { StatusChip, type StatusTone } from '../ui/StatusChip';
+import type { Candidate, ConnectionMethod, SupportLevel } from '../../../types/gateway.types';
+import { StatusChip, type StatusTone } from '../../../components/ui/StatusChip';
 
 /** What a brand, connection method or found device needs, as chips: account, keys, approval, support level. */
 

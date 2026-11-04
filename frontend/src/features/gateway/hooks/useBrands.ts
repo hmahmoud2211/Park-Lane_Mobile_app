@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import * as api from '../services/gateway/gatewayApi';
-import { errorMessage } from '../services/gateway/gatewayHttp';
-import type { Brand } from '../types/gateway.types';
+import * as api from '../services/gatewayApi';
+import { errorMessage } from '../services/gatewayHttp';
+import type { Brand } from '../../../types/gateway.types';
 import { useGateway } from './useGateway';
 
 /** Brands only change with the gateway's adapters, so the list is kept per gateway for the session. */

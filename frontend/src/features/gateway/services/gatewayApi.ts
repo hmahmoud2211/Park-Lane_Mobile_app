@@ -1,4 +1,4 @@
-import { gatewayConfig } from '../../constants/gatewayConfig';
+import { gatewayConfig } from '../../../constants/gatewayConfig';
 import type {
   AdapterInfo,
   Brand,
@@ -16,7 +16,7 @@ import type {
   ProvisioningPlugin,
   ProvisioningSession,
   RemoteStatus,
-} from '../../types/gateway.types';
+} from '../../../types/gateway.types';
 import { gatewayCall, type GatewayTarget } from './gatewayHttp';
 
 /** Every route in gateway/API.md, one function each. */

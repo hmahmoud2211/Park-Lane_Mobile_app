@@ -6,7 +6,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-nativ
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
-import { GatewayStatusRow } from '../../components/gateway/GatewayStatusRow';
+import { GatewayStatusRow } from '../../features/gateway/components/GatewayStatusRow';
 import { DeviceCard } from '../../features/home/components/DeviceCard';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -18,7 +18,7 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useGatewayDevices } from '../../hooks/useGatewayDevices';
+import { useGatewayDevices } from '../../features/gateway/hooks/useGatewayDevices';
 import { useHomeDevices } from '../../features/home/hooks/useHomeDevices';
 import { useLinkedAccounts } from '../../features/home/hooks/useLinkedAccounts';
 import { useScreenLayout } from '../../hooks/useScreenLayout';

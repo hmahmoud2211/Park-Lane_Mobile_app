@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import * as api from '../services/gateway/gatewayApi';
-import { toDeviceControls, toGatewayDeviceId } from '../services/gateway/deviceMapping';
-import { GatewayError } from '../services/gateway/gatewayHttp';
-import type { ControlValue } from '../types/controls.types';
-import type { GatewayCommand } from '../types/gateway.types';
+import * as api from '../services/gatewayApi';
+import { toDeviceControls, toGatewayDeviceId } from '../services/deviceMapping';
+import { GatewayError } from '../services/gatewayHttp';
+import type { ControlValue } from '../../../types/controls.types';
+import type { GatewayCommand } from '../../../types/gateway.types';
 import { useGateway } from './useGateway';
 
 function messageOf(error: unknown): string {

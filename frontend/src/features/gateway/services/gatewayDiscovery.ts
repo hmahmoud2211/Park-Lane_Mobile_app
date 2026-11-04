@@ -1,8 +1,8 @@
 import * as Network from 'expo-network';
 import { Platform } from 'react-native';
 
-import { gatewayBaseUrl, gatewayConfig } from '../../constants/gatewayConfig';
-import type { GatewayHealth } from '../../types/gateway.types';
+import { gatewayBaseUrl, gatewayConfig } from '../../../constants/gatewayConfig';
+import type { GatewayHealth } from '../../../types/gateway.types';
 import { challenge, getHealth } from './gatewayApi';
 import { GatewayError } from './gatewayHttp';
 import type { StoredGateway } from './gatewayStore.types';

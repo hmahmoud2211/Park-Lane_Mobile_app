@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import * as api from '../../../services/gateway/gatewayApi';
-import { GatewayError } from '../../../services/gateway/gatewayHttp';
+import * as api from '../../gateway/services/gatewayApi';
+import { GatewayError } from '../../gateway/services/gatewayHttp';
 import { LgSetupError } from '../services/lgSetupProtocol';
 import { isLgHotspot } from '../services/lgHotspot';
 import { isLgSetupAvailable, sendWifiToAppliance } from '../services/lgSetupService';
@@ -16,8 +16,8 @@ import {
   scanForHotspots,
 } from '../../provisioning/services/wifiJoin';
 import type { Brand, ProvisioningSession } from '../../../types/gateway.types';
-import { useGateway } from '../../../hooks/useGateway';
-import { useProvisioningSession } from '../../../hooks/useProvisioningSession';
+import { useGateway } from '../../gateway/hooks/useGateway';
+import { useProvisioningSession } from '../../gateway/hooks/useProvisioningSession';
 
 export type LgPairingStep = 'prepare' | 'wifi' | 'join' | 'finish';
 

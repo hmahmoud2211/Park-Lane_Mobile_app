@@ -11,7 +11,7 @@ import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useLgPairing } from '../../features/lg/hooks/useLgPairing';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { toAppDeviceId } from '../../services/gateway/deviceMapping';
+import { toAppDeviceId } from '../../features/gateway/services/deviceMapping';
 import { openWifiSettings } from '../../features/provisioning/services/wifiJoin';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { lgPairingCopy as copy, lgWizardSteps } from './LgPairingScreen.data';

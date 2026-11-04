@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { gatewayConfig } from '../constants/gatewayConfig';
-import * as api from '../services/gateway/gatewayApi';
-import { GatewayError } from '../services/gateway/gatewayHttp';
-import type { ProvisioningEventName, ProvisioningSession } from '../types/gateway.types';
+import { gatewayConfig } from '../../../constants/gatewayConfig';
+import * as api from '../services/gatewayApi';
+import { GatewayError } from '../services/gatewayHttp';
+import type { ProvisioningEventName, ProvisioningSession } from '../../../types/gateway.types';
 import { useGateway } from './useGateway';
 
 const TERMINAL = new Set(['connected', 'pairing_failed']);

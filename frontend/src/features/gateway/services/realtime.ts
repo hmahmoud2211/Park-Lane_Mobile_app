@@ -1,6 +1,6 @@
-import { gatewayConfig } from '../../constants/gatewayConfig';
-import type { RealtimeState } from '../../types/ems.types';
-import type { GatewayEvent } from '../../types/gateway.types';
+import { gatewayConfig } from '../../../constants/gatewayConfig';
+import type { RealtimeState } from '../../../types/ems.types';
+import type { GatewayEvent } from '../../../types/gateway.types';
 
 /**
  * A gateway's event channel (/api/v1/events). Authenticates with the first

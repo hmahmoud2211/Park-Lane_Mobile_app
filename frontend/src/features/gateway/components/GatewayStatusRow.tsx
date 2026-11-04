@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { GatewayStatus } from '../../context/GatewayContext';
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppButton } from '../common/AppButton';
-import { AppText } from '../common/AppText';
-import { StatusChip, type StatusTone } from '../ui/StatusChip';
+import type { GatewayStatus } from '../context/GatewayContext';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppButton } from '../../../components/common/AppButton';
+import { AppText } from '../../../components/common/AppText';
+import { StatusChip, type StatusTone } from '../../../components/ui/StatusChip';
 
 const LOOK: Record<GatewayStatus, { label: string; tone: StatusTone }> = {
   loading: { label: 'Gateway', tone: 'slate' },

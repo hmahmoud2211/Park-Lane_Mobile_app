@@ -1,14 +1,14 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { gatewayBaseUrl } from '../constants/gatewayConfig';
-import * as api from '../services/gateway/gatewayApi';
-import { resolveEndpoint } from '../services/gateway/gatewayDiscovery';
-import { GatewayError, onTokenRefused, type GatewayTarget } from '../services/gateway/gatewayHttp';
-import { gatewayStore, type StoredGateway } from '../services/gateway/gatewayStore';
-import { GatewayRealtime } from '../services/gateway/realtime';
-import type { RealtimeState } from '../types/ems.types';
-import type { ClaimResult, GatewayDevice, GatewayEvent, GatewayRoom } from '../types/gateway.types';
+import { gatewayBaseUrl } from '../../../constants/gatewayConfig';
+import * as api from '../services/gatewayApi';
+import { resolveEndpoint } from '../services/gatewayDiscovery';
+import { GatewayError, onTokenRefused, type GatewayTarget } from '../services/gatewayHttp';
+import { gatewayStore, type StoredGateway } from '../services/gatewayStore';
+import { GatewayRealtime } from '../services/realtime';
+import type { RealtimeState } from '../../../types/ems.types';
+import type { ClaimResult, GatewayDevice, GatewayEvent, GatewayRoom } from '../../../types/gateway.types';
 
 /**
  * The resident's CUBE Gateway: the box on their own Wi-Fi that finds, sets

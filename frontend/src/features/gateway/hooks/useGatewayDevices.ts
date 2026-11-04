@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { applyOptimistic, sortDevices } from '../features/home/services/capabilities';
-import * as api from '../services/gateway/gatewayApi';
-import { toAppDevice, toAppRoom, toGatewayCommand, toGatewayDeviceId } from '../services/gateway/deviceMapping';
-import { GatewayError } from '../services/gateway/gatewayHttp';
-import type { Command, Device, Room } from '../types/home.types';
-import type { CommandResult } from '../types/gateway.types';
-import type { DeviceBusy } from '../features/home/hooks/useHomeDevices';
+import { applyOptimistic, sortDevices } from '../../home/services/capabilities';
+import * as api from '../services/gatewayApi';
+import { toAppDevice, toAppRoom, toGatewayCommand, toGatewayDeviceId } from '../services/deviceMapping';
+import { GatewayError } from '../services/gatewayHttp';
+import type { Command, Device, Room } from '../../../types/home.types';
+import type { CommandResult } from '../../../types/gateway.types';
+import type { DeviceBusy } from '../../home/hooks/useHomeDevices';
 import { useGateway } from './useGateway';
 
 function messageOf(error: unknown): string {

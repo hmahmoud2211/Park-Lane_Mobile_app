@@ -1,4 +1,4 @@
-import type { Capability, CapabilityType, Command, Device, DeviceKind, Room, SensorReading } from '../../types/home.types';
+import type { Capability, CapabilityType, Command, Device, DeviceKind, Room, SensorReading } from '../../../types/home.types';
 import type {
   ConnectionStatus,
   GatewayCapability,
@@ -7,8 +7,8 @@ import type {
   GatewayCommandName,
   GatewayDevice,
   GatewayRoom,
-} from '../../types/gateway.types';
-import type { ControlPower, ControlSetting, DeviceControls } from '../../types/controls.types';
+} from '../../../types/gateway.types';
+import type { ControlPower, ControlSetting, DeviceControls } from '../../../types/controls.types';
 
 /**
  * Gateway devices in the app's own device model, so the same cards and

@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { ConnectionStatus, ProvisioningStep } from '../../types/gateway.types';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { ConnectionStatus, ProvisioningStep } from '../../../types/gateway.types';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 
 const ICON_SIZE = 18;
 
