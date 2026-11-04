@@ -13,7 +13,7 @@ It has no runtime dependencies. Node ≥ 22.18 runs the TypeScript directly; `np
 ## Run it
 
 ```bash
-cd server
+cd backend
 cp .env.example .env      # then fill it in
 npm start                 # node src/index.ts
 npm test                  # accounts, realtime, device mapping, the home facade, linking brands, provisioning

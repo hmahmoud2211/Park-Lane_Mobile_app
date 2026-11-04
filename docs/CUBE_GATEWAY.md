@@ -38,7 +38,7 @@ install (EAS build); Docker only packages the gateway.
  Devices on the home network
 ```
 
-**Relation to the existing smart home (Home Assistant per unit, `server/`).** That system links brand
+**Relation to the existing smart home (Home Assistant per unit, `backend/`).** That system links brand
 *cloud accounts*. It stays in place because the Parklane Assistant and the deployed `api-iot-2.ems-iot.com`
 backend use it, and because some brands have no local protocol. In the app, **Add Device is now the only way
 to onboard a device**. Linking a brand account appears there only as a clearly labelled fallback,

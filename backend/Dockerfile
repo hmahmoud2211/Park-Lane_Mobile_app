@@ -1,4 +1,4 @@
-# The backend as one image: Node and the code in server/, nothing else. Settings (.env),
+# The backend as one image: Node and the code in backend/, nothing else. Settings (.env),
 # the database and the units' Home Assistant folders stay on the host and are attached by
 # compose.yaml, so a new image never touches them.
 FROM node:22.23.4-slim

@@ -30,7 +30,7 @@ if (!values.email || !values.url || !values.token) {
   process.exit(1);
 }
 if (!config.apiKey) {
-  console.error('Set ADMIN_API_KEY in server/.env (and restart the backend) first.');
+  console.error('Set ADMIN_API_KEY in backend/.env (and restart the backend) first.');
   process.exit(1);
 }
 
@@ -43,7 +43,7 @@ async function admin<T>(method: string, path: string, body?: unknown): Promise<T
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new Error(`The backend is not running at ${values.backend}. Start it with "npm start" in server/.`);
+    throw new Error(`The backend is not running at ${values.backend}. Start it with "npm start" in backend/.`);
   }
   const parsed = (await response.json()) as { ok: boolean; data: T; error?: { code: string; message: string } };
   if (!parsed.ok) {

@@ -1,6 +1,6 @@
 import type { Device, HubStatus, Room } from './home.types';
 
-/** The EMS backend's accounts and realtime channel, as the app sees them (server/ in this repo). */
+/** The EMS backend's accounts and realtime channel, as the app sees them (backend/ in this repo). */
 
 export interface EmsUser {
   id: string;

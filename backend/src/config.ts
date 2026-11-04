@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * server/.env, when present; real environment variables win over it. Not under
+ * backend/.env, when present; real environment variables win over it. Not under
  * `node --test` (which sets NODE_TEST_CONTEXT), so a developer's own settings
  * never leak into the tests.
  */

@@ -2,7 +2,7 @@ import { call } from '../ems/emsHttp';
 import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room } from '../../types/home.types';
 
 /**
- * The resident's home, through the EMS backend (server/src/ha). The app never
+ * The resident's home, through the EMS backend (backend/src/ha). The app never
  * talks to Home Assistant: the backend runs each command against the unit's
  * hub and answers with the device as the hub then reports it.
  */

@@ -1,6 +1,6 @@
 /**
  * The resident's home as the EMS backend serves it, from the unit's Home
- * Assistant. Mirrors server/src/ha/types.ts: change both together.
+ * Assistant. Mirrors backend/src/ha/types.ts: change both together.
  */
 
 export type DeviceKind = 'light' | 'switch' | 'plug' | 'climate' | 'cover' | 'lock' | 'fan' | 'media' | 'sensor' | 'other';
@@ -131,7 +131,7 @@ export interface Command {
   entityId?: string;
 }
 
-// ---- Linking brand accounts (server/src/ha/integrations.ts, flows.ts, accounts.ts) ----------
+// ---- Linking brand accounts (backend/src/ha/integrations.ts, flows.ts, accounts.ts) ----------
 
 export type LinkMethod = 'credentials' | 'qr' | 'oauth';
 

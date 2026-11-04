@@ -25,7 +25,7 @@ All work is on the branch `feature/home-assistant-integration`.
  ① Parklane app (phone or web)
         │  HTTPS + live updates (WebSocket)
         ▼
- ② EMS backend  (server/ in this repo, Node)
+ ② EMS backend  (backend/ in this repo, Node)
         │  one Home Assistant per apartment
         ▼
  ③ Home Assistant  (the IOT project: IOT/core)
@@ -64,7 +64,7 @@ The old device paths were replaced by Home Assistant:
 - **Custom Alexa skill:** account linking, the OAuth server and the voice API. Voice can come later from Home Assistant's own Alexa and Google support.
 - On the backend: the CUBE client, the SONOFF LAN bridge, the device adapters and their database tables (migration 2).
 
-### Backend (`server/`)
+### Backend (`backend/`)
 
 | Path | Responsibility |
 | --- | --- |
@@ -146,7 +146,7 @@ Use your PC's Wi-Fi address instead (for example `http://192.168.1.7:8787`) if y
 
 **2. Start the fake hub.** Open a terminal:
 ```bash
-cd server
+cd backend
 npm run fake-hub
 ```
 ✅ It prints `Fake hub ready: backend on http://0.0.0.0:8787, sign in as demo@parklane.test / correct horse battery`. Leave it open.
@@ -250,7 +250,7 @@ The first start takes 5 to 10 minutes. Leave the window open; closing it stops H
 
 #### 2e. Configure and start the backend
 
-In `server/.env`, set:
+In `backend/.env`, set:
 ```
 ADMIN_API_KEY=<any long random secret>
 HA_ALLOWED_NETWORKS=127.0.0.0/8,172.16.0.0/12,192.168.0.0/16
@@ -262,7 +262,7 @@ EXPO_PUBLIC_DEVICE_BACKEND_URL=http://192.168.1.7:8787
 ```
 Then start the backend in a terminal and leave it open:
 ```bash
-cd server
+cd backend
 npm start
 ```
 ✅ `Parklane device backend on http://0.0.0.0:8787 {"auth":"api key"}`. If Windows Firewall asks about Node.js, allow **private networks**.
@@ -276,7 +276,7 @@ Start the app (`npx expo start -c`), go to **Settings → My Devices**, and use 
 
 Easiest on Windows: double-click **`ParklaneAttach.exe`** in the project folder and type your email and token. To do it by hand instead, open a **new** terminal. Put the `cd` and the `npm` command on separate lines:
 ```bash
-cd server
+cd backend
 npm run attach-hub -- --email you@example.com --url http://127.0.0.1:8123 --token <your token>
 ```
 ✅
@@ -297,7 +297,7 @@ Keep three windows open:
 | Window | Command |
 | --- | --- |
 | Ubuntu | `source ~/ha-venv/bin/activate` then `hass -c ~/ha-config` |
-| Terminal 1 | `cd server` then `npm start` |
+| Terminal 1 | `cd backend` then `npm start` |
 | Terminal 2 | `npx expo start` |
 
 The apartment, hub and linked accounts are remembered. If your PC's Wi-Fi address changes, update `.env.local` and restart Expo with `-c`.
@@ -317,7 +317,7 @@ The backend creates a Home Assistant container for each apartment by itself. Res
 - The domain `api-iot-2.ems-iot.com` pointing at the server, with HTTPS (Caddy or nginx in front).
 - Node.js 22.18+ only if you run the backend outside Docker.
 
-#### 3b. Configure `server/.env`
+#### 3b. Configure `backend/.env`
 
 ```
 HOST=0.0.0.0
@@ -348,14 +348,14 @@ The backend must reach each container as `http://parklane-ha-<unit>:8123`, so it
 docker network create parklane-ha
 docker run -d --name parklane-backend --restart unless-stopped \
   --network parklane-ha \
-  --env-file /opt/parklane/server/.env \
-  -v /opt/parklane/server:/app -w /app \
+  --env-file /opt/parklane/backend/.env \
+  -v /opt/parklane/backend:/app -w /app \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /srv/parklane:/srv/parklane \
   -p 127.0.0.1:8787:8787 \
   node:22 node src/index.ts
 ```
-- `/opt/parklane/server` is this repo's `server/` folder, copied to the server.
+- `/opt/parklane/backend` is this repo's `backend/` folder, copied to the server.
 - Paths under `/srv/parklane` are the same inside and outside the container, which is why `HA_CONFIG_ROOT` and `HA_CONFIG_HOST_ROOT` match.
 - **The Docker socket gives root access to the host.** Only the backend gets it; never expose port 8787 or the socket publicly.
 
@@ -438,7 +438,7 @@ The assistant service needs `EMS_BACKEND_URL` pointing at this backend (default 
 
 ## Configuration reference
 
-### `server/.env` (backend)
+### `backend/.env` (backend)
 
 | Setting | Meaning | Mode |
 | --- | --- | --- |
@@ -455,7 +455,7 @@ The assistant service needs `EMS_BACKEND_URL` pointing at this backend (default 
 | `HA_PUBLISH_LOCAL_PORTS` | Development only: publish containers on `127.0.0.1` for a backend not on the Docker network | — |
 | `CUBE_*`, `ALEXA_*`, `BACKEND_API_KEY`, `EMS_PUBLIC_URL` | Old settings; nothing reads them, safe to delete | — |
 
-Full list with comments: `server/.env.example`.
+Full list with comments: `backend/.env.example`.
 
 ### `.env.local` (app)
 
@@ -477,7 +477,7 @@ Restart Expo with `npx expo start -c` after changing it.
 | `attach-hub`: "No EMS account with that email" | The account doesn't exist on this backend | Create it in the app (My Devices → **Create account**) first |
 | `attach-hub`: "Could not sign in to that hub" | Wrong token, or Home Assistant isn't running | Open `localhost:8123`; create a new token and copy all of it |
 | `attach-hub`: "outside HA_ALLOWED_NETWORKS" | Unexpected hub address | Use `http://127.0.0.1:8123`, or add the network to `HA_ALLOWED_NETWORKS` |
-| "The filename, directory name, or volume label syntax is incorrect." | Two commands pasted on one line | Run `cd server` and the `npm` command on separate lines |
+| "The filename, directory name, or volume label syntax is incorrect." | Two commands pasted on one line | Run `cd backend` and the `npm` command on separate lines |
 | "Home hub offline" | Home Assistant stopped | Start `hass -c ~/ha-config` again (Mode 2), or check `GET /api/admin/hubs` (Mode 3) |
 | A brand is missing from Add, or "not available on your home hub" | Sign-in brands need company setup; SONOFF needs SonoffLAN on the hub | See [3d](#3d-brands-that-sign-in-on-their-own-page), or install SonoffLAN and restart Home Assistant |
 | Linking SONOFF signs the eWeLink app out on the phone | eWeLink allows one session per app type | Sign in again on the phone, or use a second eWeLink account with the devices shared to it |
@@ -504,7 +504,7 @@ Restart Expo with `npx expo start -c` after changing it.
 ```bash
 npx tsc --noEmit          # app types
 npx expo lint             # app lint
-cd server
+cd backend
 npm run typecheck         # backend types
 npm test                  # 49 backend tests: accounts, realtime, mapping, commands, home facade, linking, provisioning
 ```

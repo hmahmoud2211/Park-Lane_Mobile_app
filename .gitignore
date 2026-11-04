@@ -40,7 +40,10 @@ yarn-error.*
 /ios
 /android
 
-# device backend: secrets and its device store
+# device backend: secrets and its data folder
+backend/.env
+backend/data/
+# the same, left behind in a checkout from before server/ was renamed backend/
 server/.env
 server/data/
 

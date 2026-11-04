@@ -36,7 +36,7 @@ export const groupCopy: Record<MethodGroup, { title: string; intro: string; icon
 
 /**
  * Brands whose devices the building's Home Assistant can link through the
- * maker's cloud (server/src/ha/integrations.ts), for the cloud fallback.
+ * maker's cloud (backend/src/ha/integrations.ts), for the cloud fallback.
  */
 export const cloudIntegrations: Record<string, readonly string[]> = {
   lg: ['lg_thinq', 'webostv'],

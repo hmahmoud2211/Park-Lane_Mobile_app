@@ -1,6 +1,6 @@
 # The production backend. `./scripts/dev.sh server` builds and starts it (docs/production.md).
 #
-# Settings come from server/.env, which compose also reads for the ${…} values below.
+# Settings come from backend/.env, which compose also reads for the ${…} values below.
 
 name: parklane
 
@@ -21,12 +21,12 @@ services:
     # The Docker socket creates each unit's Home Assistant container. It is root on the
     # host: never publish this container or the socket anywhere else.
     group_add:
-      - "${DOCKER_GID:?Set DOCKER_GID in server/.env (stat -c %g /var/run/docker.sock)}"
+      - "${DOCKER_GID:?Set DOCKER_GID in backend/.env (stat -c %g /var/run/docker.sock)}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Mounted at the same path as on the host, so the unit folders this backend writes
       # are the ones it hands to Docker for the units' containers.
-      - ${PARKLANE_DATA:?Set PARKLANE_DATA in server/.env}:${PARKLANE_DATA}
+      - ${PARKLANE_DATA:?Set PARKLANE_DATA in backend/.env}:${PARKLANE_DATA}
     networks:
       - ha
     healthcheck:

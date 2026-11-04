@@ -49,10 +49,10 @@ cp -r /tmp/SonoffLAN-3.13.2/custom_components/sonoff /srv/parklane/custom_compon
 
 The `IOT/` folder isn't needed on the server; the official Home Assistant image is used instead.
 
-## 4. Create `server/.env`
+## 4. Create `backend/.env`
 
 ```bash
-cd /opt/parklane/server
+cd /opt/parklane/backend
 cp .env.example .env
 chmod 600 .env
 openssl rand -base64 32     # run twice: one for ADMIN_API_KEY, one for EMS_ENCRYPTION_KEY
@@ -92,7 +92,7 @@ HA_TIME_ZONE=Africa/Cairo
 cd /opt/parklane
 ./scripts/dev.sh server
 ```
-This creates the private Docker network, builds the backend image (Node and the code in `server/`, tagged with the git commit, e.g. `parklane-backend:117a038`) and starts it with `server/compose.yaml`. The container restarts by itself after a reboot, and `docker ps` shows it as `(healthy)` once it answers.
+This creates the private Docker network, builds the backend image (Node and the code in `backend/`, tagged with the git commit, e.g. `parklane-backend:117a038`) and starts it with `server/compose.yaml`. The container restarts by itself after a reboot, and `docker ps` shows it as `(healthy)` once it answers.
 
 Check that it's up:
 ```bash
@@ -148,12 +148,25 @@ npx eas-cli@latest build --profile production --platform all      # store builds
 | Task | How |
 |---|---|
 | **Update the backend** | `cd /opt/parklane && git pull && ./scripts/dev.sh server` |
-| **Go back to an earlier build** | `docker images parklane-backend` lists them; then `cd /opt/parklane/server && PARKLANE_VERSION=<commit> docker compose up -d --no-build` |
+| **Go back to an earlier build** | `docker images parklane-backend` lists them; then `cd /opt/parklane/backend && PARKLANE_VERSION=<commit> docker compose up -d --no-build` |
 | **Backend logs** | `docker logs -f parklane-backend` |
 | **One apartment's logs** | `docker ps` (find `parklane-ha-…`), then `docker logs -f parklane-ha-…` |
 | **Retry a failed apartment** | `curl -X POST $API/api/admin/units/<id>/provision -H "Authorization: Bearer $KEY"` |
 | **Upgrade Home Assistant** | Change `HA_IMAGE`, then per apartment `docker rm -f parklane-ha-…` and call `/provision` for it. Its data and linked accounts are kept |
 | **Back up** | Copy `/srv/parklane` (database and every apartment's data) plus your `EMS_ENCRYPTION_KEY`, for example nightly |
+
+### Updating a server set up before `server/` became `backend/`
+
+The backend folder used to be called `server/`. `git pull` moves the code, but your `.env` is not in git, so it stays behind in `server/.env`. The first `./scripts/dev.sh server` after the pull stops and prints the command to run; it is:
+
+```bash
+cd /opt/parklane
+mv server/.env backend/.env
+rmdir server            # only if nothing else is left in it
+./scripts/dev.sh server
+```
+
+The database and the apartments live in `PARKLANE_DATA` (`/srv/parklane`), outside the repo, so nothing else moves. The running container keeps serving until the new build replaces it, and the compose project and container names stay `parklane` and `parklane-backend`.
 
 **Security:** the backend container has access to Docker, which means full control of the server. Keep `ADMIN_API_KEY` and `.env` private, never open port 8787 to the internet (the script binds it to the server itself only), and keep SSH key-only.
 
