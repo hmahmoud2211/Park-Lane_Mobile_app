@@ -213,6 +213,8 @@ mode_check() {
   bold "App: lint"
   (cd "$ROOT" && npx expo lint) && ok "lint"
   bold "Backend: typecheck"
+  # TypeScript is the backend's only package, and only for this check: it runs on plain Node.
+  [ -d "$SERVER/node_modules" ] || { info "Installing the backend's typecheck tools (first run)…"; (cd "$SERVER" && npm ci); }
   (cd "$SERVER" && npm run --silent typecheck) && ok "types"
   bold "Backend: tests"
   mkdir -p "$LOGS"

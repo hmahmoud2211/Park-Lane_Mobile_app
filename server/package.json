@@ -13,5 +13,9 @@
     "attach-hub": "node scripts/attach-hub.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "~26.6.2",
+    "typescript": "~6.0.3"
   }
 }

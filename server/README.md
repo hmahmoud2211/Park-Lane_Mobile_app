@@ -8,7 +8,7 @@ App ──HTTPS / WS──▶ backend ──private Docker network──▶ Home
 
 Residents install nothing at home. Their devices come in through the makers' clouds, which each unit's Home Assistant reaches from this server. The app never talks to Home Assistant itself: the backend holds each hub's token and only runs the commands in `src/ha/commands.ts`.
 
-It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
+It has no runtime dependencies. Node ≥ 22.18 runs the TypeScript directly; `npm ci` installs only TypeScript and Node's type definitions, for `npm run typecheck`.
 
 ## Run it
 
@@ -17,7 +17,7 @@ cd server
 cp .env.example .env      # then fill it in
 npm start                 # node src/index.ts
 npm test                  # accounts, realtime, device mapping, the home facade, linking brands, provisioning
-npm run typecheck         # uses the app's TypeScript (../node_modules)
+npm ci && npm run typecheck   # TypeScript is a dev dependency of the backend itself
 ```
 
 In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`.
