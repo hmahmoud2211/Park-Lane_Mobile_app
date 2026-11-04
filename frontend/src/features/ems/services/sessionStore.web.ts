@@ -1,16 +1,11 @@
+import { tabStorage } from '../../../lib/storage/tabStorage';
+
 /**
  * Web has no secure store, so the web build keeps the session for the tab
  * only (sessionStorage): closing the tab signs out.
  */
 const KEY = 'ems.session';
-
-function storage(): Storage | null {
-  try {
-    return typeof window !== 'undefined' ? window.sessionStorage : null;
-  } catch {
-    return null;
-  }
-}
+const storage = tabStorage;
 
 export const sessionStore = {
   load: async () => {

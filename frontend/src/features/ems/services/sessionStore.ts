@@ -1,16 +1,13 @@
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '../../../lib/storage/secureStorage';
 
 /**
- * The EMS session token, in the Keychain / Keystore. Readable only while the
- * phone is unlocked, and never restored onto another device from a backup.
+ * The EMS session token, in the Keychain / Keystore (lib/storage/secureStorage):
+ * readable only while the phone is unlocked, never restored onto another device.
  */
 const KEY = 'ems.session';
-const OPTIONS: SecureStore.SecureStoreOptions = {
-  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-};
 
 export const sessionStore = {
-  load: () => SecureStore.getItemAsync(KEY, OPTIONS).catch(() => null),
-  save: (token: string) => SecureStore.setItemAsync(KEY, token, OPTIONS),
-  clear: () => SecureStore.deleteItemAsync(KEY, OPTIONS).catch(() => undefined),
+  load: () => secureStorage.getItem(KEY).catch(() => null),
+  save: (token: string) => secureStorage.setItem(KEY, token),
+  clear: () => secureStorage.deleteItem(KEY).catch(() => undefined),
 };

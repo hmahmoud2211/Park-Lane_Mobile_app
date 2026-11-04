@@ -1,5 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
-
+import { secureStorage } from '../../../lib/storage/secureStorage';
 import type { StoredGateway } from './gatewayStore.types';
 
 export type { StoredGateway } from './gatewayStore.types';
@@ -13,12 +12,9 @@ export type { StoredGateway } from './gatewayStore.types';
  */
 const INDEX_KEY = 'cubegw.index';
 const entryKey = (id: string) => `cubegw.${id.replace(/[^A-Za-z0-9._-]/g, '_')}`;
-const OPTIONS: SecureStore.SecureStoreOptions = {
-  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-};
 
 async function readIndex(): Promise<string[]> {
-  const raw = await SecureStore.getItemAsync(INDEX_KEY, OPTIONS).catch(() => null);
+  const raw = await secureStorage.getItem(INDEX_KEY).catch(() => null);
   try {
     const parsed = raw ? (JSON.parse(raw) as unknown) : [];
     return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string') : [];
@@ -32,7 +28,7 @@ export const gatewayStore = {
     const ids = await readIndex();
     const entries = await Promise.all(
       ids.map(async (id) => {
-        const raw = await SecureStore.getItemAsync(entryKey(id), OPTIONS).catch(() => null);
+        const raw = await secureStorage.getItem(entryKey(id)).catch(() => null);
         try {
           return raw ? (JSON.parse(raw) as StoredGateway) : null;
         } catch {
@@ -44,16 +40,16 @@ export const gatewayStore = {
   },
 
   async save(gateway: StoredGateway): Promise<void> {
-    await SecureStore.setItemAsync(entryKey(gateway.id), JSON.stringify(gateway), OPTIONS);
+    await secureStorage.setItem(entryKey(gateway.id), JSON.stringify(gateway));
     const ids = await readIndex();
     if (!ids.includes(gateway.id)) {
-      await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify([...ids, gateway.id]), OPTIONS);
+      await secureStorage.setItem(INDEX_KEY, JSON.stringify([...ids, gateway.id]));
     }
   },
 
   async remove(id: string): Promise<void> {
-    await SecureStore.deleteItemAsync(entryKey(id), OPTIONS).catch(() => undefined);
+    await secureStorage.deleteItem(entryKey(id)).catch(() => undefined);
     const ids = await readIndex();
-    await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(ids.filter((entry) => entry !== id)), OPTIONS).catch(() => undefined);
+    await secureStorage.setItem(INDEX_KEY, JSON.stringify(ids.filter((entry) => entry !== id))).catch(() => undefined);
   },
 };

@@ -1,3 +1,4 @@
+import { tabStorage } from '../../../lib/storage/tabStorage';
 import type { StoredGateway } from './gatewayStore.types';
 
 export type { StoredGateway } from './gatewayStore.types';
@@ -9,14 +10,7 @@ export type { StoredGateway } from './gatewayStore.types';
  * on the web only a relay (HTTPS) address works.
  */
 const KEY = 'cubegw.gateways';
-
-function storage(): Storage | null {
-  try {
-    return typeof window !== 'undefined' ? window.sessionStorage : null;
-  } catch {
-    return null;
-  }
-}
+const storage = tabStorage;
 
 function readAll(): StoredGateway[] {
   try {
