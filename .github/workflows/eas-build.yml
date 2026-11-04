@@ -40,10 +40,19 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ secrets.EXPO_TOKEN != '' }}
+    # GitHub does not allow the secrets context in a job-level `if`, so the token is checked in the first step.
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
+      - name: Check the Expo token is set
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error title=EXPO_TOKEN missing::Create a token at https://expo.dev/settings/access-tokens and add it in GitHub → Settings → Secrets and variables → Actions as EXPO_TOKEN."
+            exit 1
+          fi
+
       - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v6
