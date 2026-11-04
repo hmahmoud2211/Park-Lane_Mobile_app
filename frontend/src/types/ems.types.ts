@@ -1,20 +1,11 @@
-import type { Device, HubStatus, Room } from './home.types';
+import type { RealtimeEvent } from '../../../shared/contracts/events';
+import type { User } from '../../../shared/contracts/auth';
 
 /** The EMS backend's accounts and realtime channel, as the app sees them (backend/ in this repo). */
 
-export interface EmsUser {
-  id: string;
-  email: string;
-  name: string;
-}
+export type EmsUser = User;
 
 export type RealtimeState = 'offline' | 'connecting' | 'live';
 
-export type EmsEvent =
-  | { type: 'ready' }
-  | { type: 'device'; device: Device }
-  | { type: 'device_removed'; id: string }
-  | { type: 'rooms'; rooms: Room[] }
-  | { type: 'hub_status'; status: HubStatus; haVersion: string | null }
-  | { type: 'accounts' }
-  | { type: 'error'; code: string };
+/** Messages on the backend's realtime channel (shared/contracts/events.ts). */
+export type EmsEvent = RealtimeEvent;

@@ -1,3 +1,4 @@
+import type { ApiErrorCode } from '../../../../shared/contracts/errors';
 import { emsConfig } from '../../constants/emsConfig';
 
 /**
@@ -9,23 +10,8 @@ import { emsConfig } from '../../constants/emsConfig';
  * service and hook shares one session.
  */
 
-export type EmsErrorCode =
-  | 'not_configured'
-  | 'network'
-  | 'timeout'
-  | 'unauthorized'
-  | 'bad_request'
-  | 'not_found'
-  | 'conflict'
-  | 'rate_limited'
-  | 'not_available'
-  | 'no_home'
-  | 'provisioning'
-  | 'hub_offline'
-  | 'hub_auth'
-  | 'ha_rejected'
-  | 'internal'
-  | (string & {});
+/** The backend's codes (shared/contracts/errors.ts), plus the app's own for requests that never got an answer. */
+export type EmsErrorCode = ApiErrorCode | 'network' | 'timeout' | (string & {});
 
 export class EmsError extends Error {
   readonly code: EmsErrorCode;

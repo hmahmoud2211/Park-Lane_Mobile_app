@@ -1,7 +1,10 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    // shared/contracts (type-only, imported with `import type`) names its own files with .ts,
+    // as the backend's Node resolution needs. Allowed because nothing is emitted (noEmit).
+    "allowImportingTsExtensions": true
   },
   // The backend (../backend) and the CUBE gateway (../gateway) are separate projects with
   // their own tooling. dist/ is the web export, which would otherwise be type-checked as JS.
