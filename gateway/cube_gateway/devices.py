@@ -39,6 +39,7 @@ from .models import (
     PendingCommand,
     Reading,
     Room,
+    Setting,
     clean_text,
 )
 
@@ -68,6 +69,7 @@ class _Live:
         self.updated_at: float = row.get("updated_at") or time.time()
         self.capabilities: list[Capability] = []
         self.readings: list[Reading] = []
+        self.settings: list[Setting] = []
         self.commands: list[str] = []
         self.connection = DeviceConnection(status=ConnectionStatus.CONNECTED, last_seen=row.get("last_seen"))
         self.pending: PendingCommand | None = None
@@ -122,6 +124,7 @@ class DeviceManager:
             cached = json.loads(row["state"] or "{}")
             live.capabilities = [Capability.model_validate({**c, "confirmed": False}) for c in cached.get("capabilities", [])]
             live.readings = [Reading.model_validate(r) for r in cached.get("readings", [])]
+            live.settings = [Setting.model_validate({**x, "confirmed": False}) for x in cached.get("settings", [])]
             live.commands = cached.get("commands", [])
             live.connection = DeviceConnection(status=ConnectionStatus.OFFLINE, last_seen=row["last_seen"], last_error="Not checked since the gateway started.")
             self.devices[device.id] = device
@@ -157,6 +160,7 @@ class DeviceManager:
         state = {
             "capabilities": [c.model_dump(mode="json") for c in live.capabilities],
             "readings": [r.model_dump(mode="json") for r in live.readings],
+            "settings": [x.model_dump(mode="json") for x in live.settings],
             "commands": live.commands,
         }
         await self.db.execute("UPDATE devices SET state = ?, last_seen = ? WHERE id = ?", (json.dumps(state), live.connection.last_seen, device_id))
@@ -190,6 +194,7 @@ class DeviceManager:
             connection=live.connection,
             capabilities=live.capabilities,
             readings=live.readings,
+            settings=live.settings,
             commands=live.commands,
             pending=live.pending,
             created_at=live.created_at,
@@ -356,6 +361,8 @@ class DeviceManager:
         if state.capabilities or not live.capabilities:
             live.capabilities = state.capabilities
         live.readings = state.readings
+        if state.settings or not state.online:
+            live.settings = state.settings or [x.model_copy(update={"confirmed": False, "available": False}) for x in live.settings]
         if state.commands:
             live.commands = state.commands
         now = time.time()
@@ -391,6 +398,7 @@ class DeviceManager:
         )
         live.connection = DeviceConnection(status=status, last_seen=live.connection.last_seen, last_error=error.message, retry_at=time.time() + delay)
         live.capabilities = [c.model_copy(update={"confirmed": False}) for c in live.capabilities]
+        live.settings = [x.model_copy(update={"confirmed": False, "available": False}) for x in live.settings]
         self._publish(device_id)
         return delay
 

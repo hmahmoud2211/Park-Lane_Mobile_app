@@ -1,0 +1,1 @@
+export { LgPairingScreen } from './LgPairingScreen';

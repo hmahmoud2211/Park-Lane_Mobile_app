@@ -39,6 +39,10 @@ export type RootStackParamList = {
   DeviceProvisioning: { brandId: string; pluginId: string };
   /** Naming, placing and testing a newly paired gateway device (Screen 4). `deviceId` is the gateway's id. */
   DeviceSetup: { deviceId: string };
+  /** Adding an LG AC from the phone through ReThink (gateway plugin lg_thinq_softap). */
+  LgPairing: undefined;
+  /** Every setting an AC announces through the gateway. `deviceId` is the app's id (gw:…). */
+  AcControl: { deviceId: string };
   AmenitiesBooking: undefined;
   Services: undefined;
   Settings: undefined;

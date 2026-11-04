@@ -229,15 +229,55 @@ PLUGINS: list[ProvisioningPlugin] = [
         brand_id="lg",
         adapter_id="lg_thinq_rethink",
         title="Set up an LG ThinQ appliance for ReThink",
-        description="Experimental. The gateway joins the appliance's setup network and runs ReThink's own setup tool "
-        "(rethink-setup: ThinQ1, ThinQ2 or Whisen), pointing it at your ReThink server instead of LG's cloud. Needs "
-        "ReThink running and *.lgthinq.com redirected to it in your router's DNS. Without a gateway Wi-Fi radio, run "
-        "rethink-setup from a laptop instead, then use Find an appliance on ReThink.",
+        description="Experimental. The phone joins the appliance's setup network and runs ReThink's setup protocol "
+        "(ThinQ1, ThinQ2 or Whisen) itself, pointing the appliance at your ReThink server instead of LG's cloud. "
+        "ThinQ2 appliances are given ReThink's address directly when the gateway knows it; other models need "
+        "*.lgthinq.com redirected to ReThink in the router's DNS.",
+        transport="phone",
+        status=SupportLevel.EXPERIMENTAL,
+        hotspot=HotspotRule(
+            ssid_pattern=r"^(LGE?_|\[LG_)",
+            ssid_prefixes=("LGE_", "[LG_", "LG_"),
+            # LG documents no per-model default, so the user types it; the app offers ReThink's documented
+            # name patterns (e.g. LGE_AC2_1234 -> 12341234) as an editable suggestion, never silently.
+            kind="user",
+            source=None,
+            device_ip="192.168.120.254",
+        ),
+        model_choices=("RAC_056905_WW", "WIN_056905_WW", "POT_056905_WW"),
+        firmware="Models listed in ReThink's support table only",
+        auth_mechanisms=("TLS setup protocol on port 5500 (ThinQ1/2) or 9000 (Whisen)",),
+        requirements=(
+            "ReThink running and reachable by the appliance",
+            "CUBE_RETHINK_MQTT_URL pointing at ReThink's MQTT broker",
+            "ThinQ2: CUBE_RETHINK_API_SERVER and CUBE_RETHINK_MQTT_SERVER, or the DNS redirection below",
+            "ThinQ1 and Whisen: router DNS sends lgthinq.com and *.lgthinq.com to the ReThink server",
+            "The CUBE OS app build (raw TLS sockets are not available in Expo Go or on the web)",
+        ),
+        steps=_steps(
+            (S.PAIRING_MODE_REQUIRED, "Start Wi-Fi setup on the appliance", "On most ACs: hold the remote's Wi-Fi (or Jet) button until the display shows AP or the Wi-Fi LED blinks."),
+            (S.HOTSPOT_PASSWORD_REQUIRED, "Setup network password", "Enter the password of the appliance's LGE_ network (on its label or in the manual); leave it empty if the network is open."),
+            (S.CONNECTING_DEVICE_AP, "Join the appliance's network", "The phone joins the LGE_... network."),
+            (S.SENDING_WIFI_CONFIG, "Sending your Wi-Fi", "The phone sends your network, and where ReThink is, using ReThink's setup protocol."),
+            (S.CONNECTING_HOME_NETWORK, "Back to your Wi-Fi", "The phone rejoins your network while the appliance connects to ReThink."),
+            (S.WAITING_FOR_DEVICE, "Waiting for ReThink", "It can take the appliance a few minutes to join your Wi-Fi and reach ReThink; it then appears here."),
+        ),
+        sources=("https://github.com/anszom/rethink (rethink-setup.ts)", "https://github.com/anszom/rethink/wiki"),
+    ),
+    ProvisioningPlugin(
+        id="lg_thinq_softap_gateway",
+        brand_id="lg",
+        adapter_id="lg_thinq_rethink",
+        title="Set up an LG ThinQ appliance with the gateway's Wi-Fi",
+        description="Experimental. For when the phone cannot do it: the gateway joins the appliance's setup network "
+        "with its own spare Wi-Fi radio and runs ReThink's own setup tool (rethink-setup).",
         transport="gateway",
         status=SupportLevel.EXPERIMENTAL,
         hotspot=HotspotRule(
-            ssid_pattern=r"^LGE?_.+",
-            ssid_prefixes=("LG_", "LGE_"),
+            ssid_pattern=r"^(LGE?_|\[LG_)",
+            ssid_prefixes=("LGE_", "[LG_", "LG_"),
+            # LG documents no per-model default, so the user types it; the app offers ReThink's documented
+            # name patterns (e.g. LGE_AC2_1234 -> 12341234) as an editable suggestion, never silently.
             kind="user",
             source=None,
             device_ip="192.168.120.254",
@@ -254,9 +294,9 @@ PLUGINS: list[ProvisioningPlugin] = [
         ),
         steps=_steps(
             (S.PAIRING_MODE_REQUIRED, "Start Wi-Fi setup on the appliance", "On most ACs: hold the remote's Wi-Fi (or Jet) button until the display shows AP or the Wi-Fi LED blinks."),
-            (S.HOTSPOT_PASSWORD_REQUIRED, "Hotspot password", "Enter the setup network's password if it has one (often printed in the manual); leave empty if open."),
-            (S.CONNECTING_DEVICE_AP, "Gateway joins the appliance", "The gateway connects to the LG_... network by itself."),
-            (S.SENDING_WIFI_CONFIG, "Sending your Wi-Fi", "ReThink's setup protocol sends your network and the ReThink region."),
+            (S.HOTSPOT_PASSWORD_REQUIRED, "Hotspot password", "Enter the setup network's password if it has one; leave empty if open."),
+            (S.CONNECTING_DEVICE_AP, "Gateway joins the appliance", "The gateway connects to the LGE_... network by itself."),
+            (S.SENDING_WIFI_CONFIG, "Sending your Wi-Fi", "ReThink's setup tool sends your network and the ReThink region."),
             (S.WAITING_FOR_DEVICE, "Waiting for ReThink", "The appliance joins your Wi-Fi and connects to ReThink; it then appears here."),
         ),
         sources=("https://github.com/anszom/rethink (rethink-setup.ts)", "https://github.com/anszom/rethink/wiki"),

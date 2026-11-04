@@ -8,6 +8,7 @@ import type {
   GatewayDevice,
   GatewayRoom,
 } from '../../types/gateway.types';
+import type { ControlPower, ControlSetting, DeviceControls } from '../../types/controls.types';
 
 /**
  * Gateway devices in the app's own device model, so the same cards and
@@ -238,3 +239,54 @@ export function toGatewayCommand(command: Command, accepted: readonly string[]):
   }
   return next && accepted.includes(next.command) ? next : null;
 }
+
+/**
+ * The AC Controls screen's view of a gateway device: power and action from
+ * the climate capability, readings, and every setting the device announced
+ * (an LG AC's swing, Jet, timers, filter). Unconfirmed values stay marked.
+ */
+export function toDeviceControls(device: GatewayDevice): DeviceControls {
+  const climate = device.capabilities.find((capability) => capability.type === 'climate');
+  const power = device.capabilities.find((capability) => capability.type === 'power');
+  const humidity = device.readings.find((reading) => reading.key === 'current_humidity')?.value;
+  const powerState: ControlPower = power
+    ? power.value === 'on'
+      ? 'on'
+      : power.value === 'off'
+        ? 'off'
+        : 'unknown'
+    : climate?.mode
+      ? climate.mode === 'off'
+        ? 'off'
+        : 'on'
+      : 'unknown';
+  return {
+    online: isReachable(device.connection.status),
+    power: powerState,
+    action: climate?.state ?? null,
+    currentTemperature: climate?.current ?? null,
+    currentHumidity: typeof humidity === 'number' ? humidity : null,
+    settings: device.settings.map(
+      (setting): ControlSetting => ({
+        key: setting.key,
+        kind: setting.kind,
+        name: setting.name,
+        value: setting.value,
+        options: setting.options.length > 0 ? setting.options : undefined,
+        min: setting.min ?? undefined,
+        max: setting.max ?? undefined,
+        step: setting.step ?? undefined,
+        unit: setting.unit,
+        available: setting.available,
+        requires: setting.requires,
+        description: setting.description,
+        diagnostic: setting.diagnostic,
+        confirmed: setting.confirmed,
+      }),
+    ),
+  };
+}
+
+/** Whether a gateway device has settings for the AC Controls screen. */
+export const hasControlSettings = (device: GatewayDevice) => device.settings.some((setting) => setting.kind !== 'sensor');
+

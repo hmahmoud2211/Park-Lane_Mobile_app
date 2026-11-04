@@ -59,7 +59,7 @@ Credentials are sealed with the gateway's key and never returned.
 
 | Method & path | Auth | What it does |
 | --- | --- | --- |
-| `POST /provisioning/sessions` `{plugin_id, model?}` | owner | Opens a 15-minute session: `ProvisioningSession` with `transport`, `steps`, `hotspot` (`ssid_pattern`, `ssid_prefixes`, `password_rule`: `none` / `verified_rule` (then `password` is set) / `user`, `device_ip`), `experimental`. |
+| `POST /provisioning/sessions` `{plugin_id, model?}` | owner | Opens a 15-minute session: `ProvisioningSession` with `transport`, `steps`, `hotspot` (`ssid_pattern`, `ssid_prefixes`, `password_rule`: `none` / `verified_rule` (then `password` is set) / `user`, `device_ip`), `experimental`, and `setup` (values the phone needs, e.g. `rethink_api_server` and `rethink_mqtt_server` for LG ThinQ2 setup). |
 | `GET /provisioning/sessions/{id}` | owner | Current state, `error` (`code`, `message`, `recovery`), `device_id` when done. |
 | `POST /provisioning/sessions/{id}/events` `{event, data}` | owner | The phone reports progress (`phone` and `guided` transports): `pairing_mode_confirmed`, `joining_device_ap`, `device_ap_joined` (`data.ssid`), `hotspot_password_needed`, `device_info` (`data` from the device's setup network, e.g. SONOFF `deviceid`, `apikey`), `wifi_config_sent`, `phone_returned`, `failed` (`data.code`, `data.message`), `cancel`. |
 | `POST /provisioning/sessions/{id}/run` `{home_ssid, home_password, hotspot_ssid, hotspot_password?}` | owner | `gateway` transport: the gateway joins the hotspot and runs the setup itself. Passwords are used in memory only. |
@@ -75,14 +75,21 @@ reached after the device's state was read.
 
 | Method & path | Auth | What it does |
 | --- | --- | --- |
-| `GET /devices` | any | `Device[]` with `connection` (`status`, `last_seen`, `last_error`, `retry_at`), `capabilities` (each with `confirmed`), `readings`, `commands`, `pending` |
+| `GET /devices` | any | `Device[]` with `connection` (`status`, `last_seen`, `last_error`, `retry_at`), `capabilities` (each with `confirmed`), `readings`, `settings` (see below), `commands`, `pending` |
 | `GET /devices/{id}` | any | One device. |
 | `PATCH /devices/{id}` `{name?, room_id?, dashboard?}` | owner | Rename, move, show/hide on the dashboard. |
 | `DELETE /devices/{id}` | owner | Removes it and its stored credentials. |
-| `POST /devices/{id}/commands` `{command, params}` | any | Runs one normalized command (see `COMMANDS` in models.py; only those in `device.commands` are accepted). Returns `{device, result: {status: confirmed | assumed | pending, message}}`. `409 device_busy` if another command is running for 10 s. |
+| `POST /devices/{id}/commands` `{command, params}` | any | Runs one normalized command (see `COMMANDS` in models.py; only those in `device.commands` are accepted). Returns `{device, result: {status: confirmed | assumed | pending, message}}`. `409 device_busy` if another command is running for 10 s. Settings: `set_setting` `{key, value}`, `press` `{key}`; `422 setting_unavailable` says what the setting needs (e.g. "AC on, in Cooling"). |
 | `POST /devices/{id}/refresh` | any | Reads the state now. |
 | `GET /rooms` · `POST /rooms` `{name}` | any · owner | Rooms with device counts. |
 | `PATCH /rooms/{id}` `{name}` · `DELETE /rooms/{id}` | owner | |
+
+### Settings
+
+Devices with more than the basic capabilities (today: LG appliances through ReThink) list `settings`: `{key, kind:
+select | number | switch | button | sensor, name, value, options, min, max, step, unit, available, requires, description,
+diagnostic, confirmed}`. A setting the appliance does not echo back is shown with `confirmed: false` after it is changed,
+until the appliance reports.
 
 ## Remote access
 

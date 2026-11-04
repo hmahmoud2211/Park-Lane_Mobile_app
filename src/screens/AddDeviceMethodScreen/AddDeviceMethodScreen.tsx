@@ -16,6 +16,7 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { LG_PLUGIN_ID } from '../../hooks/useLgPairing';
 import { useBrands } from '../../hooks/useBrands';
 import { useEms } from '../../hooks/useEms';
 import { useGateway } from '../../hooks/useGateway';
@@ -77,7 +78,12 @@ export function AddDeviceMethodScreen() {
     } else if (method.id.startsWith('manual:')) {
       navigation.navigate('DeviceDiscovery', { brandId: brand.id, adapterId: method.adapter_id, mode: 'manual' });
     } else if (method.plugin_id) {
-      navigation.navigate('DeviceProvisioning', { brandId: brand.id, pluginId: method.plugin_id });
+      if (method.plugin_id === LG_PLUGIN_ID) {
+        // LG setup runs ReThink's protocol from the phone, with Master's dedicated wizard.
+        navigation.navigate('LgPairing');
+      } else {
+        navigation.navigate('DeviceProvisioning', { brandId: brand.id, pluginId: method.plugin_id });
+      }
     }
   };
 

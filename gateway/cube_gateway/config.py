@@ -69,6 +69,10 @@ class Settings:
     rethink_mqtt_url: str
     rethink_discovery_prefix: str
     rethink_prefix: str
+    #: ReThink's public addresses (its config.json `advertise` values). Given to ThinQ2 appliances during phone
+    #: setup so they reach ReThink from any network without a DNS override. Set both or neither.
+    rethink_api_server: str
+    rethink_mqtt_server: str
     #: Wi-Fi interface the gateway may use to join a device's setup hotspot. Empty: phone-side setup only.
     softap_interface: str
     #: Device poll interval in seconds, for adapters without push updates.
@@ -109,6 +113,8 @@ def load_settings() -> Settings:
         rethink_mqtt_url=os.environ.get("CUBE_RETHINK_MQTT_URL", "").strip(),
         rethink_discovery_prefix=os.environ.get("CUBE_RETHINK_DISCOVERY_PREFIX", "homeassistant").strip(),
         rethink_prefix=os.environ.get("CUBE_RETHINK_PREFIX", "rethink").strip(),
+        rethink_api_server=os.environ.get("CUBE_RETHINK_API_SERVER", "").strip(),
+        rethink_mqtt_server=os.environ.get("CUBE_RETHINK_MQTT_SERVER", "").strip(),
         softap_interface=os.environ.get("CUBE_SOFTAP_INTERFACE", "").strip(),
         poll_interval=_int("CUBE_POLL_INTERVAL", 30, 5, 3600),
         relay_url=os.environ.get("CUBE_RELAY_URL", "").strip().rstrip("/"),

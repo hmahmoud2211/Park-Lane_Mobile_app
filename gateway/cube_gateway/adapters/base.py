@@ -36,6 +36,7 @@ from ..models import (
     CommandResult,
     PairingRequirements,
     Reading,
+    Setting,
     clean_text,
 )
 
@@ -214,6 +215,7 @@ class PairResult:
 class DeviceState:
     capabilities: list[Capability] = field(default_factory=list)
     readings: list[Reading] = field(default_factory=list)
+    settings: list[Setting] = field(default_factory=list)
     commands: list[str] = field(default_factory=list)
     online: bool = True
     #: Changes to connection details seen while reading state (a new IP after DHCP renewal, a firmware version).

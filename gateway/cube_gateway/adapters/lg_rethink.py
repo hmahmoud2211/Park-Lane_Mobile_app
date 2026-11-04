@@ -17,11 +17,13 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
-from ..models import AdapterInfo, AuthKind, Candidate, Category, CommandResult, ConnectionStatus, SupportLevel
+from ..models import AdapterInfo, AuthKind, Candidate, Category, CommandResult, ConnectionStatus, Setting, SupportLevel
 from . import caps
 from .base import (
     AdapterError,
@@ -41,6 +43,64 @@ from .base import (
 log = logging.getLogger("cube.adapter.lg_thinq_rethink")
 HA_DEFAULT_MODES = ["off", "auto", "cool", "dry", "fan_only", "heat"]
 FALLBACK_FAN_MODES = ["auto", "very low", "low", "medium", "high", "very high"]
+
+#: The climate settings in the order the app shows them, with Home Assistant's defaults for their option lists.
+#: Ported from Master's server/src/rethink/appliances.ts (archive/master-2026-11-04).
+CLIMATE_SETTINGS: tuple[tuple[str, str, str | None, tuple[str, ...]], ...] = (
+    ("mode", "Mode", "modes", ("auto", "off", "cool", "heat", "dry", "fan_only")),
+    ("temperature", "Temperature", None, ()),
+    ("fan_mode", "Fan speed", "fan_modes", ("auto", "low", "medium", "high")),
+    ("swing_mode", "Vertical airflow", "swing_modes", ("on", "off")),
+    ("swing_horizontal_mode", "Horizontal airflow", "swing_horizontal_modes", ("on", "off")),
+)
+#: Home Assistant platforms shown as settings, and how.
+PLATFORMS = {"switch": "switch", "number": "number", "select": "select", "button": "button", "sensor": "sensor", "binary_sensor": "sensor"}
+#: What ReThink and Home Assistant publish for "no value".
+UNSET = {"", "None", "unknown", "unavailable"}
+SETTING_KEY = re.compile(r"^[\w-]{1,64}$")
+
+
+@dataclass
+class _Control:
+    """One setting with the topics behind it."""
+
+    key: str
+    kind: str
+    name: str
+    state_topic: str | None = None
+    command_topic: str | None = None
+    options: list[str] = field(default_factory=list)
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    unit: str | None = None
+    payload_on: str = "ON"
+    payload_off: str = "OFF"
+    payload_press: str = "PRESS"
+    #: Not echoed back by the appliance in every state, so a value sent is shown as assumed.
+    optimistic: bool = False
+    binary: bool = False
+    availability_topics: list[str] = field(default_factory=list)
+    attributes_topic: str | None = None
+    diagnostic: bool = False
+    #: A climate setting, which the unit only takes while it runs.
+    needs_power: bool = False
+
+
+def _text(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _number(value: Any, fallback: float) -> float:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else fallback
+
+
+def _strings(value: Any) -> list[str] | None:
+    return list(value) if isinstance(value, list) and value and all(isinstance(item, str) for item in value) else None
+
+
+def _topics(value: Any) -> list[str]:
+    return [t for entry in (value if isinstance(value, list) else []) if isinstance(entry, dict) and (t := _text(entry.get("topic")))]
 
 
 class LgRethinkAdapter(DeviceAdapter):
@@ -82,6 +142,9 @@ class LgRethinkAdapter(DeviceAdapter):
         self._listeners: dict[str, StateCallback] = {}
         self._debounce: dict[str, asyncio.TimerHandle] = {}
         self._last_on_mode: dict[str, str] = {}
+        #: Values sent to settings the appliance does not echo: command topic -> (payload, state when sent).
+        #: Shown unconfirmed until the appliance reports something new on the state topic.
+        self._assumed: dict[str, tuple[str, str | None]] = {}
 
     def available(self) -> tuple[bool, str | None]:
         if not self.url:
@@ -234,6 +297,131 @@ class LgRethinkAdapter(DeviceAdapter):
         bridge = self.values.get(f"{self.prefix}/availability")
         return own == "online" and bridge != "offline"
 
+    def _controls(self, device_id: str) -> list[_Control]:
+        """The appliance's settings from ReThink's discovery: climate settings first, then its extras."""
+        climate = self._climate(device_id)
+        controls: list[_Control] = []
+        if climate:
+            for key, name, options_key, defaults in CLIMATE_SETTINGS:
+                command_topic = _text(climate.get(f"{key}_command_topic"))
+                if not command_topic:
+                    continue
+                state_topic = _text(climate.get(f"{key}_state_topic"))
+                shared = {"key": key, "name": name, "command_topic": command_topic, "state_topic": state_topic, "needs_power": True, "optimistic": not state_topic}
+                if options_key is None:
+                    unit = "°F" if climate.get("temperature_unit") == "F" else "°C"
+                    controls.append(
+                        _Control(kind="number", min=_number(climate.get("min_temp"), 16), max=_number(climate.get("max_temp"), 30), step=_number(climate.get("temp_step"), 1), unit=unit, **shared)
+                    )
+                    continue
+                options = _strings(climate.get(options_key)) or list(defaults)
+                # Off is the power switch's job.
+                controls.append(_Control(kind="select", options=[o for o in options if key != "mode" or o != "off"], **shared))
+        config = self.configs.get(device_id) or {}
+        for key, component in (config.get("components") or {}).items():
+            if not isinstance(component, dict) or component.get("platform") == "climate":
+                continue
+            kind = PLATFORMS.get(str(component.get("platform")))
+            if not kind or not SETTING_KEY.match(str(key)):
+                continue
+            state_topic = _text(component.get("state_topic"))
+            command_topic = _text(component.get("command_topic"))
+            options = _strings(component.get("options"))
+            # Withdrawn components carry only their platform.
+            if (not state_topic if kind == "sensor" else not command_topic) or (kind == "select" and not options):
+                continue
+            controls.append(
+                _Control(
+                    key=str(key),
+                    kind=kind,
+                    name=_text(component.get("name")) or str(key).replace("_", " ").capitalize(),
+                    state_topic=None if kind == "button" else state_topic,
+                    command_topic=None if kind == "sensor" else command_topic,
+                    options=(options or []) if kind == "select" else [],
+                    min=_number(component.get("min"), 1) if kind == "number" else None,
+                    max=_number(component.get("max"), 100) if kind == "number" else None,
+                    step=_number(component.get("step"), 1) if kind == "number" else None,
+                    unit=_text(component.get("unit_of_measurement")),
+                    payload_on=_text(component.get("payload_on")) or "ON",
+                    payload_off=_text(component.get("payload_off")) or "OFF",
+                    payload_press=_text(component.get("payload_press")) or "PRESS",
+                    optimistic=component.get("optimistic") is True or (kind not in {"button", "sensor"} and not state_topic),
+                    binary=component.get("platform") == "binary_sensor",
+                    availability_topics=_topics(component.get("availability")),
+                    attributes_topic=_text(component.get("json_attributes_topic")),
+                    diagnostic=component.get("entity_category") == "diagnostic",
+                )
+            )
+        return controls
+
+    def _read(self, topic: str | None) -> str | None:
+        value = self.values.get(topic) if topic else None
+        return None if value is None or value in UNSET else value
+
+    def _power(self, device_id: str) -> str:
+        climate = self._climate(device_id) or {}
+        power = self._read(_text(climate.get("power_state_topic")))
+        if power in {"ON", "OFF"}:
+            return "on" if power == "ON" else "off"
+        mode = self._read(_text(climate.get("mode_state_topic")))
+        return "unknown" if mode is None else ("off" if mode == "off" else "on")
+
+    def _setting(self, device_id: str, control: _Control, power: str) -> Setting:
+        raw = self._read(control.state_topic)
+        confirmed = raw is not None or control.kind == "button"
+        assumed = self._assumed.get(control.command_topic or "")
+        if assumed is not None:
+            payload, state_when_sent = assumed
+            if control.state_topic is None or raw == state_when_sent:
+                raw, confirmed = payload, False
+            else:
+                # The appliance reported since: its value wins.
+                self._assumed.pop(control.command_topic or "", None)
+        value: Any = None
+        if raw is not None:
+            if control.kind == "switch" or control.binary:
+                value = True if raw == control.payload_on else False if raw == control.payload_off else None
+            elif control.kind == "number":
+                try:
+                    value = float(raw)
+                except ValueError:
+                    value = None
+            elif control.kind == "sensor":
+                # ReThink's date for a filter that was never reset.
+                if raw.startswith("0000-00-00"):
+                    value = None
+                else:
+                    try:
+                        value = float(raw)
+                    except ValueError:
+                        value = raw
+            else:
+                value = raw
+        attributes: dict[str, Any] = {}
+        if control.attributes_topic:
+            with contextlib.suppress(ValueError, TypeError):
+                parsed = json.loads(self.values.get(control.attributes_topic) or "null")
+                attributes = parsed if isinstance(parsed, dict) else {}
+        requires = _text(attributes.get("requires"))
+        available = self._online(device_id) and (not control.needs_power or power == "on") and all(self.values.get(t) == "online" for t in control.availability_topics)
+        return Setting(
+            key=control.key,
+            kind=control.kind,  # type: ignore[arg-type]
+            name=control.name,
+            value=value,
+            options=control.options,
+            min=control.min,
+            max=control.max,
+            step=control.step,
+            unit=control.unit,
+            available=available,
+            # ReThink says "nothing, always available" for features that work in any state.
+            requires="AC on" if control.needs_power else (requires if requires and not requires.startswith("nothing") else None),
+            description=_text(attributes.get("description")),
+            diagnostic=control.diagnostic,
+            confirmed=confirmed,
+        )
+
     def _state_for(self, device_id: str) -> DeviceState:
         capabilities = []
         readings = []
@@ -256,6 +444,12 @@ class LgRethinkAdapter(DeviceAdapter):
                     unit="°C" if climate.get("temperature_unit", "C") == "C" else "°F",
                 )
             )
+            # What the unit is doing now (cooling, idle, off), as ReThink reports it.
+            capabilities[-1].state = self._read(_text(climate.get("action_topic")))
+            humidity = self._read(_text(climate.get("current_humidity_topic")))
+            if humidity is not None:
+                with contextlib.suppress(ValueError):
+                    readings.append(caps.reading("current_humidity", "Humidity", float(humidity), "%", "humidity"))
         config = self.configs.get(device_id) or {}
         for key, component in (config.get("components") or {}).items():
             if isinstance(component, dict) and component.get("platform") == "sensor" and component.get("state_topic") in self.values:
@@ -265,7 +459,14 @@ class LgRethinkAdapter(DeviceAdapter):
                 label = component.get("name") or key.replace("_", " ").capitalize()
                 readings.append(caps.reading(key, str(label), value, component.get("unit_of_measurement"), component.get("device_class")))
         model = ((self.configs.get(device_id) or {}).get("device") or {}).get("model")
-        return DeviceState(capabilities=capabilities, readings=readings, commands=caps.commands_for(capabilities), online=self._online(device_id), model=model)
+        power = self._power(device_id)
+        settings = [self._setting(device_id, control, power) for control in self._controls(device_id)]
+        commands = caps.commands_for(capabilities)
+        if any(x.kind in {"select", "number", "switch"} for x in settings):
+            commands.append("set_setting")
+        if any(x.kind == "button" for x in settings):
+            commands.append("press")
+        return DeviceState(capabilities=capabilities, readings=readings, settings=settings, commands=commands, online=self._online(device_id), model=model)
 
     def _describe(self, device_id: str) -> tuple[str, str | None, Category]:
         device = (self.configs.get(device_id) or {}).get("device") or {}
@@ -319,7 +520,57 @@ class LgRethinkAdapter(DeviceAdapter):
             raise DeviceUnreachable("The gateway is not connected to ReThink's MQTT broker.")
         await self._client.publish(topic, value)
 
+    async def _set_setting(self, device: StoredDevice, command: str, params: dict[str, Any]) -> CommandOutcome:
+        key = str(caps.param(params, "key"))
+        control = next((c for c in self._controls(device.unique_id) if c.key == key), None)
+        if control is None or control.kind == "sensor":
+            raise UnsupportedCommand(f"This appliance has no setting {key!r}.")
+        setting = self._setting(device.unique_id, control, self._power(device.unique_id))
+        if not setting.available:
+            raise AdapterError(
+                f"{control.name} is not available right now" + (f": it needs {setting.requires}." if setting.requires else "."),
+                code="setting_unavailable",
+                recovery="Change what it needs first, then try again.",
+            )
+        if command == "press" or control.kind == "button":
+            if control.kind != "button":
+                raise UnsupportedCommand(f"{control.name} is not a button.")
+            await self._publish(control.command_topic, control.payload_press)
+            return CommandOutcome(result=CommandResult(status="assumed", message=f"{control.name} sent."), state=self._state_for(device.unique_id))
+        value = caps.param(params, "value")
+        if control.kind == "switch":
+            if not isinstance(value, bool):
+                raise AdapterError(f"{control.name} needs true or false.", code="bad_params")
+            payload = control.payload_on if value else control.payload_off
+        elif control.kind == "number":
+            number = caps.clamp(value, control.min if control.min is not None else float("-inf"), control.max if control.max is not None else float("inf"), control.name)
+            step = control.step or 1
+            payload = f"{round(number / step) * step:g}"
+        else:
+            if str(value) not in control.options:
+                raise AdapterError(f"{control.name} has no option {value!r}.", code="bad_params")
+            payload = str(value)
+        before = self._read(control.state_topic)
+        if control.state_topic:
+            self._changed[control.state_topic].clear()
+        await self._publish(control.command_topic, payload)
+        if control.optimistic or not control.state_topic:
+            self._assumed[control.command_topic or ""] = (payload, before)
+            return CommandOutcome(
+                result=CommandResult(status="assumed", message=f"{control.name} sent. This setting is not reported back in every state."),
+                state=self._state_for(device.unique_id),
+            )
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(self._wait_value(control.state_topic, payload), timeout=8)
+        status = "confirmed" if _same(self.values.get(control.state_topic), payload) else "pending"
+        return CommandOutcome(
+            result=CommandResult(status=status, message=None if status == "confirmed" else "ReThink accepted the change; the appliance has not reported it yet."),
+            state=self._state_for(device.unique_id),
+        )
+
     async def execute_command(self, device: StoredDevice, command: str, params: dict[str, Any]) -> CommandOutcome:
+        if command in {"set_setting", "press"}:
+            return await self._set_setting(device, command, params)
         climate = self._climate(device.unique_id)
         if climate is None:
             raise UnsupportedCommand("This appliance has no climate controls in ReThink.")

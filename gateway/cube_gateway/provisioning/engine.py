@@ -241,6 +241,13 @@ class ProvisioningEngine:
             updated_at=now,
             history=[{"state": S.PAIRING_MODE_REQUIRED.value, "at": now}],
         )
+        adapter = self.registry.adapters[plugin.adapter_id]
+        if plugin.adapter_id == "lg_thinq_rethink":
+            # A ReThink id says nothing about the appliance, so the new one is whichever ReThink did not know yet.
+            known = getattr(adapter, "device_ids", lambda: [])()
+            session.expect["exclude"] = ",".join(known)
+            if self.settings.rethink_api_server and self.settings.rethink_mqtt_server:
+                session.setup = {"rethink_api_server": self.settings.rethink_api_server, "rethink_mqtt_server": self.settings.rethink_mqtt_server}
         self.sessions[session.id] = session
         await self._save(session)
         log.info("provisioning started", extra={"session": session.id, "plugin": plugin.id, "model": model, "experimental": session.experimental})
@@ -346,6 +353,11 @@ class ProvisioningEngine:
 
     def _matches(self, session: ProvisioningSession, candidate: Candidate) -> bool:
         expect = session.expect
+        if "exclude" in expect:
+            if candidate.unique_id in set(filter(None, expect["exclude"].split(","))):
+                return False
+            if set(expect) == {"exclude"}:
+                return candidate.paired_device_id is None
         if not expect:
             return candidate.paired_device_id is None
         if "deviceid" in expect and candidate.unique_id.lower() != expect["deviceid"]:

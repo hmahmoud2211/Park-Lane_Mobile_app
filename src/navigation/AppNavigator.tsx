@@ -13,6 +13,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
 import { AddDeviceScreen } from '../screens/AddDeviceScreen';
+import { AcControlScreen } from '../screens/AcControlScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
@@ -28,6 +29,7 @@ import { FirstScreen } from '../screens/FirstScreen';
 import { GatewaySetupScreen } from '../screens/GatewaySetupScreen';
 import { GuestPassScreen } from '../screens/GuestPassScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { LgPairingScreen } from '../screens/LgPairingScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { MaintenanceScreen } from '../screens/MaintenanceScreen';
 import { MyUnitScreen } from '../screens/MyUnitScreen';
@@ -169,6 +171,8 @@ export function AppNavigator() {
           <Stack.Screen name="DeviceDiscovery" component={DeviceDiscoveryScreen} />
           <Stack.Screen name="DeviceProvisioning" component={DeviceProvisioningScreen} />
           <Stack.Screen name="DeviceSetup" component={DeviceSetupScreen} />
+          <Stack.Screen name="LgPairing" component={LgPairingScreen} />
+          <Stack.Screen name="AcControl" component={AcControlScreen} />
           <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />

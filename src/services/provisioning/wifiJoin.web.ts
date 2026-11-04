@@ -45,6 +45,8 @@ export async function joinHotspot(_options: { ssid?: string | null; prefixes: re
 
 export async function releaseHotspot(_ssid: string | null): Promise<void> {}
 
+export async function unbindProcessNetwork(): Promise<void> {}
+
 export async function openWifiSettings(): Promise<boolean> {
   return false;
 }

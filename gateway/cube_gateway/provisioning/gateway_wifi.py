@@ -148,7 +148,7 @@ def make_runner(interface: str) -> Callable[..., Awaitable[None]]:
                     await asyncio.wait_for(wifi_join(device_ip, home_ssid, home_password), timeout=30)
                 except Exception as error:  # noqa: BLE001
                     raise ProvisioningFailure("provisioning_protocol_failed", "The Kasa device did not accept the Wi-Fi settings.") from error
-            elif plugin.id == "lg_thinq_softap":
+            elif plugin.id == "lg_thinq_softap_gateway":
                 await run_rethink_setup(device_ip, home_ssid, home_password)
             else:
                 raise ProvisioningFailure("unsupported_model", f"{plugin.title} does not run on the gateway.")

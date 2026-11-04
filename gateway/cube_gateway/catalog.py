@@ -202,7 +202,7 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                 available, reason = False, "The adapter for this brand is not loaded on this gateway."
             elif plugin.transport == "gateway" and not settings.softap_interface:
                 available, reason = False, "Needs a gateway with a Wi-Fi radio set as CUBE_SOFTAP_INTERFACE."
-            elif plugin.id == "lg_thinq_softap" and not os.environ.get("CUBE_RETHINK_SETUP_CMD"):
+            elif plugin.id == "lg_thinq_softap_gateway" and not os.environ.get("CUBE_RETHINK_SETUP_CMD"):
                 available, reason = False, "Needs ReThink's rethink-setup on the gateway (CUBE_RETHINK_SETUP_CMD), or run it from a laptop."
             else:
                 ok, why = registry.adapters[plugin.adapter_id].available()

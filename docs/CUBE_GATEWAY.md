@@ -132,7 +132,8 @@ that don't report back (TV keys) show "Sent, this device doesn't report back".
 | `wled_softap` | WLED | You enter Wi-Fi on WLED's page | `WLED-AP`, password `wled1234` (WLED's published default) | Supported |
 | `sonoff_diy_softap` | SONOFF | DIY mode: you enter Wi-Fi on the device's page; the phone also reads the device key from `/device` | `ITEAD-XXXXXXXX`, password `12345678` (ITEAD DIY doc) for BASICR3, RFR3, MINI, and S26R2TPF | Supported for BASICR3/RFR3/MINI; **experimental** for S26R2TPF and others |
 | `kasa_softap` | TP-Link Kasa | Gateway joins with its own radio, python-kasa `wifi join` | `TP-LINK_…_XXXX`, open | Experimental; needs `CUBE_SOFTAP_INTERFACE` |
-| `lg_thinq_softap` | LG ThinQ | Gateway joins with its own radio and runs ReThink's `rethink-setup` | `LG_…`, password typed by you | Experimental; needs ReThink, `CUBE_SOFTAP_INTERFACE` and `CUBE_RETHINK_SETUP_CMD` |
+| `lg_thinq_softap` | LG ThinQ | The phone joins the appliance's network and runs ReThink's setup protocol (ThinQ1, ThinQ2, Whisen) itself | `LGE_…` or `[LG_…]`; you type the password (the app suggests ReThink's documented default for that name, editable) | Experimental; needs ReThink |
+| `lg_thinq_softap_gateway` | LG ThinQ | Gateway joins with its own radio and runs ReThink's `rethink-setup` | Same | Experimental; needs ReThink, `CUBE_SOFTAP_INTERFACE` and `CUBE_RETHINK_SETUP_CMD` |
 
 Tuya/Smart Life, Yeelight, WiZ, LIFX, Midea and Daikin join Wi-Fi only through their own apps. TVs join from
 their own settings. For these brands, "Connect new device" is shown greyed out with that explanation; once
@@ -171,27 +172,38 @@ republishes it as Home Assistant-style MQTT. The gateway is an MQTT client of th
 1. **ReThink running.** On this server it already runs: `/home/ems-server/EMS/repo/rethink`, management UI at
    `https://rethink.ems-iot.com` (password-protected), appliances connect to `lg.ems-iot.com`, and its
    Mosquitto broker listens on `127.0.0.1:1885`.
-2. **DNS redirection.** The appliance must resolve `lgthinq.com` and `*.lgthinq.com` to the ReThink server.
-   Set this on the home router (DNS override / local DNS records, Pi-hole, AdGuard Home). This server's nginx
-   already forwards `*.lgthinq.com` to ReThink.
+2. **Point new appliances at ReThink.** ThinQ2 appliances (most current ACs) can be given ReThink's address during
+   setup: set `CUBE_RETHINK_API_SERVER` and `CUBE_RETHINK_MQTT_SERVER` to ReThink's `advertise` values (on this
+   server: `https://lg.ems-iot.com:4443` and `ssl://lg.ems-iot.com:8884`). Then no DNS change is needed.
+   ThinQ1 and Whisen appliances always need DNS redirection: the home router must resolve `lgthinq.com` and
+   `*.lgthinq.com` to the ReThink server (DNS override, Pi-hole, AdGuard Home, or the `dns` service in
+   [`docker/rethink/`](../docker/rethink/)). This server's nginx already forwards `*.lgthinq.com` to ReThink.
 3. **Point the gateway at the broker:** `-e CUBE_RETHINK_MQTT_URL=mqtt://<host>:<port>` (credentials as
    `mqtt://user:pass@host:port`; `mqtts://` for TLS). The broker must be reachable from the gateway. The
    broker here is bound to `127.0.0.1`, so only a gateway on this same server can use it as configured.
-4. **Set the appliance up for ReThink**, if it's new or still on LG's cloud. Either run ReThink's
-   `rethink-setup` from a laptop joined to the appliance's `LG_…` network
-   (`npx tsx rethink-setup.ts 192.168.120.254 <ssid> <password>`), or let a gateway with a spare Wi-Fi radio
-   do it (`CUBE_SOFTAP_INTERFACE`, `CUBE_RETHINK_SETUP_CMD="npx tsx /opt/rethink/rethink-setup.ts"` with
-   ReThink installed on the gateway host).
-5. In the app: **Add Device → LG → Find an appliance on ReThink**.
+4. **Set the appliance up for ReThink**, if it's new or still on LG's cloud. In the app: **Add Device → LG →
+   Set up an LG ThinQ appliance for ReThink**. The phone joins the appliance's `LGE_…` network and sends your
+   Wi-Fi itself. This needs the app build, not Expo Go, because it uses raw TLS sockets. Alternatives: run
+   ReThink's `rethink-setup` from a laptop (`npx tsx rethink-setup.ts 192.168.120.254 <ssid> <password>`), or
+   let a gateway with a spare Wi-Fi radio do it (`CUBE_SOFTAP_INTERFACE` plus
+   `CUBE_RETHINK_SETUP_CMD="npx tsx /opt/rethink/rethink-setup.ts"`). The gateway recognises the new
+   appliance as the one ReThink didn't know before setup started.
+5. Already on ReThink: **Add Device → LG → Find an appliance on ReThink**.
+6. **AC settings:** Device → **All AC settings** shows everything ReThink exposes for the model: mode, set point,
+   fan speed, both swings, Jet, Air purify, Energy saving, timers, filter hours and reset, and diagnostics.
+   Each setting says when it isn't available and what it needs (e.g. Jet: "AC on, in Cooling or Heating").
+   Settings the unit doesn't echo back are shown as not confirmed until it reports.
 
 Notes:
 - ReThink is GPL-2.0. The gateway doesn't include ReThink code: it talks MQTT to it and can start its setup
-  tool as a separate program.
+  tool as a separate program. **The app's** `src/services/lg/lgSetupProtocol.ts` (from Master) re-implements
+  `rethink-setup.ts` in TypeScript. Have it reviewed for GPL obligations before publishing the app to the
+  stores.
 - Only models in ReThink's support table are translated. Others appear as unsupported.
 - On connect the gateway sends Home Assistant's birth message (`homeassistant/status` = `online`), which makes
   ReThink re-announce its devices. If Home Assistant shares the broker this is harmless; it sends the same.
-- Exposed today: climate (mode, target temperature, fan mode, power via ReThink's power topic) and sensor
-  readings. ReThink's extra switches (Jet, Air purify, Energy saving) are not exposed yet.
+- Exposed: climate (mode, target temperature, fan, power through ReThink's power topic), every extra ReThink
+  announces (switches, numbers, selects, buttons, sensors) as settings with availability, and readings.
 
 ## SONOFF and the S26R2TPF
 
@@ -301,6 +313,7 @@ All optional, as `-e NAME=value` on `docker run`.
 | `CUBE_CORS_ORIGINS` | `*` | Allowed web origins (tokens are bearer headers, no cookies) |
 | `CUBE_RETHINK_MQTT_URL` | — | ReThink's MQTT broker; enables LG ThinQ |
 | `CUBE_RETHINK_DISCOVERY_PREFIX` / `CUBE_RETHINK_PREFIX` | `homeassistant` / `rethink` | ReThink topic prefixes |
+| `CUBE_RETHINK_API_SERVER` / `CUBE_RETHINK_MQTT_SERVER` | — | ReThink's public addresses, handed to ThinQ2 appliances during phone setup so they need no DNS override (set both) |
 | `CUBE_RETHINK_SETUP_CMD` | — | Command that runs ReThink's `rethink-setup` (gateway-side LG setup) |
 | `CUBE_SOFTAP_INTERFACE` | — | Spare Wi-Fi interface for gateway-side setup. Also needs `-v /run/dbus:/run/dbus:ro --user 0` and NetworkManager on the host |
 | `CUBE_RELAY_URL` | — | Relay to connect to at start (normally set from the app instead) |
@@ -345,7 +358,7 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 
 | Check | Result |
 | --- | --- |
-| Gateway tests: `cd gateway && .venv/bin/pytest -q` | **124 passed**: API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks |
+| Gateway tests: `cd gateway && .venv/bin/pytest -q` | **134 passed**: API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks, and the LG settings mapping against the real discovery message of an RAC_056905_WW |
 | `ruff check cube_gateway tests` | Clean |
 | `docker build gateway/` (amd64) | Builds; image 321 MB |
 | Container first start → setup code via `docker exec` → claim → data → `docker restart` | Data and token survive; Docker health `healthy` |
@@ -376,3 +389,4 @@ setup over NetworkManager; the relay from a phone on mobile data; the arm64 imag
 | HTTPS on the LAN | See the security model; use Tailscale |
 | Parklane Assistant controlling gateway devices | The assistant service talks to the EMS backend in the cloud, which can't reach a home LAN. It would need the relay plus a backend change |
 | Scenes, automations, energy history | Not in this release |
+| The Alexa skill, SONOFF cloud and the old CUBE/SONOFF pairing from Master | Built on the server modules the Home Assistant rewrite replaced. Kept on branch `archive/master-2026-11-04` |

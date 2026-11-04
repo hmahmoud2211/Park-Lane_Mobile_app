@@ -247,6 +247,30 @@ class Capability(BaseModel):
     position: float | None = None
 
 
+class Setting(BaseModel):
+    """A setting or reading beyond the basic capabilities, e.g. an AC's swing, Jet, a timer or its filter hours.
+
+    The device only lists what it supports. `select`, `number` and `switch` are set with the `set_setting` command,
+    `button` with `press`; `sensor` only reads. `available` is false while the device would ignore it (Jet outside
+    Cooling), with `requires` saying what it needs. `confirmed` is false for values the device does not echo back.
+    """
+
+    key: str
+    kind: Literal["select", "number", "switch", "button", "sensor"]
+    name: str
+    value: str | float | bool | None = None
+    options: list[str] = []
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    unit: str | None = None
+    available: bool = True
+    requires: str | None = None
+    description: str | None = None
+    diagnostic: bool = False
+    confirmed: bool = True
+
+
 class Reading(BaseModel):
     key: str
     label: str
@@ -286,6 +310,7 @@ class Device(BaseModel):
     connection: DeviceConnection = DeviceConnection()
     capabilities: list[Capability] = []
     readings: list[Reading] = []
+    settings: list[Setting] = []
     commands: list[str] = []
     pending: PendingCommand | None = None
     created_at: float
@@ -323,6 +348,8 @@ COMMANDS: dict[str, str] = {
     "cover_close": "Close",
     "cover_stop": "Stop",
     "set_position": "Set position (params.position 0-100)",
+    "set_setting": "Change one of the device's settings (params.key, params.value)",
+    "press": "Press one of the device's buttons (params.key)",
 }
 
 
@@ -396,6 +423,8 @@ class ProvisioningSession(BaseModel):
     #: What identifies the device once it is on the home network (filled from the hotspot name or the
     #: device's own reply on its setup network).
     expect: dict[str, str] = {}
+    #: Values the phone needs to run the setup, e.g. ReThink's public addresses for an LG ThinQ2 appliance.
+    setup: dict[str, str] = {}
     candidate_id: str | None = None
     device_id: str | None = None
     pairing_id: str | None = None

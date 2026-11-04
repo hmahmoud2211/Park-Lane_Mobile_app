@@ -3,6 +3,8 @@ export const deviceDetailCopy = {
   fallbackTitle: 'Device',
   accountIntro: 'Sign in to your EMS account to control your devices.',
   controlsTitle: 'Controls',
+  acSettings: 'All AC settings',
+  acSettingsHint: 'Shows every setting this air conditioner offers: airflow, features, timers and filter',
   detailsTitle: 'Details',
   missingTitle: 'Device not found',
   missingBody: 'It may have been removed from your home, or your account was moved to another unit.',

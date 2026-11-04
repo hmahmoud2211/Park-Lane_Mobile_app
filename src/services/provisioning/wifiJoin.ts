@@ -213,6 +213,19 @@ export async function releaseHotspot(ssid: string | null): Promise<void> {
   }
 }
 
+/**
+ * Android only: undoes a binding of the whole app to one network, which
+ * react-native-tcp-socket makes when a socket asks for the Wi-Fi interface
+ * (LG setup). Without this the app keeps routing through a device's hotspot
+ * after it is gone, and every request fails. Best effort.
+ */
+export async function unbindProcessNetwork(): Promise<void> {
+  if (Platform.OS !== 'android' || !isNativeWifiAvailable()) {
+    return;
+  }
+  await WifiManager.forceWifiUsageWithOptions(false, { noInternet: true }).catch(() => undefined);
+}
+
 /** Android has a Wi-Fi settings screen an app may open; iOS only lets an app open its own settings. */
 export function canOpenWifiSettings(): boolean {
   return Platform.OS === 'android';

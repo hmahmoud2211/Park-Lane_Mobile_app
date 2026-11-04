@@ -195,6 +195,33 @@ export interface GatewayReading {
   device_class: string | null;
 }
 
+export type SettingKind = 'select' | 'number' | 'switch' | 'button' | 'sensor';
+
+/**
+ * A setting or reading beyond the basic capabilities, e.g. an AC's swing, Jet,
+ * a timer or its filter hours (models.Setting). The device only lists what it
+ * supports. `select`, `number` and `switch` change with `set_setting`, a
+ * `button` with `press`; a `sensor` only reads. `available` is false while
+ * the device would ignore it, with `requires` saying what it needs.
+ * `confirmed` is false for a value the device has not echoed back.
+ */
+export interface GatewaySetting {
+  key: string;
+  kind: SettingKind;
+  name: string;
+  value: string | number | boolean | null;
+  options: string[];
+  min: number | null;
+  max: number | null;
+  step: number | null;
+  unit: string | null;
+  available: boolean;
+  requires: string | null;
+  description: string | null;
+  diagnostic: boolean;
+  confirmed: boolean;
+}
+
 export interface DeviceConnection {
   status: ConnectionStatus;
   last_seen: number | null;
@@ -226,6 +253,8 @@ export interface GatewayDevice {
   connection: DeviceConnection;
   capabilities: GatewayCapability[];
   readings: GatewayReading[];
+  /** Settings beyond the capabilities (an AC's swing, Jet, timers, filter); empty for most devices. */
+  settings: GatewaySetting[];
   /** The normalized commands this device accepts (models.COMMANDS). */
   commands: string[];
   pending: PendingCommand | null;
@@ -262,7 +291,9 @@ export type GatewayCommandName =
   | 'cover_open'
   | 'cover_close'
   | 'cover_stop'
-  | 'set_position';
+  | 'set_position'
+  | 'set_setting'
+  | 'press';
 
 export interface GatewayCommand {
   command: GatewayCommandName;
@@ -334,6 +365,11 @@ export interface ProvisioningSession {
   hotspot: HotspotInfo;
   steps: ProvisioningStep[];
   expect: Record<string, string>;
+  /**
+   * What the phone needs to run the setup. For LG ThinQ: `rethink_api_server`
+   * and `rethink_mqtt_server`, ReThink's public addresses, when the gateway knows them.
+   */
+  setup: Record<string, string>;
   candidate_id: string | null;
   device_id: string | null;
   pairing_id: string | null;

@@ -23,7 +23,7 @@ import { useHomeDevices } from '../../hooks/useHomeDevices';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { kindLabel, roomGlyph, toggleCommand } from '../../services/home/capabilities';
 import * as gatewayApi from '../../services/gateway/gatewayApi';
-import { isGatewayDeviceId, toGatewayDeviceId } from '../../services/gateway/deviceMapping';
+import { hasControlSettings, isGatewayDeviceId, toGatewayDeviceId } from '../../services/gateway/deviceMapping';
 import { errorMessage } from '../../services/gateway/gatewayHttp';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { deviceDetailCopy as copy } from './DeviceDetailScreen.data';
@@ -111,6 +111,15 @@ export function DeviceDetailScreen() {
             </AppText>
           ) : null}
           <DeviceControl device={device} busy={deviceBusy === 'command'} onCommand={(next) => void ems.command(device, next)} />
+          {raw && raw.category === 'climate' && hasControlSettings(raw) ? (
+            <AppButton
+              title={copy.acSettings}
+              variant="secondary"
+              height={SMALL_BUTTON_HEIGHT}
+              onPress={() => navigation.navigate('AcControl', { deviceId: params.deviceId })}
+              accessibilityHint={copy.acSettingsHint}
+            />
+          ) : null}
         </NeonPanel>
 
         <NeonPanel style={styles.panel}>
