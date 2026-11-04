@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
+import { useAppTheme } from '../../../hooks/useAppTheme';
 
 export interface AssistantAvatarProps {
   size?: number;

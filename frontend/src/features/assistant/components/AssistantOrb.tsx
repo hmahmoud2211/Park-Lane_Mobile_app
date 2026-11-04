@@ -4,9 +4,9 @@ import { memo, useEffect, useId, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import { useReduceMotion } from '../../hooks/useReduceMotion';
-import type { AppTheme } from '../../types/theme.types';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import { useReduceMotion } from '../../../hooks/useReduceMotion';
+import type { AppTheme } from '../../../types/theme.types';
 
 /**
  * What the orb is showing. `hearing` is the resident talking and `speaking`

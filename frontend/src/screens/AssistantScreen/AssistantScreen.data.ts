@@ -1,4 +1,4 @@
-import type { Suggestion } from '../../components/assistant/SuggestionChips';
+import type { Suggestion } from '../../features/assistant/components/SuggestionChips';
 
 /**
  * Copy for the assistant screen. Suggestions ask one thing each: the

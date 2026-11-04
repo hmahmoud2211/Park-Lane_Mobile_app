@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
-import { Avatar } from '../ui/Avatar';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
+import { Avatar } from '../../../components/ui/Avatar';
 
 export type AssistantHealthState = 'checking' | 'online' | 'degraded' | 'offline';
 

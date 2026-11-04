@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
-import { NeonPanel } from '../ui/NeonPanel';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
+import { NeonPanel } from '../../../components/ui/NeonPanel';
 import { isRtlText } from './RichText';
 
 export interface Suggestion {

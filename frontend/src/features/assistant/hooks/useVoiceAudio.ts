@@ -21,7 +21,7 @@ import {
   levelFromRms,
   rmsOf,
   wavFromPcm16,
-} from '../pcm';
+} from '../services/pcm';
 import type { DuplexMode, VoiceAudioEngine } from './voiceAudio.types';
 
 const BYTES_PER_MS = (assistantConfig.sampleRate * 2) / 1000;

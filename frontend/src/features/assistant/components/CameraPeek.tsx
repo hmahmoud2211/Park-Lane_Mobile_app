@@ -5,9 +5,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 
 export interface CameraPeekHandle {
   /** Base64 JPEG (no `data:` prefix) of the current frame, or '' if there is none yet. */

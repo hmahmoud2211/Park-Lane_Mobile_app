@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import { useReduceMotion } from '../../hooks/useReduceMotion';
-import type { VoicePhase } from '../../hooks/useVoiceSession';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import { useReduceMotion } from '../../../hooks/useReduceMotion';
+import type { VoicePhase } from '../hooks/useVoiceSession';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 
 export interface VoiceStatusPillProps {
   phase: VoicePhase;

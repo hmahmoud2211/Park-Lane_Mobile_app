@@ -1,17 +1,17 @@
 import { useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
-import { AssistantOrb } from '../../components/assistant/AssistantOrb';
-import { ChatBubble } from '../../components/assistant/ChatBubble';
-import { ChatComposer } from '../../components/assistant/ChatComposer';
-import { FadeSwap } from '../../components/assistant/FadeSwap';
-import type { IntentMeta } from '../../components/assistant/insights';
-import { SuggestionChips } from '../../components/assistant/SuggestionChips';
-import { TypingIndicator } from '../../components/assistant/TypingIndicator';
+import { AssistantOrb } from '../../features/assistant/components/AssistantOrb';
+import { ChatBubble } from '../../features/assistant/components/ChatBubble';
+import { ChatComposer } from '../../features/assistant/components/ChatComposer';
+import { FadeSwap } from '../../features/assistant/components/FadeSwap';
+import type { IntentMeta } from '../../features/assistant/components/insights';
+import { SuggestionChips } from '../../features/assistant/components/SuggestionChips';
+import { TypingIndicator } from '../../features/assistant/components/TypingIndicator';
 import { AppText } from '../../components/common/AppText';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import type { ChatMessage } from '../../hooks/useAssistantChat';
+import type { ChatMessage } from '../../features/assistant/hooks/useAssistantChat';
 import { useReduceMotion } from '../../hooks/useReduceMotion';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { assistantCopy as copy, chatSuggestions } from './AssistantScreen.data';

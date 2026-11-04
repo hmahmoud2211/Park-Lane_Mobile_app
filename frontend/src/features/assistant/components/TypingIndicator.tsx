@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import { useReduceMotion } from '../../hooks/useReduceMotion';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import { useReduceMotion } from '../../../hooks/useReduceMotion';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 import { AssistantAvatar } from './AssistantAvatar';
 
 const NATIVE = Platform.OS !== 'web';

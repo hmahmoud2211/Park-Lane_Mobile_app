@@ -9,7 +9,7 @@ import {
   int16FromFloat32,
   levelFromRms,
   rmsOf,
-} from '../pcm';
+} from '../services/pcm';
 import type { DuplexMode, VoiceAudioEngine } from './voiceAudio.types';
 
 /** Seconds of headroom before the first queued chunk plays. */

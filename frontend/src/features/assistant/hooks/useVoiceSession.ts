@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Animated, AppState, Platform } from 'react-native';
 
-import { assistantConfig } from '../constants/assistantConfig';
-import type { AnswerSummary, RealtimeServerEvent } from '../services/assistant/assistant.types';
-import { useVoiceAudio } from '../services/assistant/audio/useVoiceAudio';
-import type { DuplexMode } from '../services/assistant/audio/voiceAudio.types';
-import { RealtimeVoiceClient, type RealtimeCloseInfo } from '../services/assistant/realtimeClient';
+import { assistantConfig } from '../../../constants/assistantConfig';
+import type { AnswerSummary, RealtimeServerEvent } from '../services/assistant.types';
+import { useVoiceAudio } from './useVoiceAudio';
+import type { DuplexMode } from './voiceAudio.types';
+import { RealtimeVoiceClient, type RealtimeCloseInfo } from '../services/realtimeClient';
 
 /**
  * What the voice session is doing, in the order the UI cares about:

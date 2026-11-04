@@ -1,7 +1,7 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
-import type { AnswerSummary } from '../../services/assistant/assistant.types';
-import type { ParamlessRoute } from '../../types/navigation.types';
+import type { AnswerSummary } from '../services/assistant.types';
+import type { ParamlessRoute } from '../../../types/navigation.types';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { AnswerSummary } from '../services/assistant/assistant.types';
-import { AssistantApiError, sendChatMessage } from '../services/assistant/assistantApi';
+import type { AnswerSummary } from '../services/assistant.types';
+import { AssistantApiError, sendChatMessage } from '../services/assistantApi';
 
 /**
  * `answered` and `declined` are both replies from the assistant (`ok` true

@@ -1,10 +1,10 @@
 import { Fragment, memo, useMemo, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { TypographyVariant } from '../../theme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { TypographyVariant } from '../../../theme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 
 export interface RichTextProps {
   children: string;

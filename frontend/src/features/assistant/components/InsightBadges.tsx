@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AnswerSummary } from '../../services/assistant/assistant.types';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AnswerSummary } from '../services/assistant.types';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 import { insightsFor, intentMeta, type Insight, type IntentMeta, type InsightTone } from './insights';
 
 export interface InsightBadgesProps {

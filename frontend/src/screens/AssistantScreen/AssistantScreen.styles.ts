@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { HALO_SPAN } from '../../components/assistant/AssistantOrb';
+import { HALO_SPAN } from '../../features/assistant/components/AssistantOrb';
 import { spacing } from '../../theme';
 import type { AppTheme } from '../../types/theme.types';
 import { MAX_CONTENT_WIDTH, clamp } from '../../utils/responsive';

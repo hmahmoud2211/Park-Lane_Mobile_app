@@ -1,4 +1,4 @@
-import { assistantConfig } from '../../constants/assistantConfig';
+import { assistantConfig } from '../../../constants/assistantConfig';
 import type { RealtimeServerEvent } from './assistant.types';
 
 export interface RealtimeConnectOptions {

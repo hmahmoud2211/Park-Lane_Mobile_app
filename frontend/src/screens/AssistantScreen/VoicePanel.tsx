@@ -2,16 +2,16 @@ import { useCameraPermissions } from 'expo-camera';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
-import { AssistantOrb, moodForPhase } from '../../components/assistant/AssistantOrb';
-import { CameraPeek, type CameraPeekHandle } from '../../components/assistant/CameraPeek';
-import { FadeSwap } from '../../components/assistant/FadeSwap';
-import type { IntentMeta } from '../../components/assistant/insights';
-import { VoiceControls } from '../../components/assistant/VoiceControls';
-import { VoiceStatusPill } from '../../components/assistant/VoiceStatusPill';
-import { VoiceTranscript } from '../../components/assistant/VoiceTranscript';
+import { AssistantOrb, moodForPhase } from '../../features/assistant/components/AssistantOrb';
+import { CameraPeek, type CameraPeekHandle } from '../../features/assistant/components/CameraPeek';
+import { FadeSwap } from '../../features/assistant/components/FadeSwap';
+import type { IntentMeta } from '../../features/assistant/components/insights';
+import { VoiceControls } from '../../features/assistant/components/VoiceControls';
+import { VoiceStatusPill } from '../../features/assistant/components/VoiceStatusPill';
+import { VoiceTranscript } from '../../features/assistant/components/VoiceTranscript';
 import { AppText } from '../../components/common/AppText';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useVoiceSession, type VoicePhase } from '../../hooks/useVoiceSession';
+import { useVoiceSession, type VoicePhase } from '../../features/assistant/hooks/useVoiceSession';
 import { assistantCopy as copy, voiceExamples } from './AssistantScreen.data';
 import { VOICE_ORB_SIZE, VOICE_ORB_SIZE_COMPACT, createStyles } from './AssistantScreen.styles';
 

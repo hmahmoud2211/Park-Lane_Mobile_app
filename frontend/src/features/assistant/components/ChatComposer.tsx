@@ -15,9 +15,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { NeonPanel } from '../ui/NeonPanel';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { NeonPanel } from '../../../components/ui/NeonPanel';
 import { isRtlText } from './RichText';
 
 export interface ChatComposerProps {

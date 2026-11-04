@@ -3,10 +3,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import type { ChatMessage } from '../../hooks/useAssistantChat';
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
+import type { ChatMessage } from '../hooks/useAssistantChat';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
 import { AssistantAvatar } from './AssistantAvatar';
 import { InsightBadges } from './InsightBadges';
 import type { IntentMeta } from './insights';
