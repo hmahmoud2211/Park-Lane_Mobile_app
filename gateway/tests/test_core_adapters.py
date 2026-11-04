@@ -281,7 +281,7 @@ DEVICE = "7bd22121-1a4f-11e0-a28c-28876113fdac"
 def _rethink(settings, echo: bool = True) -> tuple[LgRethinkAdapter, FakeMqtt]:
     from dataclasses import replace
 
-    adapter = LgRethinkAdapter(AdapterContext(replace(settings, rethink_mqtt_url="mqtt://127.0.0.1:1885")))
+    adapter = LgRethinkAdapter(AdapterContext(replace(settings, rethink_mqtt_url="mqtt://127.0.0.1:9")))
     adapter.connected = True
     mqtt = FakeMqtt(adapter, echo)
     adapter._client = mqtt

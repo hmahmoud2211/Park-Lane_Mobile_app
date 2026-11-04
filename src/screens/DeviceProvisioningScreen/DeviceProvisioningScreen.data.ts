@@ -42,6 +42,14 @@ export const provisioningCopy = {
   send: 'Send to device',
   sending: 'Sending your Wi-Fi to the device…',
   rejected: 'The device refused the Wi-Fi settings.',
+  cloudWifiIntro:
+    'The phone sends your Wi-Fi, plus the Shelly’s own login to CUBE’s server and CUBE’s certificate, straight to the Shelly. Nothing is stored by the app.',
+  cloudSending: 'Installing CUBE’s certificate and sending the settings…',
+  cloudGen1: 'Gen1 Shelly devices cannot connect to CUBE securely.',
+  cloudNoLogin: 'The gateway did not provide this Shelly’s login to CUBE’s server. Start again; if it keeps happening, the gateway is not connected to CUBE’s server.',
+  cloudRejected: (step: 'certificate' | 'mqtt' | 'wifi', message: string) =>
+    `${step === 'certificate' ? 'The Shelly refused CUBE’s certificate' : step === 'mqtt' ? 'The Shelly refused the CUBE server settings' : 'The Shelly refused the Wi-Fi settings'}: ${message}`,
+  cloudRestartHint: 'If the Shelly does not appear within a few minutes, unplug it and plug it back in so the new settings apply.',
   guidedTitle: 'Enter your Wi-Fi on the device’s page',
   guidedIntro: 'The device’s own setup page opens. Choose your 2.4 GHz home network, enter its password and save.',
   openPage: 'Open setup page',

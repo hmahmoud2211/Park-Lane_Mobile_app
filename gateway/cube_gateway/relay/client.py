@@ -60,6 +60,8 @@ async def enroll(gateway: Gateway, url: str, enroll_token: str | None) -> None:
         await gateway.relay.stop()
     gateway.relay = RelayClient(gateway, url, secret)
     gateway.relay.start()
+    if getattr(gateway, "cloud", None) is not None:
+        gateway.cloud.wake()
 
 
 class RelayClient:
@@ -159,7 +161,8 @@ class RelayClient:
         """Runs one relayed request against the gateway's own API (public for tests)."""
         request_id = frame.get("id")
         path = str(frame.get("path") or "")
-        if not path.startswith("/api/v1/") or path in BLOCKED_PATHS or path == "/api/v1/events":
+        blocked = set() if self.gateway.settings.allow_remote_claim else BLOCKED_PATHS
+        if not path.startswith("/api/v1/") or path in blocked or path == "/api/v1/events":
             body = {"ok": False, "error": {"code": "forbidden", "message": "Not available through the relay. Pair the gateway on your home network first."}}
             return {"t": "res", "id": request_id, "status": 403, "headers": {"content-type": "application/json"}, "body": base64.b64encode(json.dumps(body).encode()).decode()}
         headers = {k.lower(): str(v) for k, v in (frame.get("headers") or {}).items() if k.lower() in FORWARD_HEADERS}

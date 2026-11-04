@@ -23,7 +23,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGateway } from '../../hooks/useGateway';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as api from '../../services/gateway/gatewayApi';
-import { parsePairPayload, scanLan, type FoundGateway } from '../../services/gateway/gatewayDiscovery';
+import { isRemoteGatewayUrl, parsePairPayload, scanLan, type FoundGateway } from '../../services/gateway/gatewayDiscovery';
 import { errorMessage } from '../../services/gateway/gatewayHttp';
 import type { StoredGateway } from '../../services/gateway/gatewayStore';
 import type { RemoteStatus } from '../../types/gateway.types';
@@ -233,6 +233,7 @@ export function GatewaySetupScreen() {
             ) : null}
           </View>
           {isActive ? <StatusChip label={copy.active} tone="teal" icon="checkmark-outline" /> : null}
+          {!stored.endpoints.lan ? <StatusChip label={copy.onServer} tone="indigo" icon="cloud-outline" /> : null}
           <StatusChip label={stored.role === 'owner' ? 'Owner' : 'Member'} tone="slate" />
         </View>
         <View style={styles.row}>
@@ -287,6 +288,17 @@ export function GatewaySetupScreen() {
 
   const renderRemote = () => {
     if (!active) return null;
+    if (!active.endpoints.lan) {
+      // On CUBE's server the relay is how the gateway is reached; Tailscale and relay settings do not apply.
+      return (
+        <NeonPanel style={styles.panel}>
+          <PanelHeading title={copy.remoteTitle} iconSet="ionicons" iconName="globe-outline" divider />
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.serverRemoteIntro}
+          </AppText>
+        </NeonPanel>
+      );
+    }
     const remoteValue = remoteDraft ?? (active.endpoints.remote ?? []).join(', ');
     return (
       <NeonPanel style={styles.panel}>
@@ -510,12 +522,20 @@ export function GatewaySetupScreen() {
               ) : null}
               <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} loading={connecting} onPress={() => void connect()} style={styles.action} />
             </View>
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.localNetwork}
-            </AppText>
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.security}
-            </AppText>
+            {isRemoteGatewayUrl(host) ? (
+              <AppText variant="tileCaption" color={theme.colors.textSupport}>
+                {copy.serverSecurity}
+              </AppText>
+            ) : (
+              <>
+                <AppText variant="tileCaption" color={theme.colors.textSupport}>
+                  {copy.localNetwork}
+                </AppText>
+                <AppText variant="tileCaption" color={theme.colors.textSupport}>
+                  {copy.security}
+                </AppText>
+              </>
+            )}
           </NeonPanel>
 
           {renderRemote()}

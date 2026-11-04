@@ -176,6 +176,10 @@ class ShellyAdapter(DeviceAdapter):
         except ValueError as error:
             raise AdapterError("The Shelly sent an unreadable reply.") from error
 
+    async def _gen2(self, device: StoredDevice, method: str, params: dict[str, Any]) -> Any:
+        """One Gen2+ RPC call for a command. Over HTTP here; the cloud adapter sends it over MQTT instead."""
+        return await self._rpc(device.host or "", method, params, self._auth(device, 2))
+
     # ---- pairing ----
 
     async def pair(self, candidate: Candidate, credentials: dict[str, str], approval: ApprovalCallback) -> PairResult:
@@ -234,9 +238,9 @@ class ShellyAdapter(DeviceAdapter):
             if gen >= 2:
                 component = "Light" if channel_kind == "light" else "Switch"
                 if command == "toggle":
-                    await self._rpc(host, f"{component}.Toggle", {"id": channel}, auth)
+                    await self._gen2(device, f"{component}.Toggle", {"id": channel})
                 else:
-                    await self._rpc(host, f"{component}.Set", {"id": channel, "on": command == "turn_on"}, auth)
+                    await self._gen2(device, f"{component}.Set", {"id": channel, "on": command == "turn_on"})
             else:
                 path = f"/light/{channel}" if channel_kind == "light" else f"/relay/{channel}"
                 await self._get(host, path, {"turn": {"turn_on": "on", "turn_off": "off"}.get(command, "toggle")}, auth)
@@ -245,7 +249,7 @@ class ShellyAdapter(DeviceAdapter):
                 raise UnsupportedCommand("This Shelly has no dimmer.")
             level = round(caps.clamp(caps.param(params, "brightness"), 0, 100, "brightness"))
             if gen >= 2:
-                await self._rpc(host, "Light.Set", {"id": channel, "on": level > 0, "brightness": max(level, 1)}, auth)
+                await self._gen2(device, "Light.Set", {"id": channel, "on": level > 0, "brightness": max(level, 1)})
             else:
                 await self._get(host, f"/light/{channel}", {"turn": "on" if level > 0 else "off", "brightness": max(level, 1)}, auth)
         elif command in {"cover_open", "cover_close", "cover_stop", "set_position"}:
@@ -254,10 +258,10 @@ class ShellyAdapter(DeviceAdapter):
             if gen >= 2:
                 if command == "set_position":
                     pos = round(caps.clamp(caps.param(params, "position"), 0, 100, "position"))
-                    await self._rpc(host, "Cover.GoToPosition", {"id": channel, "pos": pos}, auth)
+                    await self._gen2(device, "Cover.GoToPosition", {"id": channel, "pos": pos})
                 else:
                     method = {"cover_open": "Cover.Open", "cover_close": "Cover.Close", "cover_stop": "Cover.Stop"}[command]
-                    await self._rpc(host, method, {"id": channel}, auth)
+                    await self._gen2(device, method, {"id": channel})
             else:
                 if command == "set_position":
                     pos = round(caps.clamp(caps.param(params, "position"), 0, 100, "position"))

@@ -124,6 +124,41 @@ PLUGINS: list[ProvisioningPlugin] = [
         sources=("https://shelly-api-docs.shelly.cloud/gen1/#settings-sta", "https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/WiFi"),
     ),
     ProvisioningPlugin(
+        id="shelly_cloud_softap",
+        brand_id="shelly",
+        adapter_id="shelly_cloud",
+        title="Set up a new Shelly (connects to CUBE's server)",
+        description="The phone joins the Shelly's own Wi-Fi and gives it your home Wi-Fi plus its own login to CUBE's "
+        "server, using Shelly's documented API. The Shelly then connects to CUBE's server over TLS: no box at home and no "
+        "Shelly account.",
+        transport="phone",
+        status=SupportLevel.SUPPORTED,
+        hotspot=HotspotRule(
+            ssid_pattern=r"^shelly[a-z0-9]*-[0-9a-f]{6,12}$",
+            ssid_prefixes=("shelly", "Shelly"),
+            kind="none",
+            source="Shelly devices open an unsecured access point at 192.168.33.1 until Wi-Fi is configured "
+            "(shelly-api-docs.shelly.cloud).",
+            device_ip="192.168.33.1",
+        ),
+        firmware="Gen2, Gen3 or Gen4 firmware 1.x (Gen1 cannot use encrypted MQTT)",
+        auth_mechanisms=("per-device broker login over TLS, verified with CUBE's CA",),
+        requirements=("2.4 GHz home Wi-Fi with internet access", "A gateway enrolled with a relay that has a device broker"),
+        expect_from_ssid=None,
+        steps=_steps(
+            (S.PAIRING_MODE_REQUIRED, "Put the Shelly in setup mode", "A new Shelly starts in setup mode. Otherwise, factory reset it (see its manual)."),
+            (S.CONNECTING_DEVICE_AP, "Join the Shelly's Wi-Fi", "Its network is named like shellyplus1-XXXXXXXXXXXX and has no password."),
+            (S.SENDING_WIFI_CONFIG, "Send the settings", "The app installs CUBE's certificate, the Shelly's login to CUBE's server and your Wi-Fi, then restarts it."),
+            (S.CONNECTING_HOME_NETWORK, "Back to your network", "The Shelly joins your Wi-Fi and connects to CUBE's server."),
+            (S.WAITING_FOR_DEVICE, "Waiting for the Shelly", "It appears once it has connected to CUBE's server, usually within a minute."),
+        ),
+        sources=(
+            "https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Mqtt",
+            "https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Shelly",
+            "https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/WiFi",
+        ),
+    ),
+    ProvisioningPlugin(
         id="wled_softap",
         brand_id="wled",
         adapter_id="wled",

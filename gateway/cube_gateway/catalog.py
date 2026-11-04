@@ -106,7 +106,7 @@ BRANDS: list[BrandEntry] = [
         ),
         no_setup_reason="Yeelight lights join Wi-Fi through the Yeelight app. Then turn on LAN Control and find them here.",
     ),
-    BrandEntry("shelly", "Shelly", "shelly", "Relays, plugs, dimmers and shutters with a documented local API.", ("shelly",), aliases=("Allterco",)),
+    BrandEntry("shelly", "Shelly", "shelly", "Relays, plugs, dimmers and shutters with a documented local API.", ("shelly", "shelly_cloud"), aliases=("Allterco",)),
     BrandEntry(
         "wiz",
         "Philips WiZ",
@@ -163,6 +163,7 @@ FIND_TEXT: dict[str, tuple[str, str]] = {
     "samsung_tv": ("Find a Samsung TV", "Finds Samsung TVs on your network. You allow the connection on the TV."),
     "tuya_local": ("Find a Tuya device", "Finds Tuya devices on your network. You'll need each device's local key."),
     "sonoff_lan": ("Find a SONOFF device", "Finds devices in DIY or eWeLink LAN mode on your network."),
+    "shelly_cloud": ("Find a Shelly on CUBE's server", "Lists Shelly devices already connected to CUBE's server for this home that are not added yet."),
 }
 
 
@@ -195,7 +196,11 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
         adapters = [registry.adapters[a] for a in entry.adapters if a in registry.adapters]
         methods: list[ConnectionMethod] = [m for a in entry.adapters if (m := _find_method(registry, a))]
 
-        plugins = [p for p in PLUGINS if p.brand_id == entry.id]
+        if settings.server_hosted and not adapters:
+            # No home network: brands without an adapter for devices that reach the server are not offered.
+            continue
+        # A plugin for an adapter this gateway does not run (e.g. the cloud Shelly setup on a home gateway) is not offered.
+        plugins = [p for p in PLUGINS if p.brand_id == entry.id and p.adapter_id in registry.adapters]
         for plugin in plugins:
             available, reason = True, None
             if plugin.adapter_id not in registry.adapters:

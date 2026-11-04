@@ -6,6 +6,7 @@ under control, without manufacturer accounts wherever the device allows it. The 
 install (EAS build); Docker only packages the gateway.
 
 - [How it fits together](#how-it-fits-together)
+- [No box at home: server-hosted mode](#no-box-at-home-server-hosted-mode)
 - [Install the gateway](#install-the-gateway)
 - [Connect the app](#connect-the-app)
 - [Add a device](#add-a-device)
@@ -44,6 +45,27 @@ to onboard a device**. Linking a brand account appears there only as a clearly l
 "Link manufacturer account (cloud)", for brands that have one. Devices already linked through Home
 Assistant keep working and still show in My Devices. Cloud-linked devices can't be moved onto the gateway
 automatically: the gateway controls devices over the LAN, the hub through a brand's cloud.
+
+## No box at home: server-hosted mode
+
+If apartments should have **no device at home**, each apartment's gateway runs on the company server instead,
+and devices reach it because they connect out to the server:
+
+- **Shelly Gen2/Gen3/Gen4:** set up from the phone. The Shelly gets the home Wi-Fi, CUBE's own CA and its own
+  login to CUBE's MQTT broker (`mqtt-cube.ems-iot.com:8885`, TLS), and from then on it connects there.
+- **LG ThinQ ACs:** through ReThink, as before. Each apartment only sees the appliances it set up.
+- **Everything else:** linked through the brand's cloud account in Add Device.
+
+Residents pair the app with their apartment's gateway through the relay, using a setup code or QR code the
+building gives them. The full operator guide is in
+[gateway/deploy/server-mode/README.md](../gateway/deploy/server-mode/README.md). Shelly Gen1, WLED and Tasmota on
+ESP8266 are not offered in this mode: they only speak unencrypted MQTT.
+
+**Verified on the EMS server (2026-11-04):** broker with TLS and per-device logins; relay issuing logins; a
+server-hosted apartment gateway that enrolled itself. Through the public relay URL the test claimed the gateway
+and saw only the LG and Shelly brands; the office LG AC was not visible to the apartment. A simulated Shelly then
+connected over TLS with its own login, setup reached "connected", and "turn on" came back confirmed. The device
+login was refused for every topic outside its own. A real Shelly hasn't been tried yet.
 
 ## Install the gateway
 
@@ -317,7 +339,11 @@ All optional, as `-e NAME=value` on `docker run`.
 | `CUBE_RETHINK_SETUP_CMD` | — | Command that runs ReThink's `rethink-setup` (gateway-side LG setup) |
 | `CUBE_SOFTAP_INTERFACE` | — | Spare Wi-Fi interface for gateway-side setup. Also needs `-v /run/dbus:/run/dbus:ro --user 0` and NetworkManager on the host |
 | `CUBE_RELAY_URL` | — | Relay to connect to at start (normally set from the app instead) |
-| `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT` | — / `8687` | Relay mode only |
+| `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT` | — / `8687` | Relay mode: who may enrol. Gateway mode: with `CUBE_RELAY_URL`, enrol automatically at start |
+| `CUBE_SERVER_HOSTED` | `0` | Run on the company server for one apartment: only Shelly-over-broker and LG via ReThink; claim allowed through the relay; LG appliances private to this gateway |
+| `CUBE_CLOUD_MQTT_URL` | (from the relay) | How this gateway reaches the device broker, e.g. `mqtt://127.0.0.1:1886` on the broker's own server |
+| `CUBE_ALLOW_REMOTE_CLAIM` / `CUBE_RETHINK_ONLY_PROVISIONED` | follow `CUBE_SERVER_HOSTED` | The two server-hosted behaviours, separately |
+| `CUBE_MQTT_ADMIN_URL`, `_USER`, `_PASSWORD`, `CUBE_MQTT_PUBLIC_SERVER`, `CUBE_MQTT_GATEWAY_URL`, `CUBE_MQTT_CA_FILE` | — | Relay mode: the device broker it manages (written by `setup-broker.sh` to `admin.env`) |
 
 ## Security model
 
