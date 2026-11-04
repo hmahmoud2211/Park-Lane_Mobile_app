@@ -16,6 +16,8 @@ export interface FilterChipProps {
   onPress: () => void;
   /** `tab` for a view switcher (Smart Home's rooms), `radio` for a filter. */
   role?: 'tab' | 'radio';
+  /** Dimmed and not pressable, e.g. an AC's modes while it is off. */
+  disabled?: boolean;
   /** Applied to the touch target, e.g. `flex: 1` for chips sharing a row equally. */
   style?: StyleProp<ViewStyle>;
 }
@@ -38,6 +40,7 @@ export function FilterChip({
   selected,
   onPress,
   role = 'tab',
+  disabled = false,
   style,
 }: FilterChipProps) {
   const theme = useAppTheme();
@@ -46,10 +49,11 @@ export function FilterChip({
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole={role}
       accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      style={({ pressed }) => [style, pressed && styles.pressed]}
+      accessibilityState={{ selected, disabled }}
+      style={({ pressed }) => [style, pressed && styles.pressed, disabled && styles.disabled]}
     >
       {/* Laid straight on the page photo, so it skips the blur, which tints it purple on web. */}
       <GlassSurface
@@ -89,6 +93,9 @@ function createStyles(theme: AppTheme) {
     },
     pressed: {
       opacity: 0.7,
+    },
+    disabled: {
+      opacity: 0.45,
     },
   });
 }
