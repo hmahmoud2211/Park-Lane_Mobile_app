@@ -6,6 +6,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-nativ
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { EmsAccountPanel } from '../../components/ems/EmsAccountPanel';
+import { GatewayStatusRow } from '../../components/gateway/GatewayStatusRow';
 import { DeviceCard } from '../../components/home/DeviceCard';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -17,6 +18,7 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useGatewayDevices } from '../../hooks/useGatewayDevices';
 import { useHomeDevices } from '../../hooks/useHomeDevices';
 import { useLinkedAccounts } from '../../hooks/useLinkedAccounts';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
@@ -27,11 +29,11 @@ import { devicesCopy as copy } from './EmsDevicesScreen.data';
 import { BUTTON_HEIGHT, CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
 
 /**
- * The resident's devices, from their unit's hub. Switching goes through the
- * backend, so a card settles on the state the hub reports, and changes made
- * from another phone or on the device arrive live. A card opens the
- * device's own screen with all its controls. Below them, the brand accounts
- * the devices come from, and the way to link another.
+ * The resident's devices: first those their CUBE Gateway controls on the home
+ * Wi-Fi, then those linked through the building's hub (brand cloud accounts,
+ * through the EMS backend). Either way a card settles on the state the
+ * device reports and changes made elsewhere arrive live; a card opens the
+ * device's own screen. Adding a device always goes through Add Device.
  */
 export function EmsDevicesScreen() {
   const theme = useAppTheme();
@@ -43,18 +45,22 @@ export function EmsDevicesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const linked = useLinkedAccounts();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const local = useGatewayDevices();
+  const [showHidden, setShowHidden] = useState(false);
 
   const { hasHome, sync: syncAccounts } = linked;
 
   // Reloading the linked accounts is what brings in devices added in the brands' own apps.
+  const { refresh: refreshLocal } = local;
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    if (hasHome) {
-      await syncAccounts();
+    const work: Promise<unknown>[] = [refreshLocal()];
+    if (status === 'signedIn') {
+      work.push((hasHome ? syncAccounts() : Promise.resolve()).then(() => refreshHome()));
     }
-    await refreshHome();
+    await Promise.all(work);
     setRefreshing(false);
-  }, [hasHome, syncAccounts, refreshHome]);
+  }, [status, hasHome, syncAccounts, refreshHome, refreshLocal]);
 
   const reconnect = async (account: LinkedAccount) => {
     const step = await linked.reconnect(account);
@@ -135,6 +141,79 @@ export function EmsDevicesScreen() {
     );
   };
 
+  const renderLocalDevice = (device: Device) => {
+    const canToggle = toggleCommand(device, true) !== null;
+    return (
+      <DeviceCard
+        device={device}
+        busy={local.busy[device.id] === 'command'}
+        error={local.errors[device.id]}
+        onPress={() => navigation.navigate('DeviceDetail', { deviceId: device.id })}
+        onToggle={
+          canToggle
+            ? (on) => {
+                const next = toggleCommand(device, on);
+                if (next) void local.command(device, next);
+              }
+            : undefined
+        }
+      />
+    );
+  };
+
+  const renderLocal = () => {
+    if (local.status === 'none') {
+      return (
+        <Notice
+          tone="info"
+          title={copy.noGatewayTitle}
+          actions={
+            <AppButton title={copy.connectGateway} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('GatewaySetup')} />
+          }
+        >
+          {copy.noGatewayBody}
+        </Notice>
+      );
+    }
+    const hidden = new Set(local.rawDevices.filter((raw) => !raw.dashboard).map((raw) => `gw:${raw.id}`));
+    const shown = showHidden ? local.devices : local.devices.filter((device) => !hidden.has(device.id));
+    return (
+      <>
+        <GatewayStatusRow
+          status={local.status}
+          name={local.active?.name ?? null}
+          detail={local.status === 'online' ? null : local.problem}
+          manageLabel={copy.manageGateway}
+          onManage={() => navigation.navigate('GatewaySetup')}
+        />
+        {local.status === 'online' && !local.devicesLoaded ? <ActivityIndicator color={theme.colors.textPrimary} /> : null}
+        {hidden.size > 0 ? (
+          <AppButton
+            title={showHidden ? copy.hideHidden : copy.showHidden(hidden.size)}
+            variant="secondary"
+            height={SMALL_BUTTON_HEIGHT}
+            onPress={() => setShowHidden((value) => !value)}
+          />
+        ) : null}
+        {local.devicesLoaded && shown.length === 0 ? (
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.localEmpty}
+          </AppText>
+        ) : null}
+        {shown.length > 0 ? (
+          <ResponsiveGrid
+            data={shown}
+            keyExtractor={(device) => device.id}
+            minItemWidth={MIN_DEVICE_WIDTH}
+            maxColumns={2}
+            gap={CARD_GAP - 6}
+            renderItem={renderLocalDevice}
+          />
+        ) : null}
+      </>
+    );
+  };
+
   const renderDevices = () => {
     if (!devicesLoaded) {
       return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading devices" />;
@@ -163,7 +242,6 @@ export function EmsDevicesScreen() {
           <AppText variant="bodySmall" color={theme.colors.textSupport}>
             {copy.empty}
           </AppText>
-          <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('ConnectAccount')} />
         </>
       );
     }
@@ -187,16 +265,25 @@ export function EmsDevicesScreen() {
           contentContainerStyle={[styles.content, layout.contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          refreshControl={
-            status === 'signedIn' ? (
-              <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.colors.textPrimary} />
-            ) : undefined
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.colors.textPrimary} />}
         >
           <PageHeader title={copy.title} subtitle={home?.unit.name ?? copy.subtitle} style={styles.header} />
 
+          <NeonPanel style={styles.panel}>
+            <PanelHeading
+              title={copy.localTitle}
+              iconSet="ionicons"
+              iconName="wifi-outline"
+              subtitle={copy.localIntro}
+              actionLabel={copy.add}
+              onActionPress={() => navigation.navigate('AddDevice')}
+              divider
+            />
+            {renderLocal()}
+          </NeonPanel>
+
           {status !== 'signedIn' ? (
-            <EmsAccountPanel intro={copy.accountIntro} />
+            <EmsAccountPanel intro={copy.accountIntroHub} />
           ) : (
             <>
               <View style={styles.live} accessibilityLiveRegion="polite">
@@ -221,12 +308,12 @@ export function EmsDevicesScreen() {
 
               <NeonPanel style={styles.panel}>
                 <PanelHeading
-                  title={copy.devicesTitle}
+                  title={copy.hubTitle}
                   iconSet="material"
                   iconName="devices"
-                  // Adding devices is linking the brand app they already use.
+                  // Every way of adding a device starts at Add Device; cloud linking is one of its methods.
                   actionLabel={home && home.hub.status !== 'provisioning' ? copy.add : undefined}
-                  onActionPress={() => navigation.navigate('ConnectAccount')}
+                  onActionPress={() => navigation.navigate('AddDevice')}
                   divider
                 />
                 {renderDevices()}
@@ -252,12 +339,7 @@ export function EmsDevicesScreen() {
                     </AppText>
                   ) : null}
                   {linked.accounts.map(renderAccount)}
-                  <AppButton
-                    title={copy.connect}
-                    variant="gradient"
-                    height={BUTTON_HEIGHT}
-                    onPress={() => navigation.navigate('ConnectAccount')}
-                  />
+                  <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('AddDevice')} />
                 </NeonPanel>
               ) : null}
             </>

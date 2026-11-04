@@ -18,17 +18,23 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useGatewayDevices } from '../../hooks/useGatewayDevices';
 import { useHomeDevices } from '../../hooks/useHomeDevices';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { kindLabel, roomGlyph, toggleCommand } from '../../services/home/capabilities';
+import * as gatewayApi from '../../services/gateway/gatewayApi';
+import { isGatewayDeviceId, toGatewayDeviceId } from '../../services/gateway/deviceMapping';
+import { errorMessage } from '../../services/gateway/gatewayHttp';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { deviceDetailCopy as copy } from './DeviceDetailScreen.data';
 import { FIELD_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceDetailScreen.styles';
 
 /**
  * One device: every control it offers, then its name, room and where it
- * comes from. Commands show at once and settle on what the hub reports;
- * changes made elsewhere arrive live through EmsContext.
+ * comes from. Commands show at once and settle on what the device reports;
+ * changes made elsewhere arrive live. A device is either the building hub's
+ * (through EmsContext) or the resident's CUBE Gateway's (GatewayContext, ids
+ * prefixed `gw:`), and each action goes to the backend it belongs to.
  */
 export function DeviceDetailScreen() {
   const theme = useAppTheme();
@@ -36,13 +42,34 @@ export function DeviceDetailScreen() {
   const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'DeviceDetail'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'DeviceDetail'>['route']>();
-  const ems = useHomeDevices();
-  const { status, devices, rooms, home, busy, errors } = ems;
+  const hub = useHomeDevices();
+  const local = useGatewayDevices();
+  const isLocal = isGatewayDeviceId(params.deviceId);
+  const ems = isLocal ? local : hub;
+  const { devices, rooms, busy, errors } = ems;
   const device = devices.find((entry) => entry.id === params.deviceId);
+  const raw = isLocal ? local.rawDevices.find((entry) => entry.id === toGatewayDeviceId(params.deviceId)) : undefined;
   const [draftName, setDraftName] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const remove = async () => {
+    if (!confirmRemove) {
+      setConfirmRemove(true);
+      return;
+    }
+    if (!local.target || !raw) return;
+    try {
+      await gatewayApi.removeDevice(local.target, raw.id);
+      local.dropDevice(raw.id);
+      navigation.goBack();
+    } catch (error) {
+      setRemoveError(errorMessage(error, 'The device could not be removed.'));
+    }
+  };
 
   const renderBody = () => {
-    if (status !== 'signedIn') {
+    if (!isLocal && hub.status !== 'signedIn') {
       return <EmsAccountPanel intro={copy.accountIntro} />;
     }
     if (!device) {
@@ -65,11 +92,15 @@ export function DeviceDetailScreen() {
       [copy.manufacturer, device.manufacturer],
       [copy.model, device.model],
       [copy.integration, device.integration],
+      [copy.address, raw?.ip ?? null],
     ].filter((fact): fact is [string, string] => Boolean(fact[1]));
 
     return (
       <>
-        {home?.hub.status === 'offline' ? <Notice tone="warning">{copy.hubOffline}</Notice> : null}
+        {!isLocal && hub.home?.hub.status === 'offline' ? <Notice tone="warning">{copy.hubOffline}</Notice> : null}
+        {isLocal && local.status !== 'online' ? <Notice tone="warning">{copy.gatewayOffline}</Notice> : null}
+        {device.experimental ? <Notice tone="warning">{copy.experimental}</Notice> : null}
+        {device.assumed ? <Notice tone="info">{copy.assumed}</Notice> : null}
         <DeviceCard device={device} onToggle={toggle} busy={deviceBusy === 'command'} error={errors[device.id]} />
 
         <NeonPanel style={styles.panel}>
@@ -153,6 +184,18 @@ export function DeviceDetailScreen() {
               <AppText variant="tileCaption">{value}</AppText>
             </View>
           ))}
+          {isLocal && local.role === 'owner' ? (
+            <>
+              {removeError ? <Notice tone="error">{removeError}</Notice> : null}
+              <AppButton
+                title={confirmRemove ? copy.confirmRemove : copy.remove}
+                variant="secondary"
+                height={SMALL_BUTTON_HEIGHT}
+                onPress={() => void remove()}
+                accessibilityHint={copy.removeHint}
+              />
+            </>
+          ) : null}
         </NeonPanel>
       </>
     );

@@ -17,4 +17,11 @@ export const deviceDetailCopy = {
   manufacturer: 'Made by',
   model: 'Model',
   integration: 'Connected through',
+  address: 'Address',
+  gatewayOffline: 'Your CUBE Gateway is not reachable. Showing the last known state.',
+  experimental: 'This device uses an experimental integration. Some controls may not work on every model.',
+  assumed: 'Some values are what the gateway expects, not what the device reported: it doesn’t report back for every change.',
+  remove: 'Remove device',
+  confirmRemove: 'Tap again to remove',
+  removeHint: 'Removes the device and its stored keys from your gateway',
 } as const;

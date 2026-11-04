@@ -94,6 +94,9 @@ export function DeviceCard({ device, onToggle, onPress, busy = false, error, chi
 
       <View style={styles.chips}>
         <StatusChip label={device.online ? 'Online' : 'Offline'} tone={device.online ? 'teal' : 'red'} />
+        {device.source === 'gateway' ? <StatusChip label="Local" tone="indigo" icon="wifi-outline" /> : null}
+        {device.experimental ? <StatusChip label="Experimental" tone="amber" icon="flask-outline" /> : null}
+        {device.assumed && device.online ? <StatusChip label="Not confirmed" tone="slate" icon="help-circle-outline" /> : null}
       </View>
 
       <AppText variant="tileCaption" color={theme.colors.textAccentSoft} accessibilityLiveRegion="polite">

@@ -240,11 +240,11 @@ export function SmartHomeScreen() {
       },
       {
         id: 'connect',
-        label: 'Connect devices',
+        label: 'Add device',
         icon: 'add-circle-outline',
         onPress: () => {
           setMenuOpen(false);
-          navigation.navigate('ConnectAccount');
+          navigation.navigate('AddDevice');
         },
       },
       { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
@@ -691,7 +691,7 @@ export function SmartHomeScreen() {
                     {...viewAll('devices')}
                     trailing={
                       <Pressable
-                        onPress={() => navigation.navigate('ConnectAccount')}
+                        onPress={() => navigation.navigate('AddDevice')}
                         hitSlop={10}
                         accessibilityRole="button"
                         accessibilityLabel={addDeviceCopy.buttonLabel}

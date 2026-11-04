@@ -1,0 +1,24 @@
+diff --git a/node_modules/react-native-wifi-reborn/android/build.gradle b/node_modules/react-native-wifi-reborn/android/build.gradle
+index d27b03b..698e7c3 100644
+--- a/node_modules/react-native-wifi-reborn/android/build.gradle
++++ b/node_modules/react-native-wifi-reborn/android/build.gradle
+@@ -18,7 +18,7 @@ apply plugin: 'com.android.library'
+ android {
+     namespace = "com.reactlibrary.rnwifi"
+ 
+-    compileSdkVersion safeExtGet(compileSdkVersion, 31)
++    compileSdkVersion safeExtGet("compileSdkVersion", 31)
+ 
+     compileOptions {
+         sourceCompatibility JavaVersion.VERSION_1_8
+@@ -26,8 +26,8 @@ android {
+     }
+ 
+     defaultConfig {
+-        minSdkVersion safeExtGet(minSdkVersion, 21)
+-        targetSdkVersion safeExtGet(targetSdkVersion, 31)
++        minSdkVersion safeExtGet("minSdkVersion", 21)
++        targetSdkVersion safeExtGet("targetSdkVersion", 31)
+         versionCode 1
+         versionName '1.0'
+     }

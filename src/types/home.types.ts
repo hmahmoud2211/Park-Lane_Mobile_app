@@ -93,6 +93,18 @@ export interface Device {
   /** Seconds since the epoch. */
   lastChanged: number | null;
   lastError: string | null;
+  /**
+   * Where the device lives: the building's Home Assistant hub (cloud-linked
+   * accounts, the default) or the resident's own CUBE Gateway on their Wi-Fi.
+   */
+  source?: 'hub' | 'gateway';
+  /**
+   * The state shown is what the gateway expects, not what the device reported
+   * (a TV that gives no feedback after a key press). Cards say so.
+   */
+  assumed?: boolean;
+  /** Reverse engineered or model-dependent integration (gateway devices). */
+  experimental?: boolean;
 }
 
 export interface Room {

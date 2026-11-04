@@ -22,8 +22,23 @@ export type RootStackParamList = {
   EmsDevices: undefined;
   /** One device's controls, name and room. */
   DeviceDetail: { deviceId: string };
-  /** Linking a brand account (Tuya, SmartThings, …) to bring its devices in; optionally a brand or flow to open. */
+  /**
+   * Linking a brand's cloud account through the building's hub. Reached only
+   * from Add Device's "manufacturer account" fallback, or to sign in again.
+   */
   ConnectAccount: { integration?: string; flowId?: string } | undefined;
+  /** Pairing this phone with a CUBE Gateway; `host` pre-fills a found or scanned address. */
+  GatewaySetup: { host?: string; code?: string } | undefined;
+  /** The one way to add a device: choose the manufacturer (Screen 1). */
+  AddDevice: undefined;
+  /** How to connect a device of that brand (Screen 2). */
+  AddDeviceMethod: { brandId: string };
+  /** Finding devices on the Wi-Fi, or checking one address, then pairing (Screen 3). */
+  DeviceDiscovery: { brandId: string; adapterId?: string; mode?: 'scan' | 'manual'; candidateId?: string };
+  /** Setting up a factory-new device on the home Wi-Fi through its setup hotspot. */
+  DeviceProvisioning: { brandId: string; pluginId: string };
+  /** Naming, placing and testing a newly paired gateway device (Screen 4). `deviceId` is the gateway's id. */
+  DeviceSetup: { deviceId: string };
   AmenitiesBooking: undefined;
   Services: undefined;
   Settings: undefined;

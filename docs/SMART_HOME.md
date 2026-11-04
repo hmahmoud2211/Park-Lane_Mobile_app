@@ -1,5 +1,7 @@
 # Smart Home: Handover and Run Guide
 
+> **Update (feature/cube-gateway):** adding devices now starts in the app's **Add Device** flow, backed by the local **CUBE Gateway** ([docs/CUBE_GATEWAY.md](CUBE_GATEWAY.md)). Linking a brand account through Home Assistant, described below, remains available inside that flow as "Link manufacturer account (cloud)" for brands without a local protocol. Linked devices and the Parklane Assistant's device control are unchanged.
+
 Residents control their smart devices (lights, plugs, AC, curtains, locks, TVs and more) from the Parklane app, and add new ones by linking the brand app they already use (Smart Life, SONOFF/eWeLink, SwitchBot, SmartThings, …). Nothing is installed in the apartments: each apartment gets its own Home Assistant on the company server, and the app only ever talks to the EMS backend.
 
 All work is on the branch `feature/home-assistant-integration`.
