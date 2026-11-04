@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -23,6 +23,7 @@ import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { capabilityOf, isOn, kindGlyph, kindLabel, roomGlyph, toggleCommand } from '../../features/home/services/capabilities';
 import type { Command, Device, DeviceKind } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
+
 // My Unit's own scale, so the two screens' small type is drawn at one size.
 import { statScaleFor } from '../../utils/responsive';
 import { AutomationRow } from './AutomationRow';
@@ -74,6 +75,7 @@ import {
   layoutFor,
   wideDeviceColumns,
 } from './SmartHomeScreen.styles';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 /** Placeholder for links whose destination screens are not designed yet. */
 function notYetRouted() {
@@ -133,7 +135,7 @@ export function SmartHomeScreen() {
   const gridStyle = [styles.grid, layout.controlColumns === 1 && styles.gridStacked];
   const cellStyle = layout.controlColumns === 2 ? styles.gridCell : undefined;
   const navigation = useNavigation<RootStackScreenProps<'SmartHome'>['navigation']>();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { menuOpen, setMenuOpen, logoutItem } = useScreenMenu();
 
   // A signed-in resident with a home sees their own rooms and devices; anyone
   // else sees the design's sample home, driven by screen-local state below.
@@ -220,13 +222,6 @@ export function SmartHomeScreen() {
     ? automations
     : automations.slice(0, previewCounts.automations);
 
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation, setMenuOpen]);
-
   const menuItems = useMemo<readonly AppMenuItem[]>(
     () => [
       {
@@ -247,9 +242,9 @@ export function SmartHomeScreen() {
           navigation.navigate('AddDevice');
         },
       },
-      { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
+      logoutItem,
     ],
-    [handleLogout, navigation, setMenuOpen],
+    [logoutItem, navigation, setMenuOpen],
   );
 
   const lightCaps = liveLight

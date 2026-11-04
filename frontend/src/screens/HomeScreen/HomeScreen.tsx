@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
@@ -9,7 +9,7 @@ import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
+import { AppMenu } from '../../components/ui/AppMenu';
 import { PromoCard } from '../../components/ui/PromoCard';
 import { ServiceTile } from '../../components/ui/ServiceTile';
 import { UnitSummaryCard } from '../../components/ui/UnitSummaryCard';
@@ -21,26 +21,14 @@ import type { RootStackScreenProps } from '../../types/navigation.types';
 import { initialsOf, resident, unit } from '../../data/demoResident';
 import { promo, serviceTiles, weather } from './HomeScreen.data';
 import { GREETING_TO_UNIT, MIN_TILE_WIDTH, TILE_GAP, TILE_ROW_GAP, createStyles } from './HomeScreen.styles';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 export function HomeScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'Home'>['navigation']>();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
   const layout = useScreenLayout();
-
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only: there is no session to clear yet. Resetting rather than
-    // navigating drops Home from the stack, so back cannot return to it.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
-
-  const menuItems = useMemo<readonly AppMenuItem[]>(
-    () => [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }],
-    [handleLogout],
-  );
 
   const greeting = (
     <View style={styles.greetingRow}>

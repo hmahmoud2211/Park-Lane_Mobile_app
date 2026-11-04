@@ -1,7 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -11,7 +10,7 @@ import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
+import { AppMenu } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
@@ -19,7 +18,6 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import type { RootStackScreenProps } from '../../types/navigation.types';
 import { guestsLabel } from '../../utils/format';
 import { AmenityCard } from './AmenityCard';
 import {
@@ -46,6 +44,7 @@ import {
   createStyles,
 } from './AmenitiesBookingScreen.styles';
 import { BookingForm } from './BookingForm';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 /** Space kept above a panel the screen scrolls to, so its heading clears the edge. */
 const SCROLL_MARGIN = 12;
@@ -53,8 +52,7 @@ const SCROLL_MARGIN = 12;
 export function AmenitiesBookingScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const navigation = useNavigation<RootStackScreenProps<'AmenitiesBooking'>['navigation']>();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [expanded, setExpanded] = useState(false);
   const matching = amenitiesFor(filter);
@@ -106,18 +104,6 @@ export function AmenitiesBookingScreen() {
 
   const cancelBooking = (id: string) =>
     setBookings((current) => current.filter((booking) => booking.id !== id));
-
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
-
-  const menuItems = useMemo<readonly AppMenuItem[]>(
-    () => [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }],
-    [handleLogout],
-  );
 
   const listSection = (
     <>

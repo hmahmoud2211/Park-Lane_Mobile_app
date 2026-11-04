@@ -1,7 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Image,
@@ -19,7 +18,7 @@ import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
+import { AppMenu } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
 import {
   MEDIA_ROW_INSET_LEFT,
@@ -33,7 +32,6 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   announcements,
   communityAlerts,
@@ -64,6 +62,7 @@ import {
 } from './CommunityScreen.styles';
 import { FeedbackForm } from './FeedbackForm';
 import { PollOptionRow } from './PollOptionRow';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 /** The panels whose "View All" opens the full list in place. */
 type ExpandablePanel = 'announcements' | 'events' | 'alerts' | 'polls';
@@ -85,8 +84,7 @@ export function CommunityScreen() {
   const layout = useScreenLayout();
   const sideBySide = layout.columns > 1;
   const columnsY = useRef(0);
-  const navigation = useNavigation<RootStackScreenProps<'Community'>['navigation']>();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
 
   // Screen-local until there is a backend to send RSVPs and votes to.
   // TODO(api): persist both once the community service exists.
@@ -144,18 +142,6 @@ export function CommunityScreen() {
     setFeedbackSent(true);
     AccessibilityInfo.announceForAccessibility(copy.feedbackThanks);
   };
-
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
-
-  const menuItems = useMemo<readonly AppMenuItem[]>(
-    () => [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }],
-    [handleLogout],
-  );
 
   // Registering marks the resident as going; tapping "I'm Going" withdraws.
   const toggleRsvp = (eventId: string) =>

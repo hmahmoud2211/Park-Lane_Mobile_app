@@ -1,13 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
+import { AppMenu } from '../../components/ui/AppMenu';
 import { LinkCard } from '../../components/ui/LinkCard';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -15,25 +15,14 @@ import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { settingsCopy as copy, settingsItems, type SettingsItem } from './SettingsScreen.data';
 import { CARD_GAP, MIN_CARD_WIDTH, createStyles } from './SettingsScreen.styles';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 export function SettingsScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'Settings'>['navigation']>();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { menuOpen, setMenuOpen, logout: handleLogout, menuItems } = useScreenMenu();
   const layout = useScreenLayout();
-
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
-
-  const menuItems = useMemo<readonly AppMenuItem[]>(
-    () => [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }],
-    [handleLogout],
-  );
 
   const open = (item: SettingsItem) => {
     if (item.action === 'logout') {

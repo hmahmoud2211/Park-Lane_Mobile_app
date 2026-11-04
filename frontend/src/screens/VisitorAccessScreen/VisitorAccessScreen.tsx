@@ -60,6 +60,7 @@ import { guestsLabel } from '../../utils/format';
 import { buildPassDocument } from './VisitorAccessScreen.documents';
 import { PARKING_CHEVRON_SIZE, createStyles } from './VisitorAccessScreen.styles';
 import { CTA_ARROW_SIZE, CTA_HEIGHT, FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
+import { useLogout } from '../../hooks/useScreenMenu';
 
 type SelectKey = Extract<FormFieldKey, 'date' | 'time' | 'guests'>;
 
@@ -125,12 +126,11 @@ export function VisitorAccessScreen() {
     });
   }, []);
 
+  const leave = useLogout();
   const handleLogout = useCallback(() => {
     setOpenMenu(null);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+    leave();
+  }, [leave]);
 
   const cancelActivePass = useCallback(() => {
     setOpenMenu(null);

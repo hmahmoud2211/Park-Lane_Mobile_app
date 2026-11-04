@@ -1,8 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   KeyboardAvoidingView,
@@ -23,7 +22,7 @@ import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
+import { AppMenu } from '../../components/ui/AppMenu';
 import { DividedRow } from '../../components/ui/DividedRow';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
 import { NeonPanel } from '../../components/ui/NeonPanel';
@@ -35,7 +34,6 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   CATEGORIES_SHOWN,
   SEPARATOR,
@@ -67,6 +65,7 @@ import {
   createStyles,
 } from './MaintenanceScreen.styles';
 import { RequestForm } from './RequestForm';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 /** Space kept above a panel the screen scrolls to, so its heading clears the edge. */
 const SCROLL_MARGIN = 12;
@@ -140,20 +139,7 @@ export function MaintenanceScreen() {
   const layout = useScreenLayout();
   // Fitted to the column the panels sit in, not the window.
   const scale = contentScaleFor(layout.columnFrameWidth);
-  const navigation = useNavigation<RootStackScreenProps<'Maintenance'>['navigation']>();
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
-
-  const menuItems = useMemo<readonly AppMenuItem[]>(
-    () => [{ id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout }],
-    [handleLogout],
-  );
+  const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
 
   // Screen-local until there is a maintenance backend to file requests with.
   // TODO(api): submit and load requests from the service once it exists.

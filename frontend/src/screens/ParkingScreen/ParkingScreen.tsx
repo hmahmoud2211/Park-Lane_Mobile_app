@@ -1,7 +1,7 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
@@ -56,6 +56,7 @@ import {
   contentScaleFor,
   createStyles,
 } from './ParkingScreen.styles';
+import { useScreenMenu } from '../../hooks/useScreenMenu';
 
 /** Upcoming and active guest bookings shown before "View All". */
 const GUEST_LIMIT = 3;
@@ -75,14 +76,7 @@ export function ParkingScreen() {
   const scale = contentScaleFor(layout.columnFrameWidth);
   const navigation = useNavigation<RootStackScreenProps<'Parking'>['navigation']>();
   const { db, now, residentId } = useParking();
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const handleLogout = useCallback(() => {
-    setMenuOpen(false);
-    // Frontend only, as on Home: there is no session to clear yet.
-    // TODO(auth): clear the stored session here once one exists.
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+  const { menuOpen, setMenuOpen, logoutItem } = useScreenMenu();
 
   const menuItems = useMemo<readonly AppMenuItem[]>(
     () => [
@@ -104,9 +98,9 @@ export function ParkingScreen() {
           navigation.navigate('DemoControls');
         },
       },
-      { id: 'logout', label: 'Log out', icon: 'log-out-outline', onPress: handleLogout },
+      logoutItem,
     ],
-    [handleLogout, navigation],
+    [logoutItem, navigation, setMenuOpen],
   );
 
   const counts = useMemo(() => dashboardCounts(db, now), [db, now]);
