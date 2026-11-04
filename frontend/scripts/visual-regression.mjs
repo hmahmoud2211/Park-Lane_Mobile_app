@@ -23,6 +23,8 @@
  *
  *   node scripts/visual-regression.mjs compare /tmp/shots-a /tmp/shots-b
  *
+ * Profiles: basic (every screen), interactions (menus, forms; see INTERACTION_ROUTES),
+ * ems (signed-in device screens, needs --backend).
  * Options: --chrome <path>, --port <n> (DevTools, default 9333), --only <Route,...>.
  */
 import { Buffer } from 'node:buffer';
@@ -114,6 +116,23 @@ const BASIC_ROUTES = [
       return '/pass/' + encodeURIComponent(invitation.inviteToken);
     })()`,
   },
+];
+
+/**
+ * Interactions, compared step by step: each `click` finds an on-screen element by its
+ * accessibility label or exact text, clicks it, waits for the page to settle and captures
+ * `<name>.<shot>`.
+ */
+const INTERACTION_ROUTES = [
+  { name: 'HomeMenu', path: '/visual/Home', steps: [{ click: 'Open menu', shot: 'open' }, { click: 'Log out', shot: 'loggedOut' }] },
+  { name: 'ServicesMenu', path: '/visual/Services', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'SettingsMenu', path: '/visual/Settings', steps: [{ click: 'Open menu', shot: 'open' }, { click: 'Log out', shot: 'loggedOut' }] },
+  { name: 'ParkingMenu', path: '/parking', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'SmartHomeMenu', path: '/visual/SmartHome', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'VisitorAccessMenu', path: '/visual/VisitorAccess', steps: [{ click: 'Open menu', shot: 'open' }, { click: 'Log out', shot: 'loggedOut' }] },
+  { name: 'CommunityMenu', path: '/visual/Community', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'MaintenanceMenu', path: '/visual/Maintenance', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'AmenitiesBookingMenu', path: '/visual/AmenitiesBooking', steps: [{ click: 'Open menu', shot: 'open' }] },
 ];
 
 /** Signed-in device screens; ids come from the backend before the run. */
@@ -208,6 +227,22 @@ const DUMP = `(() => {
     ].join(' | '));
   }
   return lines.sort();
+})()`;
+
+/** Clicks the topmost on-screen element whose accessibility label or own text is exactly `target`. */
+const CLICK = (target) => `(() => {
+  const target = ${JSON.stringify(target)};
+  const onScreen = (el) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+  };
+  const all = [...document.querySelectorAll('body *')].filter(onScreen);
+  const byLabel = all.filter((el) => el.getAttribute('aria-label') === target);
+  const byText = all.filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim() === target));
+  const found = (byLabel.length ? byLabel : byText).at(-1);
+  if (!found) return false;
+  found.click();
+  return true;
 })()`;
 
 /** The scroll container that holds most of the page, scrolled to its end. */
@@ -365,6 +400,17 @@ async function openPage(cdp, viewport, { allow, session }) {
     }
     return JSON.parse(previous);
   };
+  const settle = async () => {
+    await sleep(900);
+    let previous = '';
+    for (let i = 0; i < 15; i++) {
+      const current = JSON.stringify(await evaluate(DUMP));
+      if (current === previous) return JSON.parse(current);
+      previous = current;
+      await sleep(400);
+    }
+    return JSON.parse(previous);
+  };
   const screenshot = async (file) => {
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(file, Buffer.from(data, 'base64'));
@@ -373,7 +419,7 @@ async function openPage(cdp, viewport, { allow, session }) {
     cdp.listeners.delete(onEvent);
     await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
   };
-  return { navigate, evaluate, screenshot, close, errors };
+  return { navigate, evaluate, settle, screenshot, close, errors };
 }
 
 async function emsSetup(backend) {
@@ -414,6 +460,7 @@ async function capture() {
     routes = EMS_ROUTES;
     allow.push(backend);
   }
+  if (profileName === 'interactions') routes = INTERACTION_ROUTES;
   if (only) routes = routes.filter((route) => only.includes(route.name));
   const port = Number(option('port', '9333'));
   const chrome = await launchChrome(port);
@@ -436,7 +483,14 @@ async function capture() {
           const dump = await page.navigate(`${origin}${path}`);
           await page.screenshot(join(dir, `${route.name}.png`));
           writeFileSync(join(dir, `${route.name}.json`), JSON.stringify({ path: path.replace(/\/(reservation|charging|pass)\/[^?]+/, '/$1/<id>').replace(/reservationId=[^&]+/, 'reservationId=<id>'), errors: page.errors, boxes: dump }, null, 1));
-          if (await page.evaluate(SCROLL_TO_END)) {
+          if (route.steps) {
+            for (const step of route.steps) {
+              if (!(await page.evaluate(CLICK(step.click)))) throw new Error(`nothing to click: ${step.click}`);
+              const after = await page.settle();
+              await page.screenshot(join(dir, `${route.name}.${step.shot}.png`));
+              writeFileSync(join(dir, `${route.name}.${step.shot}.json`), JSON.stringify({ path, errors: page.errors, boxes: after }, null, 1));
+            }
+          } else if (await page.evaluate(SCROLL_TO_END)) {
             await sleep(700);
             await page.screenshot(join(dir, `${route.name}.bottom.png`));
           }
