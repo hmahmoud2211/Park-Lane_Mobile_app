@@ -84,6 +84,23 @@ jobs:
       - name: Tests
         run: npm test
 
+      # shared/contracts must stay type-only: a value import would be bundled into the app and,
+      # in the backend, crash the Docker image, which does not contain shared/.
+      - name: Shared contracts (type-only)
+        working-directory: .
+        run: |
+          backend/node_modules/.bin/tsc -p shared
+          node -e '
+            const fs = require("fs"), path = require("path");
+            const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+              e.name === "node_modules" ? [] : e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+            const files = ["frontend/src", "backend/src", "backend/test", "backend/scripts"].flatMap(walk).filter((f) => /\.tsx?$/.test(f));
+            const valueImport = /(?:^|\n)\s*(?:import|export)\s+(?!type\b)[^;]*?from\s+["\x27][^"\x27]*shared\/contracts[^"\x27]*["\x27]/;
+            const bad = files.filter((f) => valueImport.test(fs.readFileSync(f, "utf8")));
+            if (bad.length) { console.error("Import shared/contracts with import type / export type only:\n" + bad.join("\n")); process.exit(1); }
+            console.log(`shared/contracts imported type-only in ${files.length} files`);
+          '
+
       # The image ships only src/ and scripts/: this proves it starts and answers on its own.
       - name: Docker image starts
         run: |

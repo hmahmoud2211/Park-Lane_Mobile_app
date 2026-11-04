@@ -1,9 +1,9 @@
 import { getHubForUnit, runtimeForUser, runtimeStatus } from './hubs.ts';
-import type { HubStatus, Room } from './types.ts';
+import type { Home, HubStatus, Room } from './types.ts';
 import { unitForUser } from './units.ts';
 
 /** GET /api/home: the resident's unit and the state of its hub, even while it is still being set up. */
-export function homeFor(userId: string) {
+export function homeFor(userId: string): Home {
   const unit = unitForUser(userId);
   const hub = getHubForUnit(unit.id);
   const status: HubStatus = hub ? (runtimeStatus(hub.id) ?? hub.status) : 'provisioning';

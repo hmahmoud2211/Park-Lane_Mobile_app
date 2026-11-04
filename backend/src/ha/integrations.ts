@@ -1,3 +1,4 @@
+import type { Integration, IntegrationOption } from '../../../shared/contracts/accounts.ts';
 import { config } from '../config.ts';
 
 /**
@@ -25,15 +26,7 @@ import { config } from '../config.ts';
  * link says the brand is not available on that hub.
  */
 
-export type LinkMethod = 'credentials' | 'qr' | 'oauth';
-
-export interface Integration {
-  id: string;
-  name: string;
-  method: LinkMethod;
-  /** What the resident needs before starting. */
-  hint: string;
-}
+export type { Integration, LinkMethod } from '../../../shared/contracts/accounts.ts';
 
 const INTEGRATIONS: readonly Integration[] = [
   { id: 'tuya', name: 'Tuya / Smart Life', method: 'qr', hint: 'The user code from the Smart Life app (Me → Settings → Account and Security), then scan a QR code with it.' },
@@ -68,6 +61,6 @@ export function isAvailable(integration: Integration): boolean {
   return integration.method !== 'oauth' || (Boolean(config.publicUrl) && integration.id in config.ha.oauthCredentials);
 }
 
-export function listIntegrations(): (Integration & { available: boolean })[] {
+export function listIntegrations(): IntegrationOption[] {
   return INTEGRATIONS.map((integration) => ({ ...integration, available: isAvailable(integration) }));
 }

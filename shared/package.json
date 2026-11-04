@@ -1,0 +1,6 @@
+{
+  "name": "parklane-shared",
+  "private": true,
+  "description": "Type-only API contracts shared by the app (frontend/) and the device backend (backend/). Nothing here runs.",
+  "type": "module"
+}

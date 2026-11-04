@@ -1,0 +1,18 @@
+{
+  // Type-only contracts. Both sides import them with `import type`, which Babel (the app) and
+  // Node's type stripping (the backend) erase, so these files never ship or run.
+  // Checked with the backend's TypeScript: backend/node_modules/.bin/tsc -p shared
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["contracts"]
+}

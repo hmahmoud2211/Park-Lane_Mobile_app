@@ -1,3 +1,4 @@
+import type { LinkedAccount } from '../../../shared/contracts/accounts.ts';
 import { config } from '../config.ts';
 import { db } from '../ems/db.ts';
 import { ApiError } from '../errors.ts';
@@ -216,17 +217,7 @@ interface HaProgress {
   context: { source?: string; entry_id?: string };
 }
 
-export interface LinkedAccount {
-  id: string;
-  integration: string;
-  brand: string;
-  title: string;
-  state: string;
-  /** The brand wants the resident to sign in again. */
-  needsReconnect: boolean;
-  deviceCount: number;
-  problem: string | null;
-}
+export type { LinkedAccount };
 
 export async function listAccounts(userId: string): Promise<LinkedAccount[]> {
   const runtime = runtimeForUser(userId);

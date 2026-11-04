@@ -1,23 +1,10 @@
+import type { ApiErrorCode } from '../../shared/contracts/errors.ts';
+
 /**
  * Errors the API reports as `{ ok: false, error: { code, message } }`. The
- * codes match EmsErrorCode in the app (src/services/ems/emsApi.ts).
+ * codes are part of the contract the app shares (shared/contracts/errors.ts).
  */
-export type ApiErrorCode =
-  | 'unauthorized'
-  | 'bad_request'
-  | 'not_found'
-  | 'forbidden'
-  | 'conflict'
-  | 'rate_limited'
-  | 'not_available'
-  | 'no_home'
-  | 'provisioning'
-  | 'hub_offline'
-  | 'hub_auth'
-  | 'ha_rejected'
-  | 'not_configured'
-  | 'flow_expired'
-  | 'internal';
+export type { ApiErrorCode };
 
 const STATUS: Record<ApiErrorCode, number> = {
   unauthorized: 401,

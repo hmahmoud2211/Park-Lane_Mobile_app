@@ -9,47 +9,11 @@
  * component.<handler>.config.{step.<id>.{title,description,data.<field>},error.<code>,abort.<reason>,…}.
  */
 
-export type FieldKind = 'string' | 'password' | 'email' | 'number' | 'boolean' | 'select' | 'qr' | 'constant';
+import type { FlowField, FlowFieldKind, FlowStep, FlowStepType } from '../../../shared/contracts/accounts.ts';
 
-export interface FlowField {
-  name: string;
-  /** The expandable section it sits in; its value is sent nested under that name. */
-  section: string | null;
-  kind: FieldKind;
-  label: string;
-  description: string | null;
-  required: boolean;
-  default: unknown;
-  options: { value: string; label: string }[];
-  multiple: boolean;
-  min: number | null;
-  max: number | null;
-  step: number | null;
-  multiline: boolean;
-  /** A QR code's content, or a constant's value. */
-  data: string | null;
-}
-
-export type FlowStepType = 'form' | 'menu' | 'external' | 'progress' | 'done' | 'abort';
-
-export interface FlowStep {
-  flowId: string;
-  integration: string;
-  type: FlowStepType;
-  stepId: string | null;
-  title: string | null;
-  description: string | null;
-  fields: FlowField[];
-  /** Field name (or `base` for the whole form) → message. */
-  errors: Record<string, string>;
-  menu: { id: string; label: string }[];
-  /** For `external`: the page to open, e.g. the brand's sign-in. */
-  url: string | null;
-  /** For `done`: the linked account (config entry). */
-  accountId: string | null;
-  /** For `abort` and `progress`: what to tell the resident. */
-  message: string | null;
-}
+// The step the app receives is part of the shared contract (shared/contracts/accounts.ts).
+export type { FlowField, FlowStep, FlowStepType };
+export type FieldKind = FlowFieldKind;
 
 export interface HaFlowResult {
   type: string;

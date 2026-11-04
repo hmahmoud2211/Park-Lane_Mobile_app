@@ -2,6 +2,7 @@ import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { promisify } from 'node:util';
 
+import type { User } from '../../../shared/contracts/auth.ts';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { db } from './db.ts';
@@ -14,11 +15,7 @@ import { newToken, sha256 } from './secrets.ts';
  * devices. app.ts decides which routes take which kind.
  */
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+export type { User };
 
 export type TokenKind = 'session' | 'assistant';
 
