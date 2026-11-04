@@ -1,6 +1,7 @@
 /**
  * Behaviour checks for the app's HTTP clients (EMS backend, CUBE gateway, Parklane
- * Assistant, devices on their setup hotspots), against a stubbed fetch and clock:
+ * Assistant, devices on their setup hotspots) and its two realtime channels, against a
+ * stubbed fetch, WebSocket and clock:
  * what each sends, which error it throws for each failure (class, code, message,
  * status, recovery), which wins when a timeout and a cancel coincide, and who is told
  * about a refused token. Written before the clients shared a core, so the core can
@@ -17,6 +18,8 @@ async function main() {
   const gateway = await import('../../features/gateway/services/gatewayHttp');
   const assistant = await import('../../features/assistant/services/assistantApi');
   const device = await import('../../features/provisioning/services/deviceHttp');
+  const emsRealtime = await import('../../features/ems/services/realtime');
+  const gatewayRealtime = await import('../../features/gateway/services/realtime');
 
   // ---- Stubs -----------------------------------------------------------------------------
 
@@ -366,6 +369,143 @@ async function main() {
       throw new TypeError('Failed to fetch');
     };
     await rejects(device.deviceRequest('http://10.10.7.1/x', { timeoutMs: 4000 }), { class: 'DeviceHttpError', kind: 'unreachable', message: 'Could not reach the device on its setup network.' });
+  });
+
+  // ---- Realtime channels -------------------------------------------------------------------
+
+  class FakeSocket {
+    static failNext = false;
+    static all: FakeSocket[] = [];
+    readonly url: string;
+    sent: string[] = [];
+    closed = false;
+    onopen: (() => void) | null = null;
+    onmessage: ((message: { data: string }) => void) | null = null;
+    onclose: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    constructor(url: string) {
+      if (FakeSocket.failNext) {
+        FakeSocket.failNext = false;
+        throw new SyntaxError('bad url');
+      }
+      this.url = url;
+      FakeSocket.all.push(this);
+    }
+    send(data: string) {
+      this.sent.push(data);
+    }
+    close() {
+      this.closed = true;
+    }
+  }
+  (globalThis as { WebSocket: unknown }).WebSocket = FakeSocket;
+  const delays: number[] = [];
+  const realRandom = Math.random;
+  function socketTimers() {
+    fakeTimers();
+    const capture = globalThis.setTimeout;
+    globalThis.setTimeout = ((callback: () => void, delay: number) => {
+      delays.push(delay);
+      return (capture as unknown as (cb: () => void) => number)(callback);
+    }) as unknown as typeof setTimeout;
+  }
+  const recorder = () => {
+    const log: string[] = [];
+    return {
+      log,
+      handlers: {
+        onEvent: (event: { type: string }) => log.push(`event:${event.type}`),
+        onState: (state: string) => log.push(`state:${state}`),
+        onRefused: () => log.push('refused'),
+      },
+    };
+  };
+
+  check('Realtime (EMS): authenticates, goes live, reconnects with jitter, stops when refused', async () => {
+    FakeSocket.all = [];
+    delays.length = 0;
+    socketTimers();
+    Math.random = () => 0.5;
+    try {
+      const { log, handlers } = recorder();
+      const channel = new emsRealtime.EmsRealtime('tok', handlers);
+      channel.start();
+      const first = FakeSocket.all[0];
+      equal(first.url, 'wss://ems.test/api/events', 'url');
+      first.onopen?.();
+      equal(first.sent, ['{"type":"auth","token":"tok"}'], 'auth message');
+      first.onmessage?.({ data: '{"type":"ready"}' });
+      first.onmessage?.({ data: 'not json' });
+      first.onmessage?.({ data: '{"type":"device","device":{}}' });
+      first.onclose?.();
+      equal(delays, [750], 'first reconnect delay (1 s base, jitter 0.5)');
+      fireTimers();
+      equal(FakeSocket.all.length, 2, 'reconnected');
+      FakeSocket.all[1].onclose?.();
+      equal(delays, [750, 1500], 'second delay doubles');
+      fireTimers();
+      FakeSocket.all[2].onmessage?.({ data: '{"type":"error","code":"unauthorized"}' });
+      FakeSocket.all[2].onclose?.();
+      equal(delays.length, 2, 'no reconnect after a refusal');
+      equal(log, [
+        'state:connecting', 'state:live', 'event:ready', 'event:device', 'state:offline',
+        'state:connecting', 'state:offline', 'state:connecting', 'refused', 'event:error', 'state:offline',
+      ], 'what the owner heard');
+    } finally {
+      Math.random = realRandom;
+      realTimers();
+    }
+  });
+
+  check('Realtime (EMS): wake reconnects at once; stop closes; a refused constructor throws', async () => {
+    FakeSocket.all = [];
+    delays.length = 0;
+    socketTimers();
+    try {
+      const { log, handlers } = recorder();
+      const channel = new emsRealtime.EmsRealtime('tok', handlers);
+      channel.start();
+      FakeSocket.all[0].onclose?.();
+      channel.wake();
+      equal(FakeSocket.all.length, 2, 'woke without waiting');
+      channel.stop();
+      equal(FakeSocket.all[1].closed, true, 'closed on stop');
+      equal(log.at(-1), 'state:offline', 'offline on stop');
+      FakeSocket.failNext = true;
+      let threw = false;
+      try {
+        new emsRealtime.EmsRealtime('tok', recorder().handlers).start();
+      } catch {
+        threw = true;
+      }
+      equal(threw, true, 'the EMS channel lets a constructor error through');
+    } finally {
+      realTimers();
+    }
+  });
+
+  check('Realtime (gateway): a refused constructor retries later; retarget moves at once', async () => {
+    FakeSocket.all = [];
+    delays.length = 0;
+    socketTimers();
+    Math.random = () => 0;
+    try {
+      const { handlers } = recorder();
+      FakeSocket.failNext = true;
+      const channel = new gatewayRealtime.GatewayRealtime('http://192.168.1.9:8686', 'gw', handlers);
+      channel.start();
+      equal(delays, [500], 'retry scheduled instead of throwing');
+      fireTimers();
+      equal(FakeSocket.all[0].url, 'ws://192.168.1.9:8686/api/v1/events', 'url');
+      channel.retarget('http://192.168.1.9:8686');
+      equal(FakeSocket.all.length, 1, 'same address: nothing happens');
+      channel.retarget('https://relay.test/relay/v1/g/abc');
+      equal(FakeSocket.all[0].closed, true, 'old socket closed');
+      equal(FakeSocket.all[1].url, 'wss://relay.test/relay/v1/g/abc/api/v1/events', 'new address');
+    } finally {
+      Math.random = realRandom;
+      realTimers();
+    }
   });
 
   // ---- Run -----------------------------------------------------------------------------------
