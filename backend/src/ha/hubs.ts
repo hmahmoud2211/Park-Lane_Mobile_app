@@ -1,11 +1,22 @@
 import { randomUUID } from 'node:crypto';
 
 import { config } from '../config.ts';
-import { db } from '../ems/db.ts';
 import { publish } from '../ems/events.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { ApiError } from '../errors.ts';
 import { log } from '../log.ts';
+import { recordAudit } from '../repositories/audit.ts';
+import {
+  findHubRow,
+  insertHub,
+  listHubs as listHubRows,
+  toHub,
+  updateHub,
+  type Hub,
+  type HubColumn,
+  type HubKind,
+  type HubRow,
+} from '../repositories/hubs.ts';
 import { ASSISTANT_REFUSED, AUDITED, resolveCommand, type CommandSource } from './commands.ts';
 import { HaConnection, HaError, type ConnectionStatus } from './haClient.ts';
 import { toDevices, toRooms } from './mapping.ts';
@@ -24,34 +35,8 @@ import type { CommandRequest, Device, HaArea, HaDevice, HaEntity, HaState, HubSt
  * pushed when what the app sees actually changed.
  */
 
-export type HubKind = 'container' | 'box';
+export type { Hub, HubKind };
 
-export interface Hub {
-  id: string;
-  unitId: string;
-  kind: HubKind;
-  baseUrl: string | null;
-  containerName: string | null;
-  haVersion: string | null;
-  status: HubStatus;
-  lastSeen: string | null;
-  lastError: string | null;
-}
-
-interface HubRow {
-  id: string;
-  unit_id: string;
-  kind: HubKind;
-  base_url: string | null;
-  token_sealed: string | null;
-  container_name: string | null;
-  ha_version: string | null;
-  status: HubStatus;
-  last_seen: string | null;
-  last_error: string | null;
-}
-
-const COLUMNS = 'id, unit_id, kind, base_url, token_sealed, container_name, ha_version, status, last_seen, last_error';
 const COALESCE_MS = 250;
 const REGISTRY_EVENTS = {
   area_registry_updated: 'areas',
@@ -59,30 +44,14 @@ const REGISTRY_EVENTS = {
   entity_registry_updated: 'entities',
 } as const;
 
-const toHub = (row: HubRow): Hub => ({
-  id: row.id,
-  unitId: row.unit_id,
-  kind: row.kind,
-  baseUrl: row.base_url,
-  containerName: row.container_name,
-  haVersion: row.ha_version,
-  status: row.status,
-  lastSeen: row.last_seen,
-  lastError: row.last_error,
-});
-
-function hubRow(where: string, value: string): HubRow | undefined {
-  return db().prepare(`SELECT ${COLUMNS} FROM hubs WHERE ${where} = ?`).get(value) as HubRow | undefined;
-}
-
 export function getHubForUnit(unitId: string): Hub | null {
-  const row = hubRow('unit_id', unitId);
+  const row = findHubRow('unit_id', unitId);
   return row ? toHub(row) : null;
 }
 
 /** The hub's address and token, for the REST calls the WebSocket API has no command for. */
 export function hubCredentials(id: string): { baseUrl: string; token: string } {
-  const row = hubRow('id', id);
+  const row = findHubRow('id', id);
   if (!row?.base_url || !row.token_sealed) {
     throw new ApiError('provisioning', 'Your smart home is still being set up. Try again in a few minutes.');
   }
@@ -91,46 +60,34 @@ export function hubCredentials(id: string): { baseUrl: string; token: string } {
 
 /** Whether the backend holds a token for the hub (provisioning finished onboarding). */
 export function hubHasToken(id: string): boolean {
-  return Boolean(hubRow('id', id)?.token_sealed);
+  return Boolean(findHubRow('id', id)?.token_sealed);
 }
 
 export function listHubs(): Hub[] {
-  return (db().prepare(`SELECT ${COLUMNS} FROM hubs ORDER BY created_at`).all() as unknown as HubRow[]).map(toHub);
+  return listHubRows();
 }
 
 /** A hub row in `provisioning`, before it has an address or a token. */
 export function createHubRow(unitId: string, kind: HubKind, containerName: string | null): Hub {
-  const now = new Date().toISOString();
   const id = randomUUID();
-  db()
-    .prepare(
-      `INSERT INTO hubs (id, unit_id, kind, container_name, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'provisioning', ?, ?)`,
-    )
-    .run(id, unitId, kind, containerName, now, now);
-  return toHub(hubRow('id', id) as HubRow);
+  insertHub(id, unitId, kind, containerName, new Date().toISOString());
+  return toHub(findHubRow('id', id) as HubRow);
 }
 
 export function updateHubRow(
   id: string,
   changes: Partial<{ baseUrl: string; token: string; adminPassword: string; status: HubStatus; haVersion: string | null; lastError: string | null; seen: boolean }>,
 ): void {
-  const sets: string[] = ['updated_at = ?'];
-  const values: (string | null)[] = [new Date().toISOString()];
-  const set = (column: string, value: string | null) => {
-    sets.push(`${column} = ?`);
-    values.push(value);
-  };
-  if (changes.baseUrl !== undefined) set('base_url', changes.baseUrl);
-  if (changes.token !== undefined) set('token_sealed', seal(changes.token));
-  if (changes.adminPassword !== undefined) set('admin_password_sealed', seal(changes.adminPassword));
-  if (changes.status !== undefined) set('status', changes.status);
-  if (changes.haVersion !== undefined) set('ha_version', changes.haVersion);
-  if (changes.lastError !== undefined) set('last_error', changes.lastError);
-  if (changes.seen) set('last_seen', new Date().toISOString());
-  db()
-    .prepare(`UPDATE hubs SET ${sets.join(', ')} WHERE id = ?`)
-    .run(...values, id);
+  const updatedAt = new Date().toISOString();
+  const columns: [HubColumn, string | null][] = [];
+  if (changes.baseUrl !== undefined) columns.push(['base_url', changes.baseUrl]);
+  if (changes.token !== undefined) columns.push(['token_sealed', seal(changes.token)]);
+  if (changes.adminPassword !== undefined) columns.push(['admin_password_sealed', seal(changes.adminPassword)]);
+  if (changes.status !== undefined) columns.push(['status', changes.status]);
+  if (changes.haVersion !== undefined) columns.push(['ha_version', changes.haVersion]);
+  if (changes.lastError !== undefined) columns.push(['last_error', changes.lastError]);
+  if (changes.seen) columns.push(['last_seen', new Date().toISOString()]);
+  updateHub(id, columns, updatedAt);
 }
 
 // ---- Runtime -------------------------------------------------------------------------------
@@ -257,9 +214,7 @@ export class HubRuntime {
     this.lastErrors.delete(deviceId);
     this.recompute(true);
     if (AUDITED.has(action) || source === 'assistant') {
-      db()
-        .prepare('INSERT INTO audit_log (user_id, hub_id, action, target, via, at) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(userId, this.hubId, action, call.entityId, source === 'app' ? null : source, new Date().toISOString());
+      recordAudit({ userId, hubId: this.hubId, action, target: call.entityId, via: source === 'app' ? null : source, at: new Date().toISOString() });
     }
 
     const changed = this.waitForChange(call.entityId, config.ha.commandTimeoutMs);
@@ -548,7 +503,7 @@ const runtimes = new Map<string, HubRuntime>();
 export function startHub(hubId: string): HubRuntime | null {
   runtimes.get(hubId)?.stop();
   runtimes.delete(hubId);
-  const row = hubRow('id', hubId);
+  const row = findHubRow('id', hubId);
   if (!row?.base_url || !row.token_sealed) {
     return null;
   }

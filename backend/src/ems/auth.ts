@@ -5,19 +5,19 @@ import { promisify } from 'node:util';
 import type { User } from '../../../shared/contracts/auth.ts';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
-import { db } from './db.ts';
+import { findToken, insertToken, revokeTokenAndChildren, revokeUserTokens, type TokenKind, type TokenRow } from '../repositories/tokens.ts';
+import { findUserById, findUserWithPassword, insertUser } from '../repositories/users.ts';
 import { newToken, sha256 } from './secrets.ts';
 
 /**
  * EMS accounts and the bearer tokens EMS issues: `session` tokens for the
  * mobile app, from /api/auth/login, and short-lived `assistant` tokens a
  * session hands to the Parklane Assistant so it can drive the resident's
- * devices. app.ts decides which routes take which kind.
+ * devices. The routes (src/routes/) decide which take which kind.
  */
 
-export type { User };
-
-export type TokenKind = 'session' | 'assistant';
+export type { TokenKind, User };
+export { findUserByEmail } from '../repositories/users.ts';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -59,9 +59,7 @@ export async function createUser(emailInput: unknown, passwordInput: unknown, na
   const user: User = { id: randomUUID(), email, name };
   const passwordHash = await hashPassword(password);
   try {
-    db()
-      .prepare('INSERT INTO users (id, email, name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(user.id, email, name, passwordHash, new Date().toISOString());
+    insertUser(user, passwordHash, new Date().toISOString());
   } catch (error) {
     if (/UNIQUE/.test((error as Error).message)) {
       throw new ApiError('conflict', 'An EMS account with this email already exists.');
@@ -74,9 +72,7 @@ export async function createUser(emailInput: unknown, passwordInput: unknown, na
 export async function verifyCredentials(emailInput: unknown, passwordInput: unknown): Promise<User> {
   const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   const password = typeof passwordInput === 'string' ? passwordInput : '';
-  const row = db().prepare('SELECT id, email, name, password_hash FROM users WHERE email = ?').get(email) as
-    | (User & { password_hash: string })
-    | undefined;
+  const row = findUserWithPassword(email);
   const matches = await passwordMatches(password, row?.password_hash ?? DUMMY_HASH);
   if (!row || !matches) {
     throw new ApiError('unauthorized', 'Wrong email or password.');
@@ -85,11 +81,7 @@ export async function verifyCredentials(emailInput: unknown, passwordInput: unkn
 }
 
 export function getUser(id: string): User | null {
-  return (db().prepare('SELECT id, email, name FROM users WHERE id = ?').get(id) as User | undefined) ?? null;
-}
-
-export function findUserByEmail(email: string): User | null {
-  return (db().prepare('SELECT id, email, name FROM users WHERE email = ?').get(email) as User | undefined) ?? null;
+  return findUserById(id);
 }
 
 export function issueToken(
@@ -99,11 +91,7 @@ export function issueToken(
   { clientId = null, parentHash = null }: { clientId?: string | null; parentHash?: string | null } = {},
 ): string {
   const token = newToken();
-  db()
-    .prepare(
-      'INSERT INTO tokens (token_hash, user_id, kind, client_id, parent_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(sha256(token), userId, kind, clientId, parentHash, expiresAt, Date.now());
+  insertToken({ hash: sha256(token), userId, kind, clientId, parentHash, expiresAt, createdAt: Date.now() });
   return token;
 }
 
@@ -123,22 +111,12 @@ export function createAssistantToken(sessionToken: string): { token: string; exp
   return { token, expiresAt };
 }
 
-interface TokenRow {
-  user_id: string;
-  kind: TokenKind;
-  client_id: string | null;
-  expires_at: number;
-  revoked_at: number | null;
-}
-
 /** The token's row when it is live, else null. */
 export function lookupToken(token: string, kinds: readonly TokenKind[]): (TokenRow & { user: User }) | null {
   if (!token) {
     return null;
   }
-  const row = db()
-    .prepare('SELECT user_id, kind, client_id, expires_at, revoked_at FROM tokens WHERE token_hash = ?')
-    .get(sha256(token)) as TokenRow | undefined;
+  const row = findToken(sha256(token));
   if (!row || row.revoked_at !== null || row.expires_at <= Date.now() || !kinds.includes(row.kind)) {
     return null;
   }
@@ -148,18 +126,12 @@ export function lookupToken(token: string, kinds: readonly TokenKind[]): (TokenR
 
 /** The token, and any assistant tokens issued under it. */
 export function revokeToken(token: string): void {
-  const hash = sha256(token);
-  db()
-    .prepare('UPDATE tokens SET revoked_at = ? WHERE (token_hash = ? OR parent_hash = ?) AND revoked_at IS NULL')
-    .run(Date.now(), hash, hash);
+  revokeTokenAndChildren(sha256(token), Date.now());
 }
 
 /** Every token of these kinds for the user. */
 export function revokeTokens(userId: string, kinds: readonly TokenKind[]): void {
-  const placeholders = kinds.map(() => '?').join(', ');
-  db()
-    .prepare(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND kind IN (${placeholders})`)
-    .run(Date.now(), userId, ...kinds);
+  revokeUserTokens(userId, kinds, Date.now());
 }
 
 export function bearerOf(req: IncomingMessage): string {

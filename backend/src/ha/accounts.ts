@@ -1,8 +1,9 @@
 import type { LinkedAccount } from '../../../shared/contracts/accounts.ts';
 import { config } from '../config.ts';
-import { db } from '../ems/db.ts';
 import { ApiError } from '../errors.ts';
 import { log } from '../log.ts';
+import * as sessions from '../repositories/pairingSessions.ts';
+import type { PairingSessionRow } from '../repositories/pairingSessions.ts';
 import { nestSections, toFlowStep, type FlowField, type FlowStep, type HaFlowResult, type Translations } from './flows.ts';
 import { haRest, restMessage, type RestResult } from './haRest.ts';
 import { hubCredentials, runtimeForUser, type HubRuntime } from './hubs.ts';
@@ -24,36 +25,20 @@ import { findIntegration, isAvailable } from './integrations.ts';
 const SESSION_TTL_MS = 30 * 60_000;
 const FLOW_PATH = '/api/config/config_entries/flow';
 
-interface SessionRow {
-  flow_id: string;
-  hub_id: string;
-  user_id: string;
-  handler: string;
-  fields: string | null;
-}
-
 function saveSession(flowId: string, hubId: string, userId: string, handler: string) {
   const now = Date.now();
-  db()
-    .prepare(
-      `INSERT INTO pairing_sessions (flow_id, hub_id, user_id, handler, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(flow_id) DO UPDATE SET expires_at = excluded.expires_at`,
-    )
-    .run(flowId, hubId, userId, handler, now, now + SESSION_TTL_MS);
-  db().prepare('DELETE FROM pairing_sessions WHERE expires_at < ?').run(now);
+  sessions.saveSession(flowId, hubId, userId, handler, now, now + SESSION_TTL_MS);
 }
 
-function sessionFor(userId: string, flowId: string): SessionRow {
-  const row = db()
-    .prepare('SELECT flow_id, hub_id, user_id, handler, fields FROM pairing_sessions WHERE flow_id = ? AND expires_at > ?')
-    .get(flowId, Date.now()) as SessionRow | undefined;
+function sessionFor(userId: string, flowId: string): PairingSessionRow {
+  const row = sessions.findLiveSession(flowId, Date.now());
   if (!row || row.user_id !== userId) {
     throw new ApiError('flow_expired', 'This sign-in has expired. Start again.');
   }
   return row;
 }
 
-const endSession = (flowId: string) => db().prepare('DELETE FROM pairing_sessions WHERE flow_id = ?').run(flowId);
+const endSession = (flowId: string) => sessions.deleteSession(flowId);
 
 // ---- Labels --------------------------------------------------------------------------------
 
@@ -114,7 +99,7 @@ async function present(runtime: HubRuntime, userId: string, first: HaFlowResult)
   } else {
     saveSession(step.flowId, runtime.hubId, userId, handler);
     const fields = JSON.stringify(step.fields.map((field) => ({ name: field.name, section: field.section })));
-    db().prepare('UPDATE pairing_sessions SET fields = ? WHERE flow_id = ?').run(fields, step.flowId);
+    sessions.setSessionFields(step.flowId, fields);
   }
   return step;
 }
@@ -183,16 +168,12 @@ export async function oauthCallback(url: URL): Promise<string> {
   const back = (result: string, flowId?: string) =>
     `${config.appReturnUrl}?${new URLSearchParams({ result, ...(flowId ? { flow: flowId } : {}) })}`;
   const flowId = flowIdFromState(url.searchParams.get('state') ?? '');
-  const row = flowId
-    ? (db().prepare('SELECT hub_id FROM pairing_sessions WHERE flow_id = ? AND expires_at > ?').get(flowId, Date.now()) as
-        | { hub_id: string }
-        | undefined)
-    : undefined;
-  if (!flowId || !row) {
+  const hubId = flowId ? sessions.findLiveSessionHub(flowId, Date.now()) : undefined;
+  if (!flowId || !hubId) {
     return back('expired');
   }
   try {
-    const { baseUrl } = hubCredentials(row.hub_id);
+    const { baseUrl } = hubCredentials(hubId);
     const forwarded = await fetch(`${baseUrl}/auth/external/callback${url.search}`, { signal: AbortSignal.timeout(20_000) });
     return back(forwarded.ok && !url.searchParams.has('error') ? 'ok' : 'error', flowId);
   } catch {
