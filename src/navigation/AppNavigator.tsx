@@ -53,6 +53,29 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 /** Lets the side rail, which sits outside the stack, navigate it and see where it is. */
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
+/** Every registered route; the visual-regression addresses below are made from it. */
+const ROUTE_NAMES = [
+  'FirstScreen', 'Login', 'Home', 'Profile', 'MyUnit', 'VisitorAccess', 'Maintenance', 'Parking',
+  'Community', 'SmartHome', 'EmsDevices', 'DeviceDetail', 'ConnectAccount', 'GatewaySetup',
+  'AddDevice', 'AddDeviceMethod', 'DeviceDiscovery', 'DeviceProvisioning', 'DeviceSetup',
+  'LgPairing', 'AcControl', 'AmenitiesBooking', 'Services', 'Settings', 'Assistant',
+  'UnderDevelopment', 'ReserveParking', 'ReservationDetails', 'ReservationHistory', 'GuestPass',
+  'ParkingMap', 'ChargingSession', 'SecurityConsole', 'DemoControls',
+] as const satisfies readonly (keyof RootStackParamList)[];
+
+/**
+ * Testing aid, off unless the web build sets EXPO_PUBLIC_VISUAL_ROUTES=1: gives
+ * every screen an address, visual/<Route>?<params>, so the visual-regression
+ * script (scripts/visual-regression.mjs) can open each one directly. The
+ * product's own addresses below are listed after these and win.
+ */
+function visualRoutePaths(): Partial<Record<keyof RootStackParamList, string>> {
+  if (process.env.EXPO_PUBLIC_VISUAL_ROUTES !== '1') {
+    return {};
+  }
+  return Object.fromEntries(ROUTE_NAMES.map((name) => [name, `visual/${name}`]));
+}
+
 /**
  * Web only: gives the visitor's invitation its own address, /pass/<token>,
  * so the link opens the pass directly without signing in, and gives the
@@ -65,6 +88,7 @@ const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [],
   config: {
     screens: {
+      ...visualRoutePaths(),
       FirstScreen: '',
       Parking: 'parking',
       ReserveParking: 'parking/reserve',
