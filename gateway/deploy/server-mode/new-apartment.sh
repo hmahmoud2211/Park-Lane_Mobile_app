@@ -30,12 +30,19 @@ docker run -d --name "cube-gw-$NAME" --restart unless-stopped --network host \
   -v "cube-gw-$NAME:/data" "$IMAGE" >/dev/null
 
 echo "Waiting for cube-gw-$NAME to enrol with the relay..."
+# Note: no `grep -q`/`head` on pipes here. They close the pipe early, and with pipefail that counts as a failure.
+ID=""
 for _ in $(seq 1 60); do
-  ID="$(curl -sf "http://127.0.0.1:$PORT/api/v1/health" | python3 -c 'import sys,json; print(json.load(sys.stdin)["data"]["gateway_id"])' 2>/dev/null || true)"
-  if [ -n "$ID" ] && docker logs "cube-gw-$NAME" 2>&1 | grep -q "enrolled with the relay\|relay tunnel open"; then break; fi
+  ID="$(curl -sf "http://127.0.0.1:$PORT/api/v1/health" 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin)["data"]["gateway_id"])' 2>/dev/null || true)"
+  LOGS="$(docker logs "cube-gw-$NAME" 2>&1 || true)"
+  if [ -n "$ID" ] && grep -qE "enrolled with the relay|relay tunnel open" <<<"$LOGS"; then break; fi
   sleep 2
 done
-CODE="$(docker exec "cube-gw-$NAME" cube-gateway setup-code 2>/dev/null | head -1 | awk '{print $3}')"
+if [ -z "$ID" ] || ! grep -qE "enrolled with the relay|relay tunnel open" <<<"$LOGS"; then
+  echo "The gateway did not enrol with the relay within 2 minutes. Its log: docker logs cube-gw-$NAME"
+  exit 1
+fi
+CODE="$(docker exec "cube-gw-$NAME" cube-gateway setup-code 2>/dev/null | awk 'NR == 1 && /Setup code/ {print $3}' || true)"
 URL="$RELAY_URL/relay/v1/g/$ID"
 echo
 echo "Apartment:   $NAME"
