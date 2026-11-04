@@ -27,7 +27,8 @@ export function ParkingMapScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'ParkingMap'>['navigation']>();
-  const { params } = useRoute<RootStackScreenProps<'ParkingMap'>['route']>();
+  // Every param is optional, and the web address /parking/map comes with none at all.
+  const params = useRoute<RootStackScreenProps<'ParkingMap'>['route']>().params ?? {};
   const { db, now } = useParking();
 
   const visitor = Boolean(params.invite);

@@ -58,7 +58,7 @@ export type RootStackParamList = {
   /** The page a visitor opens from their invitation link; no account needed. `lang` picks English or Arabic. */
   GuestPass: { invite: string; lang?: Lang; /** Demo only: the booking carried in the link (services/parking/passLink). */ d?: string };
   /** Gate-to-bay directions for a booking, a visitor's pass, or the resident's own bay. Arabic only from a pass. */
-  ParkingMap: { reservationId?: string; invite?: string; spaceId?: string; lang?: Lang };
+  ParkingMap: { reservationId?: string; invite?: string; spaceId?: string; lang?: Lang } | undefined;
   ChargingSession: { reservationId: string };
   /** Demo only: the security desk's gate console. */
   SecurityConsole: undefined;
