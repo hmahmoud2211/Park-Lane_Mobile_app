@@ -41,7 +41,7 @@ class EchoMqtt:
 
 
 def _adapter(settings, mode: str = "cool", echo: set[str] | None = None) -> tuple[LgRethinkAdapter, EchoMqtt]:
-    adapter = LgRethinkAdapter(AdapterContext(replace(settings, rethink_mqtt_url="mqtt://127.0.0.1:1885")))
+    adapter = LgRethinkAdapter(AdapterContext(replace(settings, rethink_mqtt_url="mqtt://127.0.0.1:9")))
     adapter.connected = True
     mqtt = EchoMqtt(adapter, echo)
     adapter._client = mqtt

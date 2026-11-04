@@ -38,6 +38,13 @@ ADAPTERS: list[tuple[str, str]] = [
 ]
 
 
+#: Server-hosted mode (no home network): only devices that connect out to the company's server.
+SERVER_HOSTED_ADAPTERS: list[tuple[str, str]] = [
+    ("cube_gateway.adapters.shelly_cloud", "ShellyCloudAdapter"),
+    ("cube_gateway.adapters.lg_rethink", "LgRethinkAdapter"),
+]
+
+
 class AdapterRegistry:
     def __init__(self, ctx: AdapterContext, modules: list[tuple[str, str]] | None = None):
         self.ctx = ctx

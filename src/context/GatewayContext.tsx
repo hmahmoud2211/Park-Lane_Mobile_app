@@ -154,7 +154,11 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       if (!endpoint) {
         setStatus('offline');
         setBaseUrl(null);
-        setProblem('Your gateway did not answer at its home or remote address.');
+        setProblem(
+          gateway.endpoints.lan
+            ? 'Your gateway did not answer at its home or remote address.'
+            : 'Your gateway on CUBE’s server did not answer. Check your internet connection and try again.',
+        );
         setDevicesLoaded(true);
         return;
       }

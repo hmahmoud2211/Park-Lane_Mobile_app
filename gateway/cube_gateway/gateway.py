@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import time
 
 from . import __version__
 from .adapters.base import AdapterContext
-from .adapters.registry import AdapterRegistry
+from .adapters.registry import SERVER_HOSTED_ADAPTERS, AdapterRegistry
+from .cloud.link import CloudLink
 from .config import Settings
 from .crypto import Sealer
 from .db import Database
@@ -36,7 +39,10 @@ class Gateway:
         self.mdns = mdns or MdnsService()
         self.adapter_ctx = AdapterContext(settings)
         self.adapter_ctx.mdns = self.mdns
-        self.registry = registry or AdapterRegistry(self.adapter_ctx)
+        #: The device broker connection, in server-hosted mode only.
+        self.cloud: CloudLink | None = CloudLink(self) if settings.server_hosted else None
+        self.adapter_ctx.cloud = self.cloud
+        self.registry = registry or AdapterRegistry(self.adapter_ctx, SERVER_HOSTED_ADAPTERS if settings.server_hosted else None)
         self.devices = DeviceManager(self.db, self.sealer, self.registry, self.bus, settings)
         self.discovery = DiscoveryEngine(self.registry, self.db, self.bus, settings, self.mdns, self.devices.lookup)
         self.pairings = PairingManager(self.devices, self.registry, self.bus, self.discovery.candidates)
@@ -45,7 +51,7 @@ class Gateway:
             from .provisioning.gateway_wifi import make_runner
 
             runner = make_runner(settings.softap_interface)
-        self.provisioning = ProvisioningEngine(self.db, self.bus, settings, self.registry, self.discovery, self.pairings, runner)
+        self.provisioning = ProvisioningEngine(self.db, self.bus, settings, self.registry, self.discovery, self.pairings, runner, cloud=self.cloud)
         self.relay = None
 
     async def start(self) -> None:
@@ -58,11 +64,16 @@ class Gateway:
         await self.mdns.start()
         await self.registry.start()
         await self.devices.load()
+        await self._load_rethink_owned()
         await self.discovery.load()
         await self.provisioning.load()
         self.devices.start_monitors()
         await self.advertise()
         await self.start_relay_from_settings()
+        if self.settings.relay_url and self.settings.relay_enroll_token and self.relay is None:
+            self._enroll_task = asyncio.create_task(self._auto_enroll())
+        if self.cloud is not None:
+            self.cloud.start()
         if not await self.security.is_claimed():
             announce_setup_code(self.security, self.address(), self.settings.port)
         loaded = sorted(self.registry.adapters)
@@ -88,8 +99,36 @@ class Gateway:
         self.relay = RelayClient(self, url, secret)
         self.relay.start()
 
+    async def _auto_enroll(self) -> None:
+        """Enrols with CUBE_RELAY_URL using CUBE_RELAY_ENROLL_TOKEN, retrying until the relay answers."""
+        from .relay.client import enroll
+
+        delay = 5.0
+        while self.relay is None:
+            try:
+                await enroll(self, self.settings.relay_url, self.settings.relay_enroll_token)
+                log.info("enrolled with the relay", extra={"relay": self.settings.relay_url, "public_url": self.relay.public_url if self.relay else None})
+                return
+            except Exception as error:  # noqa: BLE001 - keep trying; the gateway works locally meanwhile
+                log.warning("could not enrol with the relay; retrying", extra={"relay": self.settings.relay_url, "reason": getattr(error, "message", str(error)), "retry_in": delay})
+            await asyncio.sleep(delay)
+            delay = min(300.0, delay * 2)
+
+    async def _load_rethink_owned(self) -> None:
+        """Which ReThink appliances belong to this gateway: the ones it set up, plus the ones paired here."""
+        adapter = self.registry.adapters.get("lg_thinq_rethink")
+        if adapter is None or not hasattr(adapter, "owned"):
+            return
+        stored = json.loads(await self.db.get_meta("rethink_owned") or "[]")
+        paired = {d.unique_id for d in self.devices.devices.values() if d.adapter_id == "lg_thinq_rethink"}
+        adapter.owned = set(stored) | paired
+
     async def stop(self) -> None:
         log.info("gateway stopping")
+        if getattr(self, "_enroll_task", None):
+            self._enroll_task.cancel()
+        if self.cloud is not None:
+            await self.cloud.stop()
         if self.relay:
             await self.relay.stop()
         await self.provisioning.stop()

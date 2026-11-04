@@ -78,9 +78,28 @@ class Settings:
     #: Device poll interval in seconds, for adapters without push updates.
     poll_interval: int
     relay_url: str
-    #: Relay mode only.
+    #: Relay mode: who may enrol. Gateway mode: the token used to enrol automatically at start (with relay_url).
     relay_enroll_token: str
     relay_port: int
+    #: Runs on a company server for one apartment, with no home network: only adapters whose devices connect
+    #: out to the server are loaded, the owner may be claimed through the relay (with the setup code), and LG
+    #: appliances on a shared ReThink are only visible to the gateway that set them up.
+    server_hosted: bool
+    allow_remote_claim: bool
+    rethink_only_provisioned: bool
+    #: How this gateway reaches the device MQTT broker (overrides the address the relay hands out), e.g.
+    #: mqtt://127.0.0.1:1886 for a gateway on the broker's own server.
+    cloud_mqtt_url: str
+    #: Relay mode: the device broker the relay manages (dynamic security admin) and what it tells devices.
+    mqtt_admin_url: str
+    mqtt_admin_user: str
+    mqtt_admin_password: str
+    #: host:port devices connect to over TLS, e.g. mqtt-cube.ems-iot.com:8885
+    mqtt_public_server: str
+    #: URL gateways connect to, e.g. mqtts://mqtt-cube.ems-iot.com:8885
+    mqtt_gateway_url: str
+    #: The CA certificate (PEM file) that signed the broker's certificate; given to devices and gateways.
+    mqtt_ca_file: str
     extra: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -120,4 +139,14 @@ def load_settings() -> Settings:
         relay_url=os.environ.get("CUBE_RELAY_URL", "").strip().rstrip("/"),
         relay_enroll_token=os.environ.get("CUBE_RELAY_ENROLL_TOKEN", "").strip(),
         relay_port=_int("CUBE_RELAY_PORT", 8687, 1, 65535),
+        server_hosted=_bool("CUBE_SERVER_HOSTED", False),
+        allow_remote_claim=_bool("CUBE_ALLOW_REMOTE_CLAIM", _bool("CUBE_SERVER_HOSTED", False)),
+        rethink_only_provisioned=_bool("CUBE_RETHINK_ONLY_PROVISIONED", _bool("CUBE_SERVER_HOSTED", False)),
+        cloud_mqtt_url=os.environ.get("CUBE_CLOUD_MQTT_URL", "").strip(),
+        mqtt_admin_url=os.environ.get("CUBE_MQTT_ADMIN_URL", "").strip(),
+        mqtt_admin_user=os.environ.get("CUBE_MQTT_ADMIN_USER", "").strip(),
+        mqtt_admin_password=os.environ.get("CUBE_MQTT_ADMIN_PASSWORD", "").strip(),
+        mqtt_public_server=os.environ.get("CUBE_MQTT_PUBLIC_SERVER", "").strip(),
+        mqtt_gateway_url=os.environ.get("CUBE_MQTT_GATEWAY_URL", "").strip(),
+        mqtt_ca_file=os.environ.get("CUBE_MQTT_CA_FILE", "").strip(),
     )

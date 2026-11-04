@@ -24,7 +24,7 @@ import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as api from '../../services/gateway/gatewayApi';
 import { deviceRequest } from '../../services/provisioning/deviceHttp';
 import { openDeviceSetupPage } from '../../services/provisioning/setupPage';
-import { detectShelly, sendWifiToShelly } from '../../services/provisioning/shellySoftap';
+import { cloudLoginFrom, detectShelly, sendCloudSetupToShelly, sendWifiToShelly } from '../../services/provisioning/shellySoftap';
 import { readSonoffDevice, type SonoffSetupInfo } from '../../services/provisioning/sonoffSoftap';
 import {
   WifiJoinError,
@@ -218,12 +218,61 @@ export function DeviceProvisioningScreen() {
     setStage('waiting');
   };
 
+  /** The phone leaves the device's network and the gateway records why the setup ended. */
+  const failOnPhone = async (code: string, message: string) => {
+    if (onHotspot.current) {
+      await releaseHotspot(joinedSsid.current);
+      onHotspot.current = false;
+    }
+    setAwayFromHome(false);
+    setStepError(message);
+    await provisioning.report('failed', { code, message }, { queueIfUnreachable: true });
+    provisioning.watch();
+  };
+
+  /** Shelly connecting to CUBE's server: certificate, broker login and Wi-Fi, then a restart. */
+  const sendCloudSetup = async () => {
+    const login = cloudLoginFrom(session?.setup);
+    if (!login) {
+      setStepError(copy.cloudNoLogin);
+      return;
+    }
+    setBusy(copy.cloudSending);
+    const shelly = await detectShelly(deviceIp || undefined);
+    if (!shelly) {
+      setBusy(null);
+      setStepError(copy.deviceNotFound);
+      return;
+    }
+    await provisioning.report('device_info', { mac: shelly.mac, gen: shelly.gen, model: shelly.model }, { queueIfUnreachable: true });
+    const outcome = await sendCloudSetupToShelly(shelly, { ssid: homeSsid.trim(), password: homePassword }, login, { ip: deviceIp || undefined });
+    setHomePassword('');
+    setBusy(null);
+    if (outcome.kind === 'unsupported') {
+      await failOnPhone('unsupported_model', copy.cloudGen1);
+      return;
+    }
+    if (outcome.kind === 'rejected') {
+      await failOnPhone('provisioning_protocol_failed', copy.cloudRejected(outcome.step, outcome.message));
+      return;
+    }
+    await provisioning.report('wifi_config_sent', { outcome: outcome.kind }, { queueIfUnreachable: true });
+    if (outcome.kind === 'noResponse') {
+      setStepError(copy.cloudRestartHint);
+    }
+    await backHome();
+  };
+
   const sendWifi = async () => {
     if (!homeSsid.trim()) {
       setStepError(`${copy.homeSsid}: ${copy.required}`);
       return;
     }
     setStepError(null);
+    if (params.pluginId === 'shelly_cloud_softap') {
+      await sendCloudSetup();
+      return;
+    }
     setBusy(copy.sending);
     const shelly = await detectShelly(deviceIp || undefined);
     if (!shelly) {
@@ -428,7 +477,7 @@ export function DeviceProvisioningScreen() {
     <NeonPanel style={styles.panel}>
       <PanelHeading title={copy.wifiTitle} iconSet="ionicons" iconName="home-outline" divider />
       <AppText variant="bodySmall" color={theme.colors.textSupport}>
-        {copy.wifiIntro}
+        {params.pluginId === 'shelly_cloud_softap' ? copy.cloudWifiIntro : copy.wifiIntro}
       </AppText>
       {renderHomeWifiFields()}
       <AppButton title={copy.send} variant="gradient" height={BUTTON_HEIGHT} disabled={busy !== null} onPress={() => void sendWifi()} />

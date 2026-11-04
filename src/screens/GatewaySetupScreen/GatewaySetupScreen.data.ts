@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 /** Copy for pairing this phone with a CUBE Gateway and reaching it from away. */
 export const gatewaySetupCopy = {
   title: 'CUBE Gateway',
-  subtitle: 'The box on your Wi-Fi that connects your devices.',
+  subtitle: 'Connects your devices: a box on your Wi-Fi, or your home’s gateway on CUBE’s server.',
   pairedTitle: 'Your gateways',
   active: 'In use',
   use: 'Use this gateway',
@@ -21,9 +21,9 @@ export const gatewaySetupCopy = {
   choose: 'Use this address',
   connectTitle: 'Connect',
   connectIntro:
-    'New gateway: enter the setup code from its logs (docker logs cube-os-gateway), or scan the QR code printed there. Joining someone’s gateway: use the invite code they send you.',
+    'New gateway: enter the setup code from its logs (docker logs cube-os-gateway), or scan the QR code printed there. A gateway on CUBE’s server: scan the pairing code you were given, or enter its https address and setup code. Joining someone’s gateway: use the invite code they send you.',
   host: 'Gateway address',
-  hostHelp: 'For example 192.168.1.20 or 192.168.1.20:8686.',
+  hostHelp: 'For example 192.168.1.20 or 192.168.1.20:8686, or the https address you were given for a gateway on CUBE’s server.',
   modeSetup: 'Setup code',
   modeInvite: 'Invite code',
   code: 'Code',
@@ -39,6 +39,11 @@ export const gatewaySetupCopy = {
       : 'The phone must be on the same Wi-Fi as the gateway the first time.',
   security:
     'At home the app talks to the gateway over your own Wi-Fi without encryption. Before sending its key to a new address, the app checks the gateway proves who it is. For encrypted access everywhere, use Tailscale.',
+  serverSecurity:
+    'A gateway on CUBE’s server is reached over HTTPS through CUBE’s relay, from anywhere. Before sending its key to a new address, the app checks the gateway proves who it is.',
+  onServer: 'On CUBE’s server',
+  serverRemoteIntro:
+    'This gateway runs on CUBE’s server, so the app reaches it from anywhere through CUBE’s relay. There is nothing to set up here.',
   remoteTitle: 'Access away from home',
   remoteIntro:
     'At home the app uses the gateway’s Wi-Fi address. Away, it tries the addresses below: a Tailscale address (100.x.y.z or a MagicDNS name) or your relay’s URL.',

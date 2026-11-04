@@ -22,12 +22,14 @@ import secrets
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 
 from .. import __version__
+from ..cloud.broker import BrokerError, DynsecAdmin
 from ..config import Settings
 from ..crypto import constant_time_equal
 from ..db import Database
@@ -65,17 +67,32 @@ class Tunnel:
 
 
 class Relay:
-    def __init__(self, db: Database, enroll_token: str):
+    def __init__(self, db: Database, enroll_token: str, broker: DynsecAdmin | None = None, settings: Settings | None = None):
         self.db = db
         self.enroll_token = enroll_token
+        self.broker = broker
+        self.settings = settings
         self.tunnels: dict[str, Tunnel] = {}
         self.ip_limiter = RateLimiter(limit=240, window=60)
         self.enroll_limiter = RateLimiter(limit=10, window=60)
+        self.mqtt_limiter = RateLimiter(limit=30, window=60)
+
+    def ca_pem(self) -> str:
+        path = self.settings.mqtt_ca_file if self.settings else ""
+        try:
+            return Path(path).read_text() if path else ""
+        except OSError:
+            return ""
 
 
 def create_relay_app(settings: Settings) -> FastAPI:
     db = Database(settings.data_dir / "relay.db")
-    relay = Relay(db, settings.relay_enroll_token)
+    broker = (
+        DynsecAdmin(settings.mqtt_admin_url, settings.mqtt_admin_user, settings.mqtt_admin_password)
+        if settings.mqtt_admin_url and settings.mqtt_admin_user and settings.mqtt_public_server
+        else None
+    )
+    relay = Relay(db, settings.relay_enroll_token, broker, settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -83,7 +100,7 @@ def create_relay_app(settings: Settings) -> FastAPI:
         await db.open()
         for statement in RELAY_SCHEMA:
             await db.execute(statement)
-        log.info("relay ready", extra={"port": settings.relay_port, "enrollment": "token" if relay.enroll_token else "open"})
+        log.info("relay ready", extra={"port": settings.relay_port, "enrollment": "token" if relay.enroll_token else "open", "device_broker": bool(broker)})
         try:
             yield
         finally:
@@ -103,7 +120,67 @@ def create_relay_app(settings: Settings) -> FastAPI:
 
     @app.get("/relay/v1/health")
     async def health() -> JSONResponse:
-        return JSONResponse({"ok": True, "data": {"status": "ok", "version": __version__, "gateways_online": len(relay.tunnels)}})
+        return JSONResponse({"ok": True, "data": {"status": "ok", "version": __version__, "gateways_online": len(relay.tunnels), "device_broker": relay.broker is not None}})
+
+    async def gateway_of(request: Request) -> str | None:
+        """The gateway a request comes from, proven with its tunnel secret (Bearer <gateway_id>.<secret>)."""
+        header = request.headers.get("authorization", "")
+        gateway_id, _, secret = header[7:].partition(".") if header.lower().startswith("bearer ") else ("", "", "")
+        if not GATEWAY_ID.match(gateway_id):
+            return None
+        row = await db.fetchone("SELECT secret_hash FROM relay_gateways WHERE id = ?", (gateway_id,))
+        return gateway_id if row and constant_time_equal(_hash(secret), row["secret_hash"]) else None
+
+    async def broker_guard(request: Request) -> tuple[str | None, JSONResponse | None]:
+        if relay.broker is None:
+            return None, _error("not_configured", "This relay has no device broker.", 501)
+        if not relay.mqtt_limiter.check(ip_of(request)):
+            return None, _error("rate_limited", "Too many requests; wait a minute.", 429)
+        gateway_id = await gateway_of(request)
+        if gateway_id is None:
+            return None, _error("unauthorized", "Unknown gateway or wrong secret.", 401)
+        return gateway_id, None
+
+    @app.post("/relay/v1/mqtt/gateway")
+    async def mqtt_gateway(request: Request) -> JSONResponse:
+        gateway_id, refused = await broker_guard(request)
+        if refused:
+            return refused
+        try:
+            username, password, prefix = await relay.broker.gateway_login(gateway_id)  # type: ignore[union-attr]
+        except BrokerError as error:
+            return _error("broker_unavailable", str(error), 503)
+        url = settings.mqtt_gateway_url or f"mqtts://{settings.mqtt_public_server}"
+        return JSONResponse({"ok": True, "data": {"url": url, "username": username, "password": password, "prefix": prefix, "ca_pem": relay.ca_pem()}})
+
+    @app.post("/relay/v1/mqtt/devices")
+    async def mqtt_device(request: Request) -> JSONResponse:
+        gateway_id, refused = await broker_guard(request)
+        if refused:
+            return refused
+        slot = secrets.token_hex(6)
+        try:
+            username, password, prefix = await relay.broker.device_login(gateway_id, slot)  # type: ignore[union-attr]
+        except BrokerError as error:
+            return _error("broker_unavailable", str(error), 503)
+        return JSONResponse(
+            {
+                "ok": True,
+                "data": {"slot": slot, "server": settings.mqtt_public_server, "username": username, "password": password, "topic_prefix": prefix, "ca_pem": relay.ca_pem()},
+            },
+            status_code=201,
+        )
+
+    @app.delete("/relay/v1/mqtt/devices/{slot}")
+    async def mqtt_device_remove(request: Request, slot: str) -> JSONResponse:
+        gateway_id, refused = await broker_guard(request)
+        if refused:
+            return refused
+        try:
+            await relay.broker.remove_device(gateway_id, slot)  # type: ignore[union-attr]
+        except BrokerError as error:
+            return _error("broker_unavailable", str(error), 503)
+        return JSONResponse({"ok": True, "data": {"removed": slot}})
 
     @app.post("/relay/v1/gateways")
     async def enroll(request: Request) -> JSONResponse:
@@ -131,7 +208,10 @@ def create_relay_app(settings: Settings) -> FastAPI:
         base = str(request.base_url).rstrip("/")
         if request.headers.get("x-forwarded-proto") == "https":
             base = base.replace("http://", "https://", 1)
-        return JSONResponse({"ok": True, "data": {"gateway_id": gateway_id, "secret": secret, "public_url": f"{base}/relay/v1/g/{gateway_id}"}}, status_code=201)
+        return JSONResponse(
+            {"ok": True, "data": {"gateway_id": gateway_id, "secret": secret, "public_url": f"{base}/relay/v1/g/{gateway_id}", "device_broker": relay.broker is not None}},
+            status_code=201,
+        )
 
     @app.websocket("/relay/v1/tunnel")
     async def tunnel(socket: WebSocket) -> None:

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import re
 import secrets
@@ -43,6 +44,8 @@ from .plugins import PLUGINS_BY_ID, ProvisioningPlugin
 log = logging.getLogger("cube.provisioning")
 S = ConnectionStatus
 WAIT_WINDOW = 180.0
+#: Session setup values that are secrets: kept in memory for the owner's phone, never written to the database.
+SECRET_SETUP_KEYS = {"mqtt_password"}
 
 ORDER = [
     S.PAIRING_MODE_REQUIRED,
@@ -105,6 +108,14 @@ ERRORS: dict[str, tuple[str, str]] = {
         "Set CUBE_SOFTAP_INTERFACE on a gateway with a spare Wi-Fi radio, or use another setup method.",
     ),
     "provisioning_protocol_failed": ("The device did not accept the setup request.", "Put the device back in setup mode and try again."),
+    "several_new_appliances": (
+        "More than one new appliance appeared on ReThink at the same time, so CUBE cannot tell which one is yours.",
+        "Wait a few minutes and set it up again; if it keeps happening, ask the building to set up appliances one at a time.",
+    ),
+    "cloud_unavailable": (
+        "The gateway could not get a login for the device on CUBE's server.",
+        "Check the gateway is connected to the relay and the relay's device broker is running, then try again.",
+    ),
     "session_expired": ("The setup took too long and was stopped.", "Start again; put the device back in setup mode first."),
     "gateway_restarted": ("The gateway restarted during setup.", "Start the setup again."),
     "cancelled": ("Setup cancelled.", "Start again whenever you are ready."),
@@ -134,6 +145,7 @@ class ProvisioningEngine:
         discovery: DiscoveryEngine,
         pairings: PairingManager,
         gateway_runner: Any = None,
+        cloud: Any = None,
     ):
         self.db = db
         self.bus = bus
@@ -142,6 +154,7 @@ class ProvisioningEngine:
         self.discovery = discovery
         self.pairings = pairings
         self.gateway_runner = gateway_runner
+        self.cloud = cloud
         self.sessions: dict[str, ProvisioningSession] = {}
         #: Secrets the phone read from the device's setup network (e.g. the SONOFF device key), in memory only.
         self._secrets: dict[str, dict[str, str]] = {}
@@ -186,10 +199,12 @@ class ProvisioningEngine:
 
     async def _save(self, session: ProvisioningSession) -> None:
         session.updated_at = time.time()
+        # The device's broker password goes to the owner's phone, never to disk.
+        stored = session.model_copy(update={"setup": {k: v for k, v in session.setup.items() if k not in SECRET_SETUP_KEYS}})
         await self.db.execute(
             "INSERT INTO provisioning_sessions (id, data, created_at, expires_at) VALUES (?, ?, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET data = excluded.data",
-            (session.id, session.model_dump_json(), session.created_at, session.expires_at),
+            (session.id, stored.model_dump_json(), session.created_at, session.expires_at),
         )
         self.bus.publish("provisioning.updated", session=session.model_dump(mode="json"))
 
@@ -201,6 +216,10 @@ class ProvisioningEngine:
     async def _fail(self, session: ProvisioningSession, code: str, detail: str | None = None) -> None:
         session.error = error_for(code, detail)
         self._secrets.pop(session.id, None)
+        self._close_window(session)
+        slot = session.expect.get("slot")
+        if slot and self.cloud is not None and not session.device_id:
+            asyncio.get_running_loop().create_task(self.cloud.release_device(slot))
         await self._move(session, S.PAIRING_FAILED, code)
         log.info("provisioning failed", extra={"session": session.id, "plugin": session.plugin_id, "code": code})
 
@@ -244,10 +263,28 @@ class ProvisioningEngine:
         adapter = self.registry.adapters[plugin.adapter_id]
         if plugin.adapter_id == "lg_thinq_rethink":
             # A ReThink id says nothing about the appliance, so the new one is whichever ReThink did not know yet.
-            known = getattr(adapter, "device_ids", lambda: [])()
+            known = getattr(adapter, "all_device_ids", getattr(adapter, "device_ids", lambda: []))()
             session.expect["exclude"] = ",".join(known)
+            if hasattr(adapter, "windows"):
+                adapter.windows[session.id] = set(known)
             if self.settings.rethink_api_server and self.settings.rethink_mqtt_server:
                 session.setup = {"rethink_api_server": self.settings.rethink_api_server, "rethink_mqtt_server": self.settings.rethink_mqtt_server}
+        if plugin.adapter_id == "shelly_cloud":
+            if self.cloud is None:
+                raise DeviceError("cloud_unavailable", ERRORS["cloud_unavailable"][0], 422, ERRORS["cloud_unavailable"][1])
+            try:
+                login = await self.cloud.allocate_device()
+            except Exception as error:  # noqa: BLE001
+                raise DeviceError("cloud_unavailable", ERRORS["cloud_unavailable"][0], 503, ERRORS["cloud_unavailable"][1]) from error
+            session.expect["slot"] = str(login["slot"])
+            session.setup = {
+                "mqtt_server": str(login["server"]),
+                "mqtt_user": str(login["username"]),
+                "mqtt_password": str(login["password"]),
+                "mqtt_client_id": str(login["username"]),
+                "mqtt_topic_prefix": str(login["topic_prefix"]),
+                "mqtt_ca_pem": str(login.get("ca_pem") or ""),
+            }
         self.sessions[session.id] = session
         await self._save(session)
         log.info("provisioning started", extra={"session": session.id, "plugin": plugin.id, "model": model, "experimental": session.experimental})
@@ -353,6 +390,8 @@ class ProvisioningEngine:
 
     def _matches(self, session: ProvisioningSession, candidate: Candidate) -> bool:
         expect = session.expect
+        if "slot" in expect:
+            return str(candidate.details.get("slot") or "") == expect["slot"]
         if "exclude" in expect:
             if candidate.unique_id in set(filter(None, expect["exclude"].split(","))):
                 return False
@@ -376,9 +415,20 @@ class ProvisioningEngine:
             if candidate is None:
                 await self._fail(session, "device_not_found")
                 return
+            if "exclude" in session.expect:
+                excluded = set(filter(None, session.expect["exclude"].split(",")))
+                others = [
+                    c for c in self.discovery.list(adapter_id=session.adapter_id)
+                    if c.id != candidate.id and c.unique_id not in excluded and c.paired_device_id is None and c.last_seen >= session.created_at - 5
+                ]
+                if others:
+                    await self._fail(session, "several_new_appliances")
+                    return
+                await self._own(session, candidate.unique_id)
             session.candidate_id = candidate.id
             if candidate.paired_device_id:
                 session.device_id = candidate.paired_device_id
+                self._close_window(session)
                 await self._move(session, S.CONNECTED, "already_paired")
                 return
             credentials = dict(self._secrets.get(session_id, {}))
@@ -399,6 +449,18 @@ class ProvisioningEngine:
         finally:
             self._tasks.pop(session_id, None)
 
+    async def _own(self, session: ProvisioningSession, unique_id: str) -> None:
+        """Records that this gateway set up the appliance, so it stays visible here (and only here) afterwards."""
+        adapter = self.registry.adapters.get(session.adapter_id)
+        if adapter is not None and hasattr(adapter, "owned"):
+            adapter.owned.add(unique_id)
+            await self.db.set_meta("rethink_owned", json.dumps(sorted(adapter.owned)))
+
+    def _close_window(self, session: ProvisioningSession) -> None:
+        adapter = self.registry.adapters.get(session.adapter_id)
+        if adapter is not None and hasattr(adapter, "windows"):
+            adapter.windows.pop(session.id, None)
+
     def _on_pairing(self, pairing: Pairing) -> None:
         for session in self.sessions.values():
             if session.state in TERMINAL or session.candidate_id != pairing.candidate_id:
@@ -407,6 +469,7 @@ class ProvisioningEngine:
                 session.device_id = pairing.device_id
                 session.pairing_id = pairing.id
                 self._secrets.pop(session.id, None)
+                self._close_window(session)
                 asyncio.get_running_loop().create_task(self._move(session, S.CONNECTED))
             elif pairing.status == "needs_input":
                 session.pairing_id = pairing.id

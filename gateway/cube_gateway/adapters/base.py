@@ -245,6 +245,8 @@ class AdapterContext:
         self.http = http or httpx.AsyncClient(timeout=httpx.Timeout(6.0, connect=3.0), follow_redirects=False)
         #: The gateway's MdnsService, for adapters that read state from mDNS announcements (SONOFF LAN mode).
         self.mdns: Any = None
+        #: The gateway's CloudLink to the device broker (server-hosted mode), else None.
+        self.cloud: Any = None
 
     def logger(self, adapter_id: str) -> logging.Logger:
         return logging.getLogger(f"cube.adapter.{adapter_id}")

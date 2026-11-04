@@ -142,6 +142,12 @@ class LgRethinkAdapter(DeviceAdapter):
         self._listeners: dict[str, StateCallback] = {}
         self._debounce: dict[str, asyncio.TimerHandle] = {}
         self._last_on_mode: dict[str, str] = {}
+        #: Server-hosted mode (CUBE_RETHINK_ONLY_PROVISIONED): ReThink is shared by many apartments, so this
+        #: gateway only sees appliances it set up or paired (`owned`), plus, while one of its LG setups is
+        #: running, appliances that ReThink did not know when that setup started (`windows`: session -> known ids).
+        self.only_owned = settings.rethink_only_provisioned
+        self.owned: set[str] = set()
+        self.windows: dict[str, set[str]] = {}
         #: Values sent to settings the appliance does not echo: command topic -> (payload, state when sent).
         #: Shown unconfirmed until the appliance reports something new on the state topic.
         self._assumed: dict[str, tuple[str, str | None]] = {}
@@ -252,7 +258,19 @@ class LgRethinkAdapter(DeviceAdapter):
 
     # ---- model ----
 
+    def visible(self, device_id: str) -> bool:
+        if not self.only_owned or device_id in self.owned:
+            return True
+        return any(device_id not in known for known in self.windows.values())
+
+    def all_device_ids(self) -> list[str]:
+        """Every appliance on ReThink, whoever owns it (used to snapshot what is known when a setup starts)."""
+        return self._device_ids()
+
     def device_ids(self) -> list[str]:
+        return [i for i in self._device_ids() if self.visible(i)]
+
+    def _device_ids(self) -> list[str]:
         ids = set(self.configs)
         for topic in self.values:
             parts = topic[len(self.prefix) + 1 :].split("/")

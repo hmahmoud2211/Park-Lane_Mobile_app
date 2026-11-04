@@ -148,7 +148,8 @@ export async function resolveEndpoint(gateway: StoredGateway, options: { signal?
     }
   }
 
-  if (options.scan === false) {
+  // A gateway on CUBE's server has no home address: there is nothing on the Wi-Fi to look for.
+  if (options.scan === false || !gateway.endpoints.lan) {
     return null;
   }
   const found = await scanLan({ signal: options.signal }).catch(() => [] as FoundGateway[]);
@@ -167,9 +168,19 @@ export interface PairPayload {
   baseUrl: string;
   gatewayId: string | null;
   code: string | null;
+  /** The gateway runs on CUBE's server and is reached through the relay, not the home Wi-Fi. */
+  remote: boolean;
 }
 
-/** Reads the QR code the gateway prints in its logs: cubegw://pair?host=<ip:port>&id=<gateway_id>&code=<setup_code>. */
+/** An https address the app may use for a gateway on CUBE's server, e.g. https://cube-relay.ems-iot.com/relay/v1/g/<id>. */
+export function isRemoteGatewayUrl(value: string): boolean {
+  return /^https:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~\-/]*)?$/.test(value.trim());
+}
+
+/**
+ * Reads a pairing code. Home gateways print cubegw://pair?host=<ip:port>&id=<gateway_id>&code=<setup_code> in
+ * their logs; a gateway on CUBE's server comes as cubegw://pair?url=<https base>&id=<gateway_id>&code=<setup_code>.
+ */
 export function parsePairPayload(data: string): PairPayload | null {
   const text = data.trim();
   if (!text.toLowerCase().startsWith(gatewayConfig.pairScheme)) {
@@ -187,9 +198,15 @@ export function parsePairPayload(data: string): PairPayload | null {
       }
     }
   }
+  const gatewayId = params.get('id') ?? null;
+  const code = params.get('code') ?? null;
+  const url = params.get('url');
+  if (url) {
+    return isRemoteGatewayUrl(url) ? { baseUrl: gatewayBaseUrl(url), gatewayId, code, remote: true } : null;
+  }
   const host = params.get('host');
   if (!host || !/^[A-Za-z0-9.\-:[\]]+$/.test(host)) {
     return null;
   }
-  return { baseUrl: gatewayBaseUrl(host), gatewayId: params.get('id') ?? null, code: params.get('code') ?? null };
+  return { baseUrl: gatewayBaseUrl(host), gatewayId, code, remote: false };
 }

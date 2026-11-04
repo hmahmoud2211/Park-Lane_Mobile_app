@@ -125,3 +125,14 @@ back-off and re-read `/devices` after `ready`.
 `device_unreachable` / `adapter_timeout` 504 · `auth_required` / `local_key_required` / `pairing_rejected` /
 `device_auth_failed` 401-like but sent as 409 (they need user input, not a new session) · `device_rejected` /
 `adapter_crashed` / `adapter_error` 502 · `internal` 500.
+
+## Relay control plane (relay mode)
+
+Called by gateways with their tunnel secret (`Authorization: Bearer <gateway_id>.<secret>`), only when the relay has a
+device broker configured (`GET /relay/v1/health` → `device_broker: true`):
+
+| Method & path | What it does |
+| --- | --- |
+| `POST /relay/v1/mqtt/gateway` | The gateway's own broker login: `{url, username, password, prefix: "cube/<gateway_id>", ca_pem}` (re-issued on each call) |
+| `POST /relay/v1/mqtt/devices` | A login for one new device: `{slot, server, username, password, topic_prefix: "cube/<gateway_id>/<slot>", ca_pem}` |
+| `DELETE /relay/v1/mqtt/devices/{slot}` | Removes that device's login |
