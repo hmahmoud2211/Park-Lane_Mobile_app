@@ -1,13 +1,13 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { AppState } from 'react-native';
 
-import * as api from '../services/ems/emsApi';
-import { EmsRealtime } from '../services/ems/realtime';
-import { sessionStore } from '../services/ems/sessionStore';
-import { sortDevices } from '../services/home/capabilities';
-import * as homeApi from '../services/home/homeApi';
-import type { EmsEvent, EmsUser, RealtimeState } from '../types/ems.types';
-import type { Device, Home, Room } from '../types/home.types';
+import * as api from '../services/emsApi';
+import { EmsRealtime } from '../services/realtime';
+import { sessionStore } from '../services/sessionStore';
+import { sortDevices } from '../../../services/home/capabilities';
+import * as homeApi from '../../../services/home/homeApi';
+import type { EmsEvent, EmsUser, RealtimeState } from '../../../types/ems.types';
+import type { Device, Home, Room } from '../../../types/home.types';
 
 /**
  * The EMS session and the resident's home: their unit, its hub, rooms and

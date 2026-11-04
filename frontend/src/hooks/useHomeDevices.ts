@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 
-import { EmsError } from '../services/ems/emsApi';
+import { EmsError } from '../features/ems/services/emsApi';
 import { applyOptimistic } from '../services/home/capabilities';
 import * as homeApi from '../services/home/homeApi';
 import type { Command, Device } from '../types/home.types';
-import { useEms } from './useEms';
+import { useEms } from '../features/ems/hooks/useEms';
 
 export type DeviceBusy = 'command' | 'edit';
 

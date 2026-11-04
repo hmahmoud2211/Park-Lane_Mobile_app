@@ -1,10 +1,10 @@
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { EmsError } from '../services/ems/emsApi';
+import { EmsError } from '../features/ems/services/emsApi';
 import * as homeApi from '../services/home/homeApi';
 import type { FlowStep } from '../types/home.types';
-import { useEms } from './useEms';
+import { useEms } from '../features/ems/hooks/useEms';
 
 /** Where brand sign-in pages send the browser back to (APP_RETURN_URL on the backend). */
 const RETURN_URL = 'parklane://accounts';

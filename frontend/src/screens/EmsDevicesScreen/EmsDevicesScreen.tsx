@@ -5,7 +5,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-nativ
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
-import { EmsAccountPanel } from '../../components/ems/EmsAccountPanel';
+import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
 import { GatewayStatusRow } from '../../components/gateway/GatewayStatusRow';
 import { DeviceCard } from '../../components/home/DeviceCard';
 import { BottomBar } from '../../components/layout/BottomBar';

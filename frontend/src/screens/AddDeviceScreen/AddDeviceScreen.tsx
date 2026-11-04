@@ -22,7 +22,7 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useBrands } from '../../hooks/useBrands';
-import { useEms } from '../../hooks/useEms';
+import { useEms } from '../../features/ems/hooks/useEms';
 import { useGateway } from '../../hooks/useGateway';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { Brand } from '../../types/gateway.types';

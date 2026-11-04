@@ -1,5 +1,5 @@
-import { emsConfig } from '../../constants/emsConfig';
-import type { EmsEvent, RealtimeState } from '../../types/ems.types';
+import { emsConfig } from '../../../constants/emsConfig';
+import type { EmsEvent, RealtimeState } from '../../../types/ems.types';
 
 /**
  * The backend's realtime channel (/api/events). Authenticates with the first

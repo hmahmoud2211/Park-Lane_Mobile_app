@@ -6,7 +6,7 @@ import { ScrollView, View } from 'react-native';
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
-import { EmsAccountPanel } from '../../components/ems/EmsAccountPanel';
+import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
 import { DeviceCard } from '../../components/home/DeviceCard';
 import { DeviceControl } from '../../components/home/DeviceControl';
 import { BottomBar } from '../../components/layout/BottomBar';

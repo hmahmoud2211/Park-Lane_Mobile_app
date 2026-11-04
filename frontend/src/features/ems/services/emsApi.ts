@@ -1,4 +1,4 @@
-import type { EmsUser } from '../../types/ems.types';
+import type { EmsUser } from '../../../types/ems.types';
 import { call } from './emsHttp';
 
 /** EMS accounts. The home (devices, rooms) is in services/home/homeApi.ts. */

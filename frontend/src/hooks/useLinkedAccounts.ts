@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { EmsError } from '../services/ems/emsApi';
+import { EmsError } from '../features/ems/services/emsApi';
 import * as homeApi from '../services/home/homeApi';
 import type { FlowStep, LinkedAccount } from '../types/home.types';
-import { useEms } from './useEms';
+import { useEms } from '../features/ems/hooks/useEms';
 
 function messageOf(error: unknown): string {
   return error instanceof EmsError ? error.message : 'Something went wrong. Try again.';

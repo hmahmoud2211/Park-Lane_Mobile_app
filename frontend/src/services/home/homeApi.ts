@@ -1,4 +1,4 @@
-import { call } from '../ems/emsHttp';
+import { call } from '../../features/ems/services/emsHttp';
 import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room } from '../../types/home.types';
 
 /**

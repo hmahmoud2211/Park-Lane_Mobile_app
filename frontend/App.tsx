@@ -10,7 +10,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider } from './src/context/AppContext';
-import { EmsProvider } from './src/context/EmsContext';
+import { EmsProvider } from './src/features/ems/context/EmsContext';
 import { GatewayProvider } from './src/context/GatewayContext';
 import { ParkingDemoProvider } from './src/features/parking/context/ParkingDemoContext';
 import { ThemeProvider } from './src/context/ThemeContext';

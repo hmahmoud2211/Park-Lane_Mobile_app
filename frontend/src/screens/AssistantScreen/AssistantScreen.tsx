@@ -15,7 +15,7 @@ import { images } from '../../constants/images';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useAssistantChat } from '../../features/assistant/hooks/useAssistantChat';
-import { useEms } from '../../hooks/useEms';
+import { useEms } from '../../features/ems/hooks/useEms';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { useSideNav } from '../../hooks/useSideNav';
 import type { AssistantResident } from '../../features/assistant/services/assistant.types';
