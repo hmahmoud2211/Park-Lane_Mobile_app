@@ -1,0 +1,98 @@
+name: Checks
+
+# Typecheck, lint and tests for the app (frontend/) and the device backend (backend/), on every pull
+# request and push to Master that touches them. The CUBE gateway has its own workflow
+# (cube-gateway.yml), and app builds run on EAS from "App build (EAS)".
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'shared/**'
+      - '.github/workflows/ci.yml'
+  push:
+    branches: [Master]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'shared/**'
+      - '.github/workflows/ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: App (frontend/)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx expo lint
+
+      - name: Parking demo checks
+        run: npm run check:parking
+
+      - name: Web export
+        run: npx expo export --platform web --output-dir dist
+
+  backend:
+    name: Device backend (backend/)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # TypeScript and Node's types only, for the typecheck: the backend has no runtime packages.
+      - name: Install typecheck tools
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      # The image ships only src/ and scripts/: this proves it starts and answers on its own.
+      - name: Docker image starts
+        run: |
+          docker build -t parklane-backend:ci .
+          docker run -d --name parklane-backend-ci -p 127.0.0.1:8787:8787 -e PORT=8787 -e DATA_DIR=/tmp/parklane parklane-backend:ci
+          for _ in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/home || true)"
+            if [ "$code" = 401 ]; then echo "Backend answered 401 without a token, as it should."; exit 0; fi
+            sleep 1
+          done
+          docker logs parklane-backend-ci
+          exit 1
