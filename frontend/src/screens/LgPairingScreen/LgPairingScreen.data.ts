@@ -1,4 +1,4 @@
-import type { LgPairingStep } from '../../hooks/useLgPairing';
+import type { LgPairingStep } from '../../features/lg/hooks/useLgPairing';
 
 /** Copy for adding an LG AC from the phone through the CUBE Gateway and ReThink (ported from Master). */
 

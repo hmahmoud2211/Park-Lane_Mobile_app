@@ -16,7 +16,7 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { LG_PLUGIN_ID } from '../../hooks/useLgPairing';
+import { LG_PLUGIN_ID } from '../../features/lg/hooks/useLgPairing';
 import { useBrands } from '../../hooks/useBrands';
 import { useEms } from '../../hooks/useEms';
 import { useGateway } from '../../hooks/useGateway';

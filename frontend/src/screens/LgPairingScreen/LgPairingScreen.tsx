@@ -9,7 +9,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ProgressStepper, type ProgressStep } from '../../components/ui/ProgressStepper';
 import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useLgPairing } from '../../hooks/useLgPairing';
+import { useLgPairing } from '../../features/lg/hooks/useLgPairing';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { toAppDeviceId } from '../../services/gateway/deviceMapping';
 import { openWifiSettings } from '../../services/provisioning/wifiJoin';
