@@ -1,5 +1,5 @@
-import { call } from '../../features/ems/services/emsHttp';
-import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room } from '../../types/home.types';
+import { call } from '../../ems/services/emsHttp';
+import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room } from '../../../types/home.types';
 
 /**
  * The resident's home, through the EMS backend (backend/src/ha). The app never

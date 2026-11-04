@@ -1,15 +1,15 @@
 import { useMemo, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import { isOn, kindGlyph, kindLabel, stateLine } from '../../services/home/capabilities';
-import type { Device } from '../../types/home.types';
-import type { AppTheme } from '../../types/theme.types';
-import { AppIcon } from '../common/AppIcon';
-import { AppText } from '../common/AppText';
-import { GlassSurface } from '../common/GlassSurface';
-import { ToggleSwitch } from '../common/ToggleSwitch';
-import { StatusChip } from '../ui/StatusChip';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import { isOn, kindGlyph, kindLabel, stateLine } from '../services/capabilities';
+import type { Device } from '../../../types/home.types';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppIcon } from '../../../components/common/AppIcon';
+import { AppText } from '../../../components/common/AppText';
+import { GlassSurface } from '../../../components/common/GlassSurface';
+import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
+import { StatusChip } from '../../../components/ui/StatusChip';
 
 export interface DeviceCardProps {
   device: Device;

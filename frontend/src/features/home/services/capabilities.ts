@@ -1,5 +1,5 @@
-import type { IconSet } from '../../components/ui/ServiceTile';
-import type { Capability, CapabilityType, Command, Device, DeviceKind, Room } from '../../types/home.types';
+import type { IconSet } from '../../../components/ui/ServiceTile';
+import type { Capability, CapabilityType, Command, Device, DeviceKind, Room } from '../../../types/home.types';
 
 /** Reading devices and predicting what a command will do, for the cards and controls. Pure. */
 

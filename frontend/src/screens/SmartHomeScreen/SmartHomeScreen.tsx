@@ -18,9 +18,9 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useHomeDevices } from '../../hooks/useHomeDevices';
+import { useHomeDevices } from '../../features/home/hooks/useHomeDevices';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { capabilityOf, isOn, kindGlyph, kindLabel, roomGlyph, toggleCommand } from '../../services/home/capabilities';
+import { capabilityOf, isOn, kindGlyph, kindLabel, roomGlyph, toggleCommand } from '../../features/home/services/capabilities';
 import type { Command, Device, DeviceKind } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 // My Unit's own scale, so the two screens' small type is drawn at one size.

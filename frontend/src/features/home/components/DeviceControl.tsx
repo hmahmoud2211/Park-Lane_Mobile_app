@@ -2,8 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { colors } from '../../theme/colors';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { colors } from '../../../theme/colors';
 import type {
   Capability,
   ClimateCapability,
@@ -14,12 +14,12 @@ import type {
   FanCapability,
   LockCapability,
   MediaCapability,
-} from '../../types/home.types';
-import type { AppTheme } from '../../types/theme.types';
-import { AppButton } from '../common/AppButton';
-import { AppText } from '../common/AppText';
-import { ToggleSwitch } from '../common/ToggleSwitch';
-import { FilterChip } from '../ui/FilterChip';
+} from '../../../types/home.types';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppButton } from '../../../components/common/AppButton';
+import { AppText } from '../../../components/common/AppText';
+import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
+import { FilterChip } from '../../../components/ui/FilterChip';
 import { LevelSlider } from './LevelSlider';
 
 export interface DeviceControlProps {

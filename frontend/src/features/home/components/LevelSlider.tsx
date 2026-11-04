@@ -2,10 +2,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View, type GestureResponderEvent } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { clamp } from '../../utils/responsive';
-import { AppText } from '../common/AppText';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { clamp } from '../../../utils/responsive';
+import { AppText } from '../../../components/common/AppText';
 
 export interface LevelSliderProps {
   label: string;

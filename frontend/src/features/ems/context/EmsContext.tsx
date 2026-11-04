@@ -4,8 +4,8 @@ import { AppState } from 'react-native';
 import * as api from '../services/emsApi';
 import { EmsRealtime } from '../services/realtime';
 import { sessionStore } from '../services/sessionStore';
-import { sortDevices } from '../../../services/home/capabilities';
-import * as homeApi from '../../../services/home/homeApi';
+import { sortDevices } from '../../home/services/capabilities';
+import * as homeApi from '../../home/services/homeApi';
 import type { EmsEvent, EmsUser, RealtimeState } from '../../../types/ems.types';
 import type { Device, Home, Room } from '../../../types/home.types';
 

@@ -21,7 +21,7 @@ import { useBrands } from '../../hooks/useBrands';
 import { useEms } from '../../features/ems/hooks/useEms';
 import { useGateway } from '../../hooks/useGateway';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import * as homeApi from '../../services/home/homeApi';
+import * as homeApi from '../../features/home/services/homeApi';
 import type { ConnectionMethod, MethodGroup } from '../../types/gateway.types';
 import type { Integration } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
