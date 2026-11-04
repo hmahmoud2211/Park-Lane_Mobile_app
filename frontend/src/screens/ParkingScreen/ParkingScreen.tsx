@@ -13,7 +13,7 @@ import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ListRow } from '../../components/parking/Rows';
 import { Panel } from '../../components/parking/Panel';
-import { ParkingButton } from '../../components/parking/ParkingButton';
+import { ParkingButton } from '../../components/ui/ParkingButton';
 import { reservationIcon, reservationLines } from '../../components/parking/presenters';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';

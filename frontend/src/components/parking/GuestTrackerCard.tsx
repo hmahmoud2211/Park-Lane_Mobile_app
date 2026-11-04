@@ -6,7 +6,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import type { GuestTracker, TrackState, TrackStep } from '../../services/parking/tracking';
 import type { AppTheme } from '../../types/theme.types';
 import { AppText } from '../common/AppText';
-import { toneLook } from './Notice';
+import { toneLook } from '../feedback/Notice';
 
 const SHORT: Record<TrackStep['key'], string> = {
   booked: 'Booked',

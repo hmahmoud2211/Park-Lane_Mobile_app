@@ -3,9 +3,9 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { Notice } from '../../components/parking/Notice';
+import { Notice } from '../../components/feedback/Notice';
 import { Panel } from '../../components/parking/Panel';
-import { ParkingButton } from '../../components/parking/ParkingButton';
+import { ParkingButton } from '../../components/ui/ParkingButton';
 import { ParkingFrame } from '../../components/parking/ParkingFrame';
 import { SiteMap } from '../../components/parking/site-map/SiteMap';
 import { useAppTheme } from '../../hooks/useAppTheme';

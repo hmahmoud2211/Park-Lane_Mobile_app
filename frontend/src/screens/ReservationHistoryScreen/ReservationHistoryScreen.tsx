@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { AppText } from '../../components/common/AppText';
 import { ChipGroup } from '../../components/parking/Controls';
 import { Panel } from '../../components/parking/Panel';
-import { ParkingButton } from '../../components/parking/ParkingButton';
+import { ParkingButton } from '../../components/ui/ParkingButton';
 import { ParkingFrame } from '../../components/parking/ParkingFrame';
 import { ListRow } from '../../components/parking/Rows';
 import { reservationIcon, reservationLines } from '../../components/parking/presenters';

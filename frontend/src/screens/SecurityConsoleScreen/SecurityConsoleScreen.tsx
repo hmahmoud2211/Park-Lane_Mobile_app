@@ -4,11 +4,11 @@ import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { ChipGroup, Field, type ChipOption } from '../../components/parking/Controls';
-import { Notice, type NoticeTone } from '../../components/parking/Notice';
+import { Notice, type NoticeTone } from '../../components/feedback/Notice';
 import { Panel } from '../../components/parking/Panel';
-import { ParkingButton } from '../../components/parking/ParkingButton';
+import { ParkingButton } from '../../components/ui/ParkingButton';
 import { ParkingFrame } from '../../components/parking/ParkingFrame';
-import { QrScanner } from '../../components/parking/QrScanner';
+import { QrScanner } from '../../components/common/QrScanner';
 import { ListRow } from '../../components/parking/Rows';
 import { notificationIcon } from '../../components/parking/presenters';
 import { useAppTheme } from '../../hooks/useAppTheme';

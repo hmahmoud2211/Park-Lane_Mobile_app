@@ -8,7 +8,7 @@ import type { AppTheme } from '../../types/theme.types';
 import { AppButton } from '../common/AppButton';
 import { AppInput } from '../common/AppInput';
 import { AppText } from '../common/AppText';
-import { Notice } from '../parking/Notice';
+import { Notice } from '../feedback/Notice';
 import { FilterChip } from '../ui/FilterChip';
 import { NeonPanel } from '../ui/NeonPanel';
 import { PanelHeading } from '../ui/PanelHeading';

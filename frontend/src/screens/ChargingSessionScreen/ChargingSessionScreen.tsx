@@ -4,9 +4,9 @@ import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { InfoRow } from '../../components/parking/Controls';
-import { Notice, type NoticeTone } from '../../components/parking/Notice';
+import { Notice, type NoticeTone } from '../../components/feedback/Notice';
 import { Panel } from '../../components/parking/Panel';
-import { ParkingButton } from '../../components/parking/ParkingButton';
+import { ParkingButton } from '../../components/ui/ParkingButton';
 import { ParkingFrame } from '../../components/parking/ParkingFrame';
 import { chargingStateLabel } from '../../components/parking/presenters';
 import { ProgressBar } from '../../components/ui/ProgressBar';

@@ -12,7 +12,7 @@ import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Notice } from '../../components/parking/Notice';
+import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';

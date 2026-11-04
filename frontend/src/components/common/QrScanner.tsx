@@ -4,9 +4,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
-import { Notice } from './Notice';
-import { ParkingButton } from './ParkingButton';
+import { AppText } from './AppText';
+import { Notice } from '../feedback/Notice';
+import { ParkingButton } from '../ui/ParkingButton';
 
 export interface QrScannerProps {
   /** Called once per code; the scanner ignores repeats of the same code briefly. */

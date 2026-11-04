@@ -11,7 +11,7 @@ import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Notice } from '../../components/parking/Notice';
+import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';

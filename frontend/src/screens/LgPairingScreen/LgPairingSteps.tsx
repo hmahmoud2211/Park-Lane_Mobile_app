@@ -6,7 +6,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, View } from 'react-nat
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { DeviceConnectionStatus, type ConnectionTone } from '../../components/ui/DeviceConnectionStatus';
-import { QrScanner } from '../../components/parking/QrScanner';
+import { QrScanner } from '../../components/common/QrScanner';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PairingStep, type PairingStepState } from '../../components/ui/PairingStep';

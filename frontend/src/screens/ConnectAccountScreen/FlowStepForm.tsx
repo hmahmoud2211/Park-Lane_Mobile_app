@@ -6,7 +6,7 @@ import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
-import { Notice } from '../../components/parking/Notice';
+import { Notice } from '../../components/feedback/Notice';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { FlowField, FlowStep } from '../../types/home.types';
