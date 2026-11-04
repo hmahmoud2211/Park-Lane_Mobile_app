@@ -1,10 +1,6 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { ServerResponse } from 'node:http';
 
-import { ApiError } from './errors.ts';
-
-/** Small response and body helpers shared by the API routes. */
-
-const MAX_BODY_BYTES = 16 * 1024;
+/** Response helpers shared by the API routes: JSON answers and redirects. */
 
 export function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
   const text = JSON.stringify(body);
@@ -38,33 +34,3 @@ export function redirect(res: ServerResponse, location: string) {
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
-
-async function readText(req: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of req) {
-    size += (chunk as Buffer).length;
-    if (size > MAX_BODY_BYTES) {
-      throw new ApiError('bad_request', 'Request body too large.');
-    }
-    chunks.push(chunk as Buffer);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
-
-export async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const text = await readText(req);
-  if (!text) {
-    return {};
-  }
-  try {
-    const value = JSON.parse(text);
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error('not an object');
-    }
-    return value as Record<string, unknown>;
-  } catch {
-    throw new ApiError('bad_request', 'The body must be a JSON object.');
-  }
-}
-
