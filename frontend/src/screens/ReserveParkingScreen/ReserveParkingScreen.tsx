@@ -5,19 +5,19 @@ import { Pressable, View, type ScrollViewInstance } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
-import { CheckRow, ChipGroup, Field, Stepper, type ChipOption } from '../../components/parking/Controls';
+import { CheckRow, ChipGroup, Field, Stepper, type ChipOption } from '../../features/parking/components/Controls';
 import { Notice } from '../../components/feedback/Notice';
-import { Panel } from '../../components/parking/Panel';
+import { Panel } from '../../features/parking/components/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { PARKING_BODY_GAP, ParkingFrame } from '../../components/parking/ParkingFrame';
-import { ListRow } from '../../components/parking/Rows';
-import { SiteMap, type BayMark } from '../../components/parking/site-map/SiteMap';
+import { PARKING_BODY_GAP, ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { ListRow } from '../../features/parking/components/Rows';
+import { SiteMap, type BayMark } from '../../features/parking/components/site-map/SiteMap';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useParking } from '../../hooks/useParking';
-import { searchSpaces, type SpaceOption } from '../../services/parking/availability';
-import { chargingRateKw } from '../../services/parking/charging';
-import { validateRequest, type ReservationInput } from '../../services/parking/reservations';
-import { findReservation, myParking } from '../../services/parking/selectors';
+import { useParking } from '../../features/parking/hooks/useParking';
+import { searchSpaces, type SpaceOption } from '../../features/parking/services/availability';
+import { chargingRateKw } from '../../features/parking/services/charging';
+import { validateRequest, type ReservationInput } from '../../features/parking/services/reservations';
+import { findReservation, myParking } from '../../features/parking/services/selectors';
 import {
   addDaysToKey,
   cairoDateKey,
@@ -28,8 +28,8 @@ import {
   formatTime,
   ms,
   relativeDayLabel,
-} from '../../services/parking/time';
-import { ParkingError } from '../../services/parking/tx';
+} from '../../features/parking/services/time';
+import { ParkingError } from '../../features/parking/services/tx';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   CONNECTORS,

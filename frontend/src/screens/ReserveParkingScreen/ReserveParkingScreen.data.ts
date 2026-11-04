@@ -1,6 +1,6 @@
-import type { PolicySettings } from '../../services/parking/policy';
-import { MINUTE_MS, cairoDateKey, cairoMinuteOfDay, cairoToUtc, ms } from '../../services/parking/time';
-import type { ConnectorType, ParkingDb, Reservation } from '../../services/parking/types';
+import type { PolicySettings } from '../../features/parking/services/policy';
+import { MINUTE_MS, cairoDateKey, cairoMinuteOfDay, cairoToUtc, ms } from '../../features/parking/services/time';
+import type { ConnectorType, ParkingDb, Reservation } from '../../features/parking/services/types';
 
 /** Two steps: what and when, then where (and confirm). */
 export type Step = 'details' | 'space';

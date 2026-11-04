@@ -6,8 +6,8 @@
 import { memo } from 'react';
 import { Circle, Defs, G, Line, Pattern, Polygon, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 
-import { useAppTheme } from '../../../hooks/useAppTheme';
-import type { Lang } from '../../../services/parking/i18n';
+import { useAppTheme } from '../../../../hooks/useAppTheme';
+import type { Lang } from '../../services/i18n';
 import {
   MAP_SIZE,
   aisleLabels,
@@ -19,8 +19,8 @@ import {
   ramps,
   roads,
   walkways,
-} from '../../../services/parking/site';
-import type { Building, Charger, Connector, Gate, LevelId, MapRect, ParkingSpace } from '../../../services/parking/types';
+} from '../../services/site';
+import type { Building, Charger, Connector, Gate, LevelId, MapRect, ParkingSpace } from '../../services/types';
 import { chevronsAlong, pointsAttr, rectCentre, type BayState, type ChargerState } from './mapModel';
 import { mapStrings } from './mapStrings';
 

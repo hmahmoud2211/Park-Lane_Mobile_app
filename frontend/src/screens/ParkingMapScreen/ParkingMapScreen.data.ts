@@ -1,4 +1,4 @@
-import type { Lang } from '../../services/parking/i18n';
+import type { Lang } from '../../features/parking/services/i18n';
 
 /** The map page's own words. Arabic only reaches it from a guest's pass. */
 export interface MapCopy {

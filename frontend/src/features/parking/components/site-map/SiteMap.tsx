@@ -12,18 +12,18 @@ import {
 } from 'react-native';
 import Svg, { G } from 'react-native-svg';
 
-import { useAppTheme } from '../../../hooks/useAppTheme';
-import { useReduceMotion } from '../../../hooks/useReduceMotion';
-import type { Lang } from '../../../services/parking/i18n';
-import { stepText } from '../../../services/parking/i18n';
-import { MAP_SIZE, ramps } from '../../../services/parking/site';
-import type { LevelId, MapPoint, ParkingDb, ParkingSpace } from '../../../services/parking/types';
-import type { AppTheme } from '../../../types/theme.types';
-import { AppIcon } from '../../common/AppIcon';
-import { AppText } from '../../common/AppText';
-import { DirectionView } from '../../common/DirectionView';
+import { useAppTheme } from '../../../../hooks/useAppTheme';
+import { useReduceMotion } from '../../../../hooks/useReduceMotion';
+import type { Lang } from '../../services/i18n';
+import { stepText } from '../../services/i18n';
+import { MAP_SIZE, ramps } from '../../services/site';
+import type { LevelId, MapPoint, ParkingDb, ParkingSpace } from '../../services/types';
+import type { AppTheme } from '../../../../types/theme.types';
+import { AppIcon } from '../../../../components/common/AppIcon';
+import { AppText } from '../../../../components/common/AppText';
+import { DirectionView } from '../../../../components/common/DirectionView';
 import { Segmented } from '../Controls';
-import { NeonPanel } from '../../ui/NeonPanel';
+import { NeonPanel } from '../../../../components/ui/NeonPanel';
 import {
   BayChargeBadges,
   BayLayer,

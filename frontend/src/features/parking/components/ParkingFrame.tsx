@@ -2,17 +2,17 @@ import { StatusBar } from 'expo-status-bar';
 import { useMemo, type ReactNode, type Ref } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 
-import { images } from '../../constants/images';
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { useSideNav } from '../../hooks/useSideNav';
-import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
-import { DirectionView } from '../common/DirectionView';
-import { BottomBar, NAV_BAR_CLEARANCE } from '../layout/BottomBar';
-import { PageHeader } from '../layout/PageHeader';
-import { ResponsiveColumns } from '../layout/ResponsiveColumns';
-import { ScreenWrapper } from '../layout/ScreenWrapper';
+import { images } from '../../../constants/images';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { useScreenLayout } from '../../../hooks/useScreenLayout';
+import { useSideNav } from '../../../hooks/useSideNav';
+import { MAX_CONTENT_WIDTH } from '../../../utils/responsive';
+import { DirectionView } from '../../../components/common/DirectionView';
+import { BottomBar, NAV_BAR_CLEARANCE } from '../../../components/layout/BottomBar';
+import { PageHeader } from '../../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../../components/layout/ResponsiveColumns';
+import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 
 export interface ParkingFrameProps {
   title: string;

@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { GuestTracker, TrackState, TrackStep } from '../../services/parking/tracking';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
-import { toneLook } from '../feedback/Notice';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { GuestTracker, TrackState, TrackStep } from '../services/tracking';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
+import { toneLook } from '../../../components/feedback/Notice';
 
 const SHORT: Record<TrackStep['key'], string> = {
   booked: 'Booked',

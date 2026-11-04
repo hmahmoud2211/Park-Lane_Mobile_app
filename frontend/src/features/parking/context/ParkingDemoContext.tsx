@@ -9,13 +9,13 @@ import {
 } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { setRandomSource } from '../services/parking/crypto';
-import { siteInfo } from '../services/parking/policy';
-import { ParkingRepository } from '../services/parking/repository';
-import { ParkingService } from '../services/parking/service';
-import { DEMO_RESIDENT_ID } from '../services/parking/site';
-import { createDeviceStorage } from '../services/parking/storage';
-import type { ParkingDb } from '../services/parking/types';
+import { setRandomSource } from '../services/crypto';
+import { siteInfo } from '../services/policy';
+import { ParkingRepository } from '../services/repository';
+import { ParkingService } from '../services/service';
+import { DEMO_RESIDENT_ID } from '../services/site';
+import { createDeviceStorage } from '../services/storage';
+import type { ParkingDb } from '../services/types';
 
 // Native has no global crypto; expo-crypto supplies the secure bytes for pass tokens.
 setRandomSource((bytes) => Crypto.getRandomValues(bytes));

@@ -3,11 +3,11 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import type { QrImageSource } from '../../utils/passImage.shared';
-import { AppText } from '../common/AppText';
-import { StatusChip, type StatusTone } from '../ui/StatusChip';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import type { QrImageSource } from '../../../utils/passImage.shared';
+import { AppText } from '../../../components/common/AppText';
+import { StatusChip, type StatusTone } from '../../../components/ui/StatusChip';
 
 /* --------------------------------------------------------- List row */
 

@@ -11,10 +11,10 @@ import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { ListRow } from '../../components/parking/Rows';
-import { Panel } from '../../components/parking/Panel';
+import { ListRow } from '../../features/parking/components/Rows';
+import { Panel } from '../../features/parking/components/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { reservationIcon, reservationLines } from '../../components/parking/presenters';
+import { reservationIcon, reservationLines } from '../../features/parking/components/presenters';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
 import { ParkingSign } from '../../components/ui/ParkingSign';
@@ -23,7 +23,7 @@ import { StatTile } from '../../components/ui/StatTile';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useParking } from '../../hooks/useParking';
+import { useParking } from '../../features/parking/hooks/useParking';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import {
   dashboardCounts,
@@ -32,8 +32,8 @@ import {
   reservationView,
   residentActivity,
   residentReservations,
-} from '../../services/parking/selectors';
-import { formatDateTime, formatTime } from '../../services/parking/time';
+} from '../../features/parking/services/selectors';
+import { formatDateTime, formatTime } from '../../features/parking/services/time';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   SEPARATOR,

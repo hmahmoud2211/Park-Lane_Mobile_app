@@ -1,6 +1,6 @@
-import { chargerFreeNow, isAvailableNow } from '../../../services/parking/availability';
-import { levels, type LevelDef } from '../../../services/parking/site';
-import type { Charger, LevelId, MapPoint, MapRect, ParkingDb, ParkingSpace, RouteStep } from '../../../services/parking/types';
+import { chargerFreeNow, isAvailableNow } from '../../services/availability';
+import { levels, type LevelDef } from '../../services/site';
+import type { Charger, LevelId, MapPoint, MapRect, ParkingDb, ParkingSpace, RouteStep } from '../../services/types';
 
 /** What a bay shows: live status, or availability for a chosen time when booking. */
 export type BayState = 'free' | 'taken' | 'occupied' | 'reserved' | 'closed' | 'unknown' | 'neutral';

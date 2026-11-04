@@ -12,10 +12,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import type { AppTheme } from '../../types/theme.types';
-import { AppText } from '../common/AppText';
-import { GlassSurface } from '../common/GlassSurface';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import type { AppTheme } from '../../../types/theme.types';
+import { AppText } from '../../../components/common/AppText';
+import { GlassSurface } from '../../../components/common/GlassSurface';
 
 /* ------------------------------------------------------------ Chips */
 

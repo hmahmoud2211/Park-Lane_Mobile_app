@@ -1,6 +1,6 @@
-import { arabicDigits, type Lang } from '../../services/parking/i18n';
-import type { DisplayStatusKey } from '../../services/parking/selectors';
-import type { ChargingState } from '../../services/parking/types';
+import { arabicDigits, type Lang } from '../../features/parking/services/i18n';
+import type { DisplayStatusKey } from '../../features/parking/services/selectors';
+import type { ChargingState } from '../../features/parking/services/types';
 import type { SavePassOutcome } from '../../utils/passImage';
 
 /**

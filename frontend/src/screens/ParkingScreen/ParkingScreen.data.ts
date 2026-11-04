@@ -1,6 +1,6 @@
 import type { IconBadge } from '../../components/common/AppIcon';
 import type { IconSet } from '../../components/ui/ServiceTile';
-import type { DashboardCounts } from '../../services/parking/selectors';
+import type { DashboardCounts } from '../../features/parking/services/selectors';
 
 /**
  * Copy and presentation rules for the Parking screen. The figures themselves

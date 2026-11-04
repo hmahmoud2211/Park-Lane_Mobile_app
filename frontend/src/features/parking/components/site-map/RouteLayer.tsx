@@ -6,10 +6,10 @@
 import { useEffect, useState } from 'react';
 import { Circle, G, Rect, Text as SvgText } from 'react-native-svg';
 
-import { useAppTheme } from '../../../hooks/useAppTheme';
-import type { Lang } from '../../../services/parking/i18n';
-import { MAP_SIZE } from '../../../services/parking/site';
-import type { LevelId, MapPoint, RouteStep } from '../../../services/parking/types';
+import { useAppTheme } from '../../../../hooks/useAppTheme';
+import type { Lang } from '../../services/i18n';
+import { MAP_SIZE } from '../../services/site';
+import type { LevelId, MapPoint, RouteStep } from '../../services/types';
 import { pointsAlong } from './mapModel';
 import { mapStrings } from './mapStrings';
 

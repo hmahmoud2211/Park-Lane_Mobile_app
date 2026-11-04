@@ -1,4 +1,4 @@
-import type { Reservation } from '../../services/parking/types';
+import type { Reservation } from '../../features/parking/services/types';
 
 export type HistoryFilter = 'all' | 'upcoming' | 'active' | 'past';
 

@@ -2,9 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../hooks/useAppTheme';
-import { AppText } from '../common/AppText';
-import { NeonPanel } from '../ui/NeonPanel';
+import { useAppTheme } from '../../../hooks/useAppTheme';
+import { AppText } from '../../../components/common/AppText';
+import { NeonPanel } from '../../../components/ui/NeonPanel';
 
 export interface PanelProps {
   title?: string;

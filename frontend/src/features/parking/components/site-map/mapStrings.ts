@@ -1,5 +1,5 @@
-import { digitsIn, gateNameIn, levelNameIn, nameIn, type Lang } from '../../../services/parking/i18n';
-import type { LevelId } from '../../../services/parking/types';
+import { digitsIn, gateNameIn, levelNameIn, nameIn, type Lang } from '../../services/i18n';
+import type { LevelId } from '../../services/types';
 import type { BayState, ChargerState } from './mapModel';
 
 /**

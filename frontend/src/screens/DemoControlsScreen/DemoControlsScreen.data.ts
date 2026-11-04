@@ -1,5 +1,5 @@
-import type { PolicySettings } from '../../services/parking/policy';
-import { HOUR_MS, MINUTE_MS } from '../../services/parking/time';
+import type { PolicySettings } from '../../features/parking/services/policy';
+import { HOUR_MS, MINUTE_MS } from '../../features/parking/services/time';
 
 export const demoCopy = {
   title: 'Demo Controls',

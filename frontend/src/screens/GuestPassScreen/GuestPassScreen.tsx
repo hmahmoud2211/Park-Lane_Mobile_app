@@ -3,18 +3,18 @@ import { useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { FactGrid, Field, InfoRow, type Fact } from '../../components/parking/Controls';
-import { LanguageToggle } from '../../components/parking/LanguageToggle';
+import { FactGrid, Field, InfoRow, type Fact } from '../../features/parking/components/Controls';
+import { LanguageToggle } from '../../features/parking/components/LanguageToggle';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../components/parking/Panel';
+import { Panel } from '../../features/parking/components/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../components/parking/ParkingFrame';
-import { PassQr } from '../../components/parking/Rows';
+import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { PassQr } from '../../features/parking/components/Rows';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useParking } from '../../hooks/useParking';
-import { moveOutDeadline } from '../../services/parking/charging';
+import { useParking } from '../../features/parking/hooks/useParking';
+import { moveOutDeadline } from '../../features/parking/services/charging';
 import {
   dateIn,
   deviceLang,
@@ -25,13 +25,13 @@ import {
   rangeIn,
   timeIn,
   type Lang,
-} from '../../services/parking/i18n';
-import { siteInfo } from '../../services/parking/policy';
-import { decodePassSnapshot, snapshotView } from '../../services/parking/passLink';
-import { findInvitation, gateMapsUrl, notificationsFor, reservationView } from '../../services/parking/selectors';
-import { formatDateTime } from '../../services/parking/time';
-import { ParkingError } from '../../services/parking/tx';
-import type { AppNotification } from '../../services/parking/types';
+} from '../../features/parking/services/i18n';
+import { siteInfo } from '../../features/parking/services/policy';
+import { decodePassSnapshot, snapshotView } from '../../features/parking/services/passLink';
+import { findInvitation, gateMapsUrl, notificationsFor, reservationView } from '../../features/parking/services/selectors';
+import { formatDateTime } from '../../features/parking/services/time';
+import { ParkingError } from '../../features/parking/services/tx';
+import type { AppNotification } from '../../features/parking/services/types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { savePassImage, type QrImageSource } from '../../utils/passImage';
 import { openExternal } from '../../utils/share';

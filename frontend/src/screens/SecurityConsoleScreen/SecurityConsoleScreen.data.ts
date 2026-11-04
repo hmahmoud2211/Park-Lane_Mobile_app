@@ -1,6 +1,6 @@
 import type { StatusTone } from '../../components/ui/StatusChip';
-import type { ScanResult } from '../../services/parking/gate';
-import type { ArrivalPhase } from '../../services/parking/tracking';
+import type { ScanResult } from '../../features/parking/services/gate';
+import type { ArrivalPhase } from '../../features/parking/services/tracking';
 
 export const consoleCopy = {
   title: 'Security Console',

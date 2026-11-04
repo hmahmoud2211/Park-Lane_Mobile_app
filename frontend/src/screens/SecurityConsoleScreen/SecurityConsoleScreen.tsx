@@ -3,22 +3,22 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { ChipGroup, Field, type ChipOption } from '../../components/parking/Controls';
+import { ChipGroup, Field, type ChipOption } from '../../features/parking/components/Controls';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../components/parking/Panel';
+import { Panel } from '../../features/parking/components/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../components/parking/ParkingFrame';
+import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
 import { QrScanner } from '../../components/common/QrScanner';
-import { ListRow } from '../../components/parking/Rows';
-import { notificationIcon } from '../../components/parking/presenters';
+import { ListRow } from '../../features/parking/components/Rows';
+import { notificationIcon } from '../../features/parking/components/presenters';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useParking } from '../../hooks/useParking';
-import type { ScanResult } from '../../services/parking/gate';
-import { notificationsFor, reservationView } from '../../services/parking/selectors';
-import { formatDateTime, formatTime, ms } from '../../services/parking/time';
-import { expectedArrivals, type ExpectedArrival } from '../../services/parking/tracking';
-import { ParkingError } from '../../services/parking/tx';
-import type { OccupancyState, ScanDirection } from '../../services/parking/types';
+import { useParking } from '../../features/parking/hooks/useParking';
+import type { ScanResult } from '../../features/parking/services/gate';
+import { notificationsFor, reservationView } from '../../features/parking/services/selectors';
+import { formatDateTime, formatTime, ms } from '../../features/parking/services/time';
+import { expectedArrivals, type ExpectedArrival } from '../../features/parking/services/tracking';
+import { ParkingError } from '../../features/parking/services/tx';
+import type { OccupancyState, ScanDirection } from '../../features/parking/services/types';
 import {
   arrivalChip,
   arrivalPicked,

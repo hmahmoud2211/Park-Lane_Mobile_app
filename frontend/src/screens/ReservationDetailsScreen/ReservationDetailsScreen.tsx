@@ -3,24 +3,24 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { ChipGroup, FactGrid, InfoRow, type Fact } from '../../components/parking/Controls';
-import { GuestTrackerStrip } from '../../components/parking/GuestTrackerCard';
+import { ChipGroup, FactGrid, InfoRow, type Fact } from '../../features/parking/components/Controls';
+import { GuestTrackerStrip } from '../../features/parking/components/GuestTrackerCard';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../components/parking/Panel';
+import { Panel } from '../../features/parking/components/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../components/parking/ParkingFrame';
-import { Timeline } from '../../components/parking/Rows';
-import { chargingStateLabel } from '../../components/parking/presenters';
+import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { Timeline } from '../../features/parking/components/Rows';
+import { chargingStateLabel } from '../../features/parking/components/presenters';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useParking } from '../../hooks/useParking';
-import type { Lang } from '../../services/parking/i18n';
-import { siteInfo } from '../../services/parking/policy';
-import { findReservation, inviteUrl, reservationView } from '../../services/parking/selectors';
-import { MINUTE_MS, formatDateTime, formatRange, formatTime, ms } from '../../services/parking/time';
-import { encodePassSnapshot } from '../../services/parking/passLink';
-import { guestTracker, type ShareChannel } from '../../services/parking/tracking';
-import { ParkingError } from '../../services/parking/tx';
+import { useParking } from '../../features/parking/hooks/useParking';
+import type { Lang } from '../../features/parking/services/i18n';
+import { siteInfo } from '../../features/parking/services/policy';
+import { findReservation, inviteUrl, reservationView } from '../../features/parking/services/selectors';
+import { MINUTE_MS, formatDateTime, formatRange, formatTime, ms } from '../../features/parking/services/time';
+import { encodePassSnapshot } from '../../features/parking/services/passLink';
+import { guestTracker, type ShareChannel } from '../../features/parking/services/tracking';
+import { ParkingError } from '../../features/parking/services/tx';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
   copyText,

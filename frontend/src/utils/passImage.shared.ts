@@ -1,4 +1,4 @@
-import type { Lang } from '../services/parking/i18n';
+import type { Lang } from '../features/parking/services/i18n';
 import type { AppTheme } from '../types/theme.types';
 
 /** A drawn QR code that can render itself to a PNG (react-native-svg's `toDataURL`). */

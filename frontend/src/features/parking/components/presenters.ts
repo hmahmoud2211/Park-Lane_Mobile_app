@@ -1,8 +1,8 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
-import type { ReservationView } from '../../services/parking/selectors';
-import { cairoDateKey, formatRange, formatTime, relativeDayLabel } from '../../services/parking/time';
-import type { AppNotification, ChargingState } from '../../services/parking/types';
+import type { ReservationView } from '../services/selectors';
+import { cairoDateKey, formatRange, formatTime, relativeDayLabel } from '../services/time';
+import type { AppNotification, ChargingState } from '../services/types';
 
 /**
  * Plain-language labels for the parking screens, so residents and visitors

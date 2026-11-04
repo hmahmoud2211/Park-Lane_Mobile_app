@@ -1,11 +1,11 @@
-import type { ChipOption } from '../../components/parking/Controls';
-import type { TimelineItem } from '../../components/parking/Rows';
-import { gateNameIn, nameIn, rangeIn, type Lang } from '../../services/parking/i18n';
-import { siteInfo } from '../../services/parking/policy';
-import type { ReservationView } from '../../services/parking/selectors';
-import { formatDateTime, formatRange } from '../../services/parking/time';
-import { shareChannelLabel, type ShareChannel } from '../../services/parking/tracking';
-import type { ParkingDb, Reservation } from '../../services/parking/types';
+import type { ChipOption } from '../../features/parking/components/Controls';
+import type { TimelineItem } from '../../features/parking/components/Rows';
+import { gateNameIn, nameIn, rangeIn, type Lang } from '../../features/parking/services/i18n';
+import { siteInfo } from '../../features/parking/services/policy';
+import type { ReservationView } from '../../features/parking/services/selectors';
+import { formatDateTime, formatRange } from '../../features/parking/services/time';
+import { shareChannelLabel, type ShareChannel } from '../../features/parking/services/tracking';
+import type { ParkingDb, Reservation } from '../../features/parking/services/types';
 
 export const detailsCopy = {
   title: 'Reservation',

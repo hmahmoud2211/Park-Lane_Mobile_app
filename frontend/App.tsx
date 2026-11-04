@@ -12,7 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from './src/context/AppContext';
 import { EmsProvider } from './src/context/EmsContext';
 import { GatewayProvider } from './src/context/GatewayContext';
-import { ParkingDemoProvider } from './src/context/ParkingDemoContext';
+import { ParkingDemoProvider } from './src/features/parking/context/ParkingDemoContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { colors } from './src/theme';

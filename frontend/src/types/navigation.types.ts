@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { IconSet } from '../components/ui/ServiceTile';
-import type { Lang } from '../services/parking/i18n';
+import type { Lang } from '../features/parking/services/i18n';
 
 /**
  * Only the implemented screen is registered. Later screens are added here
