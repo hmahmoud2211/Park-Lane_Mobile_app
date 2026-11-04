@@ -26,21 +26,21 @@ import {
 } from '../../features/lg/services/lgHotspot';
 import { canOpenWifiSettings } from '../../features/provisioning/services/wifiJoin';
 import { finishPhases, lgPairingCopy as copy, lgSetupInstructions } from './LgPairingScreen.data';
-import { Notice, PrimaryAction, SecondaryAction, TextAction } from './LgPairingParts';
+import { LgNotice, PrimaryAction, SecondaryAction, TextAction } from './LgPairingParts';
 import { FIELD_HEIGHT, ROW_ICON_SIZE, createStyles } from './LgPairingScreen.styles';
 
 function ErrorNotice({ error, onRetry }: { error: LgPairingError; onRetry?: () => void }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
-    <Notice
+    <LgNotice
       tone="error"
       title={error.title}
       style={styles.gapTop}
       actions={onRetry ? <TextAction title={copy.retry} onPress={onRetry} /> : undefined}
     >
       {error.message}
-    </Notice>
+    </LgNotice>
   );
 }
 
@@ -68,28 +68,28 @@ export function LgSetupModeStep({ pairing }: { pairing: LgPairing }) {
         </View>
       </NeonPanel>
 
-      <Notice
+      <LgNotice
         tone="info"
         title={copy.beforeTitle}
         style={styles.card}
         actions={<TextAction title={copy.rethinkGuide} onPress={() => void Linking.openURL(lgSources.rethinkSetup)} />}
       >
         {`${copy.beforeBody} ${copy.experimentalNote}`}
-      </Notice>
+      </LgNotice>
 
       {!pairing.setupAvailable ? (
-        <Notice tone="error" style={styles.card}>
+        <LgNotice tone="error" style={styles.card}>
           {copy.unavailable}
-        </Notice>
+        </LgNotice>
       ) : backend.state === 'failed' ? (
-        <Notice
+        <LgNotice
           tone="error"
           title={copy.backendFailed}
           style={styles.card}
           actions={<TextAction title={copy.retry} onPress={pairing.checkBackend} />}
         >
           {backend.message}
-        </Notice>
+        </LgNotice>
       ) : (
         <View style={[styles.toggleRow, styles.card]}>
           <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.flex}>
@@ -335,14 +335,14 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
     const { code } = outcome;
     if (outcome.kind === 'unknown') {
       return (
-        <Notice tone="warning" title={copy.qrUnreadTitle} style={styles.gapTop}>
+        <LgNotice tone="warning" title={copy.qrUnreadTitle} style={styles.gapTop}>
           <AppText variant="tileCaption" color={theme.colors.textSupport}>
             {copy.qrUnreadBody}
           </AppText>
           <AppText variant="tileCaption" color={theme.colors.textPrimary} selectable numberOfLines={4}>
             {copy.qrRead(code.raw)}
           </AppText>
-        </Notice>
+        </LgNotice>
       );
     }
     const body = {
@@ -354,7 +354,7 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
       typeName: copy.qrTypeName,
     }[outcome.kind];
     return (
-      <Notice
+      <LgNotice
         tone={outcome.kind === 'notInRange' ? 'warning' : outcome.kind === 'joining' ? 'success' : 'info'}
         title={copy.qrFound(applianceLabel(code))}
         style={styles.gapTop}
@@ -372,7 +372,7 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
             {copy.qrSerial(code.serial)}
           </AppText>
         ) : null}
-      </Notice>
+      </LgNotice>
     );
   };
 
@@ -529,9 +529,9 @@ export function LgSendStep({ pairing, onOpenWifiSettings }: { pairing: LgPairing
       ) : null}
 
       {Platform.OS !== 'web' ? (
-        <Notice tone="info" style={styles.card}>
+        <LgNotice tone="info" style={styles.card}>
           {copy.noInternetNote}
-        </Notice>
+        </LgNotice>
       ) : null}
 
       <View style={styles.actions}>
@@ -604,7 +604,7 @@ export function LgFinishStep({
       </NeonPanel>
 
       {timedOut ? (
-        <Notice
+        <LgNotice
           tone="warning"
           title={copy.notFoundTitle}
           style={styles.card}
@@ -616,18 +616,18 @@ export function LgFinishStep({
           }
         >
           {pairing.remote ? copy.notFoundBodyRemote : copy.notFoundBody}
-        </Notice>
+        </LgNotice>
       ) : finishError ? (
-        <Notice tone="error" title={copy.failedTitle} style={styles.card} actions={<TextAction title={copy.startOver} onPress={onStartOver} />}>
+        <LgNotice tone="error" title={copy.failedTitle} style={styles.card} actions={<TextAction title={copy.startOver} onPress={onStartOver} />}>
           {[finishError.message, finishError.recovery].filter(Boolean).join(' ')}
-        </Notice>
+        </LgNotice>
       ) : null}
 
       {phase === 'done' && deviceId ? (
         <>
-          <Notice tone="success" title={copy.doneTitle} style={styles.card}>
+          <LgNotice tone="success" title={copy.doneTitle} style={styles.card}>
             {copy.doneBody}
-          </Notice>
+          </LgNotice>
           <View style={styles.actions}>
             <PrimaryAction title={copy.nameAndRoom} onPress={() => onSetup(deviceId)} />
             <SecondaryAction title={copy.acSettings} icon="options-outline" onPress={() => onAcSettings(deviceId)} />

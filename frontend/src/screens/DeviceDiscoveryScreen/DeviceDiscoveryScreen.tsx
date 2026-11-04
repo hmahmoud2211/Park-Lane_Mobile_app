@@ -1,29 +1,23 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
-import { GlassSurface } from '../../components/common/GlassSurface';
 import { BrandBadge } from '../../features/gateway/components/BrandBadge';
 import { CredentialFields, missingFields } from '../../features/gateway/components/CredentialFields';
 import { CandidateChips } from '../../features/gateway/components/RequirementChips';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { gatewayConfig } from '../../config/gateway';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useBrands } from '../../features/gateway/hooks/useBrands';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
 import { useGatewayPairing } from '../../features/gateway/hooks/useGatewayPairing';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as api from '../../features/gateway/services/gatewayApi';
 import { isPrivateIPv4 } from '../../features/gateway/services/gatewayDiscovery';
 import { errorMessage } from '../../features/gateway/services/gatewayHttp';
@@ -31,6 +25,9 @@ import type { Candidate, DiscoveryJob, FieldSpec } from '../../types/gateway.typ
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { discoveryCopy as copy } from './DeviceDiscoveryScreen.data';
 import { BUTTON_HEIGHT, FIELD_HEIGHT, PROGRESS_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceDiscoveryScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { SelectableCard } from '../../components/ui/SelectableCard';
+import { LoadingState } from '../../components/feedback/LoadingState';
 
 const SCAN_TIMEOUT_S = 15;
 
@@ -45,7 +42,6 @@ const byNewest = (a: Candidate, b: Candidate) => b.last_seen - a.last_seen;
 export function DeviceDiscoveryScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'DeviceDiscovery'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'DeviceDiscovery'>['route']>();
   const mode = params.mode ?? 'scan';
@@ -211,47 +207,40 @@ export function DeviceDiscoveryScreen() {
     const detail = [candidate.model, candidate.ip, candidate.protocol].filter(Boolean).join(' · ');
     const isSelected = candidate.id === selectedId;
     return (
-      <Pressable
+      <SelectableCard
         key={candidate.id}
         onPress={() => choose(candidate)}
         disabled={candidate.control === 'detection_only'}
-        accessibilityRole="button"
         accessibilityState={{ selected: isSelected, disabled: candidate.control === 'detection_only' }}
         accessibilityLabel={`${candidate.name ?? candidate.brand}${detail ? `, ${detail}` : ''}`}
-        style={({ pressed }) => [pressed && styles.pressed, candidate.control === 'detection_only' && styles.dim]}
+        pressedStyle={styles.pressed}
+        disabledStyle={styles.dim}
+        selected={isSelected}
+        style={styles.candidate}
       >
-        <GlassSurface
-          radius={theme.borderRadius.sm}
-          blurred={false}
-          glow={isSelected}
-          strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-          fillOpacity={theme.glass.subtleFillOpacity}
-          style={styles.candidate}
-        >
-          <View style={styles.candidateRow}>
-            <BrandBadge logo={brand?.logo ?? candidate.brand} name={brand?.name ?? candidate.brand} />
-            <View style={styles.text}>
-              <AppText variant="statValue" numberOfLines={2}>
-                {candidate.name ?? candidate.model ?? 'Unnamed device'}
-              </AppText>
-              <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={2}>
-                {detail || candidate.unique_id}
-              </AppText>
-              {candidate.sources.length ? (
-                <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                  {`Found by ${candidate.sources.join(', ')}`}
-                </AppText>
-              ) : null}
-            </View>
-          </View>
-          <CandidateChips candidate={candidate} />
-          {candidate.control === 'detection_only' ? (
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.detectionOnly}
+        <View style={styles.candidateRow}>
+          <BrandBadge logo={brand?.logo ?? candidate.brand} name={brand?.name ?? candidate.brand} />
+          <View style={styles.text}>
+            <AppText variant="statValue" numberOfLines={2}>
+              {candidate.name ?? candidate.model ?? 'Unnamed device'}
             </AppText>
-          ) : null}
-        </GlassSurface>
-      </Pressable>
+            <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={2}>
+              {detail || candidate.unique_id}
+            </AppText>
+            {candidate.sources.length ? (
+              <AppText variant="tileCaption" color={theme.colors.textSupport}>
+                {`Found by ${candidate.sources.join(', ')}`}
+              </AppText>
+            ) : null}
+          </View>
+        </View>
+        <CandidateChips candidate={candidate} />
+        {candidate.control === 'detection_only' ? (
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.detectionOnly}
+          </AppText>
+        ) : null}
+      </SelectableCard>
     );
   };
 
@@ -273,12 +262,7 @@ export function DeviceDiscoveryScreen() {
           </Notice>
         ) : null}
         {status === 'running' || pairing.starting ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={theme.colors.textPrimary} />
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.pairing}
-            </AppText>
-          </View>
+          <LoadingState label={copy.pairing} />
         ) : null}
         {status === 'needs_input' ? (
           <Notice tone="warning" title={copy.needsInputTitle}>
@@ -374,36 +358,26 @@ export function DeviceDiscoveryScreen() {
   );
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader title={mode === 'manual' ? copy.manualTitle : copy.title} subtitle={brand?.name} style={styles.header} />
-          {!target ? (
-            <Notice tone="warning">{copy.offline}</Notice>
-          ) : (
-            <>
-              {mode === 'manual' ? renderManual() : renderScan()}
-              {renderPairing()}
-              <NeonPanel style={styles.panel}>
-                <PanelHeading title={copy.foundTitle} iconSet="material" iconName="devices" divider />
-                {list.length === 0 ? (
-                  <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                    {scanning || mode === 'manual' ? copy.noneYet : job ? copy.noneFound : copy.noneYet}
-                  </AppText>
-                ) : (
-                  list.map(renderCandidate)
-                )}
-              </NeonPanel>
-            </>
-          )}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader title={mode === 'manual' ? copy.manualTitle : copy.title} subtitle={brand?.name} style={styles.header} />
+      {!target ? (
+        <Notice tone="warning">{copy.offline}</Notice>
+      ) : (
+        <>
+          {mode === 'manual' ? renderManual() : renderScan()}
+          {renderPairing()}
+          <NeonPanel style={styles.panel}>
+            <PanelHeading title={copy.foundTitle} iconSet="material" iconName="devices" divider />
+            {list.length === 0 ? (
+              <AppText variant="bodySmall" color={theme.colors.textSupport}>
+                {scanning || mode === 'manual' ? copy.noneYet : job ? copy.noneFound : copy.noneYet}
+              </AppText>
+            ) : (
+              list.map(renderCandidate)
+            )}
+          </NeonPanel>
+        </>
+      )}
+    </InnerScreenFrame>
   );
 }

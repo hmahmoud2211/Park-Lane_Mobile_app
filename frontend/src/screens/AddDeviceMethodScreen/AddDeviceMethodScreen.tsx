@@ -1,32 +1,31 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
-import { GlassSurface } from '../../components/common/GlassSurface';
 import { MethodChips } from '../../features/gateway/components/RequirementChips';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { LG_PLUGIN_ID } from '../../features/lg/hooks/useLgPairing';
 import { useBrands } from '../../features/gateway/hooks/useBrands';
 import { useEms } from '../../features/ems/hooks/useEms';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as homeApi from '../../features/home/services/homeApi';
 import type { ConnectionMethod, MethodGroup } from '../../types/gateway.types';
 import type { Integration } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { addDeviceMethodCopy as copy, cloudIntegrations, groupCopy } from './AddDeviceMethodScreen.data';
 import { BUTTON_HEIGHT, createStyles } from './AddDeviceMethodScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { SelectableCard } from '../../components/ui/SelectableCard';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { readyHome } from '../../features/ems/services/readyHome';
 
 const GROUPS: readonly MethodGroup[] = ['existing', 'new', 'advanced'];
 const CHEVRON_SIZE = 18;
@@ -41,7 +40,6 @@ const CHEVRON_SIZE = 18;
 export function AddDeviceMethodScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'AddDeviceMethod'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'AddDeviceMethod'>['route']>();
   const gateway = useGateway();
@@ -49,7 +47,7 @@ export function AddDeviceMethodScreen() {
   const { brands, error, reload } = useBrands();
   const brand = brands?.find((entry) => entry.id === params.brandId) ?? null;
   const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const hasHub = ems.status === 'signedIn' && ems.home !== null && ems.home.hub.status !== 'provisioning';
+  const hasHub = readyHome(ems.status, ems.home) !== null;
 
   useEffect(() => {
     if (!hasHub || !cloudIntegrations[params.brandId]) {
@@ -88,34 +86,27 @@ export function AddDeviceMethodScreen() {
   };
 
   const renderMethod = (method: ConnectionMethod) => (
-    <Pressable
+    <SelectableCard
       key={method.id}
       onPress={() => open(method)}
       disabled={!method.available}
-      accessibilityRole="button"
       accessibilityLabel={`${method.title}. ${method.available ? method.description : (method.unavailable_reason ?? copy.unavailable)}`}
       accessibilityState={{ disabled: !method.available }}
-      style={({ pressed }) => [pressed && styles.pressed, !method.available && styles.dim]}
+      pressedStyle={styles.pressed}
+      disabledStyle={styles.dim}
+      style={styles.method}
     >
-      <GlassSurface
-        radius={theme.borderRadius.sm}
-        blurred={false}
-        strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-        fillOpacity={theme.glass.subtleFillOpacity}
-        style={styles.method}
-      >
-        <View style={styles.methodRow}>
-          <AppText variant="statValue" style={styles.flex}>
-            {method.title}
-          </AppText>
-          {method.available ? <AppIcon set="ionicons" name="chevron-forward" size={CHEVRON_SIZE} color={theme.colors.textSupport} /> : null}
-        </View>
-        <AppText variant="tileCaption" color={theme.colors.textSupport}>
-          {method.available ? method.description : (method.unavailable_reason ?? method.description)}
+      <View style={styles.methodRow}>
+        <AppText variant="statValue" style={styles.flex}>
+          {method.title}
         </AppText>
-        <MethodChips method={method} />
-      </GlassSurface>
-    </Pressable>
+        {method.available ? <AppIcon set="ionicons" name="chevron-forward" size={CHEVRON_SIZE} color={theme.colors.textSupport} /> : null}
+      </View>
+      <AppText variant="tileCaption" color={theme.colors.textSupport}>
+        {method.available ? method.description : (method.unavailable_reason ?? method.description)}
+      </AppText>
+      <MethodChips method={method} />
+    </SelectableCard>
   );
 
   const renderBody = () => {
@@ -124,17 +115,13 @@ export function AddDeviceMethodScreen() {
     }
     if (error && !brands) {
       return (
-        <Notice
-          tone="error"
-          title={copy.loadFailed}
-          actions={<AppButton title={copy.retry} variant="secondary" height={BUTTON_HEIGHT} onPress={() => void reload()} />}
-        >
+        <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={() => void reload()}>
           {error}
-        </Notice>
+        </ErrorNotice>
       );
     }
     if (!brands) {
-      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading" />;
+      return <LoadingState accessibilityLabel="Loading" />;
     }
     if (!brand) {
       return (
@@ -198,19 +185,9 @@ export function AddDeviceMethodScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader title={brand?.name ?? copy.fallbackTitle} subtitle={brand?.summary} style={styles.header} />
-          {renderBody()}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader title={brand?.name ?? copy.fallbackTitle} subtitle={brand?.summary} style={styles.header} />
+      {renderBody()}
+    </InnerScreenFrame>
   );
 }

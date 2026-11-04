@@ -55,10 +55,5 @@ export function createStyles(theme: AppTheme) {
       flexDirection: 'row',
       gap: theme.spacing.sm,
     },
-    center: {
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-      paddingVertical: theme.spacing.sm,
-    },
   });
 }

@@ -1,28 +1,22 @@
 import { useNavigation } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
-import { ScrollView, View } from 'react-native';
 
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu } from '../../components/ui/AppMenu';
 import { LinkCard } from '../../components/ui/LinkCard';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { settingsCopy as copy, settingsItems, type SettingsItem } from './SettingsScreen.data';
 import { CARD_GAP, MIN_CARD_WIDTH, createStyles } from './SettingsScreen.styles';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 
 export function SettingsScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'Settings'>['navigation']>();
   const { menuOpen, setMenuOpen, logout: handleLogout, menuItems } = useScreenMenu();
-  const layout = useScreenLayout();
 
   const open = (item: SettingsItem) => {
     if (item.action === 'logout') {
@@ -40,55 +34,43 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScreenWrapper
-      backgroundSource={images.homeBackground}
-      withScrim={false}
-      backgroundOverlay={0.34}
+    <InnerScreenFrame
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="never"
+      overlay={
+        <AppMenu
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          items={menuItems}
+          align="right"
+        />
+      }
     >
-      <StatusBar style="light" />
-
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-        >
-          <PageHeader
-            title={copy.title}
-            subtitle={copy.subtitle}
-            onMenuPress={() => setMenuOpen(true)}
-            style={styles.header}
-          />
-
-          {/* One column on phones, two side by side on wider screens. */}
-          <ResponsiveGrid
-            data={settingsItems}
-            keyExtractor={(item) => item.id}
-            minItemWidth={MIN_CARD_WIDTH}
-            maxColumns={2}
-            gap={CARD_GAP}
-            renderItem={(item) => (
-              <LinkCard
-                fill
-                size="compact"
-                title={item.title}
-                description={item.description}
-                icon={{ set: item.iconSet, name: item.iconName }}
-                onPress={() => open(item)}
-              />
-            )}
-          />
-        </ScrollView>
-
-        {/* The same glass bar as the other inner screens, with Settings lit. */}
-        <BottomBar />
-      </View>
-
-      <AppMenu
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        items={menuItems}
-        align="right"
+      <PageHeader
+        title={copy.title}
+        subtitle={copy.subtitle}
+        onMenuPress={() => setMenuOpen(true)}
+        style={styles.header}
       />
-    </ScreenWrapper>
+
+      {/* One column on phones, two side by side on wider screens. */}
+      <ResponsiveGrid
+        data={settingsItems}
+        keyExtractor={(item) => item.id}
+        minItemWidth={MIN_CARD_WIDTH}
+        maxColumns={2}
+        gap={CARD_GAP}
+        renderItem={(item) => (
+          <LinkCard
+            fill
+            size="compact"
+            title={item.title}
+            description={item.description}
+            icon={{ set: item.iconSet, name: item.iconName }}
+            onPress={() => open(item)}
+          />
+        )}
+      />
+    </InnerScreenFrame>
   );
 }

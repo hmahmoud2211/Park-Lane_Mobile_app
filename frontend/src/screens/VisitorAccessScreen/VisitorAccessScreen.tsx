@@ -15,7 +15,6 @@ import {
   type ViewInstance,
 } from 'react-native';
 
-import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
@@ -24,7 +23,6 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
-import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { FeatureBanner } from '../../components/ui/FeatureBanner';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
@@ -59,8 +57,9 @@ import {
 import { guestsLabel } from '../../utils/format';
 import { buildPassDocument } from './VisitorAccessScreen.documents';
 import { PARKING_CHEVRON_SIZE, createStyles } from './VisitorAccessScreen.styles';
-import { CTA_ARROW_SIZE, CTA_HEIGHT, FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
+import { FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
 import { useLogout } from '../../hooks/useScreenMenu';
+import { FormSubmitButton } from '../../components/forms/FormSubmitButton';
 
 type SelectKey = Extract<FormFieldKey, 'date' | 'time' | 'guests'>;
 
@@ -380,22 +379,7 @@ export function VisitorAccessScreen() {
                   ))}
                 </View>
 
-                <AppButton
-                  title={copy.generate}
-                  variant="gradient"
-                  gradientColors={[
-                    theme.colors.ctaSky,
-                    theme.colors.ctaRoyal,
-                    theme.colors.ctaViolet,
-                    theme.colors.ctaPink,
-                  ]}
-                  height={CTA_HEIGHT}
-                  labelVariant="statValue"
-                  trailingIcon={<ArrowRightIcon size={CTA_ARROW_SIZE} thickness={1.2} />}
-                  trailingPlacement="label"
-                  onPress={handleGenerate}
-                  style={styles.cta}
-                />
+                <FormSubmitButton title={copy.generate} onPress={handleGenerate} style={styles.cta} />
               </NeonPanel>
             </>
 

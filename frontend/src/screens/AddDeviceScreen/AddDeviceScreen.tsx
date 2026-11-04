@@ -1,34 +1,34 @@
 import { useNavigation } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
-import { GlassSurface } from '../../components/common/GlassSurface';
 import { BrandBadge } from '../../features/gateway/components/BrandBadge';
 import { GatewayStatusRow } from '../../features/gateway/components/GatewayStatusRow';
 import { SupportChip } from '../../features/gateway/components/RequirementChips';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useBrands } from '../../features/gateway/hooks/useBrands';
 import { useEms } from '../../features/ems/hooks/useEms';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { Brand } from '../../types/gateway.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { addDeviceCopy as copy } from './AddDeviceScreen.data';
 import { BUTTON_HEIGHT, CARD_GAP, FIELD_HEIGHT, MIN_BRAND_WIDTH, createStyles } from './AddDeviceScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { SelectableCard } from '../../components/ui/SelectableCard';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { readyHome } from '../../features/ems/services/readyHome';
+import { NoGatewayNotice } from '../../features/gateway/components/NoGatewayNotice';
 
 const SEARCH_ICON_SIZE = 16;
 
@@ -49,7 +49,6 @@ function matches(brand: Brand, query: string): boolean {
 export function AddDeviceScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'AddDevice'>['navigation']>();
   const gateway = useGateway();
   const ems = useEms();
@@ -57,56 +56,40 @@ export function AddDeviceScreen() {
   const [query, setQuery] = useState('');
 
   const visible = useMemo(() => (brands ?? []).filter((brand) => matches(brand, query)), [brands, query]);
-  const hasHub = ems.status === 'signedIn' && ems.home !== null && ems.home.hub.status !== 'provisioning';
+  const hasHub = readyHome(ems.status, ems.home) !== null;
 
   const renderBrand = (brand: Brand) => (
-    <Pressable
+    <SelectableCard
       onPress={() => navigation.navigate('AddDeviceMethod', { brandId: brand.id })}
-      accessibilityRole="button"
       accessibilityLabel={`${brand.name}. ${brand.summary}`}
-      style={({ pressed }) => pressed && styles.pressed}
+      pressedStyle={styles.pressed}
+      style={styles.brand}
     >
-      <GlassSurface
-        radius={theme.borderRadius.sm}
-        blurred={false}
-        strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-        fillOpacity={theme.glass.subtleFillOpacity}
-        style={styles.brand}
-      >
-        <View style={styles.brandRow}>
-          <BrandBadge logo={brand.logo} name={brand.name} />
-          <View style={styles.brandText}>
-            <AppText variant="statValue" numberOfLines={1}>
-              {brand.name}
-            </AppText>
-            <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={2}>
-              {brand.summary}
-            </AppText>
-          </View>
+      <View style={styles.brandRow}>
+        <BrandBadge logo={brand.logo} name={brand.name} />
+        <View style={styles.brandText}>
+          <AppText variant="statValue" numberOfLines={1}>
+            {brand.name}
+          </AppText>
+          <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={2}>
+            {brand.summary}
+          </AppText>
         </View>
-        <View style={styles.actions}>
-          <SupportChip status={brand.status} />
-          {brand.account_free ? <StatusChip label="No account needed" tone="teal" icon="lock-open-outline" /> : null}
-        </View>
-      </GlassSurface>
-    </Pressable>
+      </View>
+      <View style={styles.actions}>
+        <SupportChip status={brand.status} />
+        {brand.account_free ? <StatusChip label="No account needed" tone="teal" icon="lock-open-outline" /> : null}
+      </View>
+    </SelectableCard>
   );
 
   const renderGatewayProblem = () => {
     if (gateway.status === 'loading' || gateway.status === 'connecting') {
-      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Connecting to your gateway" />;
+      return <LoadingState accessibilityLabel="Connecting to your gateway" />;
     }
     if (gateway.status === 'none') {
       return (
-        <Notice
-          tone="info"
-          title={copy.noGatewayTitle}
-          actions={
-            <AppButton title={copy.connectGateway} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('GatewaySetup')} />
-          }
-        >
-          {copy.noGatewayBody}
-        </Notice>
+        <NoGatewayNotice title={copy.noGatewayTitle} body={copy.noGatewayBody} actionLabel={copy.connectGateway} />
       );
     }
     return (
@@ -130,17 +113,13 @@ export function AddDeviceScreen() {
   const renderBrands = () => {
     if (error && !brands) {
       return (
-        <Notice
-          tone="error"
-          title={copy.loadFailed}
-          actions={<AppButton title={copy.retry} variant="secondary" height={BUTTON_HEIGHT} onPress={() => void reload()} />}
-        >
+        <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={() => void reload()}>
           {error}
-        </Notice>
+        </ErrorNotice>
       );
     }
     if (!brands) {
-      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading brands" />;
+      return <LoadingState accessibilityLabel="Loading brands" />;
     }
     return (
       <>
@@ -174,44 +153,34 @@ export function AddDeviceScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
 
-          {gateway.status !== 'none' ? (
-            <GatewayStatusRow
-              status={gateway.status}
-              name={gateway.active?.name ?? null}
-              onManage={() => navigation.navigate('GatewaySetup')}
-            />
-          ) : null}
+      {gateway.status !== 'none' ? (
+        <GatewayStatusRow
+          status={gateway.status}
+          name={gateway.active?.name ?? null}
+          onManage={() => navigation.navigate('GatewaySetup')}
+        />
+      ) : null}
 
-          <NeonPanel style={styles.panel}>
-            <PanelHeading title={copy.brandsTitle} iconSet="ionicons" iconName="business-outline" divider />
-            <AppText variant="bodySmall" color={theme.colors.textSupport}>
-              {copy.brandsIntro}
-            </AppText>
-            {gateway.status === 'online' ? renderBrands() : renderGatewayProblem()}
-          </NeonPanel>
+      <NeonPanel style={styles.panel}>
+        <PanelHeading title={copy.brandsTitle} iconSet="ionicons" iconName="business-outline" divider />
+        <AppText variant="bodySmall" color={theme.colors.textSupport}>
+          {copy.brandsIntro}
+        </AppText>
+        {gateway.status === 'online' ? renderBrands() : renderGatewayProblem()}
+      </NeonPanel>
 
-          {hasHub ? (
-            <NeonPanel style={styles.panel}>
-              <PanelHeading title={copy.cloudTitle} iconSet="ionicons" iconName="cloud-outline" divider />
-              <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                {copy.cloudBody}
-              </AppText>
-              <AppButton title={copy.cloudAction} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('ConnectAccount')} />
-            </NeonPanel>
-          ) : null}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+      {hasHub ? (
+        <NeonPanel style={styles.panel}>
+          <PanelHeading title={copy.cloudTitle} iconSet="ionicons" iconName="cloud-outline" divider />
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.cloudBody}
+          </AppText>
+          <AppButton title={copy.cloudAction} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('ConnectAccount')} />
+        </NeonPanel>
+      ) : null}
+    </InnerScreenFrame>
   );
 }

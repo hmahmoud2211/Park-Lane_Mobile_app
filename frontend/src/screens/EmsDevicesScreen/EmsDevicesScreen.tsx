@@ -1,32 +1,30 @@
 import { useNavigation } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
 import { GatewayStatusRow } from '../../features/gateway/components/GatewayStatusRow';
 import { DeviceCard } from '../../features/home/components/DeviceCard';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGatewayDevices } from '../../features/gateway/hooks/useGatewayDevices';
 import { useHomeDevices } from '../../features/home/hooks/useHomeDevices';
 import { useLinkedAccounts } from '../../features/home/hooks/useLinkedAccounts';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { toggleCommand } from '../../features/home/services/capabilities';
 import type { Device, LinkedAccount } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { devicesCopy as copy } from './EmsDevicesScreen.data';
 import { BUTTON_HEIGHT, CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createStyles } from './EmsDevicesScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { NoGatewayNotice } from '../../features/gateway/components/NoGatewayNotice';
 
 /**
  * The resident's devices: first those their CUBE Gateway controls on the home
@@ -38,7 +36,6 @@ import { BUTTON_HEIGHT, CARD_GAP, MIN_DEVICE_WIDTH, SMALL_BUTTON_HEIGHT, createS
 export function EmsDevicesScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'EmsDevices'>['navigation']>();
   const ems = useHomeDevices();
   const { status, home, homeProblem, devices, devicesLoaded, realtime, refreshHome, busy, errors } = ems;
@@ -164,15 +161,7 @@ export function EmsDevicesScreen() {
   const renderLocal = () => {
     if (local.status === 'none') {
       return (
-        <Notice
-          tone="info"
-          title={copy.noGatewayTitle}
-          actions={
-            <AppButton title={copy.connectGateway} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('GatewaySetup')} />
-          }
-        >
-          {copy.noGatewayBody}
-        </Notice>
+        <NoGatewayNotice title={copy.noGatewayTitle} body={copy.noGatewayBody} actionLabel={copy.connectGateway} />
       );
     }
     const hidden = new Set(local.rawDevices.filter((raw) => !raw.dashboard).map((raw) => `gw:${raw.id}`));
@@ -186,7 +175,7 @@ export function EmsDevicesScreen() {
           manageLabel={copy.manageGateway}
           onManage={() => navigation.navigate('GatewaySetup')}
         />
-        {local.status === 'online' && !local.devicesLoaded ? <ActivityIndicator color={theme.colors.textPrimary} /> : null}
+        {local.status === 'online' && !local.devicesLoaded ? <LoadingState /> : null}
         {hidden.size > 0 ? (
           <AppButton
             title={showHidden ? copy.hideHidden : copy.showHidden(hidden.size)}
@@ -216,7 +205,7 @@ export function EmsDevicesScreen() {
 
   const renderDevices = () => {
     if (!devicesLoaded) {
-      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading devices" />;
+      return <LoadingState accessibilityLabel="Loading devices" />;
     }
     if (homeProblem?.code === 'no_home' || homeProblem?.code === 'provisioning') {
       return (
@@ -258,95 +247,84 @@ export function EmsDevicesScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.colors.textPrimary} />}
-        >
-          <PageHeader title={copy.title} subtitle={home?.unit.name ?? copy.subtitle} style={styles.header} />
+    <InnerScreenFrame contentStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.colors.textPrimary} />}>
+      <PageHeader title={copy.title} subtitle={home?.unit.name ?? copy.subtitle} style={styles.header} />
+
+      <NeonPanel style={styles.panel}>
+        <PanelHeading
+          title={copy.localTitle}
+          iconSet="ionicons"
+          iconName="wifi-outline"
+          subtitle={copy.localIntro}
+          actionLabel={copy.add}
+          onActionPress={() => navigation.navigate('AddDevice')}
+          divider
+        />
+        {renderLocal()}
+      </NeonPanel>
+
+      {status !== 'signedIn' ? (
+        <EmsAccountPanel intro={copy.accountIntroHub} />
+      ) : (
+        <>
+          <View style={styles.live} accessibilityLiveRegion="polite">
+            <StatusChip
+              label={realtime === 'live' ? 'Live' : realtime === 'connecting' ? 'Connecting' : 'Offline'}
+              tone={realtime === 'live' ? 'teal' : realtime === 'connecting' ? 'slate' : 'amber'}
+              icon={realtime === 'live' ? 'radio-outline' : 'cloud-offline-outline'}
+            />
+            <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.flex}>
+              {liveLabel}
+            </AppText>
+          </View>
+          {hubStatus && hubStatus !== 'provisioning' ? (
+            <View style={styles.live}>
+              <StatusChip
+                label={hubStatus === 'online' ? copy.hubOnline : hubStatus === 'auth_failed' ? copy.hubAuth : copy.hubOffline}
+                tone={hubStatus === 'online' ? 'teal' : hubStatus === 'auth_failed' ? 'red' : 'amber'}
+                icon="home-outline"
+              />
+            </View>
+          ) : null}
 
           <NeonPanel style={styles.panel}>
             <PanelHeading
-              title={copy.localTitle}
-              iconSet="ionicons"
-              iconName="wifi-outline"
-              subtitle={copy.localIntro}
-              actionLabel={copy.add}
+              title={copy.hubTitle}
+              iconSet="material"
+              iconName="devices"
+              // Every way of adding a device starts at Add Device; cloud linking is one of its methods.
+              actionLabel={home && home.hub.status !== 'provisioning' ? copy.add : undefined}
               onActionPress={() => navigation.navigate('AddDevice')}
               divider
             />
-            {renderLocal()}
+            {renderDevices()}
+            {linked.hasHome ? (
+              <AppButton
+                title={copy.refresh}
+                variant="secondary"
+                height={SMALL_BUTTON_HEIGHT}
+                loading={refreshing}
+                onPress={() => void onRefresh()}
+                accessibilityHint={copy.refreshHint}
+              />
+            ) : null}
           </NeonPanel>
 
-          {status !== 'signedIn' ? (
-            <EmsAccountPanel intro={copy.accountIntroHub} />
-          ) : (
-            <>
-              <View style={styles.live} accessibilityLiveRegion="polite">
-                <StatusChip
-                  label={realtime === 'live' ? 'Live' : realtime === 'connecting' ? 'Connecting' : 'Offline'}
-                  tone={realtime === 'live' ? 'teal' : realtime === 'connecting' ? 'slate' : 'amber'}
-                  icon={realtime === 'live' ? 'radio-outline' : 'cloud-offline-outline'}
-                />
-                <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.flex}>
-                  {liveLabel}
+          {linked.hasHome ? (
+            <NeonPanel style={styles.panel}>
+              <PanelHeading title={copy.accountsTitle} iconSet="ionicons" iconName="link-outline" divider />
+              {linked.error ? <Notice tone="error">{linked.error}</Notice> : null}
+              {linked.loaded && linked.accounts.length === 0 ? (
+                <AppText variant="bodySmall" color={theme.colors.textSupport}>
+                  {copy.accountsEmpty}
                 </AppText>
-              </View>
-              {hubStatus && hubStatus !== 'provisioning' ? (
-                <View style={styles.live}>
-                  <StatusChip
-                    label={hubStatus === 'online' ? copy.hubOnline : hubStatus === 'auth_failed' ? copy.hubAuth : copy.hubOffline}
-                    tone={hubStatus === 'online' ? 'teal' : hubStatus === 'auth_failed' ? 'red' : 'amber'}
-                    icon="home-outline"
-                  />
-                </View>
               ) : null}
-
-              <NeonPanel style={styles.panel}>
-                <PanelHeading
-                  title={copy.hubTitle}
-                  iconSet="material"
-                  iconName="devices"
-                  // Every way of adding a device starts at Add Device; cloud linking is one of its methods.
-                  actionLabel={home && home.hub.status !== 'provisioning' ? copy.add : undefined}
-                  onActionPress={() => navigation.navigate('AddDevice')}
-                  divider
-                />
-                {renderDevices()}
-                {linked.hasHome ? (
-                  <AppButton
-                    title={copy.refresh}
-                    variant="secondary"
-                    height={SMALL_BUTTON_HEIGHT}
-                    loading={refreshing}
-                    onPress={() => void onRefresh()}
-                    accessibilityHint={copy.refreshHint}
-                  />
-                ) : null}
-              </NeonPanel>
-
-              {linked.hasHome ? (
-                <NeonPanel style={styles.panel}>
-                  <PanelHeading title={copy.accountsTitle} iconSet="ionicons" iconName="link-outline" divider />
-                  {linked.error ? <Notice tone="error">{linked.error}</Notice> : null}
-                  {linked.loaded && linked.accounts.length === 0 ? (
-                    <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                      {copy.accountsEmpty}
-                    </AppText>
-                  ) : null}
-                  {linked.accounts.map(renderAccount)}
-                  <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('AddDevice')} />
-                </NeonPanel>
-              ) : null}
-            </>
-          )}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+              {linked.accounts.map(renderAccount)}
+              <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('AddDevice')} />
+            </NeonPanel>
+          ) : null}
+        </>
+      )}
+    </InnerScreenFrame>
   );
 }

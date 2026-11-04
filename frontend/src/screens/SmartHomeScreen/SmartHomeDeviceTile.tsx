@@ -10,7 +10,7 @@ import type { IconSet } from '../../types/icons.types';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 
-export interface DeviceCardProps {
+export interface SmartHomeDeviceTileProps {
   name: string;
   location: string;
   iconSet: IconSet;
@@ -37,7 +37,7 @@ const CHEVRON_SIZE = 11;
 const STATUS_TOP = 7;
 
 /** One device in the Smart Home "Smart Devices" panel. Laid on the panel's glass. */
-export function DeviceCard({
+export function SmartHomeDeviceTile({
   name,
   location,
   iconSet,
@@ -47,7 +47,7 @@ export function DeviceCard({
   enabled,
   onToggle,
   onPress,
-}: DeviceCardProps) {
+}: SmartHomeDeviceTileProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 

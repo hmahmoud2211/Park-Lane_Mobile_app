@@ -1,7 +1,6 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
@@ -9,17 +8,13 @@ import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { DeviceCard } from '../../features/home/components/DeviceCard';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGatewayDevices } from '../../features/gateway/hooks/useGatewayDevices';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { kindLabel } from '../../features/home/services/capabilities';
 import * as api from '../../features/gateway/services/gatewayApi';
 import { toAppDeviceId } from '../../features/gateway/services/deviceMapping';
@@ -27,6 +22,7 @@ import { errorMessage } from '../../features/gateway/services/gatewayHttp';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { capabilityLabels, deviceSetupCopy as copy } from './DeviceSetupScreen.data';
 import { BUTTON_HEIGHT, FIELD_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceSetupScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 
 type TestOutcome = { tone: 'success' | 'warning' | 'error' | 'info'; text: string };
 
@@ -39,7 +35,6 @@ type TestOutcome = { tone: 'success' | 'warning' | 'error' | 'info'; text: strin
 export function DeviceSetupScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'DeviceSetup'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'DeviceSetup'>['route']>();
   const gateway = useGatewayDevices();
@@ -228,23 +223,13 @@ export function DeviceSetupScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader
-            title={device ? copy.title : copy.fallbackTitle}
-            subtitle={device ? [device.name, kindLabel(device.kind)].join(' · ') : undefined}
-            style={styles.header}
-          />
-          {renderBody()}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader
+        title={device ? copy.title : copy.fallbackTitle}
+        subtitle={device ? [device.name, kindLabel(device.kind)].join(' · ') : undefined}
+        style={styles.header}
+      />
+      {renderBody()}
+    </InnerScreenFrame>
   );
 }

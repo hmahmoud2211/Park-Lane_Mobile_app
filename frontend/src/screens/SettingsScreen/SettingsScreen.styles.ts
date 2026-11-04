@@ -22,9 +22,6 @@ export const MIN_CARD_WIDTH = 300;
 
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    flex: {
-      flex: 1,
-    },
     content: {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,

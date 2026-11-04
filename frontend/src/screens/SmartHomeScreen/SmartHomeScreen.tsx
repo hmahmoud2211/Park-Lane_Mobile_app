@@ -29,7 +29,7 @@ import { statScaleFor } from '../../utils/responsive';
 import { AutomationRow } from './AutomationRow';
 import { ClimateControls } from './ClimateControls';
 import { ControlCard } from './ControlCard';
-import { DeviceCard } from './DeviceCard';
+import { SmartHomeDeviceTile } from './SmartHomeDeviceTile';
 import { EnergyGauge } from './EnergyGauge';
 import { LightingControls } from './LightingControls';
 import { SceneTile } from './SceneTile';
@@ -76,6 +76,7 @@ import {
   wideDeviceColumns,
 } from './SmartHomeScreen.styles';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
+import { readyHome } from '../../features/ems/services/readyHome';
 
 /** Placeholder for links whose destination screens are not designed yet. */
 function notYetRouted() {
@@ -140,7 +141,7 @@ export function SmartHomeScreen() {
   // A signed-in resident with a home sees their own rooms and devices; anyone
   // else sees the design's sample home, driven by screen-local state below.
   const ems = useHomeDevices();
-  const home = ems.status === 'signedIn' && ems.home && ems.home.hub.status !== 'provisioning' ? ems.home : null;
+  const home = readyHome(ems.status, ems.home);
   const live = home !== null;
   const [liveRoomId, setLiveRoomId] = useState('all');
   const [dragBrightness, setDragBrightness] = useState<number | null>(null);
@@ -721,7 +722,7 @@ export function SmartHomeScreen() {
                           deviceColumns === 3 && styles.deviceCellThird,
                         ]}
                       >
-                        <DeviceCard
+                        <SmartHomeDeviceTile
                           name={device.name}
                           location={device.location}
                           iconSet={device.iconSet}

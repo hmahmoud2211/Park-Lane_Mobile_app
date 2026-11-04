@@ -1,26 +1,21 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip, type StatusTone } from '../../components/ui/StatusChip';
-import { images } from '../../constants/images';
 import { POWER_KEY, useAcControls } from '../../features/gateway/hooks/useAcControls';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { ControlSetting, ControlValue } from '../../types/controls.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
@@ -43,6 +38,7 @@ import {
 } from './AcControlScreen.data';
 import { CARD_GAP, FILTER_BAR_HEIGHT, SMALL_BUTTON_HEIGHT, STEP_ICON_SIZE, createStyles } from './AcControlScreen.styles';
 import { ChoiceChips, ErrorLine, ReadingRow, StepperRow, SwitchRow, UnconfirmedLine } from './AcSettingRows';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 
 const ACTION_TONES: Record<string, StatusTone> = {
   cooling: 'indigo',
@@ -90,7 +86,6 @@ const isTimer = (setting: ControlSetting) => setting.kind === 'number' && settin
 export function AcControlScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const { deviceId } = useRoute<RootStackScreenProps<'AcControl'>['route']>().params;
   const navigation = useNavigation<RootStackScreenProps<'AcControl'>['navigation']>();
   const gateway = useGateway();
@@ -531,15 +526,9 @@ export function AcControlScreen() {
   }
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView contentContainerStyle={[styles.content, layout.contentStyle]} showsVerticalScrollIndicator={false}>
-          <PageHeader title={device?.name ?? copy.fallbackTitle} subtitle={copy.subtitle} style={styles.header} />
-          {body}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+    <InnerScreenFrame contentStyle={styles.content} keyboardShouldPersistTaps="never">
+      <PageHeader title={device?.name ?? copy.fallbackTitle} subtitle={copy.subtitle} style={styles.header} />
+      {body}
+    </InnerScreenFrame>
   );
 }

@@ -2,17 +2,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 
-import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
-import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 // Visitor Access's form sizes, so the app's forms read as one.
-import { CTA_ARROW_SIZE, CTA_HEIGHT, FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
+import { FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
 import {
   emptyRequestForm,
   maintenanceCopy as copy,
@@ -26,6 +24,7 @@ import {
   type RequestFormErrors,
   type RequestFormKey,
 } from './MaintenanceScreen.data';
+import { FormSubmitButton } from '../../components/forms/FormSubmitButton';
 
 export interface RequestFormProps {
   /** Fills in the category, e.g. when the form was opened from its tile. */
@@ -213,22 +212,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
         ))}
       </View>
 
-      <AppButton
-        title={copy.submit}
-        variant="gradient"
-        gradientColors={[
-          theme.colors.ctaSky,
-          theme.colors.ctaRoyal,
-          theme.colors.ctaViolet,
-          theme.colors.ctaPink,
-        ]}
-        height={CTA_HEIGHT}
-        labelVariant="statValue"
-        trailingIcon={<ArrowRightIcon size={CTA_ARROW_SIZE} thickness={1.2} />}
-        trailingPlacement="label"
-        onPress={submit}
-        style={styles.cta}
-      />
+      <FormSubmitButton title={copy.submit} onPress={submit} style={styles.cta} />
 
       <AppMenu
         visible={openSelect !== null}

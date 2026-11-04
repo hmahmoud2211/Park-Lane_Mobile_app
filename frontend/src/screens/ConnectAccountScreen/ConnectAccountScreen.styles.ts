@@ -81,10 +81,5 @@ export function createStyles(theme: AppTheme) {
       borderRadius: theme.borderRadius.sm,
       backgroundColor: theme.colors.qrBackground,
     },
-    center: {
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-      paddingVertical: theme.spacing.md,
-    },
   });
 }

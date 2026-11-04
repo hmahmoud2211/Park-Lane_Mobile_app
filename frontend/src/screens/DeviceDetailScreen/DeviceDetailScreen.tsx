@@ -1,7 +1,6 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
@@ -9,18 +8,14 @@ import { AppText } from '../../components/common/AppText';
 import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
 import { DeviceCard } from '../../features/home/components/DeviceCard';
 import { DeviceControl } from '../../features/home/components/DeviceControl';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGatewayDevices } from '../../features/gateway/hooks/useGatewayDevices';
 import { useHomeDevices } from '../../features/home/hooks/useHomeDevices';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { kindLabel, roomGlyph, toggleCommand } from '../../features/home/services/capabilities';
 import * as gatewayApi from '../../features/gateway/services/gatewayApi';
 import { hasControlSettings, isGatewayDeviceId, toGatewayDeviceId } from '../../features/gateway/services/deviceMapping';
@@ -28,6 +23,7 @@ import { errorMessage } from '../../features/gateway/services/gatewayHttp';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { deviceDetailCopy as copy } from './DeviceDetailScreen.data';
 import { FIELD_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceDetailScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 
 /**
  * One device: every control it offers, then its name, room and where it
@@ -39,7 +35,6 @@ import { FIELD_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceDetailS
 export function DeviceDetailScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'DeviceDetail'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'DeviceDetail'>['route']>();
   const hub = useHomeDevices();
@@ -211,23 +206,13 @@ export function DeviceDetailScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader
-            title={device?.name ?? copy.fallbackTitle}
-            subtitle={device ? [device.room, kindLabel(device.kind)].filter(Boolean).join(' · ') : undefined}
-            style={styles.header}
-          />
-          {renderBody()}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader
+        title={device?.name ?? copy.fallbackTitle}
+        subtitle={device ? [device.room, kindLabel(device.kind)].filter(Boolean).join(' · ') : undefined}
+        style={styles.header}
+      />
+      {renderBody()}
+    </InnerScreenFrame>
   );
 }

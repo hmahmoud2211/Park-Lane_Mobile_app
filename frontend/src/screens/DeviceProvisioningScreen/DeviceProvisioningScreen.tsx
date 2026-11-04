@@ -1,26 +1,21 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { StepList } from '../../features/gateway/components/StepList';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
 import { useProvisioningSession } from '../../features/gateway/hooks/useProvisioningSession';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as api from '../../features/gateway/services/gatewayApi';
 import { deviceRequest } from '../../features/provisioning/services/deviceHttp';
 import { openDeviceSetupPage } from '../../features/provisioning/services/setupPage';
@@ -39,6 +34,8 @@ import type { ProvisioningPlugin } from '../../types/gateway.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { provisioningCopy as copy } from './DeviceProvisioningScreen.data';
 import { BUTTON_HEIGHT, FIELD_HEIGHT, createStyles } from './DeviceProvisioningScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { LoadingState } from '../../components/feedback/LoadingState';
 
 type Stage = 'loading' | 'model' | 'prepare' | 'join' | 'wifi' | 'guided' | 'gateway' | 'waiting';
 
@@ -78,7 +75,6 @@ async function probeSetupDevice(pluginId: string, ip: string): Promise<object | 
 export function DeviceProvisioningScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'DeviceProvisioning'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'DeviceProvisioning'>['route']>();
   const { target, refresh } = useGateway();
@@ -574,7 +570,7 @@ export function DeviceProvisioningScreen() {
         return session ? (
           <AppButton title={copy.prepareAction} variant="gradient" height={BUTTON_HEIGHT} onPress={() => void confirmSetupMode()} />
         ) : provisioning.error ? null : (
-          <ActivityIndicator color={theme.colors.textPrimary} />
+          <LoadingState />
         );
       case 'join':
         return renderJoin();
@@ -592,83 +588,68 @@ export function DeviceProvisioningScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader title={plugin?.title ?? copy.title} subtitle={plugin?.description} style={styles.header} />
-          {!target && stage !== 'waiting' && !awayFromHome ? (
-            <Notice tone="warning">{copy.offline}</Notice>
-          ) : (
-            <>
-              {session?.experimental || plugin?.status === 'experimental' ? (
-                <Notice tone="warning" title={copy.experimentalTitle}>
-                  {copy.experimentalBody}
-                </Notice>
-              ) : null}
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader title={plugin?.title ?? copy.title} subtitle={plugin?.description} style={styles.header} />
+      {!target && stage !== 'waiting' && !awayFromHome ? (
+        <Notice tone="warning">{copy.offline}</Notice>
+      ) : (
+        <>
+          {session?.experimental || plugin?.status === 'experimental' ? (
+            <Notice tone="warning" title={copy.experimentalTitle}>
+              {copy.experimentalBody}
+            </Notice>
+          ) : null}
 
-              {session ? (
-                <NeonPanel style={styles.panel}>
-                  <PanelHeading title={copy.stepsTitle} iconSet="ionicons" iconName="list-outline" divider />
-                  <StepList steps={session.steps} state={session.state} failed={failed} />
-                  {session.experimental ? <StatusChip label="Experimental" tone="amber" icon="flask-outline" /> : null}
-                </NeonPanel>
-              ) : null}
+          {session ? (
+            <NeonPanel style={styles.panel}>
+              <PanelHeading title={copy.stepsTitle} iconSet="ionicons" iconName="list-outline" divider />
+              <StepList steps={session.steps} state={session.state} failed={failed} />
+              {session.experimental ? <StatusChip label="Experimental" tone="amber" icon="flask-outline" /> : null}
+            </NeonPanel>
+          ) : null}
 
-              {plugin && plugin.requirements.length > 0 && (stage === 'model' || stage === 'prepare') ? (
-                <NeonPanel style={styles.panel}>
-                  <PanelHeading title={copy.requirementsTitle} iconSet="ionicons" iconName="checkbox-outline" divider />
-                  {plugin.requirements.map((item) => (
-                    <View key={item} style={styles.bullet}>
-                      <AppIcon set="ionicons" name="ellipse" size={6} color={theme.colors.textSupport} />
-                      <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.flex}>
-                        {item}
-                      </AppText>
-                    </View>
-                  ))}
-                </NeonPanel>
-              ) : null}
-
-              {failed && session?.error ? (
-                <Notice
-                  tone="error"
-                  title={copy.failedTitle}
-                  actions={
-                    <View style={styles.row}>
-                      <AppButton title={copy.tryAgain} variant="gradient" height={BUTTON_HEIGHT} onPress={startOver} style={styles.action} />
-                      <AppButton title={copy.back} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.goBack()} style={styles.action} />
-                    </View>
-                  }
-                >
-                  {`${session.error.message} ${session.error.recovery}`}
-                </Notice>
-              ) : null}
-
-              {provisioning.error ? <Notice tone="error">{provisioning.error}</Notice> : null}
-              {stepError ? <Notice tone="error">{stepError}</Notice> : null}
-              {busy ? (
-                <View style={styles.center} accessibilityLiveRegion="polite">
-                  <ActivityIndicator color={theme.colors.textPrimary} />
-                  <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                    {busy}
+          {plugin && plugin.requirements.length > 0 && (stage === 'model' || stage === 'prepare') ? (
+            <NeonPanel style={styles.panel}>
+              <PanelHeading title={copy.requirementsTitle} iconSet="ionicons" iconName="checkbox-outline" divider />
+              {plugin.requirements.map((item) => (
+                <View key={item} style={styles.bullet}>
+                  <AppIcon set="ionicons" name="ellipse" size={6} color={theme.colors.textSupport} />
+                  <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.flex}>
+                    {item}
                   </AppText>
                 </View>
-              ) : null}
+              ))}
+            </NeonPanel>
+          ) : null}
 
-              {!failed ? renderStage() : null}
+          {failed && session?.error ? (
+            <Notice
+              tone="error"
+              title={copy.failedTitle}
+              actions={
+                <View style={styles.row}>
+                  <AppButton title={copy.tryAgain} variant="gradient" height={BUTTON_HEIGHT} onPress={startOver} style={styles.action} />
+                  <AppButton title={copy.back} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.goBack()} style={styles.action} />
+                </View>
+              }
+            >
+              {`${session.error.message} ${session.error.recovery}`}
+            </Notice>
+          ) : null}
 
-              {!failed && stage !== 'waiting' ? (
-                <AppButton title={copy.cancel} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.goBack()} />
-              ) : null}
-            </>
-          )}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+          {provisioning.error ? <Notice tone="error">{provisioning.error}</Notice> : null}
+          {stepError ? <Notice tone="error">{stepError}</Notice> : null}
+          {busy ? (
+            <LoadingState label={busy} announce />
+          ) : null}
+
+          {!failed ? renderStage() : null}
+
+          {!failed && stage !== 'waiting' ? (
+            <AppButton title={copy.cancel} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.goBack()} />
+          ) : null}
+        </>
+      )}
+    </InnerScreenFrame>
   );
 }

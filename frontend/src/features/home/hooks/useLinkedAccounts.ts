@@ -4,6 +4,7 @@ import { emsErrorText } from '../../ems/services/emsHttp';
 import * as homeApi from '../services/homeApi';
 import type { FlowStep, LinkedAccount } from '../../../types/home.types';
 import { useEms } from '../../ems/hooks/useEms';
+import { readyHome } from '../../ems/services/readyHome';
 
 /**
  * The brand accounts linked to the resident's home. Re-read whenever the
@@ -15,7 +16,7 @@ export function useLinkedAccounts() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
-  const hasHome = status === 'signedIn' && home !== null && home.hub.status !== 'provisioning';
+  const hasHome = readyHome(status, home) !== null;
 
   const refresh = useCallback(async () => {
     try {

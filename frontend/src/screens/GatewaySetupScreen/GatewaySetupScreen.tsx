@@ -1,16 +1,13 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { GatewayStatusRow } from '../../features/gateway/components/GatewayStatusRow';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { QrScanner } from '../../components/common/QrScanner';
 import { FilterChip } from '../../components/ui/FilterChip';
@@ -18,10 +15,8 @@ import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';
-import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import * as api from '../../features/gateway/services/gatewayApi';
 import { isRemoteGatewayUrl, parsePairPayload, scanLan, type FoundGateway } from '../../features/gateway/services/gatewayDiscovery';
 import { errorMessage } from '../../features/gateway/services/gatewayHttp';
@@ -30,6 +25,7 @@ import type { RemoteStatus } from '../../types/gateway.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { gatewaySetupCopy as copy } from './GatewaySetupScreen.data';
 import { BUTTON_HEIGHT, FIELD_HEIGHT, PROGRESS_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './GatewaySetupScreen.styles';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 
 type Mode = 'setup' | 'invite';
 
@@ -43,7 +39,6 @@ type Mode = 'setup' | 'invite';
 export function GatewaySetupScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'GatewaySetup'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'GatewaySetup'>['route']>();
   const gateway = useGateway();
@@ -414,135 +409,125 @@ export function GatewaySetupScreen() {
     ) : null;
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
+
+      {active ? (
+        <GatewayStatusRow
+          status={gateway.status}
+          name={active.name}
+          detail={gateway.status === 'online' ? null : gateway.problem}
+          manageLabel={copy.addDevice}
+          onManage={() => navigation.navigate('AddDevice')}
+        />
+      ) : null}
+
+      {connectedName ? (
+        <Notice
+          tone="success"
+          actions={<AppButton title={copy.addDevice} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('AddDevice')} />}
         >
-          <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
+          {copy.connected(connectedName)}
+        </Notice>
+      ) : null}
 
-          {active ? (
-            <GatewayStatusRow
-              status={gateway.status}
-              name={active.name}
-              detail={gateway.status === 'online' ? null : gateway.problem}
-              manageLabel={copy.addDevice}
-              onManage={() => navigation.navigate('AddDevice')}
-            />
-          ) : null}
+      {gateway.gateways.length > 0 ? (
+        <NeonPanel style={styles.panel}>
+          <PanelHeading title={copy.pairedTitle} iconSet="ionicons" iconName="hardware-chip-outline" divider />
+          {gateway.gateways.map(renderStored)}
+        </NeonPanel>
+      ) : null}
 
-          {connectedName ? (
-            <Notice
-              tone="success"
-              actions={<AppButton title={copy.addDevice} variant="gradient" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('AddDevice')} />}
-            >
-              {copy.connected(connectedName)}
-            </Notice>
-          ) : null}
-
-          {gateway.gateways.length > 0 ? (
-            <NeonPanel style={styles.panel}>
-              <PanelHeading title={copy.pairedTitle} iconSet="ionicons" iconName="hardware-chip-outline" divider />
-              {gateway.gateways.map(renderStored)}
-            </NeonPanel>
-          ) : null}
-
-          {Platform.OS !== 'web' ? (
-            <NeonPanel style={styles.panel}>
-              <PanelHeading title={copy.findTitle} iconSet="ionicons" iconName="search-outline" divider />
-              <AppText variant="bodySmall" color={theme.colors.textSupport}>
-                {copy.findIntro}
-              </AppText>
-              {scanProgress !== null ? (
-                <>
-                  <ProgressBar progress={scanProgress} height={PROGRESS_HEIGHT} accessibilityLabel={copy.scanning} />
-                  <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                    {copy.scanning}
-                  </AppText>
-                </>
-              ) : null}
-              {scanError ? <Notice tone="warning">{scanError}</Notice> : null}
-              {found.map(renderFound)}
-              {scanProgress === null && found.length === 0 && !scanError && scanned ? (
-                <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                  {copy.scanNone}
-                </AppText>
-              ) : null}
-              <AppButton title={copy.scan} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={scanProgress !== null} onPress={() => void scan()} />
-            </NeonPanel>
-          ) : null}
-
-          <NeonPanel style={styles.panel}>
-            <PanelHeading title={copy.connectTitle} iconSet="ionicons" iconName="link-outline" divider />
-            <AppText variant="bodySmall" color={theme.colors.textSupport}>
-              {copy.connectIntro}
-            </AppText>
-            <View style={styles.chips} accessibilityRole="radiogroup">
-              <FilterChip role="radio" label={copy.modeSetup} iconSet="ionicons" iconName="key-outline" selected={mode === 'setup'} onPress={() => setMode('setup')} />
-              <FilterChip role="radio" label={copy.modeInvite} iconSet="ionicons" iconName="mail-outline" selected={mode === 'invite'} onPress={() => setMode('invite')} />
-            </View>
-            <AppInput
-              variant="field"
-              label={copy.host}
-              value={host}
-              onChangeText={setHost}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              height={FIELD_HEIGHT}
-            />
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.hostHelp}
-            </AppText>
-            <AppInput
-              variant="field"
-              label={copy.code}
-              value={code}
-              onChangeText={setCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              autoComplete="off"
-              height={FIELD_HEIGHT}
-            />
-            {qrOpen ? <QrScanner onScan={onQr} onClose={() => setQrOpen(false)} /> : null}
-            {qrError ? <Notice tone="warning">{qrError}</Notice> : null}
-            {connectError ? <Notice tone="error">{connectError}</Notice> : null}
-            <View style={styles.row}>
-              {Platform.OS !== 'web' ? (
-                <AppButton
-                  title={qrOpen ? copy.closeQr : copy.scanQr}
-                  variant="secondary"
-                  height={BUTTON_HEIGHT}
-                  onPress={() => setQrOpen((open) => !open)}
-                  style={styles.action}
-                />
-              ) : null}
-              <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} loading={connecting} onPress={() => void connect()} style={styles.action} />
-            </View>
-            {isRemoteGatewayUrl(host) ? (
+      {Platform.OS !== 'web' ? (
+        <NeonPanel style={styles.panel}>
+          <PanelHeading title={copy.findTitle} iconSet="ionicons" iconName="search-outline" divider />
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {copy.findIntro}
+          </AppText>
+          {scanProgress !== null ? (
+            <>
+              <ProgressBar progress={scanProgress} height={PROGRESS_HEIGHT} accessibilityLabel={copy.scanning} />
               <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                {copy.serverSecurity}
+                {copy.scanning}
               </AppText>
-            ) : (
-              <>
-                <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                  {copy.localNetwork}
-                </AppText>
-                <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                  {copy.security}
-                </AppText>
-              </>
-            )}
-          </NeonPanel>
+            </>
+          ) : null}
+          {scanError ? <Notice tone="warning">{scanError}</Notice> : null}
+          {found.map(renderFound)}
+          {scanProgress === null && found.length === 0 && !scanError && scanned ? (
+            <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              {copy.scanNone}
+            </AppText>
+          ) : null}
+          <AppButton title={copy.scan} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={scanProgress !== null} onPress={() => void scan()} />
+        </NeonPanel>
+      ) : null}
 
-          {renderRemote()}
-          {renderInvite()}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+      <NeonPanel style={styles.panel}>
+        <PanelHeading title={copy.connectTitle} iconSet="ionicons" iconName="link-outline" divider />
+        <AppText variant="bodySmall" color={theme.colors.textSupport}>
+          {copy.connectIntro}
+        </AppText>
+        <View style={styles.chips} accessibilityRole="radiogroup">
+          <FilterChip role="radio" label={copy.modeSetup} iconSet="ionicons" iconName="key-outline" selected={mode === 'setup'} onPress={() => setMode('setup')} />
+          <FilterChip role="radio" label={copy.modeInvite} iconSet="ionicons" iconName="mail-outline" selected={mode === 'invite'} onPress={() => setMode('invite')} />
+        </View>
+        <AppInput
+          variant="field"
+          label={copy.host}
+          value={host}
+          onChangeText={setHost}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          height={FIELD_HEIGHT}
+        />
+        <AppText variant="tileCaption" color={theme.colors.textSupport}>
+          {copy.hostHelp}
+        </AppText>
+        <AppInput
+          variant="field"
+          label={copy.code}
+          value={code}
+          onChangeText={setCode}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          autoComplete="off"
+          height={FIELD_HEIGHT}
+        />
+        {qrOpen ? <QrScanner onScan={onQr} onClose={() => setQrOpen(false)} /> : null}
+        {qrError ? <Notice tone="warning">{qrError}</Notice> : null}
+        {connectError ? <Notice tone="error">{connectError}</Notice> : null}
+        <View style={styles.row}>
+          {Platform.OS !== 'web' ? (
+            <AppButton
+              title={qrOpen ? copy.closeQr : copy.scanQr}
+              variant="secondary"
+              height={BUTTON_HEIGHT}
+              onPress={() => setQrOpen((open) => !open)}
+              style={styles.action}
+            />
+          ) : null}
+          <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} loading={connecting} onPress={() => void connect()} style={styles.action} />
+        </View>
+        {isRemoteGatewayUrl(host) ? (
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.serverSecurity}
+          </AppText>
+        ) : (
+          <>
+            <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              {copy.localNetwork}
+            </AppText>
+            <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              {copy.security}
+            </AppText>
+          </>
+        )}
+      </NeonPanel>
+
+      {renderRemote()}
+      {renderInvite()}
+    </InnerScreenFrame>
   );
 }

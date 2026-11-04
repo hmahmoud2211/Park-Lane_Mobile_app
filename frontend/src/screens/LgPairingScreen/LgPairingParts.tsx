@@ -104,9 +104,9 @@ export function TextAction({ title, onPress }: { title: string; onPress: () => v
   );
 }
 
-export type NoticeTone = 'info' | 'warning' | 'error' | 'success';
+export type LgNoticeTone = 'info' | 'warning' | 'error' | 'success';
 
-const NOTICE_ICONS: Record<NoticeTone, keyof typeof Ionicons.glyphMap> = {
+const NOTICE_ICONS: Record<LgNoticeTone, keyof typeof Ionicons.glyphMap> = {
   info: 'information-circle-outline',
   warning: 'flask-outline',
   error: 'alert-circle-outline',
@@ -114,14 +114,14 @@ const NOTICE_ICONS: Record<NoticeTone, keyof typeof Ionicons.glyphMap> = {
 };
 
 /** A tinted callout with an optional title and actions. */
-export function Notice({
+export function LgNotice({
   tone,
   title,
   children,
   actions,
   style,
 }: {
-  tone: NoticeTone;
+  tone: LgNoticeTone;
   title?: string;
   children?: ReactNode;
   actions?: ReactNode;

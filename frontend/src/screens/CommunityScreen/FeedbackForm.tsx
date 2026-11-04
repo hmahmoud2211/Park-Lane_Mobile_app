@@ -2,16 +2,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 
-import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
-import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 // Visitor Access's form sizes, so the app's forms read as one.
-import { CTA_ARROW_SIZE, CTA_HEIGHT, FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
+import { FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
 import {
   communityCopy as copy,
   feedbackTopics,
@@ -19,6 +17,7 @@ import {
   type FeedbackErrors,
   type FeedbackForm as FeedbackValues,
 } from './CommunityScreen.data';
+import { FormSubmitButton } from '../../components/forms/FormSubmitButton';
 
 export interface FeedbackFormProps {
   /** Receives a message that passed validation. */
@@ -146,22 +145,7 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
         />
       </View>
 
-      <AppButton
-        title={copy.feedbackSend}
-        variant="gradient"
-        gradientColors={[
-          theme.colors.ctaSky,
-          theme.colors.ctaRoyal,
-          theme.colors.ctaViolet,
-          theme.colors.ctaPink,
-        ]}
-        height={CTA_HEIGHT}
-        labelVariant="statValue"
-        trailingIcon={<ArrowRightIcon size={CTA_ARROW_SIZE} thickness={1.2} />}
-        trailingPlacement="label"
-        onPress={submit}
-        style={styles.cta}
-      />
+      <FormSubmitButton title={copy.feedbackSend} onPress={submit} style={styles.cta} />
 
       <AppMenu
         visible={anchor !== null}

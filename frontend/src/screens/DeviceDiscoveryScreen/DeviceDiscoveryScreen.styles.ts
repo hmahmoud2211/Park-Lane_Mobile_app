@@ -20,9 +20,6 @@ const CANDIDATE_PADDING = 12;
 
 export function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    flex: {
-      flex: 1,
-    },
     content: {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
@@ -67,11 +64,6 @@ export function createStyles(theme: AppTheme) {
     action: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing.md,
-    },
-    center: {
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-      paddingVertical: theme.spacing.sm,
     },
   });
 }

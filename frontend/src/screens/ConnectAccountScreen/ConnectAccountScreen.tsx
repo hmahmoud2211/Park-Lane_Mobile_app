@@ -1,24 +1,19 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
-import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { StatusChip } from '../../components/ui/StatusChip';
-import { images } from '../../constants/images';
 import { useAccountLink } from '../../features/home/hooks/useAccountLink';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useEms } from '../../features/ems/hooks/useEms';
-import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { EmsError } from '../../features/ems/services/emsApi';
 import * as homeApi from '../../features/home/services/homeApi';
 import type { Integration } from '../../types/home.types';
@@ -26,6 +21,10 @@ import type { RootStackScreenProps } from '../../types/navigation.types';
 import { connectCopy as copy, methodLabels } from './ConnectAccountScreen.data';
 import { BUTTON_HEIGHT, createStyles } from './ConnectAccountScreen.styles';
 import { FlowStepForm } from './FlowStepForm';
+import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { readyHome } from '../../features/ems/services/readyHome';
 
 /**
  * Connecting devices: the resident picks the brand their devices already use
@@ -36,7 +35,6 @@ import { FlowStepForm } from './FlowStepForm';
 export function ConnectAccountScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const layout = useScreenLayout();
   const navigation = useNavigation<RootStackScreenProps<'ConnectAccount'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'ConnectAccount'>['route']>();
   const { status, home, homeProblem, refreshHome } = useEms();
@@ -44,7 +42,7 @@ export function ConnectAccountScreen() {
   const { start, open } = link;
   const [integrations, setIntegrations] = useState<Integration[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const hasHome = status === 'signedIn' && home !== null && home.hub.status !== 'provisioning';
+  const hasHome = readyHome(status, home) !== null;
 
   const loadIntegrations = useCallback(async () => {
     try {
@@ -94,17 +92,13 @@ export function ConnectAccountScreen() {
   const renderBrands = () => {
     if (loadError) {
       return (
-        <Notice
-          tone="error"
-          title={copy.loadFailed}
-          actions={<AppButton title={copy.retry} variant="secondary" height={BUTTON_HEIGHT} onPress={() => void loadIntegrations()} />}
-        >
+        <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={() => void loadIntegrations()}>
           {loadError}
-        </Notice>
+        </ErrorNotice>
       );
     }
     if (!integrations) {
-      return <ActivityIndicator color={theme.colors.textPrimary} accessibilityLabel="Loading brands" />;
+      return <LoadingState accessibilityLabel="Loading brands" />;
     }
     return (
       <View style={styles.brands}>
@@ -169,7 +163,7 @@ export function ConnectAccountScreen() {
           {homeProblem.message}
         </Notice>
       ) : (
-        <ActivityIndicator color={theme.colors.textPrimary} />
+        <LoadingState />
       );
     }
     if (link.step) {
@@ -210,19 +204,9 @@ export function ConnectAccountScreen() {
   };
 
   return (
-    <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
-      <StatusBar style="light" />
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.content, layout.contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
-          {renderBody()}
-        </ScrollView>
-        <BottomBar />
-      </View>
-    </ScreenWrapper>
+    <InnerScreenFrame contentStyle={styles.content}>
+      <PageHeader title={copy.title} subtitle={copy.subtitle} style={styles.header} />
+      {renderBody()}
+    </InnerScreenFrame>
   );
 }

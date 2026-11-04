@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { AppButton } from '../../components/common/AppButton';
@@ -12,6 +12,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import type { FlowField, FlowStep } from '../../types/home.types';
 import { connectCopy as copy } from './ConnectAccountScreen.data';
 import { BUTTON_HEIGHT, FIELD_HEIGHT, QR_SIZE, createStyles } from './ConnectAccountScreen.styles';
+import { LoadingState } from '../../components/feedback/LoadingState';
 
 export interface FlowStepFormProps {
   step: FlowStep;
@@ -114,12 +115,7 @@ export function FlowStepForm({ step, brand, busy, error, onSubmit, onSignIn, onC
       return (
         <View style={styles.form}>
           {heading}
-          <View style={styles.center} accessibilityLiveRegion="polite">
-            <ActivityIndicator color={theme.colors.textPrimary} />
-            <AppText variant="bodySmall" color={theme.colors.textSupport} align="center">
-              {step.message ?? copy.working}
-            </AppText>
-          </View>
+          <LoadingState label={step.message ?? copy.working} labelVariant="bodySmall" inset="md" announce />
           {cancel}
         </View>
       );
