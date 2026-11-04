@@ -51,6 +51,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "check:parking": "npx --yes tsx src/features/parking/services/run-checks.ts",
+    "check:transport": "npx --yes tsx src/lib/http/checks.ts",
     "build": "expo export --platform web",
     "serve": "npx serve dist --single",
     "postinstall": "patch-package"

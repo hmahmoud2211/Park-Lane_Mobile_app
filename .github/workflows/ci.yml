@@ -55,6 +55,9 @@ jobs:
       - name: Parking demo checks
         run: npm run check:parking
 
+      - name: HTTP client checks
+        run: npm run check:transport
+
       - name: Web export
         run: npx expo export --platform web --output-dir dist
 
