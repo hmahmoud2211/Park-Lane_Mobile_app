@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { request } from 'node:http';
 import { join } from 'node:path';
 
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
+import { docker, dockerOk } from '../integrations/docker.ts';
 import { log } from '../log.ts';
 import { HaConnection } from './haClient.ts';
 import { createHubRow, getHubForUnit, hubHasToken, startHub, stopHub, updateHubRow, type Hub } from './hubs.ts';
@@ -29,52 +29,6 @@ import { createHubRow, getHubForUnit, hubHasToken, startHub, stopHub, updateHubR
 
 const FACADE_USER = 'parklane-facade';
 const CONTAINER_PORT = '8123/tcp';
-
-// ---- Docker Engine API ---------------------------------------------------------------------
-
-interface DockerResponse {
-  status: number;
-  body: unknown;
-}
-
-export function docker(method: string, path: string, body?: unknown): Promise<DockerResponse> {
-  return new Promise((resolve, reject) => {
-    const payload = body === undefined ? undefined : JSON.stringify(body);
-    const req = request(
-      {
-        socketPath: config.ha.dockerSocket,
-        path,
-        method,
-        headers: { Host: 'docker', ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}) },
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (chunk: Buffer) => chunks.push(chunk));
-        res.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8');
-          let parsed: unknown = text;
-          try {
-            parsed = text ? JSON.parse(text) : null;
-          } catch {
-            // Image pulls stream one JSON object per line; callers only need the status.
-          }
-          resolve({ status: res.statusCode ?? 0, body: parsed });
-        });
-      },
-    );
-    req.on('error', (error) => reject(new ApiError('not_configured', `Docker is not reachable at ${config.ha.dockerSocket}: ${error.message}`)));
-    req.end(payload);
-  });
-}
-
-async function dockerOk(method: string, path: string, body?: unknown, allowed: readonly number[] = []): Promise<unknown> {
-  const response = await docker(method, path, body);
-  if (response.status >= 400 && !allowed.includes(response.status)) {
-    const message = (response.body as { message?: string } | null)?.message ?? `HTTP ${response.status}`;
-    throw new Error(`Docker ${method} ${path.split('?')[0]}: ${message}`);
-  }
-  return response.body;
-}
 
 async function ensureNetwork(): Promise<void> {
   const found = await docker('GET', `/networks/${encodeURIComponent(config.ha.network)}`);
