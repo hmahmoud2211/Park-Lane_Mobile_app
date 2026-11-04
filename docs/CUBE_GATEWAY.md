@@ -265,6 +265,20 @@ Then, in the app (owner): Connect gateway → Remote access → relay URL `https
 enrolment token. The gateway enrols and keeps the tunnel open (`PUT /api/v1/remote/relay`). Revoking a phone
 on the gateway (`DELETE /api/v1/auth/clients/{id}`) cuts it off through the relay at once.
 
+**Deployed on the EMS server (2026-11-04):**
+
+| Item | Value |
+| --- | --- |
+| Public URL | `https://cube-relay.ems-iot.com` (Cloudflare proxied → 102.43.60.185) |
+| Container | `cube-relay` (image `cube-os-gateway:1.0.0`, `relay` mode, host network, `127.0.0.1:8687`, `--restart unless-stopped`) |
+| Settings and enrolment token | `/home/ems-server/EMS/cube-relay/relay.env` (0600). Show the token with `grep TOKEN /home/ems-server/EMS/cube-relay/relay.env` |
+| Data | Docker volume `cube-relay-data` (`relay.db`: gateway IDs and hashed tunnel secrets) |
+| nginx | `/etc/nginx/conf.d/cube-relay.conf`: only `/relay/` is proxied; rate limits use Cloudflare's `CF-Connecting-IP` |
+| Logs and health | `docker logs -f cube-relay`; `curl https://cube-relay.ems-iot.com/relay/v1/health` |
+
+To restart or upgrade it: `docker rm -f cube-relay`, then
+`docker run -d --name cube-relay --network host --restart unless-stopped --env-file /home/ems-server/EMS/cube-relay/relay.env -v cube-relay-data:/data <image> relay`.
+
 **Limitation:** TLS ends at the relay, so whoever operates the relay could read traffic in transit. Use
 Tailscale when that matters. End-to-end encryption through the relay is not implemented.
 
@@ -336,6 +350,7 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 | `docker build gateway/` (amd64) | Builds; image 321 MB |
 | Container first start → setup code via `docker exec` → claim → data → `docker restart` | Data and token survive; Docker health `healthy` |
 | Real LG AC (RAC_056905_WW) on this server's ReThink, read-only | Found, paired, state read (mode, target 24 °C, room 26 °C, fan), model and 12 sensors after restart. **No commands were sent to the appliance** |
+| Relay on `cube-relay.ems-iot.com` (nginx + Cloudflare) | A gateway enrolled with the token and opened its tunnel. Through the public URL: health answered, `/devices` 401 without a token and 200 with one, claiming refused (403), a room created, and the events WebSocket got `ready` and then a live `rooms.updated`. Without the token, enrolment is refused. The test gateway and its enrolment were then removed |
 | ARM64 | Every dependency resolves to an aarch64 wheel for CPython 3.14. The arm64 image build itself runs in CI (QEMU); it was not run on this server |
 | App: `npx tsc --noEmit`, `npx expo lint` | Both pass |
 | App: `npx expo export` (Android, web) | Builds |
@@ -343,7 +358,7 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 **Still to test on real hardware:** every adapter other than the read-only LG check above; commands to the
 LG AC; Wi-Fi provisioning for Shelly, WLED and SONOFF (especially the S26R2TPF) from a phone; the Android and
 iOS hotspot join with `react-native-wifi-reborn` in a development build (it isn't in Expo Go); gateway-side
-setup over NetworkManager; the relay behind nginx and Cloudflare; the arm64 image on a Raspberry Pi.
+setup over NetworkManager; the relay from a phone on mobile data; the arm64 image on a Raspberry Pi.
 
 ## Not supported, and why
 

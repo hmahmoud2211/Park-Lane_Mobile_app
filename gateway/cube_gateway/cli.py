@@ -98,13 +98,16 @@ def _reset_owner() -> int:
 
 
 def _healthcheck() -> int:
+    """Healthy when the gateway API or, in relay mode, the relay answers on this host (one image, two modes)."""
     settings = load_settings()
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{settings.port}/api/v1/health", timeout=4) as response:  # noqa: S310 - fixed local URL
-            body = json.loads(response.read())
-        return 0 if body.get("ok") else 1
-    except Exception:  # noqa: BLE001
-        return 1
+    for url in (f"http://127.0.0.1:{settings.port}/api/v1/health", f"http://127.0.0.1:{settings.relay_port}/relay/v1/health"):
+        try:
+            with urllib.request.urlopen(url, timeout=4) as response:  # noqa: S310 - fixed local URLs
+                if json.loads(response.read()).get("ok"):
+                    return 0
+        except Exception:  # noqa: BLE001 - try the other mode
+            continue
+    return 1
 
 
 def main(argv: list[str] | None = None) -> None:

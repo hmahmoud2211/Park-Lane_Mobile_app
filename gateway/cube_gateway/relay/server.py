@@ -93,6 +93,11 @@ def create_relay_app(settings: Settings) -> FastAPI:
     app.state.relay = relay
 
     def ip_of(request: Request | WebSocket) -> str:
+        # X-Real-IP is set by the reverse proxy (overwriting anything the client sent); the first X-Forwarded-For
+        # entry is client-controlled, so it is only a fallback for proxies that do not set X-Real-IP.
+        real = request.headers.get("x-real-ip", "").strip()
+        if real:
+            return real
         forwarded = request.headers.get("x-forwarded-for", "")
         return forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
 
