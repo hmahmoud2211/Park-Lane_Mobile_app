@@ -19,6 +19,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP="$ROOT/frontend"
 BACKEND="$ROOT/backend"
 LOGS="$ROOT/.dev-logs"
 BACKEND_PORT="${PORT:-8787}"
@@ -91,12 +92,13 @@ require_node() {
   local major
   major="$(node -p 'process.versions.node.split(".")[0]')"
   [ "$major" -ge 22 ] || fail "Node.js $(node -v) is too old (need 22.18 or newer)."
-  [ -d "$ROOT/node_modules" ] || { info "Installing the app's packages (first run)…"; (cd "$ROOT" && npm install); }
+  [ -d "$APP/node_modules" ] || { info "Installing the app's packages (first run)…"; (cd "$APP" && npm install); }
 }
 
-# A checkout from before server/ was renamed backend/ (git pull) keeps its untracked files
-# there: settings in server/.env and maybe a server/data/ folder. Moving secrets is left to
-# you; this says what to run. With "strict", a missing backend/.env stops the script.
+# A checkout from before the app moved to frontend/ and server/ became backend/ (git pull)
+# keeps its untracked files where they were: settings in server/.env and .env.local, maybe a
+# server/data/ folder and the app's node_modules. Moving secrets is left to you; this says what
+# to run. With "strict", a missing backend/.env stops the script.
 check_leftovers() {
   local strict="${1:-}"
   if [ -f "$ROOT/server/.env" ] && [ ! -f "$BACKEND/.env" ]; then
@@ -111,6 +113,12 @@ check_leftovers() {
       info "server/data/ is left over from before the rename. Unless DATA_DIR points elsewhere, move it: mv \"$ROOT/server/data\" \"$BACKEND/data\""
     fi
   fi
+  if [ -f "$ROOT/.env.local" ] && [ ! -f "$APP/.env.local" ]; then
+    info "The app moved to frontend/, but its settings are still in .env.local at the top: mv \"$ROOT/.env.local\" \"$APP/.env.local\""
+  fi
+  if [ -d "$ROOT/node_modules" ]; then
+    info "node_modules/ at the top is left over from before the app moved to frontend/ and can be deleted: rm -rf \"$ROOT/node_modules\""
+  fi
 }
 
 start_app() {
@@ -120,7 +128,7 @@ start_app() {
   info "In the app: Settings → My Devices, sign in with your EMS account."
   [ "$web" = 1 ] && info "Opening the web browser…" || info "Press w for the web browser, or scan the QR code with your phone."
   echo
-  cd "$ROOT"
+  cd "$APP"
   # The variables win over .env.local, so a changed Wi-Fi address needs no file edit.
   local args=(expo start -c)
   [ "$web" = 1 ] && args+=(--web)
@@ -231,9 +239,9 @@ mode_check() {
   require_node
   check_leftovers
   bold "App: typecheck"
-  (cd "$ROOT" && npx tsc --noEmit) && ok "types"
+  (cd "$APP" && npx tsc --noEmit) && ok "types"
   bold "App: lint"
-  (cd "$ROOT" && npx expo lint) && ok "lint"
+  (cd "$APP" && npx expo lint) && ok "lint"
   bold "Backend: typecheck"
   # TypeScript is the backend's only package, and only for this check: it runs on plain Node.
   [ -d "$BACKEND/node_modules" ] || { info "Installing the backend's typecheck tools (first run)…"; (cd "$BACKEND" && npm ci); }

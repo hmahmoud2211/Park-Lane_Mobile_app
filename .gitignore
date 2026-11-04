@@ -36,9 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# generated native folders (Continuous Native Generation; never edit by hand)
+/frontend/ios
+/frontend/android
 
 # device backend: secrets and its data folder
 backend/.env

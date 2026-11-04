@@ -3,8 +3,8 @@
   "compilerOptions": {
     "strict": true
   },
-  // The device backend is a Node service with its own tsconfig (backend/tsconfig.json),
-  // and IOT/ is the Home Assistant platform, a separate Python project.
+  // The backend (../backend) and the CUBE gateway (../gateway) are separate projects with
+  // their own tooling. dist/ is the web export, which would otherwise be type-checked as JS.
   "exclude": [
     "node_modules",
     "babel.config.js",
@@ -12,7 +12,7 @@
     "jest.config.js",
     "android",
     "ios",
-    "server",
-    "IOT"
+    "dist",
+    "web-build"
   ]
 }

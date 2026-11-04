@@ -8,6 +8,8 @@ name: App build (EAS)
 # One-time setup: create a personal access token at https://expo.dev/settings/access-tokens (logged in as
 # emscompany2016), then add it in GitHub → Settings → Secrets and variables → Actions → New repository secret,
 # named EXPO_TOKEN. iOS builds also need Apple credentials stored on EAS (run `eas build -p ios` locally once).
+#
+# The app lives in frontend/ (app.json, eas.json, package-lock.json); every run step works there.
 
 on:
   workflow_dispatch:
@@ -43,8 +45,13 @@ jobs:
     # GitHub does not allow the secrets context in a job-level `if`, so the token is checked in the first step.
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Check the Expo token is set
+        # Runs before the checkout, when frontend/ does not exist yet.
+        working-directory: .
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
@@ -59,6 +66,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - uses: expo/expo-github-action@v8
         with:
@@ -82,7 +90,8 @@ jobs:
           eas "${args[@]}" > builds.json
 
       - name: Summary
-        if: always() && hashFiles('builds.json') != ''
+        # hashFiles() looks from the repository root, not from the working directory.
+        if: always() && hashFiles('frontend/builds.json') != ''
         run: |
           node -e '
             const fs = require("fs");
