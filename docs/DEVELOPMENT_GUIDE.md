@@ -61,6 +61,8 @@ npm run fake-hub          # with a stand-in Home Assistant and a demo unit; noth
 npm run attach-hub -- --email you@example.com --url http://127.0.0.1:8123 --token <long-lived token>
 ```
 
+The whole backend also runs as one Docker image: see [Run it in Docker](../backend/README.md#run-it-in-docker).
+
 The database is SQLite in `DATA_DIR` (default `backend/data/ems.db`), created and migrated on start (`backend/src/ems/db.ts`). To look inside: `sqlite3 backend/data/ems.db`. **Keep the backend one process**: live state (hub connections, the event bus, rate limits) is in memory.
 
 ### The gateway and rethink
