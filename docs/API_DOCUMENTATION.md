@@ -2,7 +2,7 @@
 
 This covers the **EMS device backend** (`backend/`), which the app calls at `EXPO_PUBLIC_DEVICE_BACKEND_URL` (production: `https://api-iot-2.ems-iot.com`). The CUBE Gateway has its own API, documented in [gateway/API.md](../gateway/API.md). The Parklane Assistant is an external service.
 
-Health Passport's API (`/health/...`) is not on this backend yet. [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md#the-api-it-expects) describes what the app expects.
+Health Passport (`/health/...`, plain JSON without the envelope below) is in [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md#the-api-it-expects), and the clinic (`/api/clinic/...`) in [CLINIC.md](CLINIC.md).
 
 The types named below are in [`shared/contracts`](../shared/contracts), which the app and the backend both import.
 
@@ -42,7 +42,7 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 
 | Token | From | Accepted by |
 |---|---|---|
-| Session | `POST /api/auth/login` or `/register`; 30 days | every resident route |
+| Session | `POST /api/auth/login` or `/register`; 30 days, 12 hours for doctors and desk staff | every resident route; the clinic's doctor and desk routes also check the role |
 | Assistant | `POST /api/auth/assistant-token`; ≤ 12 hours, never longer than its session | `GET /api/home`, `GET /api/devices`, `GET /api/devices/:id`, `GET /api/rooms`, `POST /api/devices/:id/commands` only; every command audited, `lock.unlock` refused |
 | Admin key | `ADMIN_API_KEY` | `/api/health` (open while no key is set) and `/api/admin/*` (off until a key is set) |
 
@@ -55,7 +55,7 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | `POST /api/auth/register` | `{ email, password, name? }` (password 8–128 characters) | `SignedIn`: `{ user, token }`; `409 conflict` if the email is taken |
 | `POST /api/auth/login` | `{ email, password }` | `SignedIn`; `401` for a wrong email or password (same timing either way) |
 | `POST /api/auth/logout` | — | `{ signedOut: true }`; revokes the session and its assistant tokens |
-| `GET /api/auth/me` | — | `{ user }` (`User`) |
+| `GET /api/auth/me` | — | `{ user }` (`User`, with `role`: `resident`, `doctor` or `clinic_staff`) |
 | `POST /api/auth/assistant-token` | — | `AssistantToken`: `{ token, expiresAt }` |
 
 ## The home — `routes/home.ts`

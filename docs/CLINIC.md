@@ -11,7 +11,7 @@ Park Lane app (Clinical Appointment,        Clinic web app (doctors, front desk)
                Health Passport)
    │ book a slot for a Health Passport profile      │ dashboard · queue · history · consultation
    ▼                                                ▼
-EMS backend (server/) ── one database (ems.db), one set of accounts, one realtime bus
+EMS backend (backend/) ── one database (ems.db), one set of accounts, one realtime bus
    │ /api/clinic/...  appointments, status machine, queue, consultations, audit
    │ /health/...      Health Passport (the app's existing HttpHealthService contract),
    │                  documents, spoken summaries, media
@@ -35,22 +35,22 @@ Added, all on that same backend:
 
 | Area | Where |
 | --- | --- |
-| Roles: `resident`, `doctor`, `clinic_staff` | `server/src/ems/auth.ts`, migration 2 |
-| Health Passport backend (consent, profiles, record items, gaps) | `server/src/health/` |
-| Doctors, specialties, weekly hours, time off, slots | `server/src/clinic/doctors.ts` |
-| Booking, status machine, queue, next-patient notices | `server/src/clinic/appointments.ts` |
-| History access rules | `server/src/clinic/history.ts` |
-| Consultations: drafts, transcript segments, finalize, addenda, retention | `server/src/clinic/consultations.ts` |
-| AI provider layer: Gemini or Claude (raw HTTP, JSON schemas) | `server/src/ai/` |
-| History summaries, SOAP drafts | `server/src/clinic/ai/` |
-| Health Passport documents: upload, reading, review | `server/src/health/documents.ts` |
-| The spoken handover, and Health Passport's "Summary for doctor" | `server/src/health/spoken.ts`, `summaries.ts` |
-| Sealed files and signed media links; background jobs | `server/src/health/files.ts`, `jobs.ts` |
-| ElevenLabs TTS and Scribe STT | `server/src/clinic/speech.ts` |
-| Audit trail | `server/src/clinic/audit.ts` |
-| Admin CLI | `server/src/clinic/cli.ts` (`npm run clinic -- …`) |
-| App: Clinical Appointment (directory, doctor, booking, appointment) | `src/screens/Clinic*`, `src/services/clinic/` |
-| App: clinic visits in Health Passport | `src/screens/HealthConsultationScreen`, Passport home and Records |
+| Roles: `resident`, `doctor`, `clinic_staff` | `backend/src/ems/auth.ts`, migration 6 |
+| Health Passport backend (consent, profiles, record items, gaps) | `backend/src/health/` |
+| Doctors, specialties, weekly hours, time off, slots | `backend/src/clinic/doctors.ts` |
+| Booking, status machine, queue, next-patient notices | `backend/src/clinic/appointments.ts` |
+| History access rules | `backend/src/clinic/history.ts` |
+| Consultations: drafts, transcript segments, finalize, addenda, retention | `backend/src/clinic/consultations.ts` |
+| AI provider layer: Gemini or Claude (raw HTTP, JSON schemas) | `backend/src/integrations/ai/` |
+| History summaries, SOAP drafts | `backend/src/clinic/ai/` |
+| Health Passport documents: upload, reading, review | `backend/src/health/documents.ts` |
+| The spoken handover, and Health Passport's "Summary for doctor" | `backend/src/health/spoken.ts`, `summaries.ts` |
+| Sealed files and signed media links; background jobs | `backend/src/health/files.ts`, `jobs.ts` |
+| ElevenLabs TTS and Scribe STT | `backend/src/integrations/elevenlabs.ts` |
+| Audit trail | `backend/src/clinic/audit.ts` |
+| Admin CLI | `backend/scripts/clinic.ts` (`npm run clinic -- …`) |
+| App: Clinical Appointment (directory, doctor, booking, appointment) | `frontend/src/screens/Clinic*`, `frontend/src/features/clinic/` |
+| App: clinic visits in Health Passport | `frontend/src/screens/HealthConsultationScreen`, Passport home and Records |
 
 The backend keeps its zero-dependency rule: Gemini, Claude and ElevenLabs are
 called with `fetch`, as the CUBE and Amazon clients are.
@@ -59,7 +59,7 @@ called with `fetch`, as the CUBE and Amazon clients are.
 
 `AI_PROVIDER` picks `gemini` or `anthropic`; left empty, Gemini is used when
 `GEMINI_API_KEY` is set, otherwise Claude when `ANTHROPIC_API_KEY` is. Every
-feature goes through `server/src/ai/model.ts`, so they all use the same
+feature goes through `backend/src/integrations/ai/model.ts`, so they all use the same
 provider.
 
 - **Gemini**: `generateContent` (`/v1beta/models/{model}:generateContent`)
@@ -76,8 +76,10 @@ provider.
 
 ## Accounts and access
 
-- Residents register in the app as before. `/api/auth/register` only ever
-  makes residents; doctor and desk accounts come from the CLI.
+- The app's login screen is its one sign-in. Residents sign in or create their
+  account there, and Clinical Appointment uses that session: it has no sign-in
+  of its own, and sends a guest to the login screen. `/api/auth/register` only
+  ever makes residents; doctor and desk accounts come from the CLI.
 - Doctors and desk staff sign in to the clinic web app with the same
   `/api/auth/login`. Their sessions last 12 hours (`CLINIC_STAFF_SESSION_HOURS`),
   the web app also signs out after 30 idle minutes (not while recording), and
@@ -257,7 +259,7 @@ deletes that profile's documents and summaries and removes their files.
   aloud (see above).
 - Prompts, replies, transcripts and audio are never logged.
 
-## Data model (migrations 2–4 in `server/src/ems/db.ts`)
+## Data model (migrations 6–8 in `backend/src/ems/db.ts`)
 
 Additive only: one `ALTER TABLE users ADD COLUMN role`, then new tables.
 
@@ -327,8 +329,8 @@ Each of these keeps running, so give each its own terminal.
 
 ```bash
 # Terminal 1: the backend (Node >= 22.18, no install needed)
-cd server
-# optional: a server/.env with only GEMINI_API_KEY and ELEVENLABS_API_KEY (see .env.example)
+cd backend
+# optional: a backend/.env with only GEMINI_API_KEY and ELEVENLABS_API_KEY (see .env.example)
 npm run clinic -- demo-seed       # development only, once: demo doctors, desk and resident
 npm start                         # http://localhost:8787; stays running
 ```
@@ -342,21 +344,21 @@ npm run dev                       # http://localhost:5174, proxies /api to :8787
 
 ```bash
 # Terminal 3, optional: the resident app against the same backend
-cd Park-Lane_Mobile_app
+cd Park-Lane_Mobile_app/frontend
 EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787 EXPO_PUBLIC_HEALTH_API=http npx expo start
 ```
 
 If `npm start` reports `EADDRINUSE ... 8787`, a backend is already running
 (`lsof -iTCP:8787 -sTCP:LISTEN` shows it): use that one, or stop it first.
-The backend reads `server/.env` only when it starts, so restart it after
+The backend reads `backend/.env` only when it starts, so restart it after
 changing a key. With keys set, its startup log shows
 `ai: "gemini (gemini-3.8-flash)"` and `clinicSpeech: true`.
 
-Copy only the settings you need into `server/.env`: placeholders in
-`.env.example` such as `PUBLIC_URL` or `EMS_PUBLIC_URL` change behaviour.
+Copy only the settings you need into `backend/.env`: placeholders in
+`.env.example` such as `PUBLIC_URL` change behaviour.
 
-Run Expo from `Park-Lane_Mobile_app`, never from `server/`: started there it
-serves a blank page and rewrites `server/tsconfig.json`.
+Run Expo from `frontend/`, never from `backend/`: started there it
+serves a blank page and rewrites `backend/tsconfig.json`.
 
 `EXPO_PUBLIC_HEALTH_API=http` matters: in development Health Passport
 otherwise runs on its mock, which has no clinic visits.
@@ -364,8 +366,8 @@ otherwise runs on its mock, which has no clinic visits.
 Demo sign-ins (`demo-seed`): doctor `demo.cardiology@parklane.test` /
 `DemoDoctor#2026` (also `demo.gp@…`, `demo.pediatrics@…`), desk
 `demo.desk@parklane.test` / `DemoDesk#2026`, resident
-`demo.resident@parklane.test` / `DemoResident#2026`. In the app, sign in from
-Services → Clinical Appointment.
+`demo.resident@parklane.test` / `DemoResident#2026`. In the app, sign in on the
+login screen; Services → Clinical Appointment then opens the directory.
 
 ### Setting up real doctors
 
@@ -382,7 +384,7 @@ npm run clinic -- list
 
 ## Tests
 
-- `cd server && npm test`: 67 tests. 17 for the clinic and Health Passport
+- `cd backend && npm test`: 67 tests. 17 for the clinic and Health Passport
   (`test/clinic.test.ts`) over real HTTP and WebSocket, with Claude and
   ElevenLabs stand-ins and a mocked clock: racing bookings, roles, every
   refused transition, queue order with late arrivals, one notice per patient,
@@ -393,7 +395,7 @@ npm run clinic -- list
   confirming exactly what was approved, unreadable documents, upload checks,
   deletion, the automatic script check, one retry then rejection, signed
   links, and consent withdrawal deleting summaries. Tests never read
-  `server/.env`, so real keys are never used.
+  `backend/.env`, so real keys are never used.
 - `npm run check:health`, `npm run check:parking`: unchanged, passing.
 - `cd ../Parklane-clinical-system && npm run test:e2e`: the 20-step workflow
   in a real browser across both apps (see that README).

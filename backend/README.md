@@ -147,16 +147,18 @@ src/
   config.ts         every setting, read once from the environment and backend/.env
   http/             request plumbing: context, router, guards (who may call what), rate limits,
                     JSON bodies and answers, CORS, error answers, the access log
-  routes/           one file per API area (auth, home, accounts, ops), each listing its endpoints
+  routes/           one file per API area (auth, home, accounts, clinic, health, ops), each listing its endpoints
   ems/              EMS accounts and tokens, the realtime channel, database migrations, sealing secrets
   ha/               the home facade: hubs (hubStore, hubRuntime, the registry in hubs.ts), mapping
                     Home Assistant to devices and rooms, the command allowlist, linking brand
                     accounts, provisioning a unit's Home Assistant
+  clinic/           the clinic: doctors, booking, consultations, history access, audit (../docs/CLINIC.md)
+  health/           Health Passport: records, documents, spoken summaries, sealed files
   repositories/     every SQL statement, one file per table
-  integrations/     outside systems besides Home Assistant: the Docker Engine API
+  integrations/     outside systems besides Home Assistant: the Docker Engine API, the AI services, ElevenLabs
   lib/              small pure helpers
 test/               HTTP-level tests against a real server, plus a stand-in Home Assistant (fakeHa.ts)
-scripts/            development tools: fake-hub (the backend against fakeHa), attach-hub
+scripts/            fake-hub (the backend against fakeHa), attach-hub, clinic (the clinic's admin CLI: npm run clinic)
 ```
 
 The API's types are shared with the app in `../shared/contracts`, imported with `import type` only: Node's type stripping erases them, so the image (which has no `shared/` folder) runs without them. Routes check the caller before the method, and a method a route does not take ends as 404; `test/routing.test.ts` pins this.

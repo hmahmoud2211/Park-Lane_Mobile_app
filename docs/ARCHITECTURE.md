@@ -43,7 +43,7 @@ flowchart LR
 - **Parklane Assistant**: an external text and voice assistant. The app gives it a short-lived assistant token, with which it reads the home and sends commands. Every command is audited, and it can never unlock a door.
 - **Setup hotspots**: new Shelly, SONOFF and LG devices are given the home Wi-Fi straight from the phone, on their own setup network.
 - **Parking** is a demo that runs entirely on the device (see [PARKING_DEMO.md](PARKING_DEMO.md)).
-- **Health Passport** runs on a mock inside the app in development. Its real API is not on this backend yet (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)).
+- **Health Passport and the clinic** live on the same backend, database and accounts: residents keep records and book doctors in the app, and doctors work in a separate web app (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md) and [CLINIC.md](CLINIC.md)). The app's Health Passport uses a built-in mock in development unless told otherwise.
 
 ## The app
 
@@ -145,7 +145,7 @@ sequenceDiagram
   Note over Backend: audited; lock.unlock refused
 ```
 
-The app's own Login screen is not wired to a backend yet: it opens the app for anyone. The EMS session above is a separate sign-in, in My Devices. Logging out of the app does not end it (`hooks/useScreenMenu.ts`, `TODO(auth)`).
+The Login screen starts this session, and it is the app's one sign-in: smart home, Health Passport and the clinic all use it. A stored session skips the form, "Continue as Guest" opens the app without one, and "Log out" ends it (`hooks/useScreenMenu.ts`). Smart-home screens still show `EmsAccountPanel`, which offers a guest the same sign-in where they are. Doctors and the front desk use the same `/api/auth/login` from the clinic web app, with shorter sessions.
 
 ### Pairing a CUBE Gateway
 

@@ -68,6 +68,7 @@ const BASIC_ROUTES = [
   { name: 'SmartHome', path: '/visual/SmartHome' },
   { name: 'AmenitiesBooking', path: '/visual/AmenitiesBooking' },
   { name: 'Services', path: '/visual/Services' },
+  { name: 'Clinic', path: '/clinic' },
   { name: 'Settings', path: '/visual/Settings' },
   { name: 'Assistant', path: '/visual/Assistant' },
   { name: 'UnderDevelopment', path: '/visual/UnderDevelopment?title=Contact%20Us&iconSet=ionicons&iconName=call-outline' },

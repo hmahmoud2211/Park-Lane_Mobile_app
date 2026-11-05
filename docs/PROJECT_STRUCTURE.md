@@ -60,15 +60,17 @@ Park-Lane_Mobile_app/
 │   │   ├── app.ts                  the HTTP server: CORS, OAuth callback, dispatch, errors, access log
 │   │   ├── config.ts               settings, read once (do not move: it finds .env next to itself)
 │   │   ├── http/                   plumbing: context, router, guards, rate limits, body, answers, CORS, errors, access log
-│   │   ├── routes/                 one module per API area: auth, home, accounts, ops
+│   │   ├── routes/                 one module per API area: auth, home, accounts, clinic, health, ops
 │   │   ├── ems/                    accounts and tokens, the realtime WebSocket, migrations, sealing secrets
 │   │   ├── ha/                     the home facade over Home Assistant: hubs, mapping, commands, account linking, provisioning
+│   │   ├── clinic/                 the clinic: doctors, booking, consultations, history access, audit
+│   │   ├── health/                 Health Passport: records, documents, spoken summaries, sealed files
 │   │   ├── repositories/           every SQL statement, one file per table
-│   │   ├── integrations/           outside systems besides Home Assistant (the Docker Engine API)
+│   │   ├── integrations/           outside systems besides Home Assistant: the Docker Engine API, the AI services (ai/), ElevenLabs
 │   │   └── lib/                    small pure helpers
 │   ├── test/                       HTTP-level tests and a stand-in Home Assistant (fakeHa.ts)
-│   └── scripts/                    fake-hub (development), attach-hub
-├── shared/contracts/               home, accounts, auth, events, errors, envelope (+ index)
+│   └── scripts/                    fake-hub (development), attach-hub, clinic (the clinic's admin CLI)
+├── shared/contracts/               home, accounts, auth, clinic, health, events, errors, envelope (+ index)
 ├── gateway/                        see gateway/README.md and gateway/API.md
 ├── docker/rethink/                 rethink, its Mosquitto broker and a DNS redirect, for LG ACs
 ├── scripts/dev.sh                  fake | local | check | attach | server
@@ -102,7 +104,8 @@ screen ──► feature hook ──► feature service ──► lib/http (fetc
 | Smart home (EMS backend) | `SmartHomeScreen`, `EmsDevicesScreen`, `DeviceDetailScreen`, `ConnectAccountScreen` | `features/ems`, `features/home`; backend `routes/home.ts`, `routes/accounts.ts`, `ha/` |
 | Smart home (CUBE gateway) | `GatewaySetupScreen`, `AddDeviceScreen`, `AddDeviceMethodScreen`, `DeviceDiscoveryScreen`, `DeviceProvisioningScreen`, `DeviceSetupScreen`, `AcControlScreen` | `features/gateway`, `features/provisioning`; `gateway/` |
 | LG pairing | `LgPairingScreen` | `features/lg` |
-| Health Passport | `HealthPassportScreen`, `HealthOnboardingScreen`, `HealthProfileScreen`, `HealthRecordsScreen`, `HealthDocumentScreen`, `HealthUploadScreen`, `HealthReviewScreen`, `HealthItemFormScreen`, `HealthSummaryScreen`, `HealthSettingsScreen` | `features/health` (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)) |
+| Health Passport | `HealthPassportScreen`, `HealthOnboardingScreen`, `HealthProfileScreen`, `HealthRecordsScreen`, `HealthDocumentScreen`, `HealthUploadScreen`, `HealthReviewScreen`, `HealthItemFormScreen`, `HealthSummaryScreen`, `HealthSettingsScreen`, `HealthConsultationScreen` | `features/health`; backend `routes/health.ts`, `health/` (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)) |
+| Clinical Appointment | `ClinicScreen`, `ClinicDoctorScreen`, `ClinicBookingScreen`, `ClinicAppointmentScreen` | `features/clinic`, built on Health Passport's frame and language; backend `routes/clinic.ts`, `clinic/` (see [CLINIC.md](CLINIC.md)) |
 | Assistant | `AssistantScreen` | `features/assistant` |
 
 ## Configuration

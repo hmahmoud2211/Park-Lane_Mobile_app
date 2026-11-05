@@ -154,7 +154,8 @@ npx eas-cli@latest build --profile production --platform all      # store builds
 | **One apartment's logs** | `docker ps` (find `parklane-ha-…`), then `docker logs -f parklane-ha-…` |
 | **Retry a failed apartment** | `curl -X POST $API/api/admin/units/<id>/provision -H "Authorization: Bearer $KEY"` |
 | **Upgrade Home Assistant** | Change `HA_IMAGE`, then per apartment `docker rm -f parklane-ha-…` and call `/provision` for it. Its data and linked accounts are kept |
-| **Back up** | Copy `/srv/parklane` (database and every apartment's data) plus your `EMS_ENCRYPTION_KEY`, for example nightly |
+| **Set up the clinic** | Doctors and desk accounts come from the CLI: `docker exec parklane-backend npm run clinic -- …`, see [CLINIC.md](CLINIC.md#setting-up-real-doctors). Add the AI and ElevenLabs keys to `backend/.env` before Health Passport can read documents or make summaries, and read its [production checklist](CLINIC.md#production-checklist) first |
+| **Back up** | Copy `/srv/parklane` (database, the clinic's sealed files and every apartment's data) plus your `EMS_ENCRYPTION_KEY`, for example nightly |
 
 ### Updating a server set up before `server/` became `backend/`
 
