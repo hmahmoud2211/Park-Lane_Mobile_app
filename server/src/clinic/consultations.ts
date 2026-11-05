@@ -529,5 +529,6 @@ export function purgeExpiredContent(nowMs = Date.now()): number {
     });
   }
   db().prepare('DELETE FROM clinic_history_summaries WHERE expires_at < ?').run(nowMs);
+  db().prepare('DELETE FROM clinic_spoken_summaries WHERE expires_at < ?').run(nowMs);
   return due.length;
 }

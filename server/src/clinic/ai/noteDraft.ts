@@ -1,7 +1,7 @@
 import { normalize } from '../../ems/voice.ts';
 import type { HealthLang } from '../../health/passport.ts';
 import { cleanNote, type ClinicalNote } from '../note.ts';
-import { structured } from './claude.ts';
+import { generateJson, nullable } from '../../ai/model.ts';
 
 /**
  * Drafts the consultation's clinical note from its transcript and the
@@ -69,13 +69,13 @@ const NOTE_SCHEMA = object({
       name: text,
       dose: text,
       frequency: text,
-      duration_days: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+      duration_days: nullable({ type: 'integer' }),
       route: text,
       instructions: text,
     }),
   ),
   investigations: list(text),
-  follow_up: object({ needed: { type: 'boolean' }, in_days: { anyOf: [{ type: 'integer' }, { type: 'null' }] }, instructions: text }),
+  follow_up: object({ needed: { type: 'boolean' }, in_days: nullable({ type: 'integer' }), instructions: text }),
   patient_instructions: text,
 });
 
@@ -158,7 +158,7 @@ export async function draftNote(source: DraftSource, lang: HealthLang): Promise<
     `<transcript>\n${source.transcript || '(no recording)'}\n</transcript>`,
     `<doctor_notes>\n${source.notes || '(none)'}\n</doctor_notes>`,
   ].join('\n\n');
-  const { value, model } = await structured<{
+  const { value, model } = await generateJson<{
     note: unknown;
     evidence: { field: string; quote: string }[];
     review_flags: { field: string; message: string }[];

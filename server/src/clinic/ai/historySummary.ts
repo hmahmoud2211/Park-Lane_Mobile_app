@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { HealthLang } from '../../health/passport.ts';
 import type { PatientHistory, Provenance } from '../history.ts';
-import { structured } from './claude.ts';
+import { generateJson } from '../../ai/model.ts';
 
 /**
  * The pre-consultation summary of a patient's documented history.
@@ -263,7 +263,7 @@ export async function summarizeHistory(
     };
   }
 
-  const { value, model } = await structured<ModelSummary>({
+  const { value, model } = await generateJson<ModelSummary>({
     purpose: 'history_summary',
     system: systemPrompt(lang),
     prompt: `Summarize these records for the doctor.\n\n<records>\n${input.text}\n</records>`,
@@ -288,45 +288,4 @@ export async function summarizeHistory(
       empty_history: false,
     },
   };
-}
-
-const HEADINGS = {
-  en: {
-    intro: 'AI summary of the documented history. Decision support only; check the records.',
-    overview: 'Overview.',
-    history: 'Relevant medical history.',
-    medications: 'Medications.',
-    allergies: 'Allergies.',
-    consultations: 'Previous consultations.',
-    considerations: 'Points to review.',
-    missing: 'Not documented.',
-  },
-  ar: {
-    intro: 'ملخص بالذكاء الاصطناعي للتاريخ الطبي الموثق، للمساعدة فقط. راجع السجلات.',
-    overview: 'نظرة عامة.',
-    history: 'التاريخ الطبي.',
-    medications: 'الأدوية.',
-    allergies: 'الحساسية.',
-    consultations: 'الاستشارات السابقة.',
-    considerations: 'نقاط للمراجعة.',
-    missing: 'غير موثق.',
-  },
-} as const;
-
-/** The summary as the doctor will hear it. Written here from the stored summary, so only reviewed content is spoken. */
-export function speakableText(summary: HistorySummary): string {
-  const h = HEADINGS[summary.lang];
-  const block = (heading: string, lines: string[]) => (lines.length ? `${heading}\n${lines.join('\n')}` : '');
-  return [
-    h.intro,
-    block(h.overview, summary.overview ? [summary.overview.text] : []),
-    block(h.history, summary.relevant_history.map((entry) => entry.text)),
-    block(h.medications, summary.medications.map((entry) => entry.text)),
-    block(h.allergies, [summary.allergies.note, ...summary.allergies.statements.map((entry) => entry.text)]),
-    block(h.consultations, summary.previous_consultations.map((entry) => entry.text)),
-    block(h.considerations, summary.considerations.map((entry) => entry.text)),
-    block(h.missing, summary.missing_information),
-  ]
-    .filter(Boolean)
-    .join('\n\n');
 }

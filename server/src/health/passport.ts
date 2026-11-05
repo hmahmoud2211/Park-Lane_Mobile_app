@@ -215,12 +215,21 @@ export function setConsent(userId: string, given: boolean): Consent {
     }
   } else {
     db().prepare("DELETE FROM health_profiles WHERE owner_id = ? AND relation != 'self'").run(userId);
-    if (self) {
-      db().prepare('DELETE FROM health_items WHERE profile_id = ?').run(self.id);
-      db().prepare('UPDATE health_profiles SET blood_type = NULL, record_updated_at = ? WHERE id = ?').run(at, self.id);
-    }
+    if (self) emptyProfile(self.id, at);
   }
   return getConsent(userId);
+}
+
+/**
+ * The resident's own profile with its health data gone: record items,
+ * documents and summaries. The profile itself stays. Files left behind are
+ * removed by the caller (files.ts, sweepOrphanFiles).
+ */
+function emptyProfile(profileId: string, at = now()): void {
+  db().prepare('DELETE FROM health_items WHERE profile_id = ?').run(profileId);
+  db().prepare('DELETE FROM health_documents WHERE profile_id = ?').run(profileId);
+  db().prepare('DELETE FROM health_summaries WHERE profile_id = ?').run(profileId);
+  db().prepare('UPDATE health_profiles SET blood_type = NULL, record_updated_at = ? WHERE id = ?').run(at, profileId);
 }
 
 // ---- Profiles -----------------------------------------------------------------------------
@@ -293,12 +302,11 @@ export function updateProfile(userId: string, profileId: string, input: Record<s
   return { id: profileId, relation: existing.relation, ...fields };
 }
 
-/** A family member's profile goes with its record; the resident's own is emptied instead. */
+/** A family member's profile goes with its record, documents and summaries; the resident's own is emptied instead. */
 export function deleteProfile(userId: string, profileId: string): void {
   const profile = ownedProfile(userId, profileId);
   if (profile.relation === 'self') {
-    db().prepare('DELETE FROM health_items WHERE profile_id = ?').run(profileId);
-    db().prepare('UPDATE health_profiles SET blood_type = NULL, record_updated_at = ? WHERE id = ?').run(now(), profileId);
+    emptyProfile(profileId);
   } else {
     db().prepare('DELETE FROM health_profiles WHERE id = ?').run(profileId);
   }

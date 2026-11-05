@@ -1,9 +1,13 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-/** server/.env, when present; real environment variables win over it. */
+/**
+ * server/.env, when present; real environment variables win over it. Never
+ * under `node --test`: tests set their own stand-ins, and must not pick up a
+ * developer's real API keys.
+ */
 const envFile = new URL('../.env', import.meta.url);
-if (existsSync(envFile)) {
+if (existsSync(envFile) && !process.env.NODE_TEST_CONTEXT) {
   process.loadEnvFile(envFile);
 }
 
@@ -126,24 +130,41 @@ export const config = {
   },
 
   /**
-   * Claude, for the doctors' history summaries and consultation notes. Off
-   * until ANTHROPIC_API_KEY is set; every call goes from this backend, never
-   * from a browser or phone.
+   * The AI service for Health Passport (reading documents, spoken summaries)
+   * and the clinic (history summaries, consultation notes). Off until its
+   * key is set; every call goes from this backend, never from a phone or
+   * browser. AI_PROVIDER picks one; left unset, Gemini when its key is set.
    */
   ai: {
-    apiKey: env.ANTHROPIC_API_KEY ?? '',
-    baseUrl: trimUrl(env.ANTHROPIC_BASE_URL) || 'https://api.anthropic.com',
-    model: env.CLINIC_AI_MODEL || 'claude-opus-5-5',
-    /** Clinical summarizing is intelligence-sensitive work: `high` rather than the model's `medium` default. */
-    effort: env.CLINIC_AI_EFFORT || 'high',
-    timeoutMs: Number(env.CLINIC_AI_TIMEOUT_MS || 180_000),
+    provider: (env.AI_PROVIDER === 'anthropic' || (!env.AI_PROVIDER && !env.GEMINI_API_KEY && env.ANTHROPIC_API_KEY)
+      ? 'anthropic'
+      : 'gemini') as 'gemini' | 'anthropic',
+    timeoutMs: Number(env.AI_TIMEOUT_MS || 180_000),
+    gemini: {
+      apiKey: env.GEMINI_API_KEY ?? '',
+      baseUrl: trimUrl(env.GEMINI_BASE_URL) || 'https://generativelanguage.googleapis.com',
+      /** Summaries, notes and spoken handovers. */
+      model: env.GEMINI_MODEL || 'gemini-3.8-flash',
+      /** Reading photographed and scanned documents; defaults to GEMINI_MODEL. */
+      documentModel: env.GEMINI_DOCUMENT_MODEL || env.GEMINI_MODEL || 'gemini-3.8-flash',
+      /** low, medium or high (gemini-3.8-flash and gemini-4-argon have no `minimal`). */
+      thinkingLevel: env.GEMINI_THINKING_LEVEL || 'medium',
+    },
+    anthropic: {
+      apiKey: env.ANTHROPIC_API_KEY ?? '',
+      baseUrl: trimUrl(env.ANTHROPIC_BASE_URL) || 'https://api.anthropic.com',
+      model: env.ANTHROPIC_MODEL || 'claude-opus-5-5',
+      /** Clinical summarizing is intelligence-sensitive work: `high` rather than the model's `medium` default. */
+      effort: env.ANTHROPIC_EFFORT || 'high',
+    },
   },
 
   /** ElevenLabs, for reading summaries aloud and transcribing consultations. Off until ELEVENLABS_API_KEY is set. */
   elevenlabs: {
     apiKey: env.ELEVENLABS_API_KEY ?? '',
     baseUrl: trimUrl(env.ELEVENLABS_BASE_URL) || 'https://api.elevenlabs.io',
-    ttsModel: env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2',
+    /** eleven_v4 reads Arabic and English, up to 10,000 characters a request. */
+    ttsModel: env.ELEVENLABS_TTS_MODEL || 'eleven_v4',
     /** One voice reads both languages unless an Arabic one is given. */
     voiceId: env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
     voiceIdAr: env.ELEVENLABS_VOICE_ID_AR || '',
@@ -152,6 +173,9 @@ export const config = {
     sttKeyterms: env.ELEVENLABS_STT_KEYTERMS !== '0',
     /** `enable_logging=false` (zero retention). ElevenLabs allows it on enterprise plans only. */
     zeroRetention: env.ELEVENLABS_ZERO_RETENTION === '1',
+    /** Transcribing a recorded segment (up to about 5 minutes of audio). */
     timeoutMs: Number(env.ELEVENLABS_TIMEOUT_MS || 90_000),
+    /** Voicing one part of a summary: a few sentences, so far less than a segment. */
+    ttsTimeoutMs: Number(env.ELEVENLABS_TTS_TIMEOUT_MS || 30_000),
   },
 } as const;

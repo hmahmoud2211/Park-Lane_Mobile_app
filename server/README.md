@@ -33,11 +33,19 @@ The same process also runs the EMS device registry (SQLite in `DATA_DIR/ems.db`)
 ## Health Passport and the clinic
 
 The same process serves Health Passport (`/health/*`, the app's
-HttpHealthService contract) and the compound clinic (`/api/clinic/*`):
-booking, the doctors' workspace, AI summaries (Claude) and speech
-(ElevenLabs), all in the same `ems.db`. Clinic accounts and doctors are set
-up with `npm run clinic -- <command>`; `npm run clinic -- demo-seed` fills a
-development database. See [../docs/CLINIC.md](../docs/CLINIC.md).
+HttpHealthService contract, including document reading and spoken
+summaries) and the compound clinic (`/api/clinic/*`): booking, the doctors'
+workspace, AI summaries and notes, and speech, all in the same `ems.db`.
+Clinic accounts and doctors are set up with `npm run clinic -- <command>`;
+`npm run clinic -- demo-seed` fills a development database. See
+[../docs/CLINIC.md](../docs/CLINIC.md).
+
+AI is off until a key is set: `GEMINI_API_KEY` (Gemini, the default) or
+`ANTHROPIC_API_KEY` with `AI_PROVIDER=anthropic`. Speech needs
+`ELEVENLABS_API_KEY`. For these alone, a `.env` holding just those keys is
+enough; see the AI and ElevenLabs section of `.env.example` for the models
+and voices. The backend reads `.env` only at start, and `npm test` never
+reads it.
 
 ## API (CUBE hub and SONOFF bridge)
 
@@ -91,4 +99,5 @@ Registering the same plug again refreshes its address and key instead of adding 
 
 - `.env` and `data/` are git-ignored.
 - `data/sonoff.json` is written with mode `600`. It holds plug keys and the directive secret.
-- Logs never include request bodies, the directive path, or any field whose name looks secret.
+- Health Passport files (document pages, summary recordings) are sealed in `data/health/files`, owner-only.
+- Logs never include request bodies, the directive path, or any field whose name looks secret. AI prompts and answers are never logged.

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -52,6 +52,35 @@ export function unseal(sealed: string): string {
   const decipher = createDecipheriv('aes-256-gcm', sealingKey(), Buffer.from(iv, 'base64url'));
   decipher.setAuthTag(Buffer.from(tag, 'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(body, 'base64url')), decipher.final()]).toString('utf8');
+}
+
+const FILE_MAGIC = Buffer.from('PLS1');
+
+/** Sealing for files (document pages, recorded summaries): magic, IV, tag, then the body. */
+export function sealBytes(plain: Buffer): Buffer {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', sealingKey(), iv);
+  const body = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([FILE_MAGIC, iv, cipher.getAuthTag(), body]);
+}
+
+export function unsealBytes(sealed: Buffer): Buffer {
+  if (!sealed.subarray(0, 4).equals(FILE_MAGIC)) throw new Error('Unknown sealed file.');
+  const decipher = createDecipheriv('aes-256-gcm', sealingKey(), sealed.subarray(4, 16));
+  decipher.setAuthTag(sealed.subarray(16, 32));
+  return Buffer.concat([decipher.update(sealed.subarray(32)), decipher.final()]);
+}
+
+/** A signature for short-lived links, keyed from the sealing key so it needs no setting of its own. */
+export function sign(value: string): string {
+  const key = createHash('sha256').update(sealingKey()).update('signed-links').digest();
+  return createHmac('sha256', key).update(value).digest('base64url');
+}
+
+export function signatureMatches(value: string, signature: string): boolean {
+  const expected = Buffer.from(sign(value));
+  const given = Buffer.from(signature);
+  return expected.length === given.length && timingSafeEqual(expected, given);
 }
 
 export const sha256 = (value: string) => createHash('sha256').update(value).digest('base64url');

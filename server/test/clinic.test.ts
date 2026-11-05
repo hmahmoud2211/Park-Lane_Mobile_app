@@ -34,6 +34,9 @@ const BASE = `http://127.0.0.1:${appPort}`;
 
 Object.assign(process.env, {
   DATA_DIR: mkdtempSync(join(tmpdir(), 'ems-clinic-')),
+  // This suite exercises the Claude provider; health-ai.test.ts exercises Gemini.
+  AI_PROVIDER: 'anthropic',
+  GEMINI_API_KEY: '',
   ANTHROPIC_API_KEY: 'test-anthropic-key',
   ANTHROPIC_BASE_URL: `http://127.0.0.1:${aiPort}`,
   ELEVENLABS_API_KEY: 'test-eleven-key',
@@ -56,6 +59,8 @@ const { createUser } = await import('../src/ems/auth.ts');
 const { closeRealtimeConnections } = await import('../src/ems/realtime.ts');
 const { resetLimits } = await import('../src/ems/rateLimit.ts');
 const { purgeExpiredContent } = await import('../src/clinic/consultations.ts');
+const { speechParts } = await import('../src/clinic/speech.ts');
+const { CLOSING } = await import('../src/health/spoken.ts');
 
 // ---- Stand-ins for Claude and ElevenLabs ----------------------------------------------------
 
@@ -114,6 +119,13 @@ const noteReply = {
   review_flags: [{ field: 'medications[0].route', message: 'Route not stated; assumed oral.' }],
 };
 
+/** The spoken handover for the full-flow patient's record: passes the automatic check. */
+const SPOKEN_SCRIPT =
+  'Patient is 58 years old and male. Important, he has a severe allergy to Penicillin, which causes rash and swelling. ' +
+  'He takes Metformin 500 milligrams twice daily, started in June 2019. He has Type 2 diabetes, diagnosed in May 2019, and it is active. ' +
+  'His blood type is not recorded. There are no lab results from the last 12 months in the record. ' +
+  'Nothing else is documented about procedures or recent visits in this record.';
+
 async function readBody(req: IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -132,11 +144,12 @@ const aiServer: Server = createServer(async (req, res) => {
   }
   if (ai.mode === 'error') return json(500, { type: 'error', error: { type: 'api_error' } });
   if (ai.mode === 'refusal') return json(200, { model: 'claude-opus-5-5', stop_reason: 'refusal', content: [] });
-  const reply = String(body.system).includes('SOAP') ? noteReply : historyReply;
+  const system = String(body.system);
+  const text = system.includes('spoken handover') ? SPOKEN_SCRIPT : JSON.stringify(system.includes('SOAP') ? noteReply : historyReply);
   return json(200, {
     model: 'claude-opus-5-5',
     stop_reason: 'end_turn',
-    content: [{ type: 'text', text: JSON.stringify(reply) }],
+    content: [{ type: 'text', text }],
     usage: { input_tokens: 1000, output_tokens: 300 },
   });
 });
@@ -361,7 +374,9 @@ describe('Health Passport API', () => {
 
     const other = await resident();
     assert.equal((await api('GET', `/health/profiles/${self.id}/record`, { token: other.token })).status, 404);
-    assert.equal((await api('POST', `/health/profiles/${self.id}/documents`, { token })).status, 503);
+    const notAnUpload = await api<{ detail: string }>('POST', `/health/profiles/${self.id}/documents`, { token, body: {} });
+    assert.equal(notAnUpload.status, 422);
+    assert.equal(notAnUpload.data.detail, 'files');
   });
 });
 
@@ -604,12 +619,52 @@ describe('history, AI and the consultation, into Health Passport', () => {
     assert.equal(ai.calls.length, 1, 'unchanged records are not summarized again');
   });
 
-  test('the summary is read aloud through the backend only; AI failures are reported, not hidden', async () => {
-    const audio = await api<Buffer>('POST', `/api/clinic/doctor/appointments/${appointmentId}/history-summary/speech`, { token: doctor.token, body: { lang: 'en' } });
-    assert.equal(audio.status, 200);
-    assert.equal(audio.data.toString(), 'ID3-fake-mp3-audio');
-    assert.ok(voice.tts[0].includes('Decision support only'));
-    assert.ok(!voice.tts[0].includes('Patient Number'));
+  test('a summary is split for speech at sentence ends, short first, nothing lost', () => {
+    const english = `${SPOKEN_SCRIPT}\n\n${CLOSING.en}`;
+    const parts = speechParts(english);
+    assert.ok(parts[0].length <= 160 && parts.slice(1).every((part) => part.length <= 450));
+    assert.ok(parts.every((part) => /[.!?؟]$/.test(part)), 'no part stops mid-sentence');
+    assert.equal(parts.join(' '), english.replace(/\s+/g, ' '));
+
+    // Arabic question marks end sentences too; a sentence too long to share a part gets its own.
+    const long = `${'بياخد ميتفورمين ٥٠٠ مليجرام مرتين في اليوم، '.repeat(6).trim()}.`;
+    assert.deepEqual(speechParts(`هل عنده حساسية؟ ${long} ${long}`), ['هل عنده حساسية؟', long, long]);
+    assert.deepEqual(speechParts('  '), []);
+  });
+
+  test('“Listen” speaks a checked handover part by part, through the backend only; AI failures are reported, not hidden', async () => {
+    const speech = `/api/clinic/doctor/appointments/${appointmentId}/history-summary/speech`;
+    const plan = expectOk(await api<{ version: string; parts: number[] }>('POST', speech, { token: doctor.token, body: { lang: 'en' } }));
+    assert.ok(plan.parts.length >= 2, 'the handover is voiced in parts');
+    assert.equal(voice.tts.length, 0, 'preparing writes the script; no audio is made until a part is asked for');
+
+    const first = await api<Buffer>('GET', `${speech}/0?lang=en&v=${plan.version}`, { token: doctor.token });
+    assert.equal(first.status, 200);
+    assert.equal(first.data.toString(), 'ID3-fake-mp3-audio');
+    assert.equal(voice.tts.length, 1, 'one part, one request');
+    assert.ok(voice.tts[0].startsWith('Patient is 58 years old'));
+    assert.ok(voice.tts[0].length <= 160, 'the first part is short, so playback starts quickly');
+    for (let index = 1; index < plan.parts.length; index += 1) {
+      assert.equal((await api('GET', `${speech}/${index}?lang=en&v=${plan.version}`, { token: doctor.token })).status, 200);
+    }
+    assert.deepEqual(voice.tts.map((part) => part.length), plan.parts);
+    assert.equal(voice.tts.join(' '), `${SPOKEN_SCRIPT} ${CLOSING.en}`, 'every part, in order, and the closing line added by the server');
+    assert.equal((await api('GET', `${speech}/${plan.parts.length}?lang=en&v=${plan.version}`, { token: doctor.token })).status, 404);
+    const stale = await api('GET', `${speech}/0?lang=en&v=0000000000000000`, { token: doctor.token });
+    assert.equal(stale.status, 409, 'a part of a rewritten script is refused, so two scripts are never mixed');
+    assert.equal((await api('GET', `${speech}/0?lang=ar&v=${plan.version}`, { token: doctor.token })).status, 404, 'parts need a prepared script');
+    assert.equal(voice.tts.length, plan.parts.length);
+
+    const spokenRequest = ai.calls.at(-1) as (typeof ai.calls)[number];
+    const input = JSON.parse(((spokenRequest.body.messages as { content: { text: string }[] }[])[0].content.at(-1) as { text: string }).text);
+    assert.equal(input.doctor_specialty, 'cardiology');
+    assert.equal(input.facts.patient.name, 'Patient', 'the handover gets the first name only');
+    assert.ok(!JSON.stringify(spokenRequest.body).includes('Patient Number'));
+    // The checked script is reused while the record is unchanged.
+    const calls = ai.calls.length;
+    const again = expectOk(await api<{ version: string }>('POST', speech, { token: doctor.token, body: { lang: 'en' } }));
+    assert.equal(ai.calls.length, calls);
+    assert.equal(again.version, plan.version);
 
     ai.mode = 'error';
     const failed = await api('POST', `/api/clinic/doctor/appointments/${appointmentId}/history-summary`, { token: doctor.token, body: { lang: 'ar' } });

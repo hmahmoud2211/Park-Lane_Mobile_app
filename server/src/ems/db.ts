@@ -315,6 +315,57 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX clinic_audit_appointment ON clinic_audit(appointment_id);
   CREATE INDEX clinic_audit_patient ON clinic_audit(patient_profile_id);
   `,
+  // 4: Health Passport documents and spoken summaries (server/src/health/documents.ts, summaries.ts).
+  `
+  CREATE TABLE health_documents (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL REFERENCES health_profiles(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    document_date TEXT,
+    uploaded_at TEXT NOT NULL,
+    -- processing, needs_review, confirmed or failed; error_code says why it failed.
+    status TEXT NOT NULL,
+    error_code TEXT,
+    -- JSON [{ "file", "mime" }]: the pages, sealed in DATA_DIR/health/files.
+    pages TEXT NOT NULL,
+    -- Sealed: what was read, and the items still waiting for the resident's check.
+    extracted_text TEXT,
+    extracted_items TEXT,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX health_documents_profile ON health_documents(profile_id, uploaded_at);
+
+  -- One spoken summary per profile, language and specialty ('general' without one).
+  CREATE TABLE health_summaries (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL REFERENCES health_profiles(id) ON DELETE CASCADE,
+    lang TEXT NOT NULL,
+    specialty TEXT NOT NULL,
+    -- generating (phase waiting, writing, recording), ready or failed.
+    status TEXT NOT NULL,
+    phase TEXT,
+    -- The record version it is made from, to tell when it is out of date.
+    record_updated_at TEXT NOT NULL,
+    -- Sealed script, and the sealed recording's file in DATA_DIR/health/files.
+    transcript TEXT,
+    audio_file TEXT,
+    error_code TEXT,
+    started_at TEXT NOT NULL,
+    generated_at TEXT,
+    failed_at TEXT,
+    UNIQUE (profile_id, lang, specialty)
+  );
+
+  -- The clinic's spoken handover for a visit ("Listen to summary"): the sealed script, until a day after the visit.
+  CREATE TABLE clinic_spoken_summaries (
+    appointment_id TEXT NOT NULL REFERENCES clinic_appointments(id) ON DELETE CASCADE,
+    lang TEXT NOT NULL,
+    script TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    PRIMARY KEY (appointment_id, lang)
+  );
+  `,
 ];
 
 let instance: DatabaseSync | null = null;

@@ -6,7 +6,7 @@ import { requireRole, requireUser, type User } from '../ems/auth.ts';
 import { limit } from '../ems/rateLimit.ts';
 import { listProfiles, consentGiven, type HealthLang } from '../health/passport.ts';
 import { ok, readBytes, readJson, sendBytes } from '../http.ts';
-import { aiConfigured } from './ai/claude.ts';
+import { aiConfigured } from '../ai/model.ts';
 import * as appointments from './appointments.ts';
 import { audit } from './audit.ts';
 import * as consultations from './consultations.ts';
@@ -29,7 +29,9 @@ import * as summaries from './summaries.ts';
  *     GET  /doctor/me  /doctor/dashboard?date=  /doctor/appointments  /doctor/appointments/:id
  *     POST /doctor/appointments/:id/status { action }   /doctor/appointments/:id/ai-consent
  *     GET  /doctor/appointments/:id/history            GET|POST /doctor/appointments/:id/history-summary
- *     POST /doctor/appointments/:id/history-summary/speech   /doctor/appointments/:id/consultation
+ *     POST /doctor/appointments/:id/history-summary/speech { lang }  → { version, parts }
+ *     GET  /doctor/appointments/:id/history-summary/speech/:part?lang=&v=  → audio/mpeg
+ *     POST /doctor/appointments/:id/consultation
  *     GET  /doctor/consultations  /doctor/consultations/:id   PUT /doctor/consultations/:id/draft
  *     POST /doctor/consultations/:id/recording-consent | /segments | /ai-draft | /finalize | /addenda
  *     DELETE /doctor/consultations/:id/segments/:segmentId
@@ -157,7 +159,7 @@ async function doctorRoute(req: IncomingMessage, res: ServerResponse, path: stri
     return true;
   }
 
-  const appointment = /^\/appointments\/([^/]+)(?:\/([a-z-]+(?:\/speech)?))?$/.exec(path);
+  const appointment = /^\/appointments\/([^/]+)(?:\/([a-z-]+(?:\/speech(?:\/\d+)?)?))?$/.exec(path);
   if (appointment) {
     const id = decodeURIComponent(appointment[1]);
     const sub = appointment[2] ?? '';
@@ -195,7 +197,15 @@ async function doctorRoute(req: IncomingMessage, res: ServerResponse, path: stri
     if (sub === 'history-summary/speech' && method === 'POST') {
       limit('clinic-tts', user.id, 40, 3600_000);
       const body = await readJson(req);
-      sendBytes(res, 'audio/mpeg', await summaries.speakSummary(user, doctor, id, langOf(body.lang)));
+      ok(res, await summaries.prepareSpokenSummary(user, doctor, id, langOf(body.lang)));
+      return true;
+    }
+    const part = /^history-summary\/speech\/(\d+)$/.exec(sub);
+    if (part && method === 'GET') {
+      // A listen is one prepare and a handful of parts.
+      limit('clinic-tts-part', user.id, 600, 3600_000);
+      const params = url.searchParams;
+      sendBytes(res, 'audio/mpeg', await summaries.speakSummaryPart(user, doctor, id, langOf(params.get('lang')), Number(part[1]), params.get('v') ?? ''));
       return true;
     }
     if (sub === 'consultation' && method === 'POST') {

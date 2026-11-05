@@ -491,6 +491,7 @@ export function updateResidentConsents(user: User, id: string, body: Record<stri
   if (changes.share_history === 0 || changes.ai_consent === 0) {
     // Nothing made from data the resident just withdrew stays behind.
     db().prepare('DELETE FROM clinic_history_summaries WHERE appointment_id = ?').run(id);
+    db().prepare('DELETE FROM clinic_spoken_summaries WHERE appointment_id = ?').run(id);
   }
   audit({
     actor: user,
