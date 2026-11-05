@@ -4,7 +4,9 @@
  */
 export type * from './accounts.ts';
 export type * from './auth.ts';
+export type * from './clinic.ts';
 export type * from './envelope.ts';
 export type * from './errors.ts';
 export type * from './events.ts';
+export type * from './health.ts';
 export type * from './home.ts';

@@ -1,0 +1,298 @@
+/**
+ * Health Passport's API: `/health/...`, the app's HttpHealthService and the
+ * backend's routes/health.ts. Snake_case is kept, so the HTTP service passes
+ * bodies through untouched. Dates without a time are `YYYY-MM-DD`; timestamps
+ * are ISO 8601 in UTC.
+ */
+
+export type IsoDate = string;
+export type IsoTime = string;
+
+export type HealthLang = 'en' | 'ar';
+
+export type Sex = 'male' | 'female';
+export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+export type Severity = 'mild' | 'moderate' | 'severe';
+export type ConditionStatus = 'active' | 'resolved';
+
+/** Who a profile is to the signed-in resident. */
+export type Relation = 'self' | 'child' | 'parent' | 'spouse' | 'other';
+
+export interface Patient {
+  id: string;
+  name: string;
+  sex: Sex | null;
+  date_of_birth: IsoDate | null;
+  blood_type: BloodType | null;
+}
+
+/** One person whose record the resident keeps: themself or a family member. */
+export interface HealthProfile extends Patient {
+  relation: Relation;
+}
+
+export type ProfileInput = Omit<HealthProfile, 'id'>;
+
+/** Every item carries the document it was read from, or null when typed in by hand. */
+interface ItemBase {
+  id: string;
+  source: string | null;
+}
+
+export interface Allergy extends ItemBase {
+  substance: string;
+  reaction: string | null;
+  severity: Severity;
+}
+
+export interface Medication extends ItemBase {
+  name: string;
+  dose: string | null;
+  frequency: string | null;
+  start: IsoDate | null;
+  /** Null while the resident is still taking it. */
+  end: IsoDate | null;
+}
+
+export interface Condition extends ItemBase {
+  name: string;
+  diagnosed: IsoDate | null;
+  status: ConditionStatus;
+}
+
+export interface Procedure extends ItemBase {
+  name: string;
+  date: IsoDate | null;
+}
+
+export interface LabResult extends ItemBase {
+  test: string;
+  value: number;
+  unit: string | null;
+  date: IsoDate;
+  ref_low?: number | null;
+  ref_high?: number | null;
+}
+
+export interface Visit extends ItemBase {
+  date: IsoDate;
+  specialty: string | null;
+  reason: string | null;
+}
+
+export interface SectionItems {
+  allergies: Allergy;
+  medications: Medication;
+  conditions: Condition;
+  procedures: Procedure;
+  labs: LabResult;
+  visits: Visit;
+}
+
+export type RecordSection = keyof SectionItems;
+
+export type RecordItem = SectionItems[RecordSection];
+
+/** An item's fields without its id or source, as sent to create or update it. */
+export type ItemData<S extends RecordSection> = Omit<SectionItems[S], 'id' | 'source'>;
+
+export interface HealthRecord {
+  patient: Patient;
+  record_updated_at: IsoTime;
+  allergies: Allergy[];
+  medications: Medication[];
+  conditions: Condition[];
+  procedures: Procedure[];
+  labs: LabResult[];
+  visits: Visit[];
+  gaps: HealthGap[];
+  /** Visits a Park Lane clinic doctor finalized, newest first. Absent from backends without the clinic. */
+  consultations?: ConsultationListing[];
+}
+
+/* ---- Clinic visits (server/src/health/consultations.ts) ------------------------------- */
+
+export interface Localized {
+  en: string;
+  ar: string;
+}
+
+/** The record a clinic doctor approved, SOAP-shaped. Text fields are '' when empty. */
+export interface ClinicalNote {
+  chief_complaint: string;
+  history: string;
+  symptoms: string[];
+  symptom_duration: string;
+  reported_history: string;
+  examination: string;
+  vitals: { name: string; value: string }[];
+  assessment: string;
+  diagnoses: { name: string; certainty: 'confirmed' | 'provisional' }[];
+  plan: string;
+  medications: { name: string; dose: string; frequency: string; duration_days: number | null; route: string; instructions: string }[];
+  investigations: string[];
+  follow_up: { needed: boolean; in_days: number | null; instructions: string };
+  patient_instructions: string;
+}
+
+export interface ConsultationListing {
+  id: string;
+  date: IsoDate;
+  doctor: { id: string; name: Localized; specialty: Localized };
+  chief_complaint: string;
+  diagnoses: string[];
+  follow_up: ClinicalNote['follow_up'];
+}
+
+/** One finalized clinic visit, as its patient reads it: never the transcript or AI output. */
+export interface ClinicConsultation {
+  id: string;
+  appointment_id: string;
+  date: IsoDate;
+  doctor: { id: string; name: Localized; specialty: Localized };
+  doctor_title: string | null;
+  note: ClinicalNote;
+  finalized_at: IsoTime;
+  /** The doctor who approved the record. */
+  approved_by: string;
+  ai_assisted: boolean;
+  addenda: { text: string; created_at: IsoTime; author: string }[];
+  profile_id: string | null;
+  patient_name: string;
+}
+
+export type GapKind = 'missing_blood_type' | 'stale_lab' | 'no_recent_labs' | 'no_allergies_recorded';
+
+/** Something the record is missing. `text` is in the request's Accept-Language and shown as it is. */
+export interface HealthGap {
+  kind: GapKind;
+  text: string;
+  /** For `stale_lab`: the test whose last result is old, as the record names it. */
+  test?: string;
+}
+
+export type DocumentType = 'prescription' | 'lab_report' | 'discharge_summary' | 'imaging_report' | 'other';
+
+export type DocumentStatus = 'processing' | 'needs_review' | 'confirmed' | 'failed';
+
+export type Confidence = 'high' | 'low';
+
+/** One fact the server read from a document, waiting for the resident's check. */
+export type ExtractedItem = {
+  [S in RecordSection]: {
+    item_id: string;
+    section: S;
+    data: ItemData<S>;
+    confidence: Confidence;
+    /** Id of a record item in the same section that this may repeat. */
+    possible_duplicate_of: string | null;
+  };
+}[RecordSection];
+
+export interface HealthDocument {
+  id: string;
+  profile_id: string;
+  type: DocumentType;
+  document_date: IsoDate | null;
+  uploaded_at: IsoTime;
+  status: DocumentStatus;
+  /** Display string when `failed`. */
+  error: string | null;
+  page_count: number;
+  /** Null once the backend no longer keeps the original. */
+  file_url: string | null;
+  /** Present from `needs_review` on. */
+  extracted_text?: string | null;
+  extracted_items?: ExtractedItem[] | null;
+}
+
+export interface UploadFile {
+  /** Local file URI, from the picker or after compression. */
+  uri: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface UploadInput {
+  files: UploadFile[];
+  type: DocumentType;
+  document_date: IsoDate | null;
+}
+
+export interface UploadResult {
+  id: string;
+  status: 'processing';
+}
+
+/**
+ * One decision on an extracted item: save it as a new record item, save it
+ * over an existing one, or `reject` it, which drops it from the document for
+ * good so it is not offered again.
+ */
+export type ConfirmItem =
+  | { item_id: string; action: 'add'; data: ItemData<RecordSection> }
+  | { item_id: string; action: 'replace'; data: ItemData<RecordSection>; replace_id: string }
+  | { item_id: string; action: 'reject' };
+
+export interface ConfirmInput {
+  items: ConfirmItem[];
+  /**
+   * Closes the review and moves the document to `confirmed`. Left out for a
+   * partial save, so items not yet decided stay in review.
+   */
+  finished?: boolean;
+}
+
+export interface Consent {
+  given: boolean;
+  given_at: IsoTime | null;
+}
+
+/** A finished summary, ready to play. */
+export interface Summary {
+  status: 'ready';
+  lang: HealthLang;
+  /** The specialty it was written for; summaries are kept per specialty. */
+  specialty: string | null;
+  transcript: string;
+  audio_url: string;
+  cached: boolean;
+  generated_at: IsoTime;
+  record_updated_at: IsoTime;
+}
+
+/**
+ * Where the server is with a summary it is making in the background:
+ * `waiting` for another one to finish first, then `writing`, then `recording`.
+ */
+export type SummaryPhase = 'waiting' | 'writing' | 'recording';
+
+export interface SummaryGenerating {
+  status: 'generating';
+  lang: HealthLang;
+  specialty: string | null;
+  started_at: IsoTime;
+  phase: SummaryPhase;
+}
+
+export interface SummaryFailed {
+  status: 'failed';
+  lang: HealthLang;
+  specialty: string | null;
+  started_at: IsoTime;
+  /** Display string, in the request's language. */
+  error: string;
+  failed_at: IsoTime;
+}
+
+/** What GET and POST .../summary answer with. */
+export type SummaryState = Summary | SummaryGenerating | SummaryFailed;
+
+export interface SummaryRequest {
+  lang: HealthLang;
+  specialty: string | null;
+  consent: true;
+  /** Start the summary in the background and answer at once, rather than wait for it. */
+  async: true;
+}

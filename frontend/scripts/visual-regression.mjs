@@ -136,6 +136,7 @@ const INTERACTION_ROUTES = [
   { name: 'CommunityMenu', path: '/visual/Community', steps: [{ click: 'Open menu', shot: 'open' }] },
   { name: 'MaintenanceMenu', path: '/visual/Maintenance', steps: [{ click: 'Open menu', shot: 'open' }] },
   { name: 'AmenitiesBookingMenu', path: '/visual/AmenitiesBooking', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'LoginCreate', path: '/visual/Login', steps: [{ click: 'Create account', shot: 'create' }] },
 ];
 
 const HEALTH_CONSENT = 'I agree to store and process my health data for this service.';
