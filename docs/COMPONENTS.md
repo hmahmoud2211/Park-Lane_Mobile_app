@@ -35,6 +35,7 @@ The app's UI is built from shared components in `frontend/src/components/`, each
 |---|---|---|
 | `ScreenWrapper` | Safe area and background photo with scrims | `backgroundSource`, `withScrim`, `backgroundOverlay`, `scrollable`, `edges` |
 | `InnerScreenFrame` | The whole page of the smart-home and settings screens: background, status bar, one responsive scrolling column, bottom bar | `contentStyle`, `overlay` (a menu), any `ScrollView` prop (`refreshControl`, `keyboardShouldPersistTaps`, default `handled`) |
+| `ParkingFrame` | The whole page of the parking and Health Passport flows: what `InnerScreenFrame` does, plus a right-to-left body for Arabic, a pinned footer and side-by-side columns | `title`, `subtitle`, `rtl`, `footer`, `aside`, `bottomBar`, `onBack` |
 | `PageHeader` | Wordmark, back button, title and subtitle, menu button | `title`, `subtitle`, `onMenuPress`, `trailing`, `showBack` |
 | `ScreenHeader` | Home's header (menu, wordmark, avatar) | `initials`, `onMenuPress`, `onProfilePress` |
 | `BottomBar` | The tab bar on phones; `NAV_BAR_CLEARANCE` for scroll padding | `inset` |
@@ -47,6 +48,7 @@ The app's UI is built from shared components in `frontend/src/components/`, each
 | Component | Purpose |
 |---|---|
 | `NeonPanel` | Neon-edged glass panel, the inner screens' card |
+| `Panel` | The parking and Health Passport card: a `NeonPanel` with a heading and a padded body |
 | `PanelHeading` | A panel's title row: icon, title, subtitle, "View All", divider |
 | `SelectableCard` | A choice in a list (brand, method, found device): glass card, cyan-to-violet stroke, glow when `selected`; `pressedStyle` / `disabledStyle` per screen |
 | `StatusChip` | Status pill in six tones |
@@ -57,7 +59,10 @@ The app's UI is built from shared components in `frontend/src/components/`, each
 | `StatItem`, `StatTile`, `DividedRow` | Figure rows (My Unit, Maintenance) |
 | `MediaRow`, `VisitorRow` | List rows |
 | `ProgressBar`, `ProgressStepper`, `PairingStep` | Progress and step indicators |
-| `ParkingButton` | The parking screens' compact button (also QrScanner's) |
+| `ParkingButton` | The parking screens' compact button (also QrScanner's and Health Passport's) |
+| `Controls` | The parking and Health Passport form parts: chip group, segmented, stepper, field, check row, info row, fact grid |
+| `ListRow` | A booking, document or event in a list, with its status |
+| `LanguageToggle` | The English and Arabic switch of the visitor pass and Health Passport |
 | `WifiCredentialForm` | Home Wi-Fi name and password, validated |
 | `ArrowRightIcon`, `Avatar`, `GlowArc`, `NudgingArrow`, `ParkingSign`, `WeatherPill`, `UnitHeroCard`, `UnitSummaryCard`, `VisitorPassCard`, `DeviceConnectionStatus` | Single-purpose pieces of particular screens |
 
@@ -83,7 +88,8 @@ The app's UI is built from shared components in `frontend/src/components/`, each
 | `features/home/components` | `DeviceCard` (a device from the EMS backend or a gateway: name, room, state, quick toggle), `DeviceControl` (full controls per capability), `LevelSlider` |
 | `features/gateway/components` | `GatewayStatusRow`, `NoGatewayNotice`, `BrandBadge`, `RequirementChips` (support level, methods, candidate), `CredentialFields`, `StepList` |
 | `features/ems/components` | `EmsAccountPanel` (sign in or create an EMS account) |
-| `features/parking/components` | `ParkingFrame`, `Panel`, `Controls` (chip group, segmented, stepper, field, check row, info row, fact grid), `Rows`, `GuestTrackerCard`, `LanguageToggle`, `site-map/*` (`SiteMap`, `MapLayers`, `RouteLayer`) |
+| `features/parking/components` | `Rows` (`PassQr`, `Timeline`), `GuestTrackerCard`, `site-map/*` (`SiteMap`, `MapLayers`, `RouteLayer`) |
+| `features/health/components` | `HealthFrame` (`ParkingFrame` with Arabic layout and the language switch), `HealthNotifier` (the banner over every screen), `LoadState` (`HealthErrorNotice`, `LoadingPanel`, `ResourceView`), `ConfirmSheet`, `DateField`, `ItemFields`, `ItemRow`, `OriginalFile`, `ZoomableImage`, `SummaryPlayer`, `Sparkline`, `BidiText`, `TextLink` |
 | `features/assistant/components` | `AssistantOrb`, `ChatBubble`, `ChatComposer`, `VoiceControls`, `VoiceStatusPill`, `VoiceTranscript`, `ModeSwitch`, `SuggestionChips`, `InsightBadges`, `RichText` and their helpers |
 
 ### Hooks for UI

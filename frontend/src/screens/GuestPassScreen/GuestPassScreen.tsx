@@ -3,12 +3,12 @@ import { useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { FactGrid, Field, InfoRow, type Fact } from '../../features/parking/components/Controls';
-import { LanguageToggle } from '../../features/parking/components/LanguageToggle';
+import { FactGrid, Field, InfoRow, type Fact } from '../../components/ui/Controls';
+import { LanguageToggle } from '../../components/ui/LanguageToggle';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../features/parking/components/Panel';
+import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { ParkingFrame } from '../../components/layout/ParkingFrame';
 import { PassQr } from '../../features/parking/components/Rows';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';

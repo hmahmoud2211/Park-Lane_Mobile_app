@@ -58,6 +58,9 @@ jobs:
       - name: HTTP client checks
         run: npm run check:transport
 
+      - name: Health Passport checks
+        run: npm run check:health
+
       - name: Web export
         run: npx expo export --platform web --output-dir dist
 

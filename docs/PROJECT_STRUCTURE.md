@@ -29,8 +29,8 @@ Park-Lane_Mobile_app/
 │   └── src/
 │       ├── components/             UI every screen may use (no business logic)
 │       │   ├── common/             primitives: AppText, AppButton, AppInput, GlassSurface, AppIcon, QrScanner …
-│       │   ├── ui/                 composed pieces: NeonPanel, PanelHeading, StatusChip, FilterChip, AppMenu, SelectableCard …
-│       │   ├── layout/             page structure: ScreenWrapper, PageHeader, BottomBar, InnerScreenFrame, ResponsiveColumns …
+│       │   ├── ui/                 composed pieces: NeonPanel, Panel, PanelHeading, StatusChip, FilterChip, AppMenu, SelectableCard, Controls, ListRow …
+│       │   ├── layout/             page structure: ScreenWrapper, PageHeader, BottomBar, InnerScreenFrame, ParkingFrame, ResponsiveColumns …
 │       │   ├── feedback/           Notice, LoadingState, ErrorNotice
 │       │   └── forms/              formMetrics, FormSubmitButton
 │       ├── features/<domain>/      everything one domain needs
@@ -41,16 +41,16 @@ Park-Lane_Mobile_app/
 │       │   └── types.ts            the domain's own types
 │       ├── screens/<Name>Screen/   one folder per route: <Name>.tsx, .styles.ts, .data.ts, index.ts
 │       ├── navigation/             AppNavigator (routes, web addresses) and navTabs
-│       ├── config/                 every setting: env.ts reads EXPO_PUBLIC_*, plus ems, assistant, gateway, lg, brand, demo, flags, vendorDevices
-│       ├── lib/                    app infrastructure: http (fetch core), realtime (reconnecting socket), storage
+│       ├── config/                 every setting: env.ts reads EXPO_PUBLIC_*, plus ems, assistant, gateway, lg, health, brand, demo, flags, vendorDevices
+│       ├── lib/                    app infrastructure: http (fetch core, uploads), realtime (reconnecting socket), storage
 │       ├── context/                app-wide UI state: AppContext, ThemeContext, ShellContext
 │       ├── hooks/                  app-wide UI hooks: useAppTheme, useScreenLayout, useScreenMenu, useReduceMotion …
 │       ├── theme/                  every design token: colours, typography, spacing, radius, shadows, glass, layout, breakpoints, motion
-│       ├── types/                  app-wide types: navigation, theme, icons, i18n, and home / ems / gateway (API types)
+│       ├── types/                  app-wide types: navigation, theme, icons, i18n, and home / ems / gateway / health (API types)
 │       ├── data/                   mock content shared by several screens (the demo resident)
 │       ├── utils/                  small pure helpers: format, responsive, typography, share, web fixes
 │       ├── constants/images.ts     the image table (require() of every bundled image)
-│       └── assets/images/          the bundled images
+│       └── assets/                 the bundled images, and audio (Health Passport's mock only)
 ├── backend/
 │   ├── package.json + lock         only TypeScript and Node's types, for the typecheck
 │   ├── Dockerfile, compose.yaml    the production image and how it runs (one container)
@@ -102,15 +102,16 @@ screen ──► feature hook ──► feature service ──► lib/http (fetc
 | Smart home (EMS backend) | `SmartHomeScreen`, `EmsDevicesScreen`, `DeviceDetailScreen`, `ConnectAccountScreen` | `features/ems`, `features/home`; backend `routes/home.ts`, `routes/accounts.ts`, `ha/` |
 | Smart home (CUBE gateway) | `GatewaySetupScreen`, `AddDeviceScreen`, `AddDeviceMethodScreen`, `DeviceDiscoveryScreen`, `DeviceProvisioningScreen`, `DeviceSetupScreen`, `AcControlScreen` | `features/gateway`, `features/provisioning`; `gateway/` |
 | LG pairing | `LgPairingScreen` | `features/lg` |
+| Health Passport | `HealthPassportScreen`, `HealthOnboardingScreen`, `HealthProfileScreen`, `HealthRecordsScreen`, `HealthDocumentScreen`, `HealthUploadScreen`, `HealthReviewScreen`, `HealthItemFormScreen`, `HealthSummaryScreen`, `HealthSettingsScreen` | `features/health` (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)) |
 | Assistant | `AssistantScreen` | `features/assistant` |
 
 ## Configuration
 
 | Where | What |
 |---|---|
-| `frontend/.env.local` (from `.env.example`) | `EXPO_PUBLIC_DEVICE_BACKEND_URL`, `EXPO_PUBLIC_ASSISTANT_URL`, `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` for development |
+| `frontend/.env.local` (from `.env.example`) | `EXPO_PUBLIC_DEVICE_BACKEND_URL`, `EXPO_PUBLIC_ASSISTANT_URL`, `EXPO_PUBLIC_HEALTH_API`, `EXPO_PUBLIC_HEALTH_API_URL`, `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` for development |
 | `frontend/eas.json` | the same variables per build profile |
-| `frontend/src/config/` | everything the app reads; `env.ts` is the only file that touches `process.env` |
+| `frontend/src/config/` | everything the app reads; `env.ts` is the only file that touches `process.env`, except the two mock checks in `features/health/services` ([why](HEALTH_PASSPORT.md#mock-or-real-backend)) |
 | `backend/.env` (from `.env.example`) | every backend setting; `backend/src/config.ts` reads it |
 | `gateway/` | `CUBE_*` environment variables (gateway/README.md) |
 | `docker/rethink/.env` | `RETHINK_HOST_IP` |

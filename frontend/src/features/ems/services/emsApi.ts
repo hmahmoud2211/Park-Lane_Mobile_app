@@ -8,6 +8,7 @@ export {
   getSessionToken,
   isEmsConfigured,
   onSessionExpired,
+  reportSessionExpired,
   setSessionToken,
   type EmsErrorCode,
 } from './emsHttp';

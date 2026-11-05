@@ -11,6 +11,8 @@ import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
 import { flags } from '../config/flags';
+import { HealthNotifier } from '../features/health/components/HealthNotifier';
+import type { HealthNotice } from '../features/health/services/healthStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
 import { AddDeviceScreen } from '../screens/AddDeviceScreen';
@@ -29,6 +31,16 @@ import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { GatewaySetupScreen } from '../screens/GatewaySetupScreen';
 import { GuestPassScreen } from '../screens/GuestPassScreen';
+import { HealthDocumentScreen } from '../screens/HealthDocumentScreen';
+import { HealthItemFormScreen } from '../screens/HealthItemFormScreen';
+import { HealthOnboardingScreen } from '../screens/HealthOnboardingScreen';
+import { HealthPassportScreen } from '../screens/HealthPassportScreen';
+import { HealthProfileScreen } from '../screens/HealthProfileScreen';
+import { HealthRecordsScreen } from '../screens/HealthRecordsScreen';
+import { HealthReviewScreen } from '../screens/HealthReviewScreen';
+import { HealthSettingsScreen } from '../screens/HealthSettingsScreen';
+import { HealthSummaryScreen } from '../screens/HealthSummaryScreen';
+import { HealthUploadScreen } from '../screens/HealthUploadScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LgPairingScreen } from '../screens/LgPairingScreen';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -61,7 +73,9 @@ const ROUTE_NAMES = [
   'AddDevice', 'AddDeviceMethod', 'DeviceDiscovery', 'DeviceProvisioning', 'DeviceSetup',
   'LgPairing', 'AcControl', 'AmenitiesBooking', 'Services', 'Settings', 'Assistant',
   'UnderDevelopment', 'ReserveParking', 'ReservationDetails', 'ReservationHistory', 'GuestPass',
-  'ParkingMap', 'ChargingSession', 'SecurityConsole', 'DemoControls',
+  'ParkingMap', 'ChargingSession', 'SecurityConsole', 'DemoControls', 'HealthPassport',
+  'HealthOnboarding', 'HealthProfile', 'HealthRecords', 'HealthDocument', 'HealthUpload',
+  'HealthReview', 'HealthItemForm', 'HealthSummary', 'HealthSettings',
 ] as const satisfies readonly (keyof RootStackParamList)[];
 
 /**
@@ -106,6 +120,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       // The demo's own tools get addresses only while the build includes them (config/flags.ts).
       ...(flags.demoTools ? { SecurityConsole: 'parking/security', DemoControls: 'parking/demo' } : {}),
       GuestPass: 'pass/:invite',
+      HealthPassport: 'health',
     },
   },
 };
@@ -136,6 +151,30 @@ export function AppNavigator() {
         iconSet: tab.iconSet,
         iconName: tab.iconName,
       });
+    }
+  }, []);
+
+  // A document finished reading: straight to its review, or to why it failed.
+  // A summary is ready: straight to its player, or to why it failed.
+  const openHealthNotice = useCallback((notice: HealthNotice) => {
+    if (!navigationRef.isReady()) {
+      return;
+    }
+    if ('docId' in notice) {
+      navigationRef.navigate(notice.kind === 'ready' ? 'HealthReview' : 'HealthDocument', { docId: notice.docId });
+    } else {
+      navigationRef.navigate('HealthSummary', {
+        profileId: notice.profileId,
+        lang: notice.lang,
+        specialty: notice.specialty,
+      });
+    }
+  }, []);
+
+  // The health backend refused the session: back to sign-in, as "Log out" does.
+  const endHealthSession = useCallback(() => {
+    if (navigationRef.isReady()) {
+      navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
     }
   }, []);
 
@@ -211,9 +250,25 @@ export function AppNavigator() {
           <Stack.Screen name="ChargingSession" component={ChargingSessionScreen} />
           <Stack.Screen name="SecurityConsole" component={SecurityConsoleScreen} />
           <Stack.Screen name="DemoControls" component={DemoControlsScreen} />
+          <Stack.Screen name="HealthPassport" component={HealthPassportScreen} />
+          <Stack.Screen name="HealthOnboarding" component={HealthOnboardingScreen} />
+          <Stack.Screen name="HealthProfile" component={HealthProfileScreen} />
+          <Stack.Screen name="HealthRecords" component={HealthRecordsScreen} />
+          <Stack.Screen name="HealthDocument" component={HealthDocumentScreen} />
+          <Stack.Screen name="HealthUpload" component={HealthUploadScreen} />
+          <Stack.Screen name="HealthReview" component={HealthReviewScreen} />
+          <Stack.Screen name="HealthItemForm" component={HealthItemFormScreen} />
+          <Stack.Screen name="HealthSummary" component={HealthSummaryScreen} />
+          <Stack.Screen name="HealthSettings" component={HealthSettingsScreen} />
           {/* Register later screens here as their designs land. */}
         </Stack.Navigator>
       </AppShell>
+      <HealthNotifier
+        routeName={current?.name}
+        routeParams={current?.params}
+        onOpen={openHealthNotice}
+        onSessionEnded={endHealthSession}
+      />
     </NavigationContainer>
   );
 }

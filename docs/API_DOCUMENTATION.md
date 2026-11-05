@@ -2,6 +2,8 @@
 
 This covers the **EMS device backend** (`backend/`), which the app calls at `EXPO_PUBLIC_DEVICE_BACKEND_URL` (production: `https://api-iot-2.ems-iot.com`). The CUBE Gateway has its own API, documented in [gateway/API.md](../gateway/API.md). The Parklane Assistant is an external service.
 
+Health Passport's API (`/health/...`) is not on this backend yet. [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md#the-api-it-expects) describes what the app expects.
+
 The types named below are in [`shared/contracts`](../shared/contracts), which the app and the backend both import.
 
 ## Conventions

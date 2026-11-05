@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { layout } from '../../theme';
 import { AppButton } from '../common/AppButton';
-import { Notice } from './Notice';
+import { Notice, type NoticeTone } from './Notice';
 
 export interface ErrorNoticeProps {
   title: string;
@@ -12,12 +12,14 @@ export interface ErrorNoticeProps {
   onRetry: () => void;
   /** The retry button's height; the inner screens' button height by default. */
   buttonHeight?: number;
+  /** `warning` for a failure that passes by itself, e.g. no connection. */
+  tone?: NoticeTone;
 }
 
 /** A load that failed, with a button to try again. */
-export function ErrorNotice({ title, children, retryLabel, onRetry, buttonHeight = layout.innerScreen.buttonHeight }: ErrorNoticeProps) {
+export function ErrorNotice({ title, children, retryLabel, onRetry, buttonHeight = layout.innerScreen.buttonHeight, tone = 'error' }: ErrorNoticeProps) {
   return (
-    <Notice tone="error" title={title} actions={<AppButton title={retryLabel} variant="secondary" height={buttonHeight} onPress={onRetry} />}>
+    <Notice tone={tone} title={title} actions={<AppButton title={retryLabel} variant="secondary" height={buttonHeight} onPress={onRetry} />}>
       {children}
     </Notice>
   );

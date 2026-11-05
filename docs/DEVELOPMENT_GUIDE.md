@@ -21,7 +21,7 @@ There is no install at the repository root. `./scripts/dev.sh check` installs wh
 
 | File | Copy from | Holds |
 |---|---|---|
-| `frontend/.env.local` | `frontend/.env.example` | `EXPO_PUBLIC_DEVICE_BACKEND_URL` (the backend; on a phone use your computer's LAN address), `EXPO_PUBLIC_ASSISTANT_URL` (unset: the hosted demo), `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` |
+| `frontend/.env.local` | `frontend/.env.example` | `EXPO_PUBLIC_DEVICE_BACKEND_URL` (the backend; on a phone use your computer's LAN address), `EXPO_PUBLIC_ASSISTANT_URL` (unset: the hosted demo), `EXPO_PUBLIC_HEALTH_API` and `EXPO_PUBLIC_HEALTH_API_URL` (unset: the mock in development), `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` |
 | `backend/.env` | `backend/.env.example` | `PORT`, `ADMIN_API_KEY`, `PUBLIC_URL`, `DATA_DIR`, `EMS_ENCRYPTION_KEY`, the `HA_*` settings; each is documented in the example |
 
 `EXPO_PUBLIC_*` values are built into the app, so never put a secret in one. Both env files are git-ignored. `frontend/src/config/env.ts` is the only place the app reads them.
@@ -72,7 +72,8 @@ See [gateway/README.md](../gateway/README.md) and [CUBE_GATEWAY.md](CUBE_GATEWAY
 | App typecheck | `npx tsc --noEmit` (`frontend/`) |
 | App lint | `npx expo lint` (`frontend/`; add `--no-cache` if it reports stale unresolved imports) |
 | Parking demo rules (23 checks) | `npm run check:parking` (`frontend/`) |
-| HTTP and realtime clients (22 checks) | `npm run check:transport` (`frontend/`) |
+| HTTP and realtime clients (35 checks) | `npm run check:transport` (`frontend/`) |
+| Health Passport (25 checks) | `npm run check:health` (`frontend/`) |
 | Web build | `npx expo export --platform web` (`frontend/`) |
 | Backend typecheck | `npm run typecheck` (`backend/`) |
 | Backend tests (HTTP level, including routing rules) | `npm test` (`backend/`) |
@@ -96,7 +97,7 @@ node scripts/visual-regression.mjs capture --profile interactions --dist /tmp/we
 node scripts/visual-regression.mjs compare /tmp/shots-before /tmp/shots-after
 ```
 
-It drives headless Chrome (macOS path by default; `--chrome <path>` elsewhere) and compares with ImageMagick's `magick`. Each screen is captured at 390×844 and 1280×800, top and bottom, with a dump of every painted box. Clock and randomness are fixed, so two captures of the same build are identical. The `ems` profile captures signed-in device screens against `npm run fake-hub` (`--backend http://127.0.0.1:<port>`).
+It drives headless Chrome (macOS path by default; `--chrome <path>` elsewhere) and compares with ImageMagick's `magick`. Each screen is captured at 390×844 and 1280×800, top and bottom, with a dump of every painted box. Clock and randomness are fixed, so two captures of the same build are identical. The `ems` profile captures signed-in device screens against `npm run fake-hub` (`--backend http://127.0.0.1:<port>`). The `health` profile walks through Health Passport on its mock; build with `EXPO_PUBLIC_HEALTH_API=mock` as well.
 
 ## Build for production
 

@@ -2,11 +2,11 @@ import { useNavigation } from '@react-navigation/native';
 import { useMemo, useState } from 'react';
 
 import { AppText } from '../../components/common/AppText';
-import { ChipGroup } from '../../features/parking/components/Controls';
-import { Panel } from '../../features/parking/components/Panel';
+import { ChipGroup } from '../../components/ui/Controls';
+import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
-import { ListRow } from '../../features/parking/components/Rows';
+import { ParkingFrame } from '../../components/layout/ParkingFrame';
+import { ListRow } from '../../components/ui/ListRow';
 import { reservationIcon, reservationLines } from '../../features/parking/components/presenters';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useParking } from '../../features/parking/hooks/useParking';

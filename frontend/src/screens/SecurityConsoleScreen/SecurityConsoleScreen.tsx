@@ -3,13 +3,13 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { ChipGroup, Field, type ChipOption } from '../../features/parking/components/Controls';
+import { ChipGroup, Field, type ChipOption } from '../../components/ui/Controls';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../features/parking/components/Panel';
+import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { ParkingFrame } from '../../components/layout/ParkingFrame';
 import { QrScanner } from '../../components/common/QrScanner';
-import { ListRow } from '../../features/parking/components/Rows';
+import { ListRow } from '../../components/ui/ListRow';
 import { notificationIcon } from '../../features/parking/components/presenters';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useParking } from '../../features/parking/hooks/useParking';

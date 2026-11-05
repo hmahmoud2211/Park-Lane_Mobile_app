@@ -1,7 +1,7 @@
 /**
  * Behaviour checks for the app's HTTP clients (EMS backend, CUBE gateway, Parklane
- * Assistant, devices on their setup hotspots) and its two realtime channels, against a
- * stubbed fetch, WebSocket and clock:
+ * Assistant, devices on their setup hotspots, Health Passport) and its two realtime
+ * channels, against a stubbed fetch, XMLHttpRequest, WebSocket and clock:
  * what each sends, which error it throws for each failure (class, code, message,
  * status, recovery), which wins when a timeout and a cancel coincide, and who is told
  * about a refused token. Written before the clients shared a core, so the core can
@@ -18,6 +18,7 @@ async function main() {
   const gateway = await import('../../features/gateway/services/gatewayHttp');
   const assistant = await import('../../features/assistant/services/assistantApi');
   const device = await import('../../features/provisioning/services/deviceHttp');
+  const health = await import('../../features/health/services/httpHealthService');
   const emsRealtime = await import('../../features/ems/services/realtime');
   const gatewayRealtime = await import('../../features/gateway/services/realtime');
 
@@ -369,6 +370,235 @@ async function main() {
       throw new TypeError('Failed to fetch');
     };
     await rejects(device.deviceRequest('http://10.10.7.1/x', { timeoutMs: 4000 }), { class: 'DeviceHttpError', kind: 'unreachable', message: 'Could not reach the device on its setup network.' });
+  });
+
+  // ---- Health Passport -----------------------------------------------------------------------
+
+  /** Headers in a fixed order: the order they were set in means nothing. */
+  const sortedHeaders = (headers: Record<string, string>) => Object.fromEntries(Object.entries(headers).sort());
+
+  let refused = 0;
+  const healthClient = (options: Partial<ConstructorParameters<typeof health.HttpHealthService>[0]> = {}) => {
+    refused = 0;
+    return new health.HttpHealthService({
+      baseUrl: 'https://health.test/',
+      getToken: () => 'tok',
+      getLang: () => 'ar',
+      onUnauthorized: () => {
+        refused += 1;
+      },
+      ...options,
+    });
+  };
+
+  check('Health: sends the session and language; the answer is the body itself, not an envelope', async () => {
+    handler = async () => json([{ id: 'p1' }]);
+    equal(await healthClient().listProfiles(), [{ id: 'p1' }], 'body');
+    equal(sent[0].url, 'https://health.test/health/profiles', 'url');
+    equal(sent[0].method, 'GET', 'method');
+    equal(sortedHeaders(sent[0].headers), { Accept: 'application/json', 'Accept-Language': 'ar', Authorization: 'Bearer tok' }, 'headers');
+    equal(sent[0].body, undefined, 'body sent');
+  });
+
+  check('Health: a write sends JSON, and encodes ids; signed out sends no token', async () => {
+    handler = async () => json({ id: 'a/b' });
+    await healthClient({ getToken: () => null }).updateProfile('a/b', { name: 'Laila' } as never);
+    equal(sent[0].url, 'https://health.test/health/profiles/a%2Fb', 'url');
+    equal(sent[0].method, 'PUT', 'method');
+    equal(sortedHeaders(sent[0].headers), { Accept: 'application/json', 'Accept-Language': 'ar', 'Content-Type': 'application/json' }, 'headers');
+    equal(sent[0].body, '{"name":"Laila"}', 'body');
+  });
+
+  check('Health: refuses before sending without a backend address', async () => {
+    await rejects(healthClient({ baseUrl: '' }).getConsent(), {
+      class: 'HealthError',
+      kind: 'network',
+      message: 'The health backend is not configured (EXPO_PUBLIC_HEALTH_API_URL).',
+    });
+    equal(sent.length, 0, 'requests sent');
+  });
+
+  check('Health: each failing status is its own kind, with the backend\'s explanation', async () => {
+    const service = healthClient();
+    handler = async () => json({ detail: 'Too big.' }, 413);
+    await rejects(service.getConsent(), { class: 'HealthError', kind: 'too_large', status: 413, detail: 'Too big.', message: 'Too big.' });
+    handler = async () => json({ detail: [{ msg: 'name is required' }, { msg: 'bad date' }] }, 422);
+    await rejects(service.getConsent(), { class: 'HealthError', kind: 'invalid', status: 422, detail: 'name is required; bad date' });
+    handler = async () => json({ ok: false, error: { code: 'not_found', message: 'Not found.' } }, 404);
+    await rejects(service.getConsent(), { class: 'HealthError', kind: 'not_found', status: 404, detail: 'Not found.' });
+    handler = async () => json({ message: 'Busy.' }, 503);
+    await rejects(service.getConsent(), { class: 'HealthError', kind: 'busy', status: 503, detail: 'Busy.' });
+    handler = async () => text('<html>Bad gateway</html>', 502);
+    await rejects(service.getConsent(), { class: 'HealthError', kind: 'server', status: 502, message: 'HTTP 502' });
+    equal(refused, 0, 'session refusals');
+  });
+
+  check('Health: a 401 ends the session', async () => {
+    handler = async () => json({ detail: 'Expired.' }, 401);
+    await rejects(healthClient().getConsent(), { class: 'HealthError', kind: 'unauthorized', status: 401 });
+    equal(refused, 1, 'session refusals');
+  });
+
+  check('Health: a summary that does not exist yet is null, one being made is its state', async () => {
+    const service = healthClient();
+    handler = async () => json({ detail: 'None.' }, 404);
+    equal(await service.getSummary('p1', 'en'), null, '404');
+    equal(sent[0].url, 'https://health.test/health/profiles/p1/summary?lang=en', 'url');
+    handler = async () => json({ status: 'generating' }, 202);
+    equal(await service.getSummary('p1', 'ar', 'a b'), { status: 'generating' }, '202');
+    equal(sent[1].url, 'https://health.test/health/profiles/p1/summary?lang=ar&specialty=a%20b', 'url with specialty');
+  });
+
+  check('Health: a delete answered 204 resolves', async () => {
+    handler = async () => new Response(null, { status: 204 });
+    await healthClient().deleteDocument('d1', true);
+    equal(sent[0].url, 'https://health.test/health/documents/d1?delete_items=true', 'url');
+    equal(sent[0].method, 'DELETE', 'method');
+  });
+
+  check('Health: no answer is network or timeout, in the screens\' terms', async () => {
+    const service = healthClient();
+    handler = async () => {
+      throw new TypeError('Failed to fetch');
+    };
+    await rejects(service.getConsent(), { class: 'HealthError', kind: 'network', message: 'No connection.' });
+    handler = hang;
+    fakeTimers();
+    const pending = service.getConsent();
+    await tick();
+    fireTimers();
+    realTimers();
+    await rejects(pending, { class: 'HealthError', kind: 'timeout', message: 'The request timed out.' });
+  });
+
+  check('Health: the timeout covers reading the body', async () => {
+    handler = hangBody;
+    fakeTimers();
+    const pending = healthClient().getConsent();
+    await tick();
+    fireTimers();
+    realTimers();
+    await rejects(pending, { class: 'HealthError', kind: 'server', message: 'HTTP 200', status: 200 });
+  });
+
+  check('Health: an upload refuses before sending without a backend address', async () => {
+    let sentXhr = 0;
+    globalThis.XMLHttpRequest = class extends FakeXhr {
+      send() {
+        sentXhr += 1;
+      }
+    } as unknown as typeof XMLHttpRequest;
+    try {
+      await rejects(healthClient({ baseUrl: '' }).uploadDocument('p1', { ...uploadInput, files: [] }), {
+        class: 'HealthError',
+        kind: 'network',
+      });
+      equal(sentXhr, 0, 'uploads sent');
+    } finally {
+      globalThis.XMLHttpRequest = realXhr;
+    }
+  });
+
+  /** The parts of XMLHttpRequest an upload uses, driven by hand. */
+  class FakeXhr {
+    static last: FakeXhr;
+    upload: { onprogress?: (event: { lengthComputable: boolean; loaded: number; total: number }) => void } = {};
+    headers: Record<string, string> = {};
+    method = '';
+    url = '';
+    timeout = 0;
+    status = 0;
+    responseText = '';
+    form: FormData | undefined;
+    onload?: () => void;
+    onerror?: () => void;
+    ontimeout?: () => void;
+    onabort?: () => void;
+    open(method: string, url: string) {
+      this.method = method;
+      this.url = url;
+    }
+    setRequestHeader(name: string, value: string) {
+      this.headers[name] = value;
+    }
+    send(form: FormData) {
+      this.form = form;
+      FakeXhr.last = this;
+    }
+    abort() {
+      this.onabort?.();
+    }
+    answer(status: number, body: string) {
+      this.status = status;
+      this.responseText = body;
+      this.onload?.();
+    }
+  }
+  const realXhr = globalThis.XMLHttpRequest;
+  const uploadInput = {
+    files: [{ uri: 'file:///a.jpg', name: 'a.jpg', mimeType: 'image/jpeg', size: 4 }],
+    type: 'lab_report',
+    document_date: '2026-01-02',
+  } as const;
+  /** Starts an upload against the fake and returns once it has been sent. */
+  async function startUpload(service: ReturnType<typeof healthClient>, options?: Parameters<typeof service.uploadDocument>[2]) {
+    globalThis.XMLHttpRequest = FakeXhr as unknown as typeof XMLHttpRequest;
+    const pending = service.uploadDocument('p/1', { ...uploadInput, files: [...uploadInput.files] }, options);
+    await tick();
+    return { pending, xhr: FakeXhr.last };
+  }
+
+  check('Health: an upload posts the form with the session, and reports progress', async () => {
+    try {
+      const progress: number[] = [];
+      const { pending, xhr } = await startUpload(healthClient(), { onProgress: (fraction) => progress.push(fraction) });
+      equal(xhr.method, 'POST', 'method');
+      equal(xhr.url, 'https://health.test/health/profiles/p%2F1/documents', 'url');
+      equal(xhr.headers, { Accept: 'application/json', 'Accept-Language': 'ar', Authorization: 'Bearer tok' }, 'headers');
+      equal(xhr.timeout, 120_000, 'timeout');
+      equal(xhr.form?.get('type'), 'lab_report', 'type');
+      equal(xhr.form?.get('document_date'), '2026-01-02', 'date');
+      xhr.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 4 });
+      xhr.upload.onprogress?.({ lengthComputable: false, loaded: 2, total: 0 });
+      equal(progress, [0.25], 'progress');
+      xhr.answer(201, '{"id":"d1","status":"processing"}');
+      equal(await pending, { id: 'd1', status: 'processing' }, 'result');
+    } finally {
+      globalThis.XMLHttpRequest = realXhr;
+    }
+  });
+
+  check('Health: a refused upload fails as a request does, and a 401 ends the session', async () => {
+    try {
+      const service = healthClient();
+      const first = await startUpload(service);
+      first.xhr.answer(413, '{"detail":"Too big."}');
+      await rejects(first.pending, { class: 'HealthError', kind: 'too_large', status: 413, detail: 'Too big.' });
+      const second = await startUpload(service);
+      second.xhr.answer(401, 'not json');
+      await rejects(second.pending, { class: 'HealthError', kind: 'unauthorized', status: 401 });
+      equal(refused, 1, 'session refusals');
+    } finally {
+      globalThis.XMLHttpRequest = realXhr;
+    }
+  });
+
+  check('Health: an upload with no answer is network, timeout or a cancel', async () => {
+    try {
+      const service = healthClient();
+      const network = await startUpload(service);
+      network.xhr.onerror?.();
+      await rejects(network.pending, { class: 'HealthError', kind: 'network', message: 'No connection.' });
+      const timeout = await startUpload(service);
+      timeout.xhr.ontimeout?.();
+      await rejects(timeout.pending, { class: 'HealthError', kind: 'timeout', message: 'The upload timed out.' });
+      const controller = new AbortController();
+      const cancelled = await startUpload(service, { signal: controller.signal });
+      controller.abort();
+      await rejects(cancelled.pending, { class: 'HealthError', kind: 'aborted', message: 'Cancelled.' });
+    } finally {
+      globalThis.XMLHttpRequest = realXhr;
+    }
   });
 
   // ---- Realtime channels -------------------------------------------------------------------

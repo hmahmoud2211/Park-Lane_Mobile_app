@@ -43,6 +43,7 @@ flowchart LR
 - **Parklane Assistant**: an external text and voice assistant. The app gives it a short-lived assistant token, with which it reads the home and sends commands. Every command is audited, and it can never unlock a door.
 - **Setup hotspots**: new Shelly, SONOFF and LG devices are given the home Wi-Fi straight from the phone, on their own setup network.
 - **Parking** is a demo that runs entirely on the device (see [PARKING_DEMO.md](PARKING_DEMO.md)).
+- **Health Passport** runs on a mock inside the app in development. Its real API is not on this backend yet (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)).
 
 ## The app
 
@@ -52,10 +53,10 @@ flowchart TB
   components["components/<br/>common · ui · layout · feedback · forms"]
   theme["theme/<br/>design tokens"]
   hooks["features/*/hooks<br/>React state"]
-  contexts["features/*/context<br/>EMS session · gateway · parking store"]
+  contexts["features/*/context<br/>EMS session · gateway · parking store · health"]
   services["features/*/services<br/>one system each, no React"]
   lib["lib/<br/>http · realtime · storage"]
-  config["config/<br/>env · ems · assistant · gateway · flags · brand"]
+  config["config/<br/>env · ems · assistant · gateway · health · flags · brand"]
   types["types/ (+ shared/contracts)"]
 
   screens --> components --> theme
@@ -83,9 +84,10 @@ Arrows point from the importer to what it imports. Lower layers never import hig
 | Gateway realtime      | `features/gateway/services/realtime.ts`                              | `ReconnectingSocket`, `/api/v1/events`, can move to another address                     | first message auth                                                             | `onRefused` drops the token    |
 | Parklane Assistant    | `features/assistant/services/assistantApi.ts`, `realtimeClient.ts` | fetch core; WebSocket with PCM audio                                                        | resident id (demo) or guest; the EMS assistant token in the body               | `AssistantApiError(kind)`      |
 | Device on its hotspot | `features/provisioning/services/deviceHttp.ts`                       | fetch core, plain HTTP                                                                      | none                                                                           | `DeviceHttpError(kind)`        |
+| Health Passport       | `features/health/services/httpHealthService.ts`                      | fetch core, plain JSON; multipart uploads through `timedUpload`                             | the EMS session, and `Accept-Language`                                         | `HealthError(kind)`            |
 | LG appliance          | `features/lg/services/lgSetupService.ts`                             | TLS over TCP (react-native-tcp-socket)                                                      | none                                                                           | `LgSetupError`                 |
 
-Every HTTP client uses `timedFetch()` from `lib/http/request.ts` (timeout, cancel, a read step inside the timeout) and keeps its own wording. `npm run check:transport` pins each client's behaviour.
+Every HTTP client uses `timedFetch()` from `lib/http/request.ts` (timeout, cancel, a read step inside the timeout) and keeps its own wording. Uploads that report progress use `timedUpload()` from `lib/http/upload.ts`, which fails the same way. `npm run check:transport` pins each client's behaviour.
 
 ## The backend
 
@@ -181,8 +183,9 @@ When the connection drops, the app reconnects with exponential back-off (1 s up 
 
 ## Configuration and builds
 
-- App settings come from `EXPO_PUBLIC_*` variables, all read in `frontend/src/config/env.ts`, from `.env.local` in development and `eas.json` per build profile. They are built into the app, so they hold no secrets.
+- App settings come from `EXPO_PUBLIC_*` variables, all read in `frontend/src/config/env.ts`, from `.env.local` in development and `eas.json` per build profile. They are built into the app, so they hold no secrets. `EXPO_PUBLIC_HEALTH_API` is also read where the mock is required, so the bundler can leave it out of release builds ([HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)).
 - `EXPO_PUBLIC_DEMO_TOOLS` hides the parking demo's tools when set to `0`, `false` or `off`.
+- `EXPO_PUBLIC_HEALTH_API` chooses Health Passport's mock or real backend; unset, development uses the mock and release builds the backend.
 - App builds run on EAS (the "App build (EAS)" workflow), in `frontend/`. The web build is hosted on Vercel, with its root directory set to `frontend`.
 - The backend deploys as one Docker container (`./scripts/dev.sh server` on the server, see [production.md](production.md)).
 - CI (`.github/workflows/ci.yml`) typechecks, lints and tests the app and the backend on every pull request. The gateway has its own workflow.

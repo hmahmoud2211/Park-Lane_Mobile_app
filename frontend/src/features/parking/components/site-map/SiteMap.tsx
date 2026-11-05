@@ -22,7 +22,7 @@ import type { AppTheme } from '../../../../types/theme.types';
 import { AppIcon } from '../../../../components/common/AppIcon';
 import { AppText } from '../../../../components/common/AppText';
 import { DirectionView } from '../../../../components/common/DirectionView';
-import { Segmented } from '../Controls';
+import { Segmented } from '../../../../components/ui/Controls';
 import { NeonPanel } from '../../../../components/ui/NeonPanel';
 import {
   BayChargeBadges,

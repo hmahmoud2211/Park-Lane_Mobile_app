@@ -1,4 +1,4 @@
-import type { ChipOption } from '../../features/parking/components/Controls';
+import type { ChipOption } from '../../components/ui/Controls';
 import type { TimelineItem } from '../../features/parking/components/Rows';
 import { gateNameIn, nameIn, rangeIn, type Lang } from '../../features/parking/services/i18n';
 import { siteInfo } from '../../features/parking/services/policy';
