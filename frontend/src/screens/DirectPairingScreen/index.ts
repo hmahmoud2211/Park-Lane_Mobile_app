@@ -1,1 +1,0 @@
-export { DirectPairingScreen } from './DirectPairingScreen';
