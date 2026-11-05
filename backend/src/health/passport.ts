@@ -2,8 +2,34 @@ import { randomUUID } from 'node:crypto';
 
 import { ApiError } from '../errors.ts';
 import { getUser } from '../ems/auth.ts';
-import { db } from '../ems/db.ts';
 import { seal, unseal } from '../ems/secrets.ts';
+import { findConsent, upsertConsent } from '../repositories/healthConsents.ts';
+import { deleteProfileDocuments } from '../repositories/healthDocuments.ts';
+import {
+  deleteHealthItem,
+  deleteProfileHealthItems,
+  findHealthItem,
+  insertHealthItem,
+  listHealthItems,
+  updateHealthItemData,
+  type ItemRow,
+  type Section,
+} from '../repositories/healthItems.ts';
+import {
+  clearProfileBloodType,
+  deleteFamilyProfiles,
+  deleteHealthProfile,
+  findHealthProfile,
+  findSelfProfileId,
+  insertHealthProfile,
+  insertSelfProfile,
+  listHealthProfiles,
+  touchHealthProfile,
+  updateProfileFields,
+  type ProfileRow,
+  type Relation,
+} from '../repositories/healthProfiles.ts';
+import { deleteProfileSummaries } from '../repositories/healthSummaries.ts';
 
 /**
  * Health Passport's storage: consent, the resident's profiles (themself and
@@ -18,8 +44,7 @@ import { seal, unseal } from '../ems/secrets.ts';
  */
 
 export type HealthLang = 'en' | 'ar';
-export type Relation = 'self' | 'child' | 'parent' | 'spouse' | 'other';
-export type Section = 'allergies' | 'medications' | 'conditions' | 'procedures' | 'labs' | 'visits';
+export type { Relation, Section };
 
 export const SECTIONS: readonly Section[] = ['allergies', 'medications', 'conditions', 'labs', 'procedures', 'visits'];
 const RELATIONS: readonly Relation[] = ['self', 'child', 'parent', 'spouse', 'other'];
@@ -46,11 +71,6 @@ export interface Profile {
 export type Item = Record<string, unknown> & { id: string; source: string | null };
 
 export type RecordSections = Record<Section, Item[]>;
-
-interface ProfileRow extends Profile {
-  owner_id: string;
-  record_updated_at: string;
-}
 
 const now = () => new Date().toISOString();
 
@@ -173,9 +193,7 @@ function cleanProfile(input: Record<string, unknown>): Omit<Profile, 'id' | 'rel
 // ---- Consent ------------------------------------------------------------------------------
 
 export function getConsent(userId: string): Consent {
-  const row = db().prepare('SELECT given, given_at FROM health_consents WHERE user_id = ?').get(userId) as
-    | { given: number; given_at: string | null }
-    | undefined;
+  const row = findConsent(userId);
   return { given: row?.given === 1, given_at: row?.given === 1 ? row.given_at : null };
 }
 
@@ -194,28 +212,16 @@ export function requireConsent(userId: string): void {
  */
 export function setConsent(userId: string, given: boolean): Consent {
   const at = now();
-  db()
-    .prepare(
-      `INSERT INTO health_consents (user_id, given, given_at, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(user_id) DO UPDATE SET given = excluded.given, given_at = excluded.given_at, updated_at = excluded.updated_at`,
-    )
-    .run(userId, given ? 1 : 0, given ? at : null, at);
-  const self = db().prepare("SELECT id FROM health_profiles WHERE owner_id = ? AND relation = 'self'").get(userId) as
-    | { id: string }
-    | undefined;
+  upsertConsent(userId, given ? 1 : 0, given ? at : null, at);
+  const selfId = findSelfProfileId(userId);
   if (given) {
-    if (!self) {
+    if (!selfId) {
       const user = getUser(userId);
-      db()
-        .prepare(
-          `INSERT INTO health_profiles (id, owner_id, relation, name, record_updated_at, created_at)
-           VALUES (?, ?, 'self', ?, ?, ?)`,
-        )
-        .run(randomUUID(), userId, user?.name ?? 'Me', at, at);
+      insertSelfProfile(randomUUID(), userId, user?.name ?? 'Me', at);
     }
   } else {
-    db().prepare("DELETE FROM health_profiles WHERE owner_id = ? AND relation != 'self'").run(userId);
-    if (self) emptyProfile(self.id, at);
+    deleteFamilyProfiles(userId);
+    if (selfId) emptyProfile(selfId, at);
   }
   return getConsent(userId);
 }
@@ -226,15 +232,13 @@ export function setConsent(userId: string, given: boolean): Consent {
  * removed by the caller (files.ts, sweepOrphanFiles).
  */
 function emptyProfile(profileId: string, at = now()): void {
-  db().prepare('DELETE FROM health_items WHERE profile_id = ?').run(profileId);
-  db().prepare('DELETE FROM health_documents WHERE profile_id = ?').run(profileId);
-  db().prepare('DELETE FROM health_summaries WHERE profile_id = ?').run(profileId);
-  db().prepare('UPDATE health_profiles SET blood_type = NULL, record_updated_at = ? WHERE id = ?').run(at, profileId);
+  deleteProfileHealthItems(profileId);
+  deleteProfileDocuments(profileId);
+  deleteProfileSummaries(profileId);
+  clearProfileBloodType(profileId, at);
 }
 
 // ---- Profiles -----------------------------------------------------------------------------
-
-const PROFILE_COLUMNS = 'id, owner_id, relation, name, sex, date_of_birth, blood_type, record_updated_at';
 
 function present(row: ProfileRow): Profile {
   return {
@@ -248,20 +252,12 @@ function present(row: ProfileRow): Profile {
 }
 
 export function listProfiles(userId: string): Profile[] {
-  const rows = db()
-    .prepare(
-      `SELECT ${PROFILE_COLUMNS} FROM health_profiles WHERE owner_id = ?
-       ORDER BY CASE relation WHEN 'self' THEN 0 ELSE 1 END, created_at`,
-    )
-    .all(userId) as unknown as ProfileRow[];
-  return rows.map(present);
+  return listHealthProfiles(userId).map(present);
 }
 
 /** Any profile, whoever owns it; for the clinic, which checks access itself. */
 export function profileById(profileId: string): (Profile & { owner_id: string; record_updated_at: string }) | null {
-  const row = db().prepare(`SELECT ${PROFILE_COLUMNS} FROM health_profiles WHERE id = ?`).get(profileId) as
-    | ProfileRow
-    | undefined;
+  const row = findHealthProfile(profileId);
   return row ? { ...present(row), owner_id: row.owner_id, record_updated_at: row.record_updated_at } : null;
 }
 
@@ -283,12 +279,7 @@ export function addProfile(userId: string, input: Record<string, unknown>): Prof
   if (listProfiles(userId).length >= 20) invalid('relation', 'A Health Passport holds up to 20 profiles.');
   const id = randomUUID();
   const at = now();
-  db()
-    .prepare(
-      `INSERT INTO health_profiles (id, owner_id, relation, name, sex, date_of_birth, blood_type, record_updated_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(id, userId, relation, fields.name, fields.sex, fields.date_of_birth, fields.blood_type, at, at);
+  insertHealthProfile(id, userId, relation, fields, at);
   return { id, relation, ...fields };
 }
 
@@ -296,9 +287,7 @@ export function addProfile(userId: string, input: Record<string, unknown>): Prof
 export function updateProfile(userId: string, profileId: string, input: Record<string, unknown>): Profile {
   const existing = ownedProfile(userId, profileId);
   const fields = cleanProfile(input);
-  db()
-    .prepare('UPDATE health_profiles SET name = ?, sex = ?, date_of_birth = ?, blood_type = ?, record_updated_at = ? WHERE id = ?')
-    .run(fields.name, fields.sex, fields.date_of_birth, fields.blood_type, now(), profileId);
+  updateProfileFields(profileId, fields, now());
   return { id: profileId, relation: existing.relation, ...fields };
 }
 
@@ -308,31 +297,22 @@ export function deleteProfile(userId: string, profileId: string): void {
   if (profile.relation === 'self') {
     emptyProfile(profileId);
   } else {
-    db().prepare('DELETE FROM health_profiles WHERE id = ?').run(profileId);
+    deleteHealthProfile(profileId);
   }
 }
 
 // ---- Record items -------------------------------------------------------------------------
-
-interface ItemRow {
-  id: string;
-  section: Section;
-  data: string;
-  source: string | null;
-}
 
 function toItem(row: ItemRow): Item {
   return { ...(JSON.parse(unseal(row.data)) as Record<string, unknown>), id: row.id, source: row.source };
 }
 
 export function touch(profileId: string): void {
-  db().prepare('UPDATE health_profiles SET record_updated_at = ? WHERE id = ?').run(now(), profileId);
+  touchHealthProfile(profileId, now());
 }
 
 export function readSections(profileId: string): RecordSections {
-  const rows = db()
-    .prepare('SELECT id, section, data, source FROM health_items WHERE profile_id = ? ORDER BY created_at, id')
-    .all(profileId) as unknown as ItemRow[];
+  const rows = listHealthItems(profileId);
   const sections = Object.fromEntries(SECTIONS.map((section) => [section, [] as Item[]])) as RecordSections;
   for (const row of rows) {
     if (isSection(row.section)) sections[row.section].push(toItem(row));
@@ -344,9 +324,7 @@ export function readSections(profileId: string): RecordSections {
 export function insertItem(profileId: string, section: Section, data: Record<string, unknown>, source: string | null): Item {
   const id = randomUUID();
   const at = now();
-  db()
-    .prepare('INSERT INTO health_items (id, profile_id, section, data, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, profileId, section, seal(JSON.stringify(data)), source, at, at);
+  insertHealthItem({ id, profileId, section, data: seal(JSON.stringify(data)), source, at });
   return { ...data, id, source };
 }
 
@@ -359,9 +337,7 @@ export function createItem(userId: string, profileId: string, section: Section, 
 
 function ownedItem(userId: string, profileId: string, section: Section, itemId: string): ItemRow {
   ownedProfile(userId, profileId);
-  const row = db()
-    .prepare('SELECT id, section, data, source FROM health_items WHERE id = ? AND profile_id = ? AND section = ?')
-    .get(itemId, profileId, section) as ItemRow | undefined;
+  const row = findHealthItem(itemId, profileId, section);
   if (!row) throw new ApiError('not_found', 'Item not found.');
   return row;
 }
@@ -370,14 +346,14 @@ function ownedItem(userId: string, profileId: string, section: Section, itemId: 
 export function updateItem(userId: string, profileId: string, section: Section, itemId: string, input: Record<string, unknown>): Item {
   const row = ownedItem(userId, profileId, section, itemId);
   const data = cleanItem(section, input);
-  db().prepare('UPDATE health_items SET data = ?, updated_at = ? WHERE id = ?').run(seal(JSON.stringify(data)), now(), itemId);
+  updateHealthItemData(itemId, seal(JSON.stringify(data)), now());
   touch(profileId);
   return { ...data, id: itemId, source: row.source };
 }
 
 export function deleteItem(userId: string, profileId: string, section: Section, itemId: string): void {
   ownedItem(userId, profileId, section, itemId);
-  db().prepare('DELETE FROM health_items WHERE id = ?').run(itemId);
+  deleteHealthItem(itemId);
   touch(profileId);
 }
 

@@ -4,8 +4,9 @@ import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 
 import { config } from '../config.ts';
-import { db } from '../ems/db.ts';
 import { sealBytes, sign, signatureMatches, unsealBytes } from '../ems/secrets.ts';
+import { listDocumentPages } from '../repositories/healthDocuments.ts';
+import { listSummaryAudioFiles } from '../repositories/healthSummaries.ts';
 
 /**
  * Health Passport's files: the pages of uploaded documents and recorded
@@ -43,11 +44,11 @@ export function removeFiles(names: readonly string[]): void {
 export function sweepOrphanFiles(): number {
   if (!existsSync(directory())) return 0;
   const used = new Set<string>();
-  for (const row of db().prepare('SELECT pages FROM health_documents').all() as { pages: string }[]) {
-    for (const page of JSON.parse(row.pages) as { file: string }[]) used.add(page.file);
+  for (const pages of listDocumentPages()) {
+    for (const page of JSON.parse(pages) as { file: string }[]) used.add(page.file);
   }
-  for (const row of db().prepare('SELECT audio_file FROM health_summaries WHERE audio_file IS NOT NULL').all() as { audio_file: string }[]) {
-    used.add(row.audio_file);
+  for (const file of listSummaryAudioFiles()) {
+    used.add(file);
   }
   const orphans = readdirSync(directory()).filter((name) => !used.has(name));
   removeFiles(orphans);

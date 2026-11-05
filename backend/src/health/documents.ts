@@ -2,10 +2,23 @@ import { randomUUID } from 'node:crypto';
 
 import { generateJson, nullable, type Media } from '../integrations/ai/model.ts';
 import { ApiError } from '../errors.ts';
-import { db, transaction } from '../ems/db.ts';
+import { transaction } from '../ems/db.ts';
 import { normalize } from '../lib/text.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { log } from '../log.ts';
+import {
+  completeDocumentReading,
+  deleteHealthDocument,
+  failDocumentReading,
+  findDocumentOwnerId,
+  findHealthDocument,
+  insertHealthDocument,
+  listProcessingDocumentIds,
+  listProfileDocuments,
+  updateDocumentReview,
+  type DocumentRow,
+} from '../repositories/healthDocuments.ts';
+import { clearHealthItemsSource, deleteHealthItemsFromSource, replaceHealthItem } from '../repositories/healthItems.ts';
 import { readStoredFile, removeFiles, signedUrl, storeFile } from './files.ts';
 import { enqueue } from './jobs.ts';
 import { cleanItem, insertItem, isSection, ownedProfile, readSections, touch, type HealthLang, type Section } from './passport.ts';
@@ -256,20 +269,6 @@ function review(pages: PageReading[], profileId: string, documentDate: string | 
 
 // ---- Storage, reading and review ---------------------------------------------------------
 
-interface DocumentRow {
-  id: string;
-  profile_id: string;
-  type: string;
-  document_date: string | null;
-  uploaded_at: string;
-  status: 'processing' | 'needs_review' | 'confirmed' | 'failed';
-  error_code: string | null;
-  pages: string;
-  extracted_text: string | null;
-  extracted_items: string | null;
-  updated_at: string;
-}
-
 const ERROR_TEXT: Record<string, Record<HealthLang, string>> = {
   unreadable: {
     en: 'The photos are too blurry to read. Try again in good light, with the whole page in the frame.',
@@ -283,13 +282,9 @@ const ERROR_TEXT: Record<string, Record<HealthLang, string>> = {
 
 const now = () => new Date().toISOString();
 
-function documentRow(id: string): DocumentRow | null {
-  return (db().prepare('SELECT * FROM health_documents WHERE id = ?').get(id) as DocumentRow | undefined) ?? null;
-}
-
 /** The resident's document, or 404. */
 export function ownedDocument(userId: string, docId: string): DocumentRow {
-  const row = documentRow(docId);
+  const row = findHealthDocument(docId);
   if (!row) throw new ApiError('not_found', 'Document not found.');
   ownedProfile(userId, row.profile_id);
   return row;
@@ -316,8 +311,7 @@ export function presentDocument(row: DocumentRow, lang: HealthLang, base: string
 
 export function listDocuments(userId: string, profileId: string, lang: HealthLang, base: string) {
   ownedProfile(userId, profileId);
-  const rows = db().prepare('SELECT * FROM health_documents WHERE profile_id = ? ORDER BY uploaded_at DESC').all(profileId) as unknown as DocumentRow[];
-  return rows.map((row) => presentDocument(row, lang, base));
+  return listProfileDocuments(profileId).map((row) => presentDocument(row, lang, base));
 }
 
 export interface UploadedPage {
@@ -345,12 +339,7 @@ export function createDocument(userId: string, profileId: string, input: { type:
   const id = randomUUID();
   const pages = input.pages.map((page) => ({ file: storeFile(page.bytes), mime: page.mimeType }));
   const at = now();
-  db()
-    .prepare(
-      `INSERT INTO health_documents (id, profile_id, type, document_date, uploaded_at, status, pages, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'processing', ?, ?)`,
-    )
-    .run(id, profileId, input.type as string, given.date, at, JSON.stringify(pages), at);
+  insertHealthDocument({ id, profileId, type: input.type as string, documentDate: given.date, pages: JSON.stringify(pages), at });
   queueReading(id);
   return { id, status: 'processing' as const };
 }
@@ -361,7 +350,7 @@ export function queueReading(docId: string): void {
 
 /** The background job: each page read on its own, the readings merged, then waiting for the resident. */
 async function readDocument(docId: string): Promise<void> {
-  const row = documentRow(docId);
+  const row = findHealthDocument(docId);
   if (!row || row.status !== 'processing') return;
   const pages = JSON.parse(row.pages) as { file: string; mime: string }[];
   const readings: PageReading[] = [];
@@ -388,7 +377,7 @@ async function readDocument(docId: string): Promise<void> {
     }
   } catch (error) {
     log.warn('Document reading failed', { pages: pages.length, reason: error instanceof ApiError ? error.code : 'unexpected' });
-    db().prepare("UPDATE health_documents SET status = 'failed', error_code = 'reading_failed', updated_at = ? WHERE id = ? AND status = 'processing'").run(now(), docId);
+    failDocumentReading(docId, 'reading_failed', now());
     return;
   }
 
@@ -399,15 +388,10 @@ async function readDocument(docId: string): Promise<void> {
     .trim();
   const items = review(readings, row.profile_id, documentDate);
   if (!transcript && items.length === 0) {
-    db().prepare("UPDATE health_documents SET status = 'failed', error_code = 'unreadable', updated_at = ? WHERE id = ? AND status = 'processing'").run(now(), docId);
+    failDocumentReading(docId, 'unreadable', now());
     return;
   }
-  db()
-    .prepare(
-      `UPDATE health_documents SET status = 'needs_review', document_date = ?, extracted_text = ?, extracted_items = ?, updated_at = ?
-       WHERE id = ? AND status = 'processing'`,
-    )
-    .run(documentDate, seal(transcript), seal(JSON.stringify(items)), now(), docId);
+  completeDocumentReading(docId, { documentDate, extractedText: seal(transcript), extractedItems: seal(JSON.stringify(items)), updatedAt: now() });
 }
 
 /**
@@ -428,10 +412,15 @@ export function confirmDocument(userId: string, docId: string, body: Record<stri
       if (decision.action === 'reject') continue;
       const data = cleanItem(read.section, (decision.data ?? {}) as Record<string, unknown>);
       if (decision.action === 'replace') {
-        const replaced = db()
-          .prepare('UPDATE health_items SET data = ?, source = ?, updated_at = ? WHERE id = ? AND profile_id = ? AND section = ?')
-          .run(seal(JSON.stringify(data)), docId, now(), String(decision.replace_id ?? ''), row.profile_id, read.section);
-        if (Number(replaced.changes) !== 1) throw new ApiError('invalid', 'The item to replace no longer exists.', 'replace_id');
+        const replaced = replaceHealthItem({
+          id: String(decision.replace_id ?? ''),
+          profileId: row.profile_id,
+          section: read.section,
+          data: seal(JSON.stringify(data)),
+          source: docId,
+          updatedAt: now(),
+        });
+        if (!replaced) throw new ApiError('invalid', 'The item to replace no longer exists.', 'replace_id');
       } else if (decision.action === 'add') {
         insertItem(row.profile_id, read.section, data, docId);
       } else {
@@ -442,11 +431,9 @@ export function confirmDocument(userId: string, docId: string, body: Record<stri
     const decided = new Set(decisions.map((decision) => decision.item_id));
     const remaining = pending.filter((entry) => !decided.has(entry.item_id));
     const finished = body.finished === true || remaining.length === 0;
-    db()
-      .prepare('UPDATE health_documents SET status = ?, extracted_items = ?, updated_at = ? WHERE id = ?')
-      .run(finished ? 'confirmed' : 'needs_review', seal(JSON.stringify(finished ? [] : remaining)), now(), docId);
+    updateDocumentReview(docId, finished ? 'confirmed' : 'needs_review', seal(JSON.stringify(finished ? [] : remaining)), now());
     if (changed) touch(row.profile_id);
-    return documentRow(docId) as DocumentRow;
+    return findHealthDocument(docId) as DocumentRow;
   });
 }
 
@@ -455,12 +442,12 @@ export function deleteDocument(userId: string, docId: string, deleteItems: boole
   const pages = transaction(() => {
     const row = ownedDocument(userId, docId);
     if (deleteItems) {
-      db().prepare('DELETE FROM health_items WHERE source = ? AND profile_id = ?').run(docId, row.profile_id);
+      deleteHealthItemsFromSource(docId, row.profile_id);
       touch(row.profile_id);
     } else {
-      db().prepare('UPDATE health_items SET source = NULL WHERE source = ? AND profile_id = ?').run(docId, row.profile_id);
+      clearHealthItemsSource(docId, row.profile_id);
     }
-    db().prepare('DELETE FROM health_documents WHERE id = ?').run(docId);
+    deleteHealthDocument(docId);
     return JSON.parse(row.pages) as { file: string }[];
   });
   removeFiles(pages.map((page) => page.file));
@@ -468,7 +455,7 @@ export function deleteDocument(userId: string, docId: string, deleteItems: boole
 
 /** A page of the original, for the resident who owns it. */
 export function documentPage(docId: string, page: number): { mime: string; bytes: Buffer } | null {
-  const row = documentRow(docId);
+  const row = findHealthDocument(docId);
   const pages = row ? (JSON.parse(row.pages) as { file: string; mime: string }[]) : [];
   const entry = pages[page - 1];
   const bytes = entry ? readStoredFile(entry.file) : null;
@@ -476,15 +463,12 @@ export function documentPage(docId: string, page: number): { mime: string; bytes
 }
 
 export function documentOwner(docId: string): string | null {
-  const row = db()
-    .prepare('SELECT p.owner_id FROM health_documents d JOIN health_profiles p ON p.id = d.profile_id WHERE d.id = ?')
-    .get(docId) as { owner_id: string } | undefined;
-  return row?.owner_id ?? null;
+  return findDocumentOwnerId(docId);
 }
 
 /** After a restart: documents still being read are read again. */
 export function resumeReading(): number {
-  const rows = db().prepare("SELECT id FROM health_documents WHERE status = 'processing'").all() as { id: string }[];
-  rows.forEach((row) => queueReading(row.id));
-  return rows.length;
+  const ids = listProcessingDocumentIds();
+  ids.forEach((id) => queueReading(id));
+  return ids.length;
 }

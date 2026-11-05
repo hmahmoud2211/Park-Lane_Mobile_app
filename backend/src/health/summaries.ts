@@ -3,9 +3,21 @@ import { randomUUID } from 'node:crypto';
 import { synthesize } from '../integrations/elevenlabs.ts';
 import { ageAt } from '../clinic/time.ts';
 import { ApiError } from '../errors.ts';
-import { db } from '../ems/db.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { log } from '../log.ts';
+import {
+  completeSummary,
+  failSummary,
+  findHealthSummary,
+  findNewestSummary,
+  findReadySummaryAudio,
+  findSummaryForSpecialty,
+  findSummaryOwnerId,
+  listGeneratingSummaryIds,
+  setSummaryPhase,
+  upsertGeneratingSummary,
+  type SummaryRow,
+} from '../repositories/healthSummaries.ts';
 import { readStoredFile, removeFiles, signedUrl, storeFile } from './files.ts';
 import { enqueue, isWaiting } from './jobs.ts';
 import { gapsFor, ownedProfile, profileById, readSections, type HealthLang } from './passport.ts';
@@ -31,32 +43,8 @@ const FAILED_TEXT: Record<HealthLang, string> = {
   ar: 'تعذّر إكمال الملخص. يرجى المحاولة مرة أخرى.',
 };
 
-interface SummaryRow {
-  id: string;
-  profile_id: string;
-  lang: HealthLang;
-  specialty: string;
-  status: 'generating' | 'ready' | 'failed';
-  phase: 'waiting' | 'writing' | 'recording' | null;
-  record_updated_at: string;
-  transcript: string | null;
-  audio_file: string | null;
-  error_code: string | null;
-  started_at: string;
-  generated_at: string | null;
-  failed_at: string | null;
-}
-
 const now = () => new Date().toISOString();
 const jobKey = (id: string) => `summary:${id}`;
-
-function slot(profileId: string, lang: HealthLang, specialty: string): SummaryRow | null {
-  return (
-    (db().prepare('SELECT * FROM health_summaries WHERE profile_id = ? AND lang = ? AND specialty = ?').get(profileId, lang, specialty) as
-      | SummaryRow
-      | undefined) ?? null
-  );
-}
 
 function present(row: SummaryRow, lang: HealthLang, base: string, cached = false) {
   if (row.status === 'generating') {
@@ -93,14 +81,7 @@ function present(row: SummaryRow, lang: HealthLang, base: string, cached = false
 /** GET .../summary: one specialty's, or without one the newest in the language. Null: none yet (404). */
 export function getSummary(userId: string, profileId: string, lang: HealthLang, specialty: string | null, uiLang: HealthLang, base: string) {
   ownedProfile(userId, profileId);
-  const row = specialty
-    ? slot(profileId, lang, specialty)
-    : ((db()
-        .prepare(
-          `SELECT * FROM health_summaries WHERE profile_id = ? AND lang = ?
-           ORDER BY MAX(started_at, COALESCE(generated_at, ''), COALESCE(failed_at, '')) DESC LIMIT 1`,
-        )
-        .get(profileId, lang) as SummaryRow | undefined) ?? null);
+  const row = specialty ? findSummaryForSpecialty(profileId, lang, specialty) : findNewestSummary(profileId, lang);
   return row ? present(row, uiLang, base) : null;
 }
 
@@ -117,23 +98,16 @@ export function requestSummary(userId: string, profileId: string, body: Record<s
   const specialty = typeof body.specialty === 'string' && body.specialty ? body.specialty : 'general';
   if (!SPECIALTIES.has(specialty)) throw new ApiError('invalid', 'Unknown specialty.', 'specialty');
 
-  const existing = slot(profileId, lang, specialty);
+  const existing = findSummaryForSpecialty(profileId, lang, specialty);
   if (existing?.status === 'generating') return { state: present(existing, uiLang, base), status: 202 };
   if (existing?.status === 'ready' && existing.record_updated_at === profile.record_updated_at) {
     return { state: present(existing, uiLang, base, true), status: 200 };
   }
   const at = now();
   const id = existing?.id ?? randomUUID();
-  db()
-    .prepare(
-      `INSERT INTO health_summaries (id, profile_id, lang, specialty, status, phase, record_updated_at, started_at)
-       VALUES (?, ?, ?, ?, 'generating', 'waiting', ?, ?)
-       ON CONFLICT(profile_id, lang, specialty) DO UPDATE SET status = 'generating', phase = 'waiting',
-         record_updated_at = excluded.record_updated_at, started_at = excluded.started_at, error_code = NULL`,
-    )
-    .run(id, profileId, lang, specialty, profile.record_updated_at, at);
+  upsertGeneratingSummary({ id, profileId, lang, specialty, recordUpdatedAt: profile.record_updated_at, startedAt: at });
   queueSummary(id);
-  return { state: present(slot(profileId, lang, specialty) as SummaryRow, uiLang, base), status: 202 };
+  return { state: present(findSummaryForSpecialty(profileId, lang, specialty) as SummaryRow, uiLang, base), status: 202 };
 }
 
 export function queueSummary(id: string): void {
@@ -144,9 +118,9 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 /** The background job: write the script from the record, check it, record it. */
 async function makeSummary(id: string): Promise<void> {
-  const row = db().prepare('SELECT * FROM health_summaries WHERE id = ?').get(id) as SummaryRow | undefined;
+  const row = findHealthSummary(id);
   if (!row || row.status !== 'generating') return;
-  const setPhase = (phase: 'writing' | 'recording') => db().prepare('UPDATE health_summaries SET phase = ? WHERE id = ?').run(phase, id);
+  const setPhase = (phase: 'writing' | 'recording') => setSummaryPhase(id, phase);
   try {
     const profile = profileById(row.profile_id);
     if (!profile) return;
@@ -161,37 +135,27 @@ async function makeSummary(id: string): Promise<void> {
     setPhase('recording');
     const audio = await synthesize(script, row.lang);
     const file = storeFile(audio);
-    db()
-      .prepare(
-        `UPDATE health_summaries SET status = 'ready', phase = NULL, transcript = ?, audio_file = ?, generated_at = ?, failed_at = NULL
-         WHERE id = ? AND status = 'generating'`,
-      )
-      .run(seal(script), file, now(), id);
+    completeSummary(id, seal(script), file, now());
     if (row.audio_file) removeFiles([row.audio_file]);
   } catch (error) {
     log.warn('Health summary failed', { reason: error instanceof ApiError ? error.code : 'unexpected' });
-    db()
-      .prepare("UPDATE health_summaries SET status = 'failed', phase = NULL, error_code = ?, failed_at = ? WHERE id = ?")
-      .run(error instanceof ApiError ? error.code : 'internal', now(), id);
+    failSummary(id, error instanceof ApiError ? error.code : 'internal', now());
   }
 }
 
 /** The recording, for the resident who owns it. */
 export function summaryAudio(id: string): Buffer | null {
-  const row = db().prepare("SELECT audio_file FROM health_summaries WHERE id = ? AND status = 'ready'").get(id) as { audio_file: string | null } | undefined;
-  return row?.audio_file ? readStoredFile(row.audio_file) : null;
+  const audioFile = findReadySummaryAudio(id);
+  return audioFile ? readStoredFile(audioFile) : null;
 }
 
 export function summaryOwner(id: string): string | null {
-  const row = db()
-    .prepare('SELECT p.owner_id FROM health_summaries s JOIN health_profiles p ON p.id = s.profile_id WHERE s.id = ?')
-    .get(id) as { owner_id: string } | undefined;
-  return row?.owner_id ?? null;
+  return findSummaryOwnerId(id);
 }
 
 /** After a restart: summaries still being made are made again. */
 export function resumeSummaries(): number {
-  const rows = db().prepare("SELECT id FROM health_summaries WHERE status = 'generating'").all() as { id: string }[];
-  rows.forEach((row) => queueSummary(row.id));
-  return rows.length;
+  const ids = listGeneratingSummaryIds();
+  ids.forEach((id) => queueSummary(id));
+  return ids.length;
 }
