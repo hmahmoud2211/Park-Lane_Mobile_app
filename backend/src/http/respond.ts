@@ -15,6 +15,16 @@ export function send(res: ServerResponse, status: number, body: unknown, headers
 
 export const ok = (res: ServerResponse, data: unknown) => send(res, 200, { ok: true, data });
 
+/** A binary answer, e.g. synthesized speech. Never cached: it can carry medical content. */
+export function sendBytes(res: ServerResponse, contentType: string, body: Buffer) {
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Length': body.length,
+    'Cache-Control': 'no-store',
+  });
+  res.end(body);
+}
+
 const PAGE_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8',
   'Cache-Control': 'no-store',

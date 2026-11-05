@@ -41,6 +41,7 @@ export const healthKeys = {
   record: (profileId: string) => `record:${profileId}`,
   documents: (profileId: string) => `documents:${profileId}`,
   document: (docId: string) => `document:${docId}`,
+  consultation: (consultationId: string) => `consultation:${consultationId}`,
   /** One specialty's summary, or without one the newest in that language. */
   summary: (profileId: string, lang: HealthLang, specialty?: string | null) =>
     `summary:${profileId}:${lang}:${specialty ?? '*'}`,

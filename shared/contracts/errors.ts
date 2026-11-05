@@ -18,4 +18,13 @@ export type ApiErrorCode =
   | 'ha_rejected'
   | 'not_configured'
   | 'flow_expired'
+  // Health Passport and the clinic.
+  | 'invalid'
+  | 'too_large'
+  | 'consent_required'
+  | 'slot_taken'
+  | 'invalid_transition'
+  | 'version_conflict'
+  | 'ai_failed'
+  | 'speech_failed'
   | 'internal';

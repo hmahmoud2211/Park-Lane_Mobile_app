@@ -12,6 +12,8 @@ import { redirect } from './http/respond.ts';
 import { dispatch, type RouteGroup } from './http/router.ts';
 import { accountRoutes } from './routes/accounts.ts';
 import { authRoutes } from './routes/auth.ts';
+import { clinicRoutes } from './routes/clinic.ts';
+import { healthRoutes } from './routes/health.ts';
 import { homeRoutes } from './routes/home.ts';
 import { opsRoutes } from './routes/ops.ts';
 
@@ -26,7 +28,7 @@ import { opsRoutes } from './routes/ops.ts';
  */
 
 /** Tried in order. Their paths do not overlap, so the order only matters for speed. */
-const API_ROUTES: readonly RouteGroup[] = [authRoutes, homeRoutes, accountRoutes, opsRoutes];
+const API_ROUTES: readonly RouteGroup[] = [authRoutes, homeRoutes, accountRoutes, clinicRoutes, opsRoutes];
 
 async function route(ctx: RequestContext) {
   // Brand sign-in pages send the browser here; it carries no EMS token, the hub checks the state.
@@ -35,6 +37,10 @@ async function route(ctx: RequestContext) {
     return;
   }
   if (ctx.path.startsWith('/api/') && (await dispatch(ctx, API_ROUTES))) {
+    return;
+  }
+  // Health Passport keeps its own /health/ paths and answers, as the app's client expects.
+  if (await healthRoutes(ctx)) {
     return;
   }
   throw new ApiError('not_found', 'Not found.');
