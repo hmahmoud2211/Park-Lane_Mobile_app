@@ -2,9 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useAppTheme } from '../../../hooks/useAppTheme';
-import { AppText } from '../../../components/common/AppText';
-import { NeonPanel } from '../../../components/ui/NeonPanel';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { AppText } from '../common/AppText';
+import { NeonPanel } from './NeonPanel';
 
 export interface PanelProps {
   title?: string;
@@ -19,8 +19,9 @@ export interface PanelProps {
 }
 
 /**
- * The parking flows' card: the Visitor Access neon panel with a heading and
- * a padded body, so every section of a flow reads the same.
+ * The card of the parking and Health Passport flows: the Visitor Access neon
+ * panel with a heading and a padded body, so every section of a flow reads
+ * the same.
  */
 export function Panel({ title, subtitle, icon, trailing, children, padded = true, style }: PanelProps) {
   const theme = useAppTheme();

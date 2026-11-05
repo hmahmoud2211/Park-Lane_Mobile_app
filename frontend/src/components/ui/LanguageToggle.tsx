@@ -2,9 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { useAppTheme } from '../../../hooks/useAppTheme';
-import type { AppTheme } from '../../../types/theme.types';
-import { AppText } from '../../../components/common/AppText';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import type { AppTheme } from '../../types/theme.types';
+import { AppText } from '../common/AppText';
 
 export interface LanguageToggleProps {
   /** The other language, named in itself: "عربي" or "EN". */
@@ -14,8 +14,9 @@ export interface LanguageToggleProps {
 }
 
 /**
- * Switches a visitor page between English and Arabic. Small enough to sit at
- * the end of the header row without reaching the brand lockup.
+ * Switches a page between English and Arabic, on the visitor pass and in
+ * Health Passport. Small enough to sit at the end of the header row without
+ * reaching the brand lockup.
  */
 export function LanguageToggle({ label, accessibilityLabel, onPress }: LanguageToggleProps) {
   const theme = useAppTheme();

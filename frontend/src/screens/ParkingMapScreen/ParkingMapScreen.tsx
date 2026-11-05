@@ -4,9 +4,9 @@ import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { Notice } from '../../components/feedback/Notice';
-import { Panel } from '../../features/parking/components/Panel';
+import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { ParkingFrame } from '../../components/layout/ParkingFrame';
 import { SiteMap } from '../../features/parking/components/site-map/SiteMap';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useParking } from '../../features/parking/hooks/useParking';

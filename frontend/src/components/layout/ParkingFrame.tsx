@@ -2,18 +2,18 @@ import { StatusBar } from 'expo-status-bar';
 import { useMemo, type ReactNode, type Ref } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 
-import { images } from '../../../constants/images';
-import { useAppTheme } from '../../../hooks/useAppTheme';
-import type { AppTheme } from '../../../types/theme.types';
-import { useScreenLayout } from '../../../hooks/useScreenLayout';
-import { useSideNav } from '../../../hooks/useSideNav';
-import { MAX_CONTENT_WIDTH } from '../../../utils/responsive';
-import { DirectionView } from '../../../components/common/DirectionView';
-import { BottomBar, NAV_BAR_CLEARANCE } from '../../../components/layout/BottomBar';
-import { PageHeader } from '../../../components/layout/PageHeader';
-import { ResponsiveColumns } from '../../../components/layout/ResponsiveColumns';
-import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
-import { layout as themeLayout } from '../../../theme';
+import { images } from '../../constants/images';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import type { AppTheme } from '../../types/theme.types';
+import { useScreenLayout } from '../../hooks/useScreenLayout';
+import { useSideNav } from '../../hooks/useSideNav';
+import { MAX_CONTENT_WIDTH } from '../../utils/responsive';
+import { DirectionView } from '../common/DirectionView';
+import { BottomBar, NAV_BAR_CLEARANCE } from './BottomBar';
+import { PageHeader } from './PageHeader';
+import { ResponsiveColumns } from './ResponsiveColumns';
+import { ScreenWrapper } from './ScreenWrapper';
+import { layout as themeLayout } from '../../theme';
 
 export interface ParkingFrameProps {
   title: string;
@@ -65,9 +65,11 @@ export const PARKING_BODY_GAP = 14;
 const END_GAP = 32;
 
 /**
- * The page shell for the parking flows: the Parking screen's backdrop,
- * header and gutter, a keyboard-aware scroll view, and bottom padding that
- * always clears the floating bottom bar and the device's home indicator.
+ * The page shell for the parking and Health Passport flows: the Parking
+ * screen's backdrop, header and gutter, a keyboard-aware scroll view, and
+ * bottom padding that always clears the floating bottom bar and the device's
+ * home indicator. It adds to InnerScreenFrame what these flows need: a
+ * right-to-left body for Arabic, a pinned footer and side-by-side columns.
  */
 export function ParkingFrame({
   title,

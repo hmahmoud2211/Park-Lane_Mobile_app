@@ -3,12 +3,12 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { ChipGroup, type ChipOption } from '../../features/parking/components/Controls';
+import { ChipGroup, type ChipOption } from '../../components/ui/Controls';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../features/parking/components/Panel';
+import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
-import { ListRow } from '../../features/parking/components/Rows';
+import { ParkingFrame } from '../../components/layout/ParkingFrame';
+import { ListRow } from '../../components/ui/ListRow';
 import { chargingStateLabel } from '../../features/parking/components/presenters';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useParking } from '../../features/parking/hooks/useParking';

@@ -3,11 +3,11 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { InfoRow } from '../../features/parking/components/Controls';
+import { InfoRow } from '../../components/ui/Controls';
 import { Notice, type NoticeTone } from '../../components/feedback/Notice';
-import { Panel } from '../../features/parking/components/Panel';
+import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
-import { ParkingFrame } from '../../features/parking/components/ParkingFrame';
+import { ParkingFrame } from '../../components/layout/ParkingFrame';
 import { chargingStateLabel } from '../../features/parking/components/presenters';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip, type StatusTone } from '../../components/ui/StatusChip';
