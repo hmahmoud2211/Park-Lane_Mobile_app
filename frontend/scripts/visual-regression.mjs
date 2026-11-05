@@ -23,8 +23,11 @@
  *
  *   node scripts/visual-regression.mjs compare /tmp/shots-a /tmp/shots-b
  *
+ *   # Health Passport, on its mock: add EXPO_PUBLIC_HEALTH_API=mock to the build
+ *   node scripts/visual-regression.mjs capture --profile health --dist ... --out ...
+ *
  * Profiles: basic (every screen), interactions (menus, forms; see INTERACTION_ROUTES),
- * ems (signed-in device screens, needs --backend).
+ * ems (signed-in device screens, needs --backend), health (Health Passport, see HEALTH_ROUTES).
  * Options: --chrome <path>, --port <n> (DevTools, default 9333), --only <Route,...>.
  */
 import { Buffer } from 'node:buffer';
@@ -133,6 +136,32 @@ const INTERACTION_ROUTES = [
   { name: 'CommunityMenu', path: '/visual/Community', steps: [{ click: 'Open menu', shot: 'open' }] },
   { name: 'MaintenanceMenu', path: '/visual/Maintenance', steps: [{ click: 'Open menu', shot: 'open' }] },
   { name: 'AmenitiesBookingMenu', path: '/visual/AmenitiesBooking', steps: [{ click: 'Open menu', shot: 'open' }] },
+];
+
+const HEALTH_CONSENT = 'I agree to store and process my health data for this service.';
+/** Past onboarding, without a capture: nothing of Health Passport opens before consent. */
+const HEALTH_SIGN_UP = [{ scroll: true }, { click: HEALTH_CONSENT }, { click: 'Agree and continue' }];
+
+/**
+ * Health Passport, built with EXPO_PUBLIC_HEALTH_API=mock. The mock keeps its records in the
+ * page, so each journey starts at consent and clicks through to its screen; `wait` lets a
+ * background job finish, and `scroll` shows the end of the page.
+ */
+const HEALTH_ROUTES = [
+  {
+    name: 'HealthOnboarding',
+    path: '/health',
+    steps: [{ scroll: true }, { click: HEALTH_CONSENT, shot: 'agreed' }, { click: 'Agree and continue', shot: 'passport' }, { scroll: true, shot: 'passportBottom' }],
+  },
+  { name: 'HealthArabic', path: '/health', steps: [{ click: 'اعرض باللغة العربية', shot: 'onboarding' }, { scroll: true }, { click: 'أوافق على حفظ بياناتي الصحية ومعالجتها لهذه الخدمة.' }, { click: 'موافق ومتابعة', shot: 'passport' }] },
+  { name: 'HealthProfile', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Edit details', shot: 'edit' }] },
+  { name: 'HealthRecords', path: '/health', steps: [...HEALTH_SIGN_UP, { scroll: true }, { click: 'See all', shot: 'documents' }, { click: 'Lab results', shot: 'labs' }] },
+  { name: 'HealthDocument', path: '/health', steps: [...HEALTH_SIGN_UP, { scroll: true }, { click: 'See all' }, { click: 'Prescription', shot: 'detail' }] },
+  { name: 'HealthReview', path: '/health', steps: [...HEALTH_SIGN_UP, { wait: 26_000, shot: 'banner' }, { click: 'Review now', shot: 'review' }, { click: 'Confirm', shot: 'confirmed' }] },
+  { name: 'HealthUpload', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Upload document', shot: 'pick' }, { click: 'Take photo', shot: 'tips' }] },
+  { name: 'HealthItemForm', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Add item manually', shot: 'section' }, { click: 'Allergy', shot: 'fields' }] },
+  { name: 'HealthSummary', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Your summary is ready', shot: 'player' }, { scroll: true, shot: 'playerBottom' }] },
+  { name: 'HealthSettings', path: '/health', steps: [...HEALTH_SIGN_UP, { scroll: true }, { click: 'Settings & privacy', shot: 'settings' }, { click: 'Withdraw consent', shot: 'withdraw' }] },
 ];
 
 /** Signed-in device screens; ids come from the backend before the run. */
@@ -276,7 +305,8 @@ function serveDist(dist) {
     if (!file.startsWith(dist) || !existsSync(file) || statSync(file).isDirectory()) {
       file = join(dist, 'index.html');
     }
-    response.writeHead(200, { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' });
+    // Content-Length as any real host sends it: without one the browser reports an audio file's duration as Infinity.
+    response.writeHead(200, { 'Content-Type': types[extname(file)] ?? 'application/octet-stream', 'Content-Length': statSync(file).size });
     createReadStream(file).pipe(response);
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
@@ -461,6 +491,7 @@ async function capture() {
     allow.push(backend);
   }
   if (profileName === 'interactions') routes = INTERACTION_ROUTES;
+  if (profileName === 'health') routes = HEALTH_ROUTES;
   if (only) routes = routes.filter((route) => only.includes(route.name));
   const port = Number(option('port', '9333'));
   const chrome = await launchChrome(port);
@@ -485,8 +516,11 @@ async function capture() {
           writeFileSync(join(dir, `${route.name}.json`), JSON.stringify({ path: path.replace(/\/(reservation|charging|pass)\/[^?]+/, '/$1/<id>').replace(/reservationId=[^&]+/, 'reservationId=<id>'), errors: page.errors, boxes: dump }, null, 1));
           if (route.steps) {
             for (const step of route.steps) {
-              if (!(await page.evaluate(CLICK(step.click)))) throw new Error(`nothing to click: ${step.click}`);
+              if (step.wait) await sleep(step.wait);
+              if (step.scroll) await page.evaluate(SCROLL_TO_END);
+              if (step.click && !(await page.evaluate(CLICK(step.click)))) throw new Error(`nothing to click: ${step.click}`);
               const after = await page.settle();
+              if (!step.shot) continue;
               await page.screenshot(join(dir, `${route.name}.${step.shot}.png`));
               writeFileSync(join(dir, `${route.name}.${step.shot}.json`), JSON.stringify({ path, errors: page.errors, boxes: after }, null, 1));
             }
@@ -584,7 +618,7 @@ try {
   if (command === 'capture') await capture();
   else if (command === 'compare') compare();
   else {
-    console.log('usage: visual-regression.mjs capture --dist <dir> --out <dir> [--profile basic|ems --backend <url>] | compare <a> <b>');
+    console.log('usage: visual-regression.mjs capture --dist <dir> --out <dir> [--profile basic|interactions|health|ems --backend <url>] | compare <a> <b>');
     process.exit(2);
   }
 } catch (error) {
