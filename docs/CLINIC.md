@@ -346,7 +346,8 @@ npm run dev                       # http://localhost:5174, proxies /api to :8787
 ```bash
 # Terminal 3, optional: the resident app against the same backend
 cd Park-Lane_Mobile_app/frontend
-EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787 EXPO_PUBLIC_HEALTH_API=http npx expo start
+# in .env.local: EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787 and EXPO_PUBLIC_HEALTH_API=http
+npx expo start
 ```
 
 If `npm start` reports `EADDRINUSE ... 8787`, a backend is already running

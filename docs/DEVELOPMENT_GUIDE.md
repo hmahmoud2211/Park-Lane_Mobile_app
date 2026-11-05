@@ -24,6 +24,8 @@ There is no install at the repository root. `./scripts/dev.sh check` installs wh
 | `frontend/.env.local` | `frontend/.env.example` | `EXPO_PUBLIC_DEVICE_BACKEND_URL` (the backend; on a phone use your computer's LAN address), `EXPO_PUBLIC_ASSISTANT_URL` (unset: the hosted demo), `EXPO_PUBLIC_HEALTH_API` and `EXPO_PUBLIC_HEALTH_API_URL` (unset: the mock in development; `http` to use the real backend), `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` |
 | `backend/.env` | `backend/.env.example` | `PORT`, `ADMIN_API_KEY`, `PUBLIC_URL`, `DATA_DIR`, `EMS_ENCRYPTION_KEY`, the `HA_*` settings; each is documented in the example |
 
+**In development, a value in `.env.local` beats the same variable set in the shell**, so `EXPO_PUBLIC_DEVICE_BACKEND_URL=… npx expo start` is ignored when the file sets it too. Change the file. Web exports and EAS builds work the other way round: there the shell or build profile wins.
+
 `EXPO_PUBLIC_*` values are built into the app, so never put a secret in one. Both env files are git-ignored. `frontend/src/config/env.ts` is the only place the app reads them.
 
 ## Run

@@ -129,7 +129,14 @@ start_app() {
   [ "$web" = 1 ] && info "Opening the web browser…" || info "Press w for the web browser, or scan the QR code with your phone."
   echo
   cd "$APP"
-  # The variables win over .env.local, so a changed Wi-Fi address needs no file edit.
+  # In development Expo lets .env files beat variables set here (expo/virtual/env), so an address
+  # in .env.local would win over this one. Say so, rather than quietly use another backend.
+  local pinned
+  pinned="$(sed -nE 's/^[[:space:]]*EXPO_PUBLIC_DEVICE_BACKEND_URL=//p' "$APP/.env.local" 2>/dev/null | tail -1 || true)"
+  if [ -n "$pinned" ] && [ "$pinned" != "http://$host:$BACKEND_PORT" ]; then
+    info "frontend/.env.local sets the backend to $pinned, and that beats http://$host:$BACKEND_PORT."
+    info "Change or remove that line to use this backend."
+  fi
   local args=(expo start -c)
   [ "$web" = 1 ] && args+=(--web)
   if port_open "$ASSISTANT_PORT"; then
