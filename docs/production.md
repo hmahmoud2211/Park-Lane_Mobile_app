@@ -135,8 +135,9 @@ The resident then opens My Devices, sees **Home hub online**, and taps **Add** t
 
 ## 8. Build the mobile app
 
-The app builds already point at `https://api-iot-2.ems-iot.com` (`eas.json`). From your PC:
+The app builds already point at `https://api-iot-2.ems-iot.com` (`eas.json`). From your PC, logged in to an Expo account with access to the `emscompany2016s-team` project (`npx eas-cli@latest whoami`):
 ```bash
+cd frontend
 npx eas-cli@latest build --profile preview --platform android     # an APK to test and share
 npx eas-cli@latest build --profile production --platform all      # store builds
 ```
