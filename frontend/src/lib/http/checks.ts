@@ -374,6 +374,9 @@ async function main() {
 
   // ---- Health Passport -----------------------------------------------------------------------
 
+  /** Headers in a fixed order: the order they were set in means nothing. */
+  const sortedHeaders = (headers: Record<string, string>) => Object.fromEntries(Object.entries(headers).sort());
+
   let refused = 0;
   const healthClient = (options: Partial<ConstructorParameters<typeof health.HttpHealthService>[0]> = {}) => {
     refused = 0;
@@ -393,7 +396,7 @@ async function main() {
     equal(await healthClient().listProfiles(), [{ id: 'p1' }], 'body');
     equal(sent[0].url, 'https://health.test/health/profiles', 'url');
     equal(sent[0].method, 'GET', 'method');
-    equal(sent[0].headers, { Accept: 'application/json', 'Accept-Language': 'ar', Authorization: 'Bearer tok' }, 'headers');
+    equal(sortedHeaders(sent[0].headers), { Accept: 'application/json', 'Accept-Language': 'ar', Authorization: 'Bearer tok' }, 'headers');
     equal(sent[0].body, undefined, 'body sent');
   });
 
@@ -402,7 +405,7 @@ async function main() {
     await healthClient({ getToken: () => null }).updateProfile('a/b', { name: 'Laila' } as never);
     equal(sent[0].url, 'https://health.test/health/profiles/a%2Fb', 'url');
     equal(sent[0].method, 'PUT', 'method');
-    equal(sent[0].headers, { Accept: 'application/json', 'Accept-Language': 'ar', 'Content-Type': 'application/json' }, 'headers');
+    equal(sortedHeaders(sent[0].headers), { Accept: 'application/json', 'Accept-Language': 'ar', 'Content-Type': 'application/json' }, 'headers');
     equal(sent[0].body, '{"name":"Laila"}', 'body');
   });
 
@@ -466,6 +469,34 @@ async function main() {
     fireTimers();
     realTimers();
     await rejects(pending, { class: 'HealthError', kind: 'timeout', message: 'The request timed out.' });
+  });
+
+  check('Health: the timeout covers reading the body', async () => {
+    handler = hangBody;
+    fakeTimers();
+    const pending = healthClient().getConsent();
+    await tick();
+    fireTimers();
+    realTimers();
+    await rejects(pending, { class: 'HealthError', kind: 'server', message: 'HTTP 200', status: 200 });
+  });
+
+  check('Health: an upload refuses before sending without a backend address', async () => {
+    let sentXhr = 0;
+    globalThis.XMLHttpRequest = class extends FakeXhr {
+      send() {
+        sentXhr += 1;
+      }
+    } as unknown as typeof XMLHttpRequest;
+    try {
+      await rejects(healthClient({ baseUrl: '' }).uploadDocument('p1', { ...uploadInput, files: [] }), {
+        class: 'HealthError',
+        kind: 'network',
+      });
+      equal(sentXhr, 0, 'uploads sent');
+    } finally {
+      globalThis.XMLHttpRequest = realXhr;
+    }
   });
 
   /** The parts of XMLHttpRequest an upload uses, driven by hand. */

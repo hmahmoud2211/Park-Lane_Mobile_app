@@ -1,4 +1,5 @@
 import { emsConfig } from './ems';
+import { env } from './env';
 
 /**
  * Health Passport's backend. `mock` runs the whole feature on sample data
@@ -13,14 +14,11 @@ import { emsConfig } from './ems';
  */
 // `typeof` first: the Node checks load this file, and Node has no __DEV__.
 const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
-const mode: 'mock' | 'http' =
-  process.env.EXPO_PUBLIC_HEALTH_API === 'mock' || (isDev && process.env.EXPO_PUBLIC_HEALTH_API !== 'http')
-    ? 'mock'
-    : 'http';
+const mode: 'mock' | 'http' = env.healthApi === 'mock' || (isDev && env.healthApi !== 'http') ? 'mock' : 'http';
 
 export const healthConfig = {
   mode,
-  baseUrl: (process.env.EXPO_PUBLIC_HEALTH_API_URL ?? emsConfig.url).replace(/\/+$/, ''),
+  baseUrl: (env.healthApiUrl ?? emsConfig.url).replace(/\/+$/, ''),
   /** The app's usual request budget. */
   requestTimeoutMs: emsConfig.requestTimeoutMs,
   uploadTimeoutMs: 2 * 60_000,

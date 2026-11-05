@@ -1,4 +1,6 @@
 import { healthConfig } from '../../../config/health';
+import { jsonRequest, timedFetch, type NoAnswer } from '../../../lib/http/request';
+import { timedUpload } from '../../../lib/http/upload';
 import type {
   ConfirmInput,
   Consent,
@@ -47,6 +49,11 @@ function detailOf(body: unknown): string | undefined {
 
 const enc = encodeURIComponent;
 
+function uploadFailure({ timedOut, aborted }: NoAnswer): HealthError {
+  if (timedOut) return new HealthError('timeout', 'The upload timed out.');
+  return aborted ? new HealthError('aborted', 'Cancelled.') : new HealthError('network', 'No connection.');
+}
+
 /**
  * The real endpoints, on the app's own backend with the app's own session.
  * Errors come back as HealthError kinds the screens explain in the UI's
@@ -70,6 +77,12 @@ export class HttpHealthService implements HealthService {
     };
   }
 
+  private requireBackend() {
+    if (!this.baseUrl) {
+      throw new HealthError('network', 'The health backend is not configured (EXPO_PUBLIC_HEALTH_API_URL).');
+    }
+  }
+
   private fail(status: number, body: unknown): never {
     const kind = errorKindForStatus(status);
     if (kind === 'unauthorized') this.options.onUnauthorized();
@@ -81,44 +94,30 @@ export class HttpHealthService implements HealthService {
     path: string,
     init: { body?: unknown; timeoutMs?: number; signal?: AbortSignal; allow404?: boolean } = {},
   ): Promise<T> {
-    if (!this.baseUrl) {
-      throw new HealthError('network', 'The health backend is not configured (EXPO_PUBLIC_HEALTH_API_URL).');
-    }
-    const controller = new AbortController();
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, init.timeoutMs ?? healthConfig.requestTimeoutMs);
-    const forwardAbort = () => controller.abort();
-    init.signal?.addEventListener('abort', forwardAbort);
-
-    try {
-      let response: Response;
-      try {
-        response = await fetch(`${this.baseUrl}${path}`, {
-          method,
-          headers: {
-            Accept: 'application/json',
-            ...this.mediaHeaders(),
-            ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-          },
-          body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-          signal: controller.signal,
-        });
-      } catch {
-        if (timedOut) throw new HealthError('timeout', 'The request timed out.');
-        if (init.signal?.aborted) throw new HealthError('aborted', 'Cancelled.');
-        throw new HealthError('network', 'No connection.');
-      }
-      const body: unknown = response.status === 204 ? undefined : await response.json().catch(() => undefined);
-      if (response.ok) return body as T;
-      if (response.status === 404 && init.allow404) return null as T;
-      return this.fail(response.status, body);
-    } finally {
-      clearTimeout(timer);
-      init.signal?.removeEventListener('abort', forwardAbort);
-    }
+    this.requireBackend();
+    const request = jsonRequest(method, init.body, this.options.getToken());
+    return timedFetch(`${this.baseUrl}${path}`, {
+      init: { ...request, headers: { ...request.headers, 'Accept-Language': this.options.getLang() } },
+      timeoutMs: init.timeoutMs ?? healthConfig.requestTimeoutMs,
+      signal: init.signal,
+      noAnswer: ({ timedOut, aborted }) =>
+        timedOut
+          ? new HealthError('timeout', 'The request timed out.')
+          : aborted
+            ? new HealthError('aborted', 'Cancelled.')
+            : new HealthError('network', 'No connection.'),
+      read: async (response) => {
+        const hasBody = response.status !== 204;
+        const body: unknown = hasBody ? await response.json().catch(() => undefined) : undefined;
+        if (response.ok) {
+          // Every answer but a 204 is JSON, so this one was cut off or timed out while it was read.
+          if (hasBody && body === undefined) throw new HealthError('server', `HTTP ${response.status}`, { status: response.status });
+          return body as T;
+        }
+        if (response.status === 404 && init.allow404) return null as T;
+        return this.fail(response.status, body);
+      },
+    });
   }
 
   getConsent = () => this.call<Consent>('GET', '/health/consent');
@@ -172,12 +171,13 @@ export class HttpHealthService implements HealthService {
   generateSummary = (profileId: string, request: SummaryRequest) =>
     this.call<SummaryState>('POST', `/health/profiles/${enc(profileId)}/summary`, { body: request });
 
-  /** Multipart over XMLHttpRequest, since fetch reports no upload progress. */
+  /** Multipart, with progress: see timedUpload. */
   async uploadDocument(
     profileId: string,
     input: UploadInput,
     options: { onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
   ): Promise<UploadResult> {
+    this.requireBackend();
     const form = new FormData();
     for (const file of input.files) {
       await appendFile(form, 'files[]', file);
@@ -185,52 +185,23 @@ export class HttpHealthService implements HealthService {
     form.append('type', input.type);
     if (input.document_date) form.append('document_date', input.document_date);
 
-    return new Promise<UploadResult>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${this.baseUrl}/health/profiles/${enc(profileId)}/documents`);
-      xhr.timeout = healthConfig.uploadTimeoutMs;
-      xhr.setRequestHeader('Accept', 'application/json');
-      for (const [name, value] of Object.entries(this.mediaHeaders())) {
-        xhr.setRequestHeader(name, value);
-      }
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && event.total > 0) options.onProgress?.(event.loaded / event.total);
-      };
-      const onAbort = () => xhr.abort();
-      options.signal?.addEventListener('abort', onAbort, { once: true });
-      const done = () => options.signal?.removeEventListener('abort', onAbort);
-
-      xhr.onload = () => {
-        done();
+    return timedUpload(`${this.baseUrl}/health/profiles/${enc(profileId)}/documents`, {
+      form,
+      headers: { Accept: 'application/json', ...this.mediaHeaders() },
+      timeoutMs: healthConfig.uploadTimeoutMs,
+      signal: options.signal,
+      onProgress: options.onProgress,
+      noAnswer: uploadFailure,
+      read: (status, text) => {
         let body: unknown;
         try {
-          body = xhr.responseText ? JSON.parse(xhr.responseText) : undefined;
+          body = text ? JSON.parse(text) : undefined;
         } catch {
           body = undefined;
         }
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(body as UploadResult);
-          return;
-        }
-        try {
-          this.fail(xhr.status, body);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      xhr.onerror = () => {
-        done();
-        reject(new HealthError('network', 'No connection.'));
-      };
-      xhr.ontimeout = () => {
-        done();
-        reject(new HealthError('timeout', 'The upload timed out.'));
-      };
-      xhr.onabort = () => {
-        done();
-        reject(new HealthError('aborted', 'Cancelled.'));
-      };
-      xhr.send(form);
+        if (status >= 200 && status < 300) return body as UploadResult;
+        return this.fail(status, body);
+      },
     });
   }
 }

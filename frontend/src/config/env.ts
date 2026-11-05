@@ -15,4 +15,13 @@ export const env = {
   demoTools: process.env.EXPO_PUBLIC_DEMO_TOOLS,
   /** `1` gives every screen a web address for the visual-regression script. */
   visualRoutes: process.env.EXPO_PUBLIC_VISUAL_ROUTES,
+  /**
+   * Health Passport's service, `mock` or `http` (config/health.ts). The one variable also
+   * read elsewhere, in features/health/services/createHealthService.ts and media.ts: the
+   * bundler can leave the mock and its sample records out of a build only when it sees the
+   * value right at the require().
+   */
+  healthApi: process.env.EXPO_PUBLIC_HEALTH_API,
+  /** Health Passport's backend. Unset: the EMS backend. */
+  healthApiUrl: process.env.EXPO_PUBLIC_HEALTH_API_URL,
 } as const;
