@@ -145,7 +145,7 @@ sequenceDiagram
   Note over Backend: audited; lock.unlock refused
 ```
 
-The Login screen starts this session, and it is the app's one sign-in: smart home, Health Passport and the clinic all use it. A stored session skips the form, "Continue as Guest" opens the app without one, and "Log out" ends it (`hooks/useScreenMenu.ts`). Smart-home screens still show `EmsAccountPanel`, which offers a guest the same sign-in where they are. Doctors and the front desk use the same `/api/auth/login` from the clinic web app, with shorter sessions.
+The Login screen starts this session, and it is the app's one sign-in: smart home, Health Passport and the clinic all use it. A stored session skips the form, "Continue as Guest" opens the app without one, and "Log out" ends it (`hooks/useScreenMenu.ts`). It is the only place the app signs in: `EmsAccountPanel` on smart-home screens shows who is signed in, or sends a guest to it, as Clinical Appointment does. The backend creates a ready-made `ems` account on starting (`EMS_DEFAULT_USERNAME`, `EMS_DEFAULT_PASSWORD`). Doctors and the front desk use the same `/api/auth/login` from the clinic web app, with shorter sessions.
 
 ### Pairing a CUBE Gateway
 
