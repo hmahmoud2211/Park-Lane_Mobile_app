@@ -27,6 +27,7 @@ Object.assign(process.env, {
 
 const { createApp } = await import('../src/app.ts');
 const { closeDb } = await import('../src/ems/db.ts');
+const { ensureDefaultAccount, setPassword } = await import('../src/ems/auth.ts');
 const { resetLimits } = await import('../src/ems/rateLimit.ts');
 const { closeRealtimeConnections } = await import('../src/ems/realtime.ts');
 
@@ -178,5 +179,39 @@ describe('persistence and reconnection', () => {
     assert.equal(session.events[0].type, 'error');
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(session.closed(), 4401);
+  });
+});
+
+describe('the default account', () => {
+  test('signs in with its username and short password, as an ordinary resident', async () => {
+    await ensureDefaultAccount();
+    const signedIn = await api<{ user: { email: string; role: string }; token: string }>('POST', '/api/auth/login', {
+      body: { email: 'ems', password: '5002' },
+    });
+    assert.equal(signedIn.status, 200);
+    assert.equal(signedIn.data.user.email, 'ems');
+    assert.equal(signedIn.data.user.role, 'resident');
+
+    const capitals = await api('POST', '/api/auth/login', { body: { email: ' EMS ', password: '5002' } });
+    assert.equal(capitals.status, 200);
+    const wrong = await api('POST', '/api/auth/login', { body: { email: 'ems', password: '5003' } });
+    assert.equal(wrong.status, 401);
+  });
+
+  test('is made once: a password changed later survives a restart', async () => {
+    await ensureDefaultAccount();
+    const { data } = await api<{ user: { id: string } }>('POST', '/api/auth/login', { body: { email: 'ems', password: '5002' } });
+    await setPassword(data.user.id, 'a-longer-password');
+    await ensureDefaultAccount();
+
+    assert.equal((await api('POST', '/api/auth/login', { body: { email: 'ems', password: '5002' } })).status, 401);
+    assert.equal((await api('POST', '/api/auth/login', { body: { email: 'ems', password: 'a-longer-password' } })).status, 200);
+  });
+
+  test('registering keeps its own rules: nobody else can make such an account', async () => {
+    const username = await api('POST', '/api/auth/register', { body: { email: 'someone', password: 'long-enough-password' } });
+    assert.equal(username.status, 400);
+    const shortPassword = await api('POST', '/api/auth/register', { body: { email: 'someone@parklane.test', password: '5002' } });
+    assert.equal(shortPassword.status, 400);
   });
 });

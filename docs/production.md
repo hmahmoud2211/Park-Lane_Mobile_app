@@ -170,6 +170,12 @@ rmdir server            # only if nothing else is left in it
 
 The database and the apartments live in `PARKLANE_DATA` (`/srv/parklane`), outside the repo, so nothing else moves. The running container keeps serving until the new build replaces it, and the compose project and container names stay `parklane` and `parklane-backend`.
 
+### The default account
+
+The backend creates one ready-made sign-in when it starts: username `ems`, password `5002`. It is an ordinary resident account, made once and never overwritten.
+
+**That password is short and known, and the login route allows 10 tries a minute from each address, so treat this account as public.** Never link it to a real resident's apartment, because anyone could then control that home's devices, and keep no real medical records in it. To change it before the first start, set `EMS_DEFAULT_USERNAME` and `EMS_DEFAULT_PASSWORD` in `backend/.env`; to turn it off, set both empty. Once the account exists, those settings no longer change it.
+
 **Security:** the backend container has access to Docker, which means full control of the server. Keep `ADMIN_API_KEY` and `.env` private, never open port 8787 to the internet (the script binds it to the server itself only), and keep SSH key-only.
 
 > **Before rolling out to everyone:** this production path has been tested against a fake Docker and a fake Home Assistant, but not yet on your real server. Treat the first apartment as a pilot: create it, link a real device, control it from the app, then open it up to others.

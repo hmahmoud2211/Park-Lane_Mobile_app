@@ -77,8 +77,9 @@ provider.
 ## Accounts and access
 
 - The app's login screen is its one sign-in. Residents sign in or create their
-  account there, and Clinical Appointment uses that session: it has no sign-in
-  of its own, and sends a guest to the login screen. `/api/auth/register` only
+  account there, or use the ready-made `ems` account, and Clinical Appointment
+  uses that session: it has no sign-in of its own, and sends a guest to the
+  login screen. `/api/auth/register` only
   ever makes residents; doctor and desk accounts come from the CLI.
 - Doctors and desk staff sign in to the clinic web app with the same
   `/api/auth/login`. Their sessions last 12 hours (`CLINIC_STAFF_SESSION_HOURS`),

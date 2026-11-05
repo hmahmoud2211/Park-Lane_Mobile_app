@@ -58,6 +58,14 @@ export const config = {
     /** Set TRUST_PROXY=1 only behind a reverse proxy that overwrites X-Forwarded-For. */
     trustProxy: env.TRUST_PROXY === '1',
     sessionTtlMs: 30 * 24 * 3600_000,
+    /**
+     * The ready-made sign-in the backend creates on starting. Set both empty to turn it off.
+     * The password is short and known: this account must not hold anything private.
+     */
+    defaultAccount: {
+      username: env.EMS_DEFAULT_USERNAME ?? 'ems',
+      password: env.EMS_DEFAULT_PASSWORD ?? '5002',
+    },
     /** Tokens the app hands the Parklane Assistant (see ems/auth.ts); the app asks for a new one when it lapses. */
     assistantTokenTtlMs: 12 * 3600_000,
   },

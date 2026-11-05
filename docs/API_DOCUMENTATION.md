@@ -53,7 +53,7 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | Method & path | Body | Answer |
 |---|---|---|
 | `POST /api/auth/register` | `{ email, password, name? }` (password 8–128 characters) | `SignedIn`: `{ user, token }`; `409 conflict` if the email is taken |
-| `POST /api/auth/login` | `{ email, password }` | `SignedIn`; `401` for a wrong email or password (same timing either way) |
+| `POST /api/auth/login` | `{ email, password }`; `email` is the account's email, or `ems` for the [default account](production.md#the-default-account) | `SignedIn`; `401` for a wrong email or password (same timing either way) |
 | `POST /api/auth/logout` | — | `{ signedOut: true }`; revokes the session and its assistant tokens |
 | `GET /api/auth/me` | — | `{ user }` (`User`, with `role`: `resident`, `doctor` or `clinic_staff`) |
 | `POST /api/auth/assistant-token` | — | `AssistantToken`: `{ token, expiresAt }` |

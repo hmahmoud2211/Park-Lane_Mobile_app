@@ -7,7 +7,7 @@ import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { trimmedText } from '../lib/text.ts';
 import { findToken, insertToken, revokeTokenAndChildren, revokeUserTokens, type TokenKind, type TokenRow } from '../repositories/tokens.ts';
-import { findUserById, findUserWithPassword, insertUser, updatePasswordHash } from '../repositories/users.ts';
+import { findUserByEmail, findUserById, findUserWithPassword, insertUser, updatePasswordHash } from '../repositories/users.ts';
 import { newToken, sha256 } from './secrets.ts';
 
 /**
@@ -50,6 +50,24 @@ export function normalizeEmail(value: unknown): string {
   return email;
 }
 
+/** How an account is looked up: its email or, for the default account, its username. */
+export const loginOf = (value: unknown) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
+/**
+ * The ready-made sign-in from the settings, made on starting if it is not there yet and never
+ * overwritten, so a password changed later stays changed. A username and a short password are
+ * allowed here only: createUser's rules are for the accounts people make themselves.
+ */
+export async function ensureDefaultAccount(): Promise<void> {
+  const username = loginOf(config.ems.defaultAccount.username);
+  const { password } = config.ems.defaultAccount;
+  if (!username || !password || findUserByEmail(username)) {
+    return;
+  }
+  const user: User = { id: randomUUID(), email: username, name: username.toUpperCase(), role: 'resident' };
+  insertUser(user, await hashPassword(password), new Date().toISOString());
+}
+
 /** `role` is only ever set by the clinic CLI; the register route always makes a resident. */
 export async function createUser(emailInput: unknown, passwordInput: unknown, nameInput: unknown, role: Role = 'resident'): Promise<User> {
   const email = normalizeEmail(emailInput);
@@ -72,9 +90,8 @@ export async function createUser(emailInput: unknown, passwordInput: unknown, na
 }
 
 export async function verifyCredentials(emailInput: unknown, passwordInput: unknown): Promise<User> {
-  const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   const password = typeof passwordInput === 'string' ? passwordInput : '';
-  const row = findUserWithPassword(email);
+  const row = findUserWithPassword(loginOf(emailInput));
   const matches = await passwordMatches(password, row?.password_hash ?? DUMMY_HASH);
   if (!row || !matches) {
     throw new ApiError('unauthorized', 'Wrong email or password.');

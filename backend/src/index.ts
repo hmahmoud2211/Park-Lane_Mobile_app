@@ -1,5 +1,6 @@
 import { createApp } from './app.ts';
 import { config } from './config.ts';
+import { ensureDefaultAccount } from './ems/auth.ts';
 import { db } from './ems/db.ts';
 import { purgeExpiredContent } from './clinic/consultations.ts';
 import { startHubs } from './ha/hubs.ts';
@@ -15,6 +16,7 @@ import { log } from './log.ts';
  */
 
 db();
+await ensureDefaultAccount();
 startHubs();
 
 // Clinic retention: transcripts and AI drafts after CLINIC_TRANSCRIPT_RETENTION_DAYS, expired history summaries.

@@ -175,6 +175,19 @@ describe('admin API', () => {
   });
 });
 
+describe('the default account', () => {
+  test('can be put in a unit by its username, though it is not an email', async () => {
+    const { ensureDefaultAccount } = await import('../src/ems/auth.ts');
+    await ensureDefaultAccount();
+    const unit = await admin<{ id: string }>('POST', '/api/admin/units', { name: 'Show flat', provision: false });
+    const member = await admin<{ user: { email: string } }>('POST', `/api/admin/units/${unit.data.id}/members`, { email: 'EMS' });
+    assert.equal(member.status, 200);
+    assert.equal(member.data.user.email, 'ems');
+    assert.equal((await admin('POST', `/api/admin/units/${unit.data.id}/members`, { email: 'nobody' })).status, 404);
+    await admin('DELETE', `/api/admin/units/${unit.data.id}`);
+  });
+});
+
 describe('residents', () => {
   test('without a unit: no_home', async () => {
     const loner = await resident();
