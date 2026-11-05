@@ -1,4 +1,4 @@
-# CUBE Gateway: install, connect, compatibility and limits
+# awesdsdCUBE Gateway: install, connect, compatibility and limits
 
 CUBE OS adds and controls smart devices through the **CUBE Gateway**, a Linux service in one Docker image that
 sits on the home network. It finds devices, sets up new ones on Wi-Fi, pairs them locally and keeps them
@@ -119,11 +119,11 @@ and rooms are kept) and prints a new setup code. Then `docker restart cube-os-ga
 
 **Add Device → choose the brand → choose how:**
 
-| Option | When | What happens |
-| --- | --- | --- |
+| Option                         | When                                | What happens                                                                                                                                                                        |
+| ------------------------------ | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Find existing device** | The device is already on your Wi-Fi | The gateway scans (mDNS, SSDP, vendor UDP, subnet probe) and lists what it finds: name, model, IP, protocol, whether it needs an account, and what pairing needs. Pick one to pair. |
-| **Connect new device** | Factory-new or reset | A guided setup through the device's own setup hotspot (below). Shown only for brands with a supported procedure. |
-| **Advanced** | Special cases | Add by IP address (when the router blocks mDNS); gateway-side Wi-Fi setup (Kasa, LG via ReThink) on gateways with a spare Wi-Fi radio; the cloud-account fallback. |
+| **Connect new device**   | Factory-new or reset                | A guided setup through the device's own setup hotspot (below). Shown only for brands with a supported procedure.                                                                    |
+| **Advanced**             | Special cases                       | Add by IP address (when the router blocks mDNS); gateway-side Wi-Fi setup (Kasa, LG via ReThink) on gateways with a spare Wi-Fi radio; the cloud-account fallback.                  |
 
 Pairing asks only for what the device needs: nothing (Shelly, WLED, Yeelight, WiZ, LIFX, Kasa legacy), an
 **Allow** on the TV (LG webOS, Samsung), a **local key** (Tuya, SONOFF eWeLink LAN mode, Midea V3) or
@@ -148,14 +148,14 @@ that don't report back (TV keys) show "Sent, this device doesn't report back".
    password, Wi-Fi rejected (2.4 GHz?), device not found (router client isolation?), local key needed,
    permission missing, session expired.
 
-| Plugin | Brand | How | Setup network | Status |
-| --- | --- | --- | --- | --- |
-| `shelly_softap` | Shelly | Phone sends Wi-Fi with the documented API (Gen1 `/settings/sta`, Gen2+ `WiFi.SetConfig`) | `shelly…-XXXXXX`, open, 192.168.33.1 | Supported |
-| `wled_softap` | WLED | You enter Wi-Fi on WLED's page | `WLED-AP`, password `wled1234` (WLED's published default) | Supported |
-| `sonoff_diy_softap` | SONOFF | DIY mode: you enter Wi-Fi on the device's page; the phone also reads the device key from `/device` | `ITEAD-XXXXXXXX`, password `12345678` (ITEAD DIY doc) for BASICR3, RFR3, MINI, and S26R2TPF | Supported for BASICR3/RFR3/MINI; **experimental** for S26R2TPF and others |
-| `kasa_softap` | TP-Link Kasa | Gateway joins with its own radio, python-kasa `wifi join` | `TP-LINK_…_XXXX`, open | Experimental; needs `CUBE_SOFTAP_INTERFACE` |
-| `lg_thinq_softap` | LG ThinQ | The phone joins the appliance's network and runs ReThink's setup protocol (ThinQ1, ThinQ2, Whisen) itself | `LGE_…` or `[LG_…]`; you type the password (the app suggests ReThink's documented default for that name, editable) | Experimental; needs ReThink |
-| `lg_thinq_softap_gateway` | LG ThinQ | Gateway joins with its own radio and runs ReThink's `rethink-setup` | Same | Experimental; needs ReThink, `CUBE_SOFTAP_INTERFACE` and `CUBE_RETHINK_SETUP_CMD` |
+| Plugin                      | Brand        | How                                                                                                       | Setup network                                                                                                            | Status                                                                                |
+| --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `shelly_softap`           | Shelly       | Phone sends Wi-Fi with the documented API (Gen1 `/settings/sta`, Gen2+ `WiFi.SetConfig`)              | `shelly…-XXXXXX`, open, 192.168.33.1                                                                                  | Supported                                                                             |
+| `wled_softap`             | WLED         | You enter Wi-Fi on WLED's page                                                                            | `WLED-AP`, password `wled1234` (WLED's published default)                                                            | Supported                                                                             |
+| `sonoff_diy_softap`       | SONOFF       | DIY mode: you enter Wi-Fi on the device's page; the phone also reads the device key from `/device`      | `ITEAD-XXXXXXXX`, password `12345678` (ITEAD DIY doc) for BASICR3, RFR3, MINI, and S26R2TPF                          | Supported for BASICR3/RFR3/MINI; **experimental** for S26R2TPF and others       |
+| `kasa_softap`             | TP-Link Kasa | Gateway joins with its own radio, python-kasa `wifi join`                                               | `TP-LINK_…_XXXX`, open                                                                                                | Experimental; needs `CUBE_SOFTAP_INTERFACE`                                         |
+| `lg_thinq_softap`         | LG ThinQ     | The phone joins the appliance's network and runs ReThink's setup protocol (ThinQ1, ThinQ2, Whisen) itself | `LGE_…` or `[LG_…]`; you type the password (the app suggests ReThink's documented default for that name, editable) | Experimental; needs ReThink                                                           |
+| `lg_thinq_softap_gateway` | LG ThinQ     | Gateway joins with its own radio and runs ReThink's `rethink-setup`                                     | Same                                                                                                                     | Experimental; needs ReThink, `CUBE_SOFTAP_INTERFACE` and `CUBE_RETHINK_SETUP_CMD` |
 
 Tuya/Smart Life, Yeelight, WiZ, LIFX, Midea and Daikin join Wi-Fi only through their own apps. TVs join from
 their own settings. For these brands, "Connect new device" is shown greyed out with that explanation; once
@@ -167,24 +167,24 @@ the device is on Wi-Fi, use Find existing device.
 protocol mocks (see [Test results](#test-results)) and must be confirmed per model before you promise it to
 residents.
 
-| Brand | Adapter | Protocol | Status | Account needed | Pairing | Tested on hardware |
-| --- | --- | --- | --- | --- | --- | --- |
-| LG webOS TVs | `lg_webos` | aiowebostv (local WebSocket) | Supported | No | Allow on TV | No |
-| LG ThinQ ACs & appliances | `lg_thinq_rethink` | ReThink MQTT | **Experimental**, model-dependent | No (ReThink replaces LG's cloud) | None | **Yes, read-only:** an RAC_056905_WW AC on this server's ReThink (state, model, 12 sensors; no commands sent) |
-| Samsung Smart TVs (2016+) | `samsung_tv` | samsungtvws (WebSocket 8001/8002) | Supported | No | Allow on TV | No |
-| SONOFF DIY mode | `sonoff_lan` | ITEAD DIY API v2 (HTTP 8081) | Supported | No | None | No |
-| SONOFF eWeLink LAN mode | `sonoff_lan` | AES LAN protocol (SonoffLAN-compatible) | **Experimental** | No, but needs the device key | Device key | No |
-| Tuya / Smart Life | `tuya_local` | tinytuya (3.1–3.5) | Limited | No for control; the key is obtained once with a Tuya IoT developer account | Local key | No |
-| TP-Link Kasa (legacy firmware) | `tplink` | python-kasa (XOR, port 9999) | Supported | No | None | No |
-| TP-Link Tapo / newer Kasa | `tplink` | python-kasa (KLAP/AES) | Supported | TP-Link account email and password, used locally only | Credentials | No |
-| Xiaomi Yeelight | `yeelight` | Yeelight Inter-Operation Spec | Supported | No (turn on LAN Control once) | None | No |
-| Shelly Gen1 / Gen2+ | `shelly` | Documented HTTP / RPC | Supported | No | None (or device password) | No |
-| Philips WiZ | `wiz` | UDP 38899 (community-documented) | Supported | No | None | No |
-| LIFX | `lifx` | LIFX LAN protocol | Supported | No | None | No |
-| WLED | `wled` | JSON API | Supported | No | None | No |
-| Daikin (BRP069) | `daikin` | Unofficial local HTTP | **Experimental** | No | None (BRP072C: adapter key, untested) | No |
-| Midea ACs | `midea` | msmart-ng, no cloud calls | Limited | V3 token and key, obtained once | Token + key | No |
-| Other / unknown | `generic` | mDNS / SSDP | Detection only | — | Cannot be paired | — |
+| Brand                          | Adapter              | Protocol                                | Status                                  | Account needed                                                             | Pairing                               | Tested on hardware                                                                                                  |
+| ------------------------------ | -------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| LG webOS TVs                   | `lg_webos`         | aiowebostv (local WebSocket)            | Supported                               | No                                                                         | Allow on TV                           | No                                                                                                                  |
+| LG ThinQ ACs & appliances      | `lg_thinq_rethink` | ReThink MQTT                            | **Experimental**, model-dependent | No (ReThink replaces LG's cloud)                                           | None                                  | **Yes, read-only:** an RAC_056905_WW AC on this server's ReThink (state, model, 12 sensors; no commands sent) |
+| Samsung Smart TVs (2016+)      | `samsung_tv`       | samsungtvws (WebSocket 8001/8002)       | Supported                               | No                                                                         | Allow on TV                           | No                                                                                                                  |
+| SONOFF DIY mode                | `sonoff_lan`       | ITEAD DIY API v2 (HTTP 8081)            | Supported                               | No                                                                         | None                                  | No                                                                                                                  |
+| SONOFF eWeLink LAN mode        | `sonoff_lan`       | AES LAN protocol (SonoffLAN-compatible) | **Experimental**                  | No, but needs the device key                                               | Device key                            | No                                                                                                                  |
+| Tuya / Smart Life              | `tuya_local`       | tinytuya (3.1–3.5)                     | Limited                                 | No for control; the key is obtained once with a Tuya IoT developer account | Local key                             | No                                                                                                                  |
+| TP-Link Kasa (legacy firmware) | `tplink`           | python-kasa (XOR, port 9999)            | Supported                               | No                                                                         | None                                  | No                                                                                                                  |
+| TP-Link Tapo / newer Kasa      | `tplink`           | python-kasa (KLAP/AES)                  | Supported                               | TP-Link account email and password, used locally only                      | Credentials                           | No                                                                                                                  |
+| Xiaomi Yeelight                | `yeelight`         | Yeelight Inter-Operation Spec           | Supported                               | No (turn on LAN Control once)                                              | None                                  | No                                                                                                                  |
+| Shelly Gen1 / Gen2+            | `shelly`           | Documented HTTP / RPC                   | Supported                               | No                                                                         | None (or device password)             | No                                                                                                                  |
+| Philips WiZ                    | `wiz`              | UDP 38899 (community-documented)        | Supported                               | No                                                                         | None                                  | No                                                                                                                  |
+| LIFX                           | `lifx`             | LIFX LAN protocol                       | Supported                               | No                                                                         | None                                  | No                                                                                                                  |
+| WLED                           | `wled`             | JSON API                                | Supported                               | No                                                                         | None                                  | No                                                                                                                  |
+| Daikin (BRP069)                | `daikin`           | Unofficial local HTTP                   | **Experimental**                  | No                                                                         | None (BRP072C: adapter key, untested) | No                                                                                                                  |
+| Midea ACs                      | `midea`            | msmart-ng, no cloud calls               | Limited                                 | V3 token and key, obtained once                                            | Token + key                           | No                                                                                                                  |
+| Other / unknown                | `generic`          | mDNS / SSDP                             | Detection only                          | —                                                                         | Cannot be paired                      | —                                                                                                                  |
 
 ## LG ThinQ appliances via ReThink
 
@@ -217,6 +217,7 @@ republishes it as Home Assistant-style MQTT. The gateway is an MQTT client of th
    Settings the unit doesn't echo back are shown as not confirmed until it reports.
 
 Notes:
+
 - ReThink is GPL-2.0. The gateway doesn't include ReThink code: it talks MQTT to it and can start its setup
   tool as a separate program. **The app's** `frontend/src/features/lg/services/lgSetupProtocol.ts` (from Master) re-implements
   `rethink-setup.ts` in TypeScript. Have it reviewed for GPL obligations before publishing the app to the
@@ -301,14 +302,14 @@ on the gateway (`DELETE /api/v1/auth/clients/{id}`) cuts it off through the rela
 
 **Deployed on the EMS server (2026-11-04):**
 
-| Item | Value |
-| --- | --- |
-| Public URL | `https://cube-relay.ems-iot.com` (Cloudflare proxied → 102.43.60.185) |
-| Container | `cube-relay` (image `cube-os-gateway:1.0.0`, `relay` mode, host network, `127.0.0.1:8687`, `--restart unless-stopped`) |
+| Item                         | Value                                                                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Public URL                   | `https://cube-relay.ems-iot.com` (Cloudflare proxied → 102.43.60.185)                                                           |
+| Container                    | `cube-relay` (image `cube-os-gateway:1.0.0`, `relay` mode, host network, `127.0.0.1:8687`, `--restart unless-stopped`)   |
 | Settings and enrolment token | `/home/ems-server/EMS/cube-relay/relay.env` (0600). Show the token with `grep TOKEN /home/ems-server/EMS/cube-relay/relay.env` |
-| Data | Docker volume `cube-relay-data` (`relay.db`: gateway IDs and hashed tunnel secrets) |
-| nginx | `/etc/nginx/conf.d/cube-relay.conf`: only `/relay/` is proxied; rate limits use Cloudflare's `CF-Connecting-IP` |
-| Logs and health | `docker logs -f cube-relay`; `curl https://cube-relay.ems-iot.com/relay/v1/health` |
+| Data                         | Docker volume `cube-relay-data` (`relay.db`: gateway IDs and hashed tunnel secrets)                                            |
+| nginx                        | `/etc/nginx/conf.d/cube-relay.conf`: only `/relay/` is proxied; rate limits use Cloudflare's `CF-Connecting-IP`              |
+| Logs and health              | `docker logs -f cube-relay`; `curl https://cube-relay.ems-iot.com/relay/v1/health`                                             |
 
 To restart or upgrade it: `docker rm -f cube-relay`, then
 `docker run -d --name cube-relay --network host --restart unless-stopped --env-file /home/ems-server/EMS/cube-relay/relay.env -v cube-relay-data:/data <image> relay`.
@@ -320,30 +321,30 @@ Tailscale when that matters. End-to-end encryption through the relay is not impl
 
 All optional, as `-e NAME=value` on `docker run`.
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `CUBE_PORT` | `8686` | API port |
-| `CUBE_HOST` | `0.0.0.0` | Bind address. Set an IP to listen on one interface only |
-| `CUBE_GATEWAY_NAME` | `CUBE Gateway XXXX` | Name shown in the app (also settable from the app) |
-| `CUBE_DATA_DIR` | `/data` | Database, key and setup code |
-| `CUBE_LOG_LEVEL` / `CUBE_LOG_FORMAT` | `INFO` / `json` | `text` for human-readable logs |
-| `CUBE_MDNS_ADVERTISE` | `1` | Advertise `_cube-gw._tcp` on the LAN |
-| `CUBE_SUBNET_SCAN` | `1` | Allow the TCP probe of the local /24 during scans |
-| `CUBE_SCAN_SUBNETS` | (auto) | Comma-separated private networks to scan, each /22 or smaller |
-| `CUBE_POLL_INTERVAL` | `30` | Seconds between state reads for devices without push updates |
-| `CUBE_PROVISIONING_TTL` | `900` | Seconds a setup session stays open |
-| `CUBE_CORS_ORIGINS` | `*` | Allowed web origins (tokens are bearer headers, no cookies) |
-| `CUBE_RETHINK_MQTT_URL` | — | ReThink's MQTT broker; enables LG ThinQ |
-| `CUBE_RETHINK_DISCOVERY_PREFIX` / `CUBE_RETHINK_PREFIX` | `homeassistant` / `rethink` | ReThink topic prefixes |
-| `CUBE_RETHINK_API_SERVER` / `CUBE_RETHINK_MQTT_SERVER` | — | ReThink's public addresses, handed to ThinQ2 appliances during phone setup so they need no DNS override (set both) |
-| `CUBE_RETHINK_SETUP_CMD` | — | Command that runs ReThink's `rethink-setup` (gateway-side LG setup) |
-| `CUBE_SOFTAP_INTERFACE` | — | Spare Wi-Fi interface for gateway-side setup. Also needs `-v /run/dbus:/run/dbus:ro --user 0` and NetworkManager on the host |
-| `CUBE_RELAY_URL` | — | Relay to connect to at start (normally set from the app instead) |
-| `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT` | — / `8687` | Relay mode: who may enrol. Gateway mode: with `CUBE_RELAY_URL`, enrol automatically at start |
-| `CUBE_SERVER_HOSTED` | `0` | Run on the company server for one apartment: only Shelly-over-broker and LG via ReThink; claim allowed through the relay; LG appliances private to this gateway |
-| `CUBE_CLOUD_MQTT_URL` | (from the relay) | How this gateway reaches the device broker, e.g. `mqtt://127.0.0.1:1886` on the broker's own server |
-| `CUBE_ALLOW_REMOTE_CLAIM` / `CUBE_RETHINK_ONLY_PROVISIONED` | follow `CUBE_SERVER_HOSTED` | The two server-hosted behaviours, separately |
-| `CUBE_MQTT_ADMIN_URL`, `_USER`, `_PASSWORD`, `CUBE_MQTT_PUBLIC_SERVER`, `CUBE_MQTT_GATEWAY_URL`, `CUBE_MQTT_CA_FILE` | — | Relay mode: the device broker it manages (written by `setup-broker.sh` to `admin.env`) |
+| Variable                                                                                                                         | Default                         | Meaning                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CUBE_PORT`                                                                                                                    | `8686`                        | API port                                                                                                                                                        |
+| `CUBE_HOST`                                                                                                                    | `0.0.0.0`                     | Bind address. Set an IP to listen on one interface only                                                                                                         |
+| `CUBE_GATEWAY_NAME`                                                                                                            | `CUBE Gateway XXXX`           | Name shown in the app (also settable from the app)                                                                                                              |
+| `CUBE_DATA_DIR`                                                                                                                | `/data`                       | Database, key and setup code                                                                                                                                    |
+| `CUBE_LOG_LEVEL` / `CUBE_LOG_FORMAT`                                                                                         | `INFO` / `json`             | `text` for human-readable logs                                                                                                                                |
+| `CUBE_MDNS_ADVERTISE`                                                                                                          | `1`                           | Advertise `_cube-gw._tcp` on the LAN                                                                                                                          |
+| `CUBE_SUBNET_SCAN`                                                                                                             | `1`                           | Allow the TCP probe of the local /24 during scans                                                                                                               |
+| `CUBE_SCAN_SUBNETS`                                                                                                            | (auto)                          | Comma-separated private networks to scan, each /22 or smaller                                                                                                   |
+| `CUBE_POLL_INTERVAL`                                                                                                           | `30`                          | Seconds between state reads for devices without push updates                                                                                                    |
+| `CUBE_PROVISIONING_TTL`                                                                                                        | `900`                         | Seconds a setup session stays open                                                                                                                              |
+| `CUBE_CORS_ORIGINS`                                                                                                            | `*`                           | Allowed web origins (tokens are bearer headers, no cookies)                                                                                                     |
+| `CUBE_RETHINK_MQTT_URL`                                                                                                        | —                              | ReThink's MQTT broker; enables LG ThinQ                                                                                                                         |
+| `CUBE_RETHINK_DISCOVERY_PREFIX` / `CUBE_RETHINK_PREFIX`                                                                      | `homeassistant` / `rethink` | ReThink topic prefixes                                                                                                                                          |
+| `CUBE_RETHINK_API_SERVER` / `CUBE_RETHINK_MQTT_SERVER`                                                                       | —                              | ReThink's public addresses, handed to ThinQ2 appliances during phone setup so they need no DNS override (set both)                                              |
+| `CUBE_RETHINK_SETUP_CMD`                                                                                                       | —                              | Command that runs ReThink's `rethink-setup` (gateway-side LG setup)                                                                                           |
+| `CUBE_SOFTAP_INTERFACE`                                                                                                        | —                              | Spare Wi-Fi interface for gateway-side setup. Also needs `-v /run/dbus:/run/dbus:ro --user 0` and NetworkManager on the host                                  |
+| `CUBE_RELAY_URL`                                                                                                               | —                              | Relay to connect to at start (normally set from the app instead)                                                                                                |
+| `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT`                                                                                | — / `8687`                   | Relay mode: who may enrol. Gateway mode: with `CUBE_RELAY_URL`, enrol automatically at start                                                                  |
+| `CUBE_SERVER_HOSTED`                                                                                                           | `0`                           | Run on the company server for one apartment: only Shelly-over-broker and LG via ReThink; claim allowed through the relay; LG appliances private to this gateway |
+| `CUBE_CLOUD_MQTT_URL`                                                                                                          | (from the relay)                | How this gateway reaches the device broker, e.g. `mqtt://127.0.0.1:1886` on the broker's own server                                                           |
+| `CUBE_ALLOW_REMOTE_CLAIM` / `CUBE_RETHINK_ONLY_PROVISIONED`                                                                  | follow `CUBE_SERVER_HOSTED`   | The two server-hosted behaviours, separately                                                                                                                    |
+| `CUBE_MQTT_ADMIN_URL`, `_USER`, `_PASSWORD`, `CUBE_MQTT_PUBLIC_SERVER`, `CUBE_MQTT_GATEWAY_URL`, `CUBE_MQTT_CA_FILE` | —                              | Relay mode: the device broker it manages (written by `setup-broker.sh` to `admin.env`)                                                                      |
 
 ## Security model
 
@@ -369,30 +370,30 @@ All optional, as `-e NAME=value` on `docker run`.
 
 ## Operations
 
-| Task | How |
-| --- | --- |
-| Logs | `docker logs -f cube-os-gateway` (JSON lines; `-e CUBE_LOG_FORMAT=text` for plain text) |
-| Setup code again | `docker exec cube-os-gateway cube-gateway setup-code` |
-| Unpair all phones | `docker exec cube-os-gateway cube-gateway reset-owner`, then `docker restart cube-os-gateway` |
-| Back up | Copy the volume while running or stopped: `docker run --rm -v cube-os-data:/data -v "$PWD":/b alpine tar czf /b/cube-backup.tgz -C /data .`. It contains `secret.key`: without it, stored device credentials can't be read |
-| Health | `docker inspect --format '{{.State.Health.Status}}' cube-os-gateway`, or `GET /api/v1/health` |
-| API explorer | `http://<gateway>:8686/api/v1/docs` (protected routes still need a token) |
+| Task              | How                                                                                                                                                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Logs              | `docker logs -f cube-os-gateway` (JSON lines; `-e CUBE_LOG_FORMAT=text` for plain text)                                                                                                                                    |
+| Setup code again  | `docker exec cube-os-gateway cube-gateway setup-code`                                                                                                                                                                        |
+| Unpair all phones | `docker exec cube-os-gateway cube-gateway reset-owner`, then `docker restart cube-os-gateway`                                                                                                                              |
+| Back up           | Copy the volume while running or stopped: `docker run --rm -v cube-os-data:/data -v "$PWD":/b alpine tar czf /b/cube-backup.tgz -C /data .`. It contains `secret.key`: without it, stored device credentials can't be read |
+| Health            | `docker inspect --format '{{.State.Health.Status}}' cube-os-gateway`, or `GET /api/v1/health`                                                                                                                              |
+| API explorer      | `http://<gateway>:8686/api/v1/docs` (protected routes still need a token)                                                                                                                                                    |
 
 ## Test results
 
 Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python 3.14.4, Node 22.23).
 
-| Check | Result |
-| --- | --- |
-| Gateway tests: `cd gateway && .venv/bin/pytest -q` | **134 passed**: API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks, and the LG settings mapping against the real discovery message of an RAC_056905_WW |
-| `ruff check cube_gateway tests` | Clean |
-| `docker build gateway/` (amd64) | Builds; image 321 MB |
-| Container first start → setup code via `docker exec` → claim → data → `docker restart` | Data and token survive; Docker health `healthy` |
-| Real LG AC (RAC_056905_WW) on this server's ReThink, read-only | Found, paired, state read (mode, target 24 °C, room 26 °C, fan), model and 12 sensors after restart. **No commands were sent to the appliance** |
-| Relay on `cube-relay.ems-iot.com` (nginx + Cloudflare) | A gateway enrolled with the token and opened its tunnel. Through the public URL: health answered, `/devices` 401 without a token and 200 with one, claiming refused (403), a room created, and the events WebSocket got `ready` and then a live `rooms.updated`. Without the token, enrolment is refused. The test gateway and its enrolment were then removed |
-| ARM64 | Every dependency resolves to an aarch64 wheel for CPython 3.14. The arm64 image build itself runs in CI (QEMU); it was not run on this server |
-| App: `npx tsc --noEmit`, `npx expo lint` | Both pass |
-| App: `npx expo export` (Android, web) | Builds |
+| Check                                                                                          | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gateway tests: `cd gateway && .venv/bin/pytest -q`                                           | **134 passed**: API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks, and the LG settings mapping against the real discovery message of an RAC_056905_WW |
+| `ruff check cube_gateway tests`                                                              | Clean                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `docker build gateway/` (amd64)                                                              | Builds; image 321 MB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Container first start → setup code via `docker exec` → claim → data → `docker restart` | Data and token survive; Docker health `healthy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Real LG AC (RAC_056905_WW) on this server's ReThink, read-only                                 | Found, paired, state read (mode, target 24 °C, room 26 °C, fan), model and 12 sensors after restart. **No commands were sent to the appliance**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Relay on `cube-relay.ems-iot.com` (nginx + Cloudflare)                                       | A gateway enrolled with the token and opened its tunnel. Through the public URL: health answered, `/devices` 401 without a token and 200 with one, claiming refused (403), a room created, and the events WebSocket got `ready` and then a live `rooms.updated`. Without the token, enrolment is refused. The test gateway and its enrolment were then removed                                                                                                                                                                                                                                                                                                       |
+| ARM64                                                                                          | Every dependency resolves to an aarch64 wheel for CPython 3.14. The arm64 image build itself runs in CI (QEMU); it was not run on this server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| App: `npx tsc --noEmit`, `npx expo lint`                                                   | Both pass                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| App: `npx expo export` (Android, web)                                                        | Builds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 **Still to test on real hardware:** every adapter other than the read-only LG check above; commands to the
 LG AC; Wi-Fi provisioning for Shelly, WLED and SONOFF (especially the S26R2TPF) from a phone; the Android and
@@ -401,18 +402,18 @@ setup over NetworkManager; the relay from a phone on mobile data; the arm64 imag
 
 ## Not supported, and why
 
-| Not supported | Why |
-| --- | --- |
-| Universal compatibility | Each brand speaks its own protocol, and many have no local one. Only the brands above have adapters |
-| Tuya Wi-Fi setup in the app; reading Tuya local keys | Tuya's pairing protocol needs its cloud. Keys come only from Tuya's cloud API (`tinytuya wizard`). The gateway doesn't bypass this |
-| Samsung appliances (SmartThings), LG appliances outside ReThink's list | No local API; cloud only (available through the Home Assistant cloud fallback where linked) |
-| Other Xiaomi / Mi Home devices | They need a per-device token from Xiaomi's cloud; not implemented |
-| SONOFF `POST /ap` (eWeLink app-style setup) | Undocumented. It timed out on the S26R2TPF and would register the device with eWeLink's cloud |
-| Guessed or brute-forced hotspot passwords | Only published, model-specific defaults are filled in |
-| BLE provisioning | No verified BLE protocol for the target devices yet, and the hardware is Wi-Fi focused. The provisioning engine has a transport slot for it |
-| Zigbee, Z-Wave, Thread/Matter | Need radios and stacks the gateway doesn't include. Matter devices are detected only |
-| Native mDNS in the app | React Native has no mDNS without another native module. The app probes the /24 instead, and the gateway still advertises `_cube-gw._tcp` |
-| HTTPS on the LAN | See the security model; use Tailscale |
-| Parklane Assistant controlling gateway devices | The assistant service talks to the EMS backend in the cloud, which can't reach a home LAN. It would need the relay plus a backend change |
-| Scenes, automations, energy history | Not in this release |
-| The Alexa skill, SONOFF cloud and the old CUBE/SONOFF pairing from Master | Built on the server modules the Home Assistant rewrite replaced. Kept on branch `archive/master-2026-11-04` |
+| Not supported                                                             | Why                                                                                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Universal compatibility                                                   | Each brand speaks its own protocol, and many have no local one. Only the brands above have adapters                                         |
+| Tuya Wi-Fi setup in the app; reading Tuya local keys                      | Tuya's pairing protocol needs its cloud. Keys come only from Tuya's cloud API (`tinytuya wizard`). The gateway doesn't bypass this        |
+| Samsung appliances (SmartThings), LG appliances outside ReThink's list    | No local API; cloud only (available through the Home Assistant cloud fallback where linked)                                                 |
+| Other Xiaomi / Mi Home devices                                            | They need a per-device token from Xiaomi's cloud; not implemented                                                                           |
+| SONOFF `POST /ap` (eWeLink app-style setup)                             | Undocumented. It timed out on the S26R2TPF and would register the device with eWeLink's cloud                                               |
+| Guessed or brute-forced hotspot passwords                                 | Only published, model-specific defaults are filled in                                                                                       |
+| BLE provisioning                                                          | No verified BLE protocol for the target devices yet, and the hardware is Wi-Fi focused. The provisioning engine has a transport slot for it |
+| Zigbee, Z-Wave, Thread/Matter                                             | Need radios and stacks the gateway doesn't include. Matter devices are detected only                                                        |
+| Native mDNS in the app                                                    | React Native has no mDNS without another native module. The app probes the /24 instead, and the gateway still advertises `_cube-gw._tcp`  |
+| HTTPS on the LAN                                                          | See the security model; use Tailscale                                                                                                       |
+| Parklane Assistant controlling gateway devices                            | The assistant service talks to the EMS backend in the cloud, which can't reach a home LAN. It would need the relay plus a backend change    |
+| Scenes, automations, energy history                                       | Not in this release                                                                                                                         |
+| The Alexa skill, SONOFF cloud and the old CUBE/SONOFF pairing from Master | Built on the server modules the Home Assistant rewrite replaced. Kept on branch `archive/master-2026-11-04`                               |

@@ -75,15 +75,15 @@ Arrows point from the importer to what it imports. Lower layers never import hig
 
 ### Talking to systems
 
-| System | Client | Transport | Auth | Errors |
-|---|---|---|---|---|
-| EMS backend | `features/ems/services/emsHttp.ts` `call()` | `lib/http` fetch core; `{ ok, data }` envelope; reads retried once on a network failure | session bearer token, held in memory, stored in SecureStore / the tab | `EmsError(code)` |
-| EMS realtime | `features/ems/services/realtime.ts` | `lib/realtime/ReconnectingSocket`, `/api/events` | first message `{ type: 'auth', token }` | `onRefused` signs out |
-| CUBE gateway | `features/gateway/services/gatewayHttp.ts` `gatewayCall()` | fetch core; envelope with a `recovery` hint | per-gateway token, sent only to an address that passed the HMAC identity check | `GatewayError(code, recovery)` |
-| Gateway realtime | `features/gateway/services/realtime.ts` | `ReconnectingSocket`, `/api/v1/events`, can move to another address | first message auth | `onRefused` drops the token |
-| Parklane Assistant | `features/assistant/services/assistantApi.ts`, `realtimeClient.ts` | fetch core; WebSocket with PCM audio | resident id (demo) or guest; the EMS assistant token in the body | `AssistantApiError(kind)` |
-| Device on its hotspot | `features/provisioning/services/deviceHttp.ts` | fetch core, plain HTTP | none | `DeviceHttpError(kind)` |
-| LG appliance | `features/lg/services/lgSetupService.ts` | TLS over TCP (react-native-tcp-socket) | none | `LgSetupError` |
+| System                | Client                                                                 | Transport                                                                                   | Auth                                                                           | Errors                           |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------- |
+| EMS backend           | `features/ems/services/emsHttp.ts` `call()`                        | `lib/http` fetch core; `{ ok, data }` envelope; reads retried once on a network failure | session bearer token, held in memory, stored in SecureStore / the tab          | `EmsError(code)`               |
+| EMS realtime          | `features/ems/services/realtime.ts`                                  | `lib/realtime/ReconnectingSocket`, `/api/events`                                        | first message `{ type: 'auth', token }`                                      | `onRefused` signs out          |
+| CUBE gateway          | `features/gateway/services/gatewayHttp.ts` `gatewayCall()`         | fetch core; envelope with a `recovery` hint                                               | per-gateway token, sent only to an address that passed the HMAC identity check | `GatewayError(code, recovery)` |
+| Gateway realtime      | `features/gateway/services/realtime.ts`                              | `ReconnectingSocket`, `/api/v1/events`, can move to another address                     | first message auth                                                             | `onRefused` drops the token    |
+| Parklane Assistant    | `features/assistant/services/assistantApi.ts`, `realtimeClient.ts` | fetch core; WebSocket with PCM audio                                                        | resident id (demo) or guest; the EMS assistant token in the body               | `AssistantApiError(kind)`      |
+| Device on its hotspot | `features/provisioning/services/deviceHttp.ts`                       | fetch core, plain HTTP                                                                      | none                                                                           | `DeviceHttpError(kind)`        |
+| LG appliance          | `features/lg/services/lgSetupService.ts`                             | TLS over TCP (react-native-tcp-socket)                                                      | none                                                                           | `LgSetupError`                 |
 
 Every HTTP client uses `timedFetch()` from `lib/http/request.ts` (timeout, cancel, a read step inside the timeout) and keeps its own wording. `npm run check:transport` pins each client's behaviour.
 
