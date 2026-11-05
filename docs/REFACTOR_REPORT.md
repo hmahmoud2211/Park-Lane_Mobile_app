@@ -155,7 +155,7 @@ Results from the final run of each check:
 
 ## Steps outside the repository
 
-1. **Vercel**: set Root Directory to `frontend` on both projects, then redeploy `park-lane-mobile-app`. **Do this as part of merging, not after:** that project has no build command of its own, so with the old setting a Master build finds nothing to build, "succeeds" with an empty deployment, and replaces the live site with a 404. That happened when this branch was merged. `park-lane_mobile_app_2` deploys production from `feature/home-assistant-integration`, so it only fails its Master previews.
+1. **Vercel**: `park-lane-mobile-app` needs Root Directory `frontend` (done on 2026-11-05). With the old setting it had no build command of its own, so a Master build found nothing to build, "succeeded" with an empty deployment, and replaced the live site with a 404. That happened when this work merged. `park-lane_mobile_app_2` keeps the repository root and builds through the root `vercel.json`; its production comes from `feature/home-assistant-integration`.
 2. **Production backend** (`/opt/parklane`, branch `feature/home-assistant-integration`): once that branch gets this change, `git pull && ./scripts/dev.sh server` stops and prints the command. Run `mv server/.env backend/.env && rmdir server`, then `./scripts/dev.sh server` again. Data in `/srv/parklane` is not affected; see [production.md](production.md).
 3. **Each development machine**:
    - `mv .env.local frontend/`.
