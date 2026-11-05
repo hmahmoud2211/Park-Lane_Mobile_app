@@ -246,8 +246,10 @@ export function EmsProvider({ children }: PropsWithChildren) {
     [begin],
   );
 
+  // Ended here at once: telling the backend must not keep someone with no signal signed in.
+  // The request has already taken the token when the session clears it.
   const signOut = useCallback(async () => {
-    await api.signOut().catch(() => undefined);
+    void api.signOut().catch(() => undefined);
     await endSession(null);
   }, [endSession]);
 

@@ -19,9 +19,9 @@ const FIELD_HEIGHT = 54;
 const BUTTON_HEIGHT = 48;
 
 /**
- * The EMS account that owns the devices. Separate from the app's own login
- * screen, which is still frontend-only: devices need a real account on the
- * backend.
+ * The resident's account where smart-home screens show it: who is signed in,
+ * and a sign-in for a guest who reached them. The account is the one the login
+ * screen signs in to.
  */
 export function EmsAccountPanel({ intro }: { intro: string }) {
   const theme = useAppTheme();

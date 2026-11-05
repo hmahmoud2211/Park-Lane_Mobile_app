@@ -6,7 +6,8 @@ export const clinicCopy = {
   en: {
     title: 'Clinical Appointment',
     subtitle: 'Book a doctor at the Park Lane clinic.',
-    signIn: 'Sign in to your EMS account to book: clinic visits are saved to your Health Passport.',
+    signIn: 'Sign in to book: clinic visits are saved to your Health Passport.',
+    signInAction: 'Sign in',
     notConfigured: 'This build has no clinic server address (EXPO_PUBLIC_DEVICE_BACKEND_URL).',
     search: 'Search doctors or specialties',
     specialties: 'Specialty',
@@ -26,7 +27,8 @@ export const clinicCopy = {
   ar: {
     title: 'حجز موعد طبي',
     subtitle: 'احجز موعدًا مع طبيب في عيادة بارك لين.',
-    signIn: 'سجّل الدخول إلى حساب EMS للحجز: تُحفظ زيارات العيادة في جوازك الصحي.',
+    signIn: 'سجّل الدخول للحجز: تُحفظ زيارات العيادة في جوازك الصحي.',
+    signInAction: 'تسجيل الدخول',
     notConfigured: 'لا يوجد عنوان لخادم العيادة في هذا الإصدار (EXPO_PUBLIC_DEVICE_BACKEND_URL).',
     search: 'ابحث عن طبيب أو تخصص',
     specialties: 'التخصص',

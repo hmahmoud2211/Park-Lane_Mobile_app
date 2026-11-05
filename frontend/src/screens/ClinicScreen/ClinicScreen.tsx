@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
-import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
+import { LoadingPanel } from '../../features/health/components/LoadState';
 import { ChipGroup, Field } from '../../components/ui/Controls';
 import { Notice } from '../../components/feedback/Notice';
 import { Panel } from '../../components/ui/Panel';
@@ -35,22 +35,41 @@ function QueryError<T>({ query }: { query: ClinicQuery<T> }) {
 
 /**
  * Clinical Appointment: the clinic's doctors, filtered by specialty and
- * searched by name, and the resident's own appointments. Needs the EMS
- * session that Health Passport and Smart Home use.
+ * searched by name, and the resident's own appointments. It uses the session
+ * from the app's sign-in, so a guest is sent there; this section has no
+ * sign-in of its own.
  */
 export function ClinicScreen() {
+  const navigation = useNavigation<Navigation>();
   const { status, configured } = useEms();
   const { lang } = useHealth();
   const copy = clinicCopy[lang];
 
-  if (status !== 'signedIn') {
-    return (
-      <HealthFrame title={copy.title} subtitle={copy.subtitle}>
-        {configured ? <EmsAccountPanel intro={copy.signIn} /> : <Notice tone="warning" title={copy.notConfigured} />}
-      </HealthFrame>
-    );
+  if (status === 'signedIn') {
+    return <Directory />;
   }
-  return <Directory />;
+  return (
+    <HealthFrame title={copy.title} subtitle={copy.subtitle}>
+      {status === 'loading' ? (
+        <LoadingPanel />
+      ) : configured ? (
+        <Notice
+          tone="info"
+          title={copy.signIn}
+          actions={
+            <ParkingButton
+              tone="primary"
+              icon="log-in-outline"
+              label={copy.signInAction}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
+            />
+          }
+        />
+      ) : (
+        <Notice tone="warning" title={copy.notConfigured} />
+      )}
+    </HealthFrame>
+  );
 }
 
 function Directory() {

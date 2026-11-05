@@ -31,7 +31,19 @@ export const loginCopy = {
 /** Deliberately permissive: enough to catch typos, not to police addresses. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Creating an account, which the Figma screen does not draw: the fields and links around the form. */
+export const accountCopy = {
+  nameLabel: 'Full name',
+  createLink: 'Create account',
+  signInLink: 'I already have an account',
+  subtitle: 'Create your Parklane account',
+  submit: 'Create account',
+} as const;
+
+export type LoginMode = 'signIn' | 'create';
+
 export interface LoginErrors {
+  name?: string;
   email?: string;
   password?: string;
 }
@@ -50,5 +62,20 @@ export function validateLogin(email: string, password: string): LoginErrors {
     errors.password = 'Enter your password';
   }
 
+  return errors;
+}
+
+/** The backend's own rules for a new account, said before the request is sent. */
+export function validateNewAccount(name: string, email: string, password: string): LoginErrors {
+  const errors = validateLogin(email, password);
+  if (!name.trim()) {
+    errors.name = 'Enter your name';
+  }
+  if (!errors.email && !email.includes('@')) {
+    errors.email = 'Enter a valid email address';
+  }
+  if (!errors.password && password.length < 8) {
+    errors.password = 'Use at least 8 characters';
+  }
   return errors;
 }
