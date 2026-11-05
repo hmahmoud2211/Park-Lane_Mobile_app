@@ -4,10 +4,26 @@ import { extname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { createUser, findUserByEmail, normalizeEmail, setPassword, type Role } from '../src/ems/auth.ts';
-import { db, transaction } from '../src/ems/db.ts';
+import { transaction } from '../src/ems/db.ts';
 import { addProfile, insertItem, cleanItem, setConsent, listProfiles } from '../src/health/passport.ts';
 import { doctorForUser, photoDir } from '../src/clinic/doctors.ts';
 import { clinicInstant, HH_MM, minutesOf } from '../src/clinic/time.ts';
+import {
+  deleteDoctorSchedule,
+  insertDemoDoctor,
+  insertDoctor,
+  insertScheduleBlock,
+  insertTimeOff,
+  listDoctorAccounts,
+  listScheduleRows,
+  setDoctorActive,
+  setDoctorPhoto,
+  updateDoctorColumns,
+  type DoctorColumn,
+} from '../src/repositories/clinicDoctors.ts';
+import { insertSpecialtyIfMissing, listAllSpecialties, specialtyExists, upsertSpecialty } from '../src/repositories/clinicSpecialties.ts';
+import { setProfileSexAndBirthDate } from '../src/repositories/healthProfiles.ts';
+import { listDeskAccounts } from '../src/repositories/users.ts';
 
 /**
  * Clinic administration, run on the server:  npm run clinic -- <command>
@@ -104,7 +120,7 @@ function doctorFields() {
 }
 
 function requireSpecialty(id: string) {
-  if (!db().prepare('SELECT id FROM clinic_specialties WHERE id = ?').get(id)) {
+  if (!specialtyExists(id)) {
     fail(`No specialty "${id}". Add it first: npm run clinic -- specialty add ${id} --en <name> --ar <name>`);
   }
 }
@@ -131,11 +147,9 @@ function parseSchedule(text: string): { weekday: number; start: string; end: str
 
 function setSchedule(doctorId: string, blocks: { weekday: number; start: string; end: string }[]) {
   transaction(() => {
-    db().prepare('DELETE FROM clinic_schedules WHERE doctor_id = ?').run(doctorId);
+    deleteDoctorSchedule(doctorId);
     for (const block of blocks) {
-      db()
-        .prepare('INSERT INTO clinic_schedules (id, doctor_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?, ?)')
-        .run(randomUUID(), doctorId, block.weekday, block.start, block.end);
+      insertScheduleBlock(randomUUID(), doctorId, block);
     }
   });
 }
@@ -149,30 +163,23 @@ async function addDoctor(): Promise<void> {
   const id = randomUUID();
   const at = new Date().toISOString();
   const fields = doctorFields();
-  db()
-    .prepare(
-      `INSERT INTO clinic_doctors (id, user_id, specialty_id, display_name, display_name_ar, title, title_ar, bio, bio_ar,
-         years_experience, consultation_minutes, fee_egp, languages, photo, active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, ?, ?)`,
-    )
-    .run(
-      id,
-      account.id,
-      values.specialty,
-      values.name as string,
-      fields.display_name_ar,
-      fields.title,
-      fields.title_ar,
-      fields.bio,
-      fields.bio_ar,
-      fields.years_experience,
-      minutes,
-      fields.fee_egp,
-      fields.languages,
-      at,
-      at,
-    );
-  if (values.photo) db().prepare('UPDATE clinic_doctors SET photo = ? WHERE id = ?').run(storePhoto(id, values.photo), id);
+  insertDoctor({
+    id,
+    userId: account.id,
+    specialtyId: values.specialty,
+    displayName: values.name as string,
+    displayNameAr: fields.display_name_ar,
+    title: fields.title,
+    titleAr: fields.title_ar,
+    bio: fields.bio,
+    bioAr: fields.bio_ar,
+    yearsExperience: fields.years_experience,
+    consultationMinutes: minutes,
+    feeEgp: fields.fee_egp,
+    languages: fields.languages,
+    at,
+  });
+  if (values.photo) setDoctorPhoto(id, storePhoto(id, values.photo));
   console.log(`Doctor added: ${values.name} <${values.email}>`);
   if (!values.password) console.log(`Temporary password (shown once): ${account.password}`);
   console.log(`Next: npm run clinic -- doctor schedule ${values.email} --set "sun 09:00-13:00, mon 09:00-13:00"`);
@@ -180,9 +187,9 @@ async function addDoctor(): Promise<void> {
 
 function updateDoctor(email: string | undefined): void {
   const doctor = doctorByEmail(email);
-  const changes: Record<string, string | number | null> = {};
+  const changes: Partial<Record<DoctorColumn, string | number | null>> = {};
   const fields = doctorFields();
-  for (const [column, value] of Object.entries(fields)) if (value !== null) changes[column] = value;
+  for (const [column, value] of Object.entries(fields)) if (value !== null) changes[column as DoctorColumn] = value;
   if (values.name) changes.display_name = values.name;
   if (values.specialty) {
     requireSpecialty(values.specialty);
@@ -193,33 +200,22 @@ function updateDoctor(email: string | undefined): void {
   if (values.photo) changes.photo = storePhoto(doctor.id, values.photo);
   const columns = Object.keys(changes);
   if (columns.length === 0) fail('Nothing to change.');
-  db()
-    .prepare(`UPDATE clinic_doctors SET ${columns.map((column) => `${column} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
-    .run(...columns.map((column) => changes[column]), new Date().toISOString(), doctor.id);
+  updateDoctorColumns(doctor.id, changes, new Date().toISOString());
   console.log(`Updated ${doctor.display_name}: ${columns.join(', ')}`);
 }
 
 function list(): void {
-  const specialties = db().prepare('SELECT id, name_en, name_ar FROM clinic_specialties ORDER BY id').all() as Record<string, string>[];
+  const specialties = listAllSpecialties();
   console.log('Specialties:');
   for (const entry of specialties) console.log(`  ${entry.id}  ${entry.name_en} / ${entry.name_ar}`);
-  const doctors = db()
-    .prepare(
-      `SELECT d.id, d.display_name, d.specialty_id, d.consultation_minutes, d.active, u.email FROM clinic_doctors d
-       JOIN users u ON u.id = d.user_id ORDER BY d.display_name`,
-    )
-    .all() as { id: string; display_name: string; specialty_id: string; consultation_minutes: number; active: number; email: string }[];
+  const doctors = listDoctorAccounts();
   console.log('Doctors:');
   for (const doctor of doctors) {
-    const blocks = db().prepare('SELECT weekday, start_time, end_time FROM clinic_schedules WHERE doctor_id = ? ORDER BY weekday, start_time').all(doctor.id) as {
-      weekday: number;
-      start_time: string;
-      end_time: string;
-    }[];
+    const blocks = listScheduleRows(doctor.id);
     const hours = blocks.map((block) => `${WEEKDAYS[block.weekday]} ${block.start_time}-${block.end_time}`).join(', ') || 'no hours set';
     console.log(`  ${doctor.display_name} <${doctor.email}>  ${doctor.specialty_id}, ${doctor.consultation_minutes} min${doctor.active ? '' : ' (inactive)'}  ${hours}`);
   }
-  const staff = db().prepare("SELECT name, email FROM users WHERE role = 'clinic_staff' ORDER BY name").all() as { name: string; email: string }[];
+  const staff = listDeskAccounts();
   console.log('Front desk:');
   for (const entry of staff) console.log(`  ${entry.name} <${entry.email}>`);
 }
@@ -238,7 +234,7 @@ async function demoSeed(): Promise<void> {
     ['dermatology', 'Dermatology', 'الأمراض الجلدية'],
   ];
   for (const [id, en, ar] of specialties) {
-    db().prepare('INSERT OR IGNORE INTO clinic_specialties (id, name_en, name_ar, created_at) VALUES (?, ?, ?, ?)').run(id, en, ar, new Date().toISOString());
+    insertSpecialtyIfMissing(id, en, ar, new Date().toISOString());
   }
   const allWeek = WEEKDAYS.map((_, weekday) => [
     { weekday, start: '09:00', end: '13:00' },
@@ -256,13 +252,20 @@ async function demoSeed(): Promise<void> {
     const user = await createUser(entry.email, password, entry.name, 'doctor');
     const id = randomUUID();
     const at = new Date().toISOString();
-    db()
-      .prepare(
-        `INSERT INTO clinic_doctors (id, user_id, specialty_id, display_name, display_name_ar, title, bio, years_experience,
-           consultation_minutes, fee_egp, languages, active, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-      )
-      .run(id, user.id, entry.specialty, entry.name, entry.nameAr, entry.title, entry.bio, entry.years, entry.minutes, entry.fee, '["en","ar"]', at, at);
+    insertDemoDoctor({
+      id,
+      userId: user.id,
+      specialtyId: entry.specialty,
+      displayName: entry.name,
+      displayNameAr: entry.nameAr,
+      title: entry.title,
+      bio: entry.bio,
+      yearsExperience: entry.years,
+      consultationMinutes: entry.minutes,
+      feeEgp: entry.fee,
+      languages: '["en","ar"]',
+      at,
+    });
     setSchedule(id, allWeek);
     credentials.push(`  doctor  ${entry.email}  ${password}`);
   }
@@ -275,7 +278,7 @@ async function demoSeed(): Promise<void> {
     transaction(() => {
       setConsent(resident.id, true);
       const self = listProfiles(resident.id)[0];
-      db().prepare("UPDATE health_profiles SET sex = 'male', date_of_birth = '1968-03-14' WHERE id = ?").run(self.id);
+      setProfileSexAndBirthDate(self.id, 'male', '1968-03-14');
       const add = (section: Parameters<typeof cleanItem>[0], data: Record<string, unknown>) =>
         insertItem(self.id, section, cleanItem(section, data), null);
       add('allergies', { substance: 'Penicillin', reaction: 'rash and swelling', severity: 'severe' });
@@ -298,12 +301,7 @@ switch (`${group ?? ''} ${command ?? ''}`.trim()) {
   case 'specialty add': {
     if (!command || !subject || !values.en || !values.ar) fail('Usage: specialty add <id> --en <name> --ar <name>');
     if (!/^[a-z][a-z0-9-]{1,40}$/.test(subject)) fail('A specialty id is lowercase letters, digits and dashes, e.g. general-medicine.');
-    db()
-      .prepare(
-        `INSERT INTO clinic_specialties (id, name_en, name_ar, created_at) VALUES (?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET name_en = excluded.name_en, name_ar = excluded.name_ar`,
-      )
-      .run(subject, values.en, values.ar, new Date().toISOString());
+    upsertSpecialty(subject, values.en, values.ar, new Date().toISOString());
     console.log(`Specialty saved: ${subject}`);
     break;
   }
@@ -316,7 +314,7 @@ switch (`${group ?? ''} ${command ?? ''}`.trim()) {
   case 'doctor deactivate':
   case 'doctor activate': {
     const doctor = doctorByEmail(subject);
-    db().prepare('UPDATE clinic_doctors SET active = ?, updated_at = ? WHERE id = ?').run(command === 'activate' ? 1 : 0, new Date().toISOString(), doctor.id);
+    setDoctorActive(doctor.id, command === 'activate' ? 1 : 0, new Date().toISOString());
     console.log(`${doctor.display_name} is now ${command === 'activate' ? 'active' : 'inactive'}. Existing appointments are kept.`);
     break;
   }
@@ -336,7 +334,7 @@ switch (`${group ?? ''} ${command ?? ''}`.trim()) {
     };
     const [from, to] = [parse(values.from), parse(values.to)];
     if (from >= to) fail('--to must be after --from.');
-    db().prepare('INSERT INTO clinic_time_off (id, doctor_id, starts_at, ends_at, reason) VALUES (?, ?, ?, ?, ?)').run(randomUUID(), doctor.id, from, to, values.reason ?? null);
+    insertTimeOff(randomUUID(), doctor.id, from, to, values.reason ?? null);
     console.log(`Time off saved for ${doctor.display_name}. Appointments already booked in it are not cancelled; check them with the desk.`);
     break;
   }
