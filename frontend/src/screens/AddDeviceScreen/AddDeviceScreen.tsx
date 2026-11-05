@@ -8,13 +8,12 @@ import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { BrandBadge } from '../../features/gateway/components/BrandBadge';
 import { GatewayStatusRow } from '../../features/gateway/components/GatewayStatusRow';
-import { SupportChip } from '../../features/gateway/components/RequirementChips';
+import { BrandChips } from '../../features/gateway/components/RequirementChips';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { Notice } from '../../components/feedback/Notice';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
-import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useBrands } from '../../features/gateway/hooks/useBrands';
 import { useEms } from '../../features/ems/hooks/useEms';
@@ -42,9 +41,10 @@ function matches(brand: Brand, query: string): boolean {
 
 /**
  * Add Device, Screen 1: the manufacturer. Every way of adding a device
- * starts here. The list comes from the gateway's adapters (GET /brands), so a
- * brand shows only what that gateway can really do; choosing one opens its
- * connection methods.
+ * starts here. The list comes from the gateway (GET /brands), which says what
+ * each brand can really do from that gateway: through its adapters, through
+ * the maker's account on the building's hub, or only with a box at home.
+ * Choosing a brand opens its connection methods.
  */
 export function AddDeviceScreen() {
   const theme = useAppTheme();
@@ -77,8 +77,7 @@ export function AddDeviceScreen() {
         </View>
       </View>
       <View style={styles.actions}>
-        <SupportChip status={brand.status} />
-        {brand.account_free ? <StatusChip label="No account needed" tone="teal" icon="lock-open-outline" /> : null}
+        <BrandChips brand={brand} />
       </View>
     </SelectableCard>
   );

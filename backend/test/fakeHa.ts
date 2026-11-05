@@ -8,7 +8,7 @@ import type { Duplex } from 'node:stream';
  * registries, subscribe_entities, subscribe_events, call_service and the
  * registry updates the facade uses), the onboarding REST calls the
  * provisioner makes, and config flows for three scripted brands:
- * switchbot_cloud (a form), tuya (a form, then a QR code) and smartthings
+ * switchbot_cloud and sonoff (a form), tuya (a form, then a QR code) and smartthings
  * (OAuth through an external step and /auth/external/callback). State lives in memory and changes the way HA reports
  * it, so tests can drive the backend end to end without a real hub.
  */
@@ -61,6 +61,10 @@ const TRANSLATIONS: Record<string, string> = {
   'component.switchbot_cloud.config.step.user.data.api_token': 'Token',
   'component.switchbot_cloud.config.step.user.data.api_key': 'Secret',
   'component.switchbot_cloud.config.error.invalid_auth': 'Invalid authentication',
+  'component.sonoff.config.step.user.data.username': 'Username',
+  'component.sonoff.config.step.user.data.password': 'Password',
+  'component.sonoff.config.step.user.data.country_code': 'Country code',
+  'component.sonoff.config.error.exception': 'Wrong username or password',
   'component.tuya.config.step.user.data.user_code': 'User code',
   'component.tuya.config.step.scan.description': 'Scan this code with the {app} app.',
   'component.smartthings.config.abort.already_configured': 'Account is already configured',
@@ -520,6 +524,17 @@ export class FakeHa {
             { name: 'api_key', required: true, selector: { text: { type: 'password' } } },
           ],
         };
+      case 'sonoff:user':
+        // The form SonoffLAN's config flow serialises to: the password and country are optional there.
+        return {
+          ...base,
+          type: 'form',
+          data_schema: [
+            { name: 'username', required: true, type: 'string' },
+            { name: 'password', optional: true, type: 'string' },
+            { name: 'country_code', optional: true, type: 'select', options: [['+20', 'Egypt | +20'], ['+971', 'United Arab Emirates | +971']] },
+          ],
+        };
       case 'tuya:user':
         return { ...base, type: 'form', data_schema: [{ name: 'user_code', required: true, type: 'string' }] };
       case 'tuya:scan':
@@ -565,7 +580,7 @@ export class FakeHa {
   private configRest(method: string, path: string, body: Record<string, unknown>, json: (status: number, body: unknown) => void) {
     if (path === '/api/config/config_entries/flow' && method === 'POST') {
       const handler = String(body.handler);
-      if (!['switchbot_cloud', 'tuya', 'smartthings'].includes(handler)) return json(404, { message: 'Invalid handler specified' });
+      if (!['switchbot_cloud', 'sonoff', 'tuya', 'smartthings'].includes(handler)) return json(404, { message: 'Invalid handler specified' });
       const flow: FakeFlow = { flow_id: `flow-${++this.flowCounter}`, handler, step: handler === 'smartthings' ? 'auth' : 'user', context: { source: 'user' } };
       this.flows.set(flow.flow_id, flow);
       return json(200, this.stepResult(flow));
@@ -584,6 +599,10 @@ export class FakeHa {
           if (body.api_token === undefined) return json(400, { message: "User input malformed: required key not provided @ data['api_token']" });
           if (body.api_token === 'bad') return json(200, this.stepResult(flow, { base: 'invalid_auth' }));
           return json(200, this.finish(flow, 'SwitchBot'));
+        case 'sonoff:user':
+          if (body.username === undefined) return json(400, { message: "User input malformed: required key not provided @ data['username']" });
+          if (body.password === 'bad') return json(200, this.stepResult(flow, { base: 'exception' }));
+          return json(200, this.finish(flow, 'eWeLink'));
         case 'tuya:user':
           flow.step = 'scan';
           return json(200, this.stepResult(flow));

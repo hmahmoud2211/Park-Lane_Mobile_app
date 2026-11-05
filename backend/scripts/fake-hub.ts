@@ -16,6 +16,7 @@ import { adminApi } from './lib/adminApi.ts';
  * demo@parklane.test / correct horse battery. The unit starts with a few
  * devices; "Connect devices" links the scripted brands:
  *  - SwitchBot: any token and secret ("bad" as the token shows the brand's error)
+ *  - SONOFF: any username and password ("bad" as the password shows the brand's error)
  *  - Tuya / Smart Life: any user code, then the QR step (tap Continue)
  * Everything lives in a temporary folder and is gone when the process stops.
  */

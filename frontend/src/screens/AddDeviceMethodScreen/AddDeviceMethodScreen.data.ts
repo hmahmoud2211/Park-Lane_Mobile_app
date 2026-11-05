@@ -10,6 +10,11 @@ export const addDeviceMethodCopy = {
   cloudTitle: 'Manufacturer account (cloud)',
   cloudBody: 'Links your account with the maker through the building’s smart home hub. Control then goes through the maker’s cloud, not your Wi-Fi.',
   cloudAction: (name: string) => `Link ${name} account`,
+  cloudNotEnabled: (name: string) => `${name}: not available yet`,
+  cloudSignIn: 'Sign in to link your account',
+  cloudSignInBody: 'Linking uses your EMS account, so the devices stay with your unit.',
+  cloudNoHub: 'Your EMS account needs a unit with a ready smart home hub first. My Devices shows where it is.',
+  cloudLoadFailed: 'The brands the building offers could not be loaded. Try again in a moment.',
   unavailable: 'Not available',
   loadFailed: 'The brand could not be loaded.',
   retry: 'Try again',
@@ -32,15 +37,4 @@ export const groupCopy: Record<MethodGroup, { title: string; intro: string; icon
     intro: 'Special setups for some models: a known address, local credentials, or the gateway’s own Wi-Fi.',
     icon: 'construct-outline',
   },
-};
-
-/**
- * Brands whose devices the building's Home Assistant can link through the
- * maker's cloud (backend/src/ha/integrations.ts), for the cloud fallback.
- */
-export const cloudIntegrations: Record<string, readonly string[]> = {
-  lg: ['lg_thinq', 'webostv'],
-  samsung: ['smartthings'],
-  sonoff: ['sonoff'],
-  tuya: ['tuya'],
 };

@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { Candidate, ConnectionMethod, SupportLevel } from '../../../types/gateway.types';
+import type { Brand, Candidate, ConnectionMethod, SupportLevel } from '../../../types/gateway.types';
 import { StatusChip, type StatusTone } from '../../../components/ui/StatusChip';
 
 /** What a brand, connection method or found device needs, as chips: account, keys, approval, support level. */
@@ -15,6 +15,23 @@ const SUPPORT: Record<SupportLevel, { label: string; tone: StatusTone } | null> 
 export function SupportChip({ status }: { status: SupportLevel }) {
   const look = SUPPORT[status];
   return look ? <StatusChip label={look.label} tone={look.tone} icon={status === 'experimental' ? 'flask-outline' : undefined} /> : null;
+}
+
+/** How a brand connects, on its tile in Add Device. */
+export function BrandChips({ brand }: { brand: Brand }) {
+  if (brand.needs_home_gateway) {
+    return <StatusChip label="Needs a box at home" tone="slate" icon="home-outline" />;
+  }
+  return (
+    <>
+      <SupportChip status={brand.status} />
+      {brand.adapters.length === 0 ? (
+        <StatusChip label="Brand account needed" tone="amber" icon="person-outline" />
+      ) : brand.account_free ? (
+        <StatusChip label="No account needed" tone="teal" icon="lock-open-outline" />
+      ) : null}
+    </>
+  );
 }
 
 export function MethodChips({ method }: { method: ConnectionMethod }) {

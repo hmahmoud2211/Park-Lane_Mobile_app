@@ -3,6 +3,13 @@
 Nothing here is a compatibility claim on its own: a brand's status and methods come from its adapters'
 declared support level and availability in this deployment (e.g. the LG ThinQ path is unavailable until
 CUBE_RETHINK_MQTT_URL is set), and from the provisioning plugins' own declarations.
+
+A brand reaches its devices in one of three ways:
+  - through this gateway's adapters;
+  - through its maker's cloud, linked on the building's Home Assistant hub (`hub`, the ids in
+    backend/src/ha/integrations.ts). The gateway only names them; the app links them with the EMS backend;
+  - not at all from a gateway on CUBE's server, for a brand that only works on the home network. Those
+    brands stay listed, marked `needs_home_gateway`, so the app can say why instead of hiding them.
 """
 
 from __future__ import annotations
@@ -30,6 +37,11 @@ class BrandEntry:
     notes: tuple[str, ...] = ()
     #: Why there is no in-app Wi-Fi setup for this brand (shown on a disabled "Connect new device").
     no_setup_reason: str | None = None
+    #: Integrations on the building's Home Assistant hub that link this brand's cloud account.
+    hub: tuple[str, ...] = ()
+    #: Shown by a gateway on CUBE's server, where `summary` and `notes` about local control don't apply.
+    server_summary: str | None = None
+    server_notes: tuple[str, ...] | None = None
 
 
 BRANDS: list[BrandEntry] = [
@@ -45,6 +57,9 @@ BRANDS: list[BrandEntry] = [
             "ThinQ appliances only through a ReThink server, for the models in ReThink's support list.",
         ),
         no_setup_reason="Connect an LG TV to Wi-Fi from the TV's own settings, then use Find existing device.",
+        hub=("lg_thinq", "webostv"),
+        server_summary="ThinQ air conditioners and appliances through ReThink (experimental), or your LG account.",
+        server_notes=("ReThink works with the models in its support list.",),
     ),
     BrandEntry(
         "samsung",
@@ -55,6 +70,9 @@ BRANDS: list[BrandEntry] = [
         aliases=("Samsung Electronics", "Tizen"),
         notes=("Samsung appliances use SmartThings, which has no local API; they are not supported locally.",),
         no_setup_reason="Connect the TV to Wi-Fi from its own settings, then use Find existing device.",
+        hub=("smartthings",),
+        server_summary="TVs and appliances through your Samsung SmartThings account.",
+        server_notes=("Add the device in the SmartThings app first.",),
     ),
     BrandEntry(
         "sonoff",
@@ -66,6 +84,13 @@ BRANDS: list[BrandEntry] = [
         notes=(
             "DIY mode is documented by ITEAD for BASICR3, RFR3 and MINI; other models are experimental.",
             "Devices set up with the eWeLink app encrypt their LAN traffic: enter the device key to control them.",
+        ),
+        hub=("sonoff",),
+        server_summary="Switches, plugs and sensors through your eWeLink account.",
+        server_notes=(
+            "Add the device in the eWeLink app first. It appears here after you link the account.",
+            "eWeLink allows one session per app type, so linking can sign the eWeLink app out on your phone. "
+            "Sign in there again, or use a second eWeLink account with the devices shared to it.",
         ),
     ),
     BrandEntry(
@@ -80,6 +105,12 @@ BRANDS: list[BrandEntry] = [
         ),
         no_setup_reason="Tuya devices join Wi-Fi only through the Smart Life or Tuya app, which needs an account. "
         "Once connected, add them here with their local key.",
+        hub=("tuya",),
+        server_summary="Tuya and Smart Life devices through your Smart Life account.",
+        server_notes=(
+            "Add the device in the Smart Life or Tuya app first.",
+            "The QR code must be scanned from a second device: a phone can't scan its own screen.",
+        ),
     ),
     BrandEntry(
         "tplink",
@@ -106,7 +137,15 @@ BRANDS: list[BrandEntry] = [
         ),
         no_setup_reason="Yeelight lights join Wi-Fi through the Yeelight app. Then turn on LAN Control and find them here.",
     ),
-    BrandEntry("shelly", "Shelly", "shelly", "Relays, plugs, dimmers and shutters with a documented local API.", ("shelly", "shelly_cloud"), aliases=("Allterco",)),
+    BrandEntry(
+        "shelly",
+        "Shelly",
+        "shelly",
+        "Relays, plugs, dimmers and shutters with a documented local API.",
+        ("shelly", "shelly_cloud"),
+        aliases=("Allterco",),
+        server_summary="Gen2 and newer relays, plugs, dimmers and shutters connect straight to CUBE's server.",
+    ),
     BrandEntry(
         "wiz",
         "Philips WiZ",
@@ -144,6 +183,21 @@ BRANDS: list[BrandEntry] = [
         notes=("Newer (V3) units need a token and key obtained once from Midea's service.",),
         no_setup_reason="Midea units join Wi-Fi through Midea's app (account required). Then find them here.",
     ),
+    # Reached only through their cloud, from the building's hub: no gateway adapter.
+    BrandEntry("switchbot", "SwitchBot", "switchbot", "SwitchBot devices through your SwitchBot account.", (), hub=("switchbot_cloud",)),
+    BrandEntry("nest", "Google Nest", "nest", "Nest thermostats and cameras through your Google account.", (), aliases=("Nest", "Google"), hub=("nest",)),
+    BrandEntry("ring", "Ring", "ring", "Ring doorbells and cameras through your Ring account.", (), hub=("ring",)),
+    BrandEntry("ecobee", "ecobee", "ecobee", "ecobee thermostats through your ecobee account.", (), hub=("ecobee",)),
+    BrandEntry("tado", "tado°", "tado", "tado° heating and air conditioning through your tado° account.", (), aliases=("tado",), hub=("tado",)),
+    BrandEntry("sensibo", "Sensibo", "sensibo", "Sensibo air conditioning controllers through your Sensibo account.", (), hub=("sensibo",)),
+    BrandEntry("netatmo", "Netatmo", "netatmo", "Netatmo thermostats, cameras and weather stations through your account.", (), hub=("netatmo",)),
+    BrandEntry("august", "August", "august", "August smart locks through your August account.", (), hub=("august",)),
+    BrandEntry("yale", "Yale Home", "yale", "Yale smart locks through your Yale Home account.", (), aliases=("Yale",), hub=("yale",)),
+    BrandEntry("blink", "Blink", "blink", "Blink cameras through your Blink account.", (), hub=("blink",)),
+    BrandEntry("ezviz", "EZVIZ", "ezviz", "EZVIZ cameras through your EZVIZ account.", (), hub=("ezviz",)),
+    BrandEntry("ecovacs", "Ecovacs", "ecovacs", "Ecovacs robot vacuums through your Ecovacs account.", (), aliases=("Deebot",), hub=("ecovacs",)),
+    BrandEntry("miele", "Miele", "miele", "Miele appliances through your Miele account.", (), hub=("miele",)),
+    BrandEntry("home_connect", "Home Connect", "home_connect", "Bosch and Siemens appliances through your Home Connect account.", (), aliases=("Bosch", "Siemens"), hub=("home_connect",)),
     BrandEntry(
         "other",
         "Other / Unknown brand",
@@ -155,6 +209,9 @@ BRANDS: list[BrandEntry] = [
 ]
 
 BRANDS_BY_ID = {brand.id: brand for brand in BRANDS}
+
+#: Why a gateway on CUBE's server can't reach a brand that only works on the home network.
+HOME_ONLY_REASON = "Only works on your home network, which CUBE's server can't reach. It needs a CUBE Gateway box in your home."
 
 #: How each adapter's "find on Wi-Fi" method reads in the app.
 FIND_TEXT: dict[str, tuple[str, str]] = {
@@ -196,9 +253,8 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
         adapters = [registry.adapters[a] for a in entry.adapters if a in registry.adapters]
         methods: list[ConnectionMethod] = [m for a in entry.adapters if (m := _find_method(registry, a))]
 
-        if settings.server_hosted and not adapters:
-            # No home network: brands without an adapter for devices that reach the server are not offered.
-            continue
+        hosted = settings.server_hosted
+        home_only = hosted and not adapters and not entry.hub
         # A plugin for an adapter this gateway does not run (e.g. the cloud Shelly setup on a home gateway) is not offered.
         plugins = [p for p in PLUGINS if p.brand_id == entry.id and p.adapter_id in registry.adapters]
         for plugin in plugins:
@@ -230,7 +286,21 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                     unavailable_reason=reason,
                 )
             )
-        if not any(m.group == "new" for m in methods):
+        if home_only:
+            methods.append(
+                ConnectionMethod(
+                    id="setup:none",
+                    group="new",
+                    title="Needs a CUBE Gateway at home",
+                    description=HOME_ONLY_REASON,
+                    adapter_id=entry.adapters[0],
+                    transport="guided",
+                    status=SupportLevel.UNSUPPORTED,
+                    available=False,
+                    unavailable_reason=HOME_ONLY_REASON,
+                )
+            )
+        elif entry.adapters and (adapters or not hosted) and not any(m.group == "new" for m in methods):
             methods.append(
                 ConnectionMethod(
                     id="setup:none",
@@ -245,7 +315,8 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                 )
             )
         for adapter in adapters:
-            if type(adapter).probe is not DeviceAdapter.probe and adapter.info.id != "generic":
+            # An address only means something on the home network, which a gateway on CUBE's server can't reach.
+            if not hosted and type(adapter).probe is not DeviceAdapter.probe and adapter.info.id != "generic":
                 methods.append(
                     ConnectionMethod(
                         id=f"manual:{adapter.info.id}",
@@ -261,7 +332,8 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                     )
                 )
 
-        statuses = [a.info.status for a in adapters] or [SupportLevel.UNSUPPORTED]
+        # A brand linked through the hub has nothing to rate here: the backend says whether it is enabled.
+        statuses = [a.info.status for a in adapters] or [SupportLevel.SUPPORTED if entry.hub else SupportLevel.UNSUPPORTED]
         categories: list[Category] = []
         for adapter in adapters:
             categories += [c for c in adapter.info.categories if c not in categories]
@@ -272,12 +344,15 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                 aliases=list(entry.aliases),
                 logo=entry.logo,
                 status=min(statuses, key=lambda s: _RANK[SupportLevel(s)]),
-                summary=entry.summary,
+                summary=(hosted and entry.server_summary) or entry.summary,
                 account_free=any(a.info.account_free for a in adapters),
                 categories=categories,
                 adapters=[a.info.id for a in adapters],
                 methods=methods,
-                notes=list(entry.notes),
+                notes=[] if home_only else list(entry.notes if not hosted or entry.server_notes is None else entry.server_notes),
+                hub_integrations=list(entry.hub),
+                needs_home_gateway=home_only,
             )
         )
-    return brands
+    # What works here first; the sort keeps the catalog's order within each part.
+    return sorted(brands, key=lambda brand: brand.needs_home_gateway)

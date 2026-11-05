@@ -92,6 +92,10 @@ export interface Brand {
   adapters: string[];
   methods: ConnectionMethod[];
   notes: string[];
+  /** Integrations on the building's hub that link this brand (backend/src/ha/integrations.ts). */
+  hub_integrations?: string[];
+  /** On a gateway on CUBE's server: the brand only works on the home network. */
+  needs_home_gateway?: boolean;
 }
 
 export interface AdapterInfo {

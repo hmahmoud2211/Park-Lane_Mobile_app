@@ -144,6 +144,10 @@ class Brand(BaseModel):
     adapters: list[str] = []
     methods: list[ConnectionMethod] = []
     notes: list[str] = []
+    #: Integrations on the building's Home Assistant hub that link this brand (backend/src/ha/integrations.ts).
+    hub_integrations: list[str] = []
+    #: On a gateway on CUBE's server: this brand only works on the home network, so it needs a gateway there.
+    needs_home_gateway: bool = False
 
 
 class AdapterInfo(BaseModel):

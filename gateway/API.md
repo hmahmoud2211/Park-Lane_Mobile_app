@@ -32,7 +32,7 @@ access). Data models are in `cube_gateway/models.py` (mirrored in the app's `fro
 
 | Method & path | Auth | What it does |
 | --- | --- | --- |
-| `GET /brands` | any | `Brand[]`: id, name, aliases, logo key, status, summary, account_free, categories, `methods: ConnectionMethod[]` (group `existing`/`new`/`advanced`, transport `lan`/`phone`/`guided`/`gateway`, requirements, `available` + `unavailable_reason`), notes |
+| `GET /brands` | any | `Brand[]`: id, name, aliases, logo key, status, summary, account_free, categories, `hub_integrations` (integrations on the building's hub that link this brand), `needs_home_gateway` (on a gateway on CUBE's server: the brand only works on the home network), `methods: ConnectionMethod[]` (group `existing`/`new`/`advanced`, transport `lan`/`phone`/`guided`/`gateway`, requirements, `available` + `unavailable_reason`), notes |
 | `GET /adapters` | any | `AdapterInfo[]` including adapters that failed to load (`loaded: false`, `load_error`) |
 | `GET /provisioning/plugins` | any | Every provisioning plugin with its declared models, firmware, auth, requirements and sources |
 
