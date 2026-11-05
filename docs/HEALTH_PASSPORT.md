@@ -50,6 +50,8 @@ Entered from the Health Passport row on the Services screen, or at `/health` on 
 | `mock` | mock | mock |
 | `http` | real backend | real backend |
 
+`./scripts/dev.sh` and `.env.example` choose `http`, because the clinic always uses the real backend and books against the same record. Use `mock` only to work on these screens with no backend.
+
 `EXPO_PUBLIC_HEALTH_API_URL` sets the backend, and defaults to the EMS backend. The app only ever talks to its own backend: no AI address or key belongs in it.
 
 **Do not read this variable through `env.ts` in `createHealthService.ts` or `media.ts`.** They use the literal `process.env.EXPO_PUBLIC_HEALTH_API` on purpose, as the one exception to the rule that `env.ts` reads every setting. Metro drops the mock only when it can see the value right at the `require()`. Tested on release web builds, and the first two rows also on iOS and Android bundles:

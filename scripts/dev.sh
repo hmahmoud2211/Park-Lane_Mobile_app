@@ -125,7 +125,7 @@ start_app() {
   local host="$1" web="$2"
   bold "Starting the app (Expo)…"
   info "The app reaches the backend at http://$host:$BACKEND_PORT"
-  info "In the app: Settings → My Devices, sign in with your EMS account."
+  info "In the app: sign in on the login screen with your EMS account, or create one there."
   [ "$web" = 1 ] && info "Opening the web browser…" || info "Press w for the web browser, or scan the QR code with your phone."
   echo
   cd "$APP"
@@ -136,7 +136,10 @@ start_app() {
     info "The app reaches the assistant on this PC at http://$host:$ASSISTANT_PORT"
     export EXPO_PUBLIC_ASSISTANT_URL="http://$host:$ASSISTANT_PORT"
   fi
-  EXPO_PUBLIC_DEVICE_BACKEND_URL="http://$host:$BACKEND_PORT" npx "${args[@]}"
+  # Health Passport follows the backend too, or the clinic would book against one record and
+  # the app show another. EXPO_PUBLIC_HEALTH_API=mock asks for the sample data instead.
+  EXPO_PUBLIC_DEVICE_BACKEND_URL="http://$host:$BACKEND_PORT" \
+    EXPO_PUBLIC_HEALTH_API="${EXPO_PUBLIC_HEALTH_API:-http}" npx "${args[@]}"
 }
 
 wait_until_stopped() {
@@ -181,7 +184,7 @@ mode_fake() {
   STARTED_PIDS+=("$!")
   wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the fake hub" "$LOGS/fake-hub.log"
   ok "Fake hub ready on port $BACKEND_PORT (log: .dev-logs/fake-hub.log)"
-  info "Sign in to My Devices as demo@parklane.test / correct horse battery"
+  info "Sign in as demo@parklane.test / correct horse battery"
   echo
 
   if [ "$APP" = 1 ]; then start_app "$HOST" "$WEB"; else wait_until_stopped; fi

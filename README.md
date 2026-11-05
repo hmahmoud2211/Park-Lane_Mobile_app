@@ -43,7 +43,7 @@ cp .env.example .env.local      # point EXPO_PUBLIC_DEVICE_BACKEND_URL at a back
 npx expo start                  # w for the web, or scan the QR code
 
 # the backend with a stand-in Home Assistant, plus the app, in one command (repository root)
-./scripts/dev.sh fake           # sign in to My Devices as demo@parklane.test / correct horse battery
+./scripts/dev.sh fake           # sign in as demo@parklane.test / correct horse battery
 
 # before you push
 ./scripts/dev.sh check          # app typecheck and lint, backend typecheck and tests
