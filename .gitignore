@@ -36,13 +36,19 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# generated native folders (Continuous Native Generation; never edit by hand)
+/frontend/ios
+/frontend/android
 
-# device backend: secrets and its device store
+# device backend: secrets and its data folder
+backend/.env
+backend/data/
+# the same, left behind in a checkout from before server/ was renamed backend/
 server/.env
 server/data/
+
+# rethink's runtime state (its CA key and certificate, device state): docker/rethink
+docker/rethink/data/
 
 # scripts/dev.sh logs
 .dev-logs/

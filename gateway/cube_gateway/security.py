@@ -48,7 +48,7 @@ def normalize_code(code: str) -> str:
 
 
 def encode_key(raw: bytes) -> str:
-    """pin_key on the wire: base64url without padding (the app decodes it in src/services/gateway/hmac.ts)."""
+    """pin_key on the wire: base64url without padding (the app decodes it in frontend/src/features/gateway/services/hmac.ts)."""
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 

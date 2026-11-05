@@ -1,299 +1,96 @@
 # Parklane
 
-A cross-platform (iOS, Android, Web) mobile app for Parklane residents, built with
-[Expo](https://expo.dev) and React Native. The UI follows a dark, "glass" design
-language — frosted, blurred panels with a blue-to-pink gradient hairline — driven
-entirely by tokens defined in [`src/theme/`](src/theme/).
+The resident app for the Park Lane compound: one codebase for iOS, Android and the web, with a backend for the smart home and a gateway for devices in the home. The UI follows a dark "glass" design language (frosted panels with a blue-to-pink hairline), driven entirely by design tokens.
 
-## Tech stack
+## What it does
 
-| Layer          | Choice                                                                 |
-| -------------- | ----------------------------------------------------------------------- |
-| Framework      | [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) (managed workflow) |
-| UI runtime     | React 19 / React Native 0.86                                          |
-| Language       | TypeScript                                                             |
-| Navigation     | [React Navigation](https://reactnavigation.org/docs/native-stack-navigator) — native-stack (not Expo Router) |
-| Styling        | Hand-written `StyleSheet`s driven by design tokens in `src/theme/`    |
-| Fonts          | Inter (via `@expo-google-fonts/inter`, subpath-imported per weight)   |
-| Effects        | `expo-blur` (frosted glass), `expo-linear-gradient` (gradient fills/strokes) |
-| Icons          | `@expo/vector-icons`, plus a few hand-rolled SVG icons                |
-| QR codes       | `react-native-qrcode-svg`                                             |
-| Web build/host | Expo web (Metro bundler) deployed to Vercel                           |
-| Lint           | ESLint (`eslint-config-expo`)                                         |
+- **Home, profile and my unit**: the resident's unit, payments and documents (receipts and passes as PDFs).
+- **Visitor access**: invite visitors and share a QR pass.
+- **Parking**: a working demo of visitor bookings, QR gate entry and exit, directions to the exact bay, EV charging, a security console and demo controls. It runs on the device; see [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md).
+- **Maintenance, community and amenities**: requests, announcements, polls, feedback and bookings (mock content until their backends exist).
+- **Smart home**: devices from brand clouds through the EMS backend, and local devices through the CUBE Gateway, with add-device wizards (soft-AP Wi-Fi setup for Shelly, SONOFF and LG ACs), live updates and full controls.
+- **Parklane Assistant**: chat and voice, able to read and control the resident's devices.
 
-## Prerequisites
+## Technologies
 
-- Node.js `22.x` (pinned in `package.json#engines`)
-- npm (repo ships a `package-lock.json`; use `npx`, not `bunx`, since there is no `bun.lock`)
-- [Expo CLI](https://docs.expo.dev/more/expo-cli/) — no global install needed, invoked via `npx expo`
-- For native builds/testing: Xcode (iOS) and/or Android Studio (Android), or just the
-  [Expo Go](https://expo.dev/go) app on a physical device for quick preview
-- An [EAS](https://docs.expo.dev/eas/) account if you plan to run cloud builds or OTA updates
+| Part | Stack |
+|---|---|
+| App ([`frontend/`](frontend)) | [Expo SDK 58](https://docs.expo.dev/versions/v58.0.0/), React Native 0.88, React 19.3, TypeScript, React Navigation (native stack), `expo-blur` / `expo-linear-gradient`, Inter |
+| Backend ([`backend/`](backend)) | Node 22 running TypeScript directly (no runtime packages), SQLite (`node:sqlite`), WebSocket, one Home Assistant container per unit via the Docker API |
+| Shared contract ([`shared/`](shared)) | Type-only TypeScript used by both |
+| Gateway ([`gateway/`](gateway)) | Python, FastAPI, one Docker image (home box, relay or server-hosted) |
+| Builds and hosting | EAS (app), Vercel (web, root directory `frontend`), Docker (backend, gateway), GitHub Actions |
 
-## Getting started
+## Repository layout
+
+```
+frontend/   the app            backend/   the EMS device backend      shared/   API types
+gateway/    the CUBE Gateway   docker/    rethink for LG ACs          scripts/  dev.sh
+docs/       documentation      tools/     Windows launcher source
+```
+
+[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) walks through every folder.
+
+## Quick start
 
 ```bash
-# 1. Install dependencies (use expo install, not npm install, for any new packages)
-npm install
+# the app
+cd frontend
+npm ci
+cp .env.example .env.local      # point EXPO_PUBLIC_DEVICE_BACKEND_URL at a backend
+npx expo start                  # w for the web, or scan the QR code
 
-# 2. Start the dev server
-npx expo start
+# the backend with a stand-in Home Assistant, plus the app, in one command (repository root)
+./scripts/dev.sh fake           # sign in to My Devices as demo@parklane.test / correct horse battery
+
+# before you push
+./scripts/dev.sh check          # app typecheck and lint, backend typecheck and tests
 ```
 
-From the Metro dev server output you can:
+Use Node 22, and npm 10 for anything that writes the app's lockfile (EAS runs `npm ci` with npm 10). The [development guide](docs/DEVELOPMENT_GUIDE.md) covers configuration, every command, tests, builds and troubleshooting.
 
-- Press `i` to open in the iOS Simulator
-- Press `a` to open in the Android Emulator
-- Press `w` to open in a web browser
-- Scan the QR code with the Expo Go app on a physical device
-
-> **Note:** This app uses `expo-blur`, `expo-linear-gradient`, `expo-font`, and other
-> native modules. If a module isn't included in Expo Go, run a development build
-> instead: `npx expo run:ios` / `npx expo run:ios` locally, or
-> `eas build --profile development` in the cloud.
-
-## Available scripts
-
-Defined in [`package.json`](package.json):
-
-| Script          | Command                              | Purpose                                      |
-| --------------- | ------------------------------------- | --------------------------------------------- |
-| `npm start`     | `expo start`                          | Start the Metro dev server                    |
-| `npm run android` | `expo start --android`              | Start dev server and open Android             |
-| `npm run ios`   | `expo start --ios`                    | Start dev server and open iOS Simulator       |
-| `npm run web`   | `expo start --web`                    | Start dev server for web                      |
-| `npm run lint`  | `expo lint`                           | Run ESLint                                    |
-| `npm run check:parking` | `npx --yes tsx src/services/parking/run-checks.ts` | Run the parking demo's acceptance checks in Node |
-| `npm run build` | `expo export --platform web`          | Produce a static web build in `dist/`         |
-| `npm run serve` | `npx serve dist --single`             | Serve the exported web build locally (SPA mode) |
-
-Additional commands used during development (not in `package.json`, run directly):
-
-```bash
-npx expo install <package>   # Add a dependency — resolves SDK-57-compatible versions
-npx tsc --noEmit             # Type-check the project
-npx expo-doctor              # Diagnose dependency/config issues
-npx expo install --fix       # Fix incompatible package versions
-```
-
-**Before declaring any task done, run lint and typecheck:**
-
-```bash
-npx expo lint && npx tsc --noEmit
-```
-
-## Project structure
+## Architecture in brief
 
 ```
-Park-Lane_Mobile_app/
-├── App.tsx                      # Root component: font loading, providers, status bar, nav mount
-├── app.json                     # Expo app config (name, icons, splash, plugins)
-├── vercel.json                  # Vercel deployment config for the web export
-├── index.ts                     # Expo entry point (registers App.tsx as root)
-├── assets/                      # App icons, splash images, Figma screen exports (design reference)
-│   └── Screens/                 # Figma exports used to verify pixel-accurate styling
-└── src/
-    ├── assets/images/           # In-app images (backgrounds, icons, illustrations, logos)
-    ├── components/
-    │   ├── common/               # Reusable primitives: AppButton, AppInput, AppText,
-    │   │                         #   BackButton, GradientText, AppBackground, GlassSurface
-    │   ├── layout/                # Structural components: ScreenWrapper, ScreenHeader,
-    │   │                          #   PageHeader, BottomBar, AppShell + SideNav (tablet and
-    │   │                          #   desktop navigation), ResponsiveColumns, ResponsiveGrid
-    │   └── ui/                    # Feature-specific pieces: AppMenu, Avatar, PromoCard,
-    │                              #   ServiceTile, UnitSummaryCard, WeatherPill, icons, etc.
-    ├── constants/                 # appConfig.ts, images.ts (static config & image maps)
-    ├── context/
-    │   ├── AppContext.tsx         # App-wide state (e.g. onboarding completion)
-    │   └── ThemeContext.tsx       # Resolves the active theme (see src/theme/)
-    ├── hooks/                     # useAppContext, useAppTheme, useScreenLayout, useSideNav, …
-    ├── navigation/
-    │   └── AppNavigator.tsx       # Native-stack navigator; registers all screens
-    ├── screens/
-    │   ├── FirstScreen/           # Onboarding / splash screen
-    │   ├── LoginScreen/           # Auth screen
-    │   ├── HomeScreen/            # Post-login dashboard
-    │   └── ProfileScreen/         # User profile
-    ├── theme/                     # Design tokens — the single source of truth for styling
-    │   ├── colors.ts              # Palette + semantic color roles
-    │   ├── typography.ts          # Font families, sizes, weights
-    │   ├── spacing.ts             # Spacing scale
-    │   ├── borderRadius.ts        # Corner radius scale
-    │   ├── shadows.ts             # Shadow/elevation presets
-    │   ├── glass.ts                # "Glass" frame spec (blur intensity, gradient, stroke)
-    │   ├── breakpoints.ts          # mobile / tablet / laptop / desktop device classes
-    │   ├── layout.ts               # Content widths, gutters, columns, side rail per class
-    │   ├── motion.ts               # Animation durations, offsets, pressed state
-    │   └── index.ts                # Barrel export + parklaneTheme object
-    ├── types/                     # navigation.types.ts, theme.types.ts
-    └── utils/                     # responsive.ts, webFormStyles.ts
+app (frontend/) ──HTTPS + WebSocket──► EMS backend (backend/) ──► Home Assistant per unit ──► brand clouds
+      │ ──────────HTTP (LAN / relay)──► CUBE Gateway (gateway/) ──► local devices
+      └─────────chat / voice──────────► Parklane Assistant ──(assistant token)──► EMS backend
 ```
 
-### Screen module convention
+In the app, screens compose shared components and call feature hooks. Hooks use feature services, which reach every system through one fetch core and one reconnecting socket (`frontend/src/lib`). Settings live in `frontend/src/config`.
 
-Each screen lives in its own folder under `src/screens/<Name>/` with four files:
+The backend layers its HTTP plumbing, route modules, domain modules and repositories, and runs as a single process. The API types the app and the backend share are in `shared/contracts`.
 
-```
-src/screens/<Name>/
-├── <Name>.tsx        # Component
-├── <Name>.styles.ts  # StyleSheet, measured against the Figma export in assets/Screens/
-├── <Name>.data.ts     # Static copy/data used by the screen
-└── index.ts           # Re-export
-```
-
-When adding a new screen:
-
-1. Create the folder following the convention above.
-2. Register it in [`src/navigation/AppNavigator.tsx`](src/navigation/AppNavigator.tsx) (add a
-   `<Stack.Screen>`).
-3. Add its route name and params to
-   [`src/types/navigation.types.ts`](src/types/navigation.types.ts) (`RootStackParamList`).
-4. Style values in `.styles.ts` should match the corresponding Figma export in
-   `assets/Screens/` — treat them as real measurements, not eyeballed numbers.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the diagrams and flows, and [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) for the API.
 
 ## Design system
 
-All color, typography, spacing, radius, shadow, and glass tokens live in
-[`src/theme/`](src/theme/). **No raw hex value or font size should appear outside that
-folder** — components consume tokens via `useAppTheme()`.
+- **Tokens** (`frontend/src/theme`): colours, typography, spacing, radius, shadows, glass, layout, breakpoints and motion. No raw colour or font size appears outside that folder; components read tokens with `useAppTheme()`.
+- **The Glass frame** (`frontend/src/components/common/GlassSurface.tsx`): a blur backdrop, a translucent 20% `#4F7BFF → #FF5CCB` gradient and a white hairline or glowing ring. New cards, fields and buttons are built on it.
+- **Screens** are measured against their Figma exports in `frontend/assets/Screens`. The inner screens share one rhythm, `layout.innerScreen`.
+- [docs/COMPONENTS.md](docs/COMPONENTS.md) lists every shared component and how to compose them.
 
-- **Palette & semantics** — `src/theme/colors.ts` defines the raw palette (electric
-  cyan, neon blue, violet, magenta, deep navy) plus semantic roles (`primary`,
-  `background`, `textPrimary`, etc.) and screen-specific derived tokens (card stroke
-  gradients, scrims, glow colors). Comments in that file trace each value back to its
-  source (palette sheet vs. Figma screenshot).
-- **The "Glass" frame** — [`src/components/common/GlassSurface.tsx`](src/components/common/GlassSurface.tsx)
-  implements the signature look: a `BlurView` backdrop, a translucent 20%
-  `#4F7BFF → #FF5CCB` gradient fill, and either a white hairline stroke or a
-  glowing gradient ring (drawn as an SVG overlay so the color doesn't bleed through
-  the translucent body). Build new cards, fields, and buttons on top of
-  `GlassSurface` rather than re-implementing blur/gradient/stroke by hand.
-- **Theming** — `ThemeContext` resolves the active theme by name; today only
-  `parklaneTheme` (dark) exists, but the indirection lets a second palette be added
-  without touching any component. Access it via `useAppTheme()`.
-- **Responsive layout** — four device classes (`src/theme/breakpoints.ts`):
-  mobile (< 768), tablet (768–1023), laptop (1024–1439) and desktop (1440+).
-  Phones keep the Figma-measured layouts exactly. From tablet up, `AppShell`
-  replaces each screen's bottom bar with a side rail (`SideNav`, built from the
-  same tab list in `src/navigation/navTabs.ts`), and pages reflow:
-  - `useScreenLayout()` gives a screen its frame width (window minus the rail),
-    gutter, column count and `contentStyle` to lay over its scroll content. Use it
-    instead of `useWindowDimensions()`; pass `columnFrameWidth` to scale helpers.
-  - `ResponsiveColumns` sets a page's sections side by side when there is room for
-    two phone-width columns, and stacks them in order otherwise.
-  - `ResponsiveGrid` fits as many tiles per row as the width allows, never fewer
-    than the phone design's count.
-  - A focused screen with app navigation calls `useSideNav()` (BottomBar does it
-    for you); screens without navigation (onboarding, login, a visitor's pass)
-    get no rail.
+### Responsive layout
 
-## Navigation
+Four device classes (`frontend/src/theme/breakpoints.ts`): mobile (< 768), tablet (768–1023), laptop (1024–1439) and desktop (1440+). Phones keep the Figma-measured layouts exactly. From tablet up, `AppShell` replaces each screen's bottom bar with a side rail (`SideNav`, built from the same tab list in `navigation/navTabs.ts`), and pages reflow:
 
-This project uses **React Navigation** with a native-stack navigator — **not Expo
-Router**. All routes are:
+- `useScreenLayout()` gives a screen its frame width (the window minus the rail), gutter, column count, and a `contentStyle` for its scroll content. Use it instead of `useWindowDimensions()`; pass `columnFrameWidth` to scale helpers.
+- `ResponsiveColumns` sets a page's sections side by side when there is room for two phone-width columns, and stacks them otherwise.
+- `ResponsiveGrid` fits as many tiles per row as the width allows, never fewer than the phone design's count.
+- A screen with app navigation calls `useSideNav()` (`BottomBar` does it for you). Screens without navigation (onboarding, login, a visitor's pass) get no rail.
 
-- Registered in [`src/navigation/AppNavigator.tsx`](src/navigation/AppNavigator.tsx)
-- Typed in [`src/types/navigation.types.ts`](src/types/navigation.types.ts)
+## Documentation
 
-Current routes (`RootStackParamList`) include `FirstScreen` (initial), `Login`, `Home`,
-`Profile`, and the smart-home screens: `EmsDevices` (My Devices), `DeviceDetail`,
-`ConnectAccount` (cloud-account fallback), and the Add Device flow: `AddDevice` (brand)
-→ `AddDeviceMethod` → `DeviceDiscovery` or `DeviceProvisioning` → `DeviceSetup`, plus
-`GatewaySetup` (connect and manage the CUBE Gateway). Headers are disabled app-wide
-(`headerShown: false`); each screen renders its own header via `ScreenHeader` where needed.
-
-Docs: https://reactnavigation.org/docs/native-stack-navigator
-
-## Visitor parking, gate access and EV charging demo
-
-The Parking section includes a working demo of visitor reservations, QR
-entry and exit, directions to the exact bay and EV charging bookings, with a
-security console and demo controls (simulated clock, gates, chargers and
-bays). Residents send the guest's pass on WhatsApp and follow the
-visit on a tracker; the guest's pass works in English or Arabic and can be
-saved as an image. On web, open `/parking`; demo controls are at `/parking/demo`. Rules
-live in [`src/services/parking/`](src/services/parking/) and data is stored on
-the device only. See [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) for the demo
-script, what is simulated and where real integrations connect.
-
-## Smart home
-
-**Adding a device starts in one place: Add Device** (My Devices → Add, or Smart
-Home's +). The resident picks the manufacturer, then finds a device already on
-the Wi-Fi, sets up a new one through its setup hotspot, or uses an advanced
-method. Devices are paired and controlled locally by the **CUBE Gateway**, a
-Linux service in one Docker image on the home network ([`gateway/`](gateway/)):
-
-```bash
-docker run -d --name cube-os-gateway --network host --restart unless-stopped \
-  -v cube-os-data:/data ghcr.io/hmahmoud2211/cube-os-gateway:latest
-docker logs cube-os-gateway    # setup code for the app
-```
-
-See [docs/CUBE_GATEWAY.md](docs/CUBE_GATEWAY.md) for installing it, connecting
-the app, brand compatibility, remote access (Tailscale or the CUBE relay),
-security, test results and limits. The API is in
-[gateway/API.md](gateway/API.md).
-
-Brands without a local protocol can still be linked through their cloud
-account. This is offered inside Add Device as "Link manufacturer account
-(cloud)", through the EMS backend in [`server/`](server/), which runs one Home
-Assistant (the [`IOT/`](IOT/) project) per apartment. Devices linked that way,
-and the Parklane Assistant's device control, work as before. See
-[docs/SMART_HOME.md](docs/SMART_HOME.md) for that backend.
-
-## Building & deployment
-
-### Native builds (EAS)
-
-Builds, signing, and store submission are handled by [EAS](https://docs.expo.dev/eas/index.md) —
-no local Xcode/Android Studio project is checked in (`ios/`/`android/` don't exist;
-they're generated via Continuous Native Generation from `app.json` when needed).
-
-```bash
-npx eas-cli@latest build --platform ios
-npx eas-cli@latest build --platform android
-npx eas-cli@latest submit --platform ios
-npx eas-cli@latest update   # ship an over-the-air JS update
-```
-
-> Never hand-edit `ios/` or `android/` if they get generated locally — configure
-> native behavior through `app.json` and config plugins instead.
-
-### Web build (Vercel)
-
-The web export is a static Metro/Expo web bundle, deployed to Vercel per
-[`vercel.json`](vercel.json):
-
-```bash
-npm run build   # expo export --platform web  → outputs to dist/
-npm run serve   # preview the export locally via `serve`
-```
-
-`vercel.json` rewrites all non-asset routes to `index.html` (SPA fallback) and sets
-long-lived immutable caching for `_expo/static/` and `assets/`, with no-cache on
-`index.html` so new deploys are always picked up.
-
-## Working with Expo APIs
-
-This project pins `expo` to `~57.0.24`. Expo's APIs change significantly between SDK
-versions, so **before writing code against any Expo/EAS/React Native API**:
-
-1. Confirm the major SDK version in [`package.json`](package.json) (currently 57).
-2. Check the versioned docs: https://docs.expo.dev/versions/v57.0.0/
-3. For anything else, check https://docs.expo.dev/llms.txt for the current API surface
-   and known LLM misconceptions before relying on memory.
-
-Prefer Expo's own modules (e.g. `expo-blur`, `expo-linear-gradient`, `expo-font`) over
-third-party equivalents, and always install packages with `npx expo install <package>`
-rather than `npm install` so versions stay SDK-compatible.
-
-## Contributing / workflow notes
-
-- Run `npx expo lint` and `npx tsc --noEmit` before considering any change complete.
-- Keep style values sourced from the Figma exports in `assets/Screens/` rather than
-  eyeballed — screens are measured against those references.
-- Don't introduce raw color/font-size literals outside `src/theme/`.
-- If `ios/`/`android/` directories appear locally (from Continuous Native
-  Generation), don't commit hand edits to them — they're regenerated from
-  `app.json` and config plugins.
+| Document | For |
+|---|---|
+| [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) | Every folder, where things go, adding a feature |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System, app and backend architecture, auth, realtime |
+| [docs/COMPONENTS.md](docs/COMPONENTS.md) | The component system and design conventions |
+| [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | The EMS backend's API and realtime events |
+| [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) | Setup, running, testing, building, troubleshooting |
+| [docs/REFACTOR_REPORT.md](docs/REFACTOR_REPORT.md) | The November 2026 restructuring: what changed and why |
+| [docs/SMART_HOME.md](docs/SMART_HOME.md) | The smart home through the EMS backend and Home Assistant |
+| [docs/CUBE_GATEWAY.md](docs/CUBE_GATEWAY.md), [gateway/API.md](gateway/API.md) | The CUBE Gateway |
+| [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) | The parking demo |
+| [docs/production.md](docs/production.md) | Running the backend in production |
+| [AGENTS.md](AGENTS.md) | Rules for coding agents working in this repository |

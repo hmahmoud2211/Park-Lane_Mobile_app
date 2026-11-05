@@ -1,0 +1,44 @@
+# The production backend. `./scripts/dev.sh server` builds and starts it (docs/production.md).
+#
+# Settings come from backend/.env, which compose also reads for the ${…} values below.
+
+name: parklane
+
+services:
+  backend:
+    build: .
+    # dev.sh tags each build with its git commit, so an earlier one starts again without a
+    # rebuild: PARKLANE_VERSION=<commit> docker compose up -d --no-build
+    image: parklane-backend:${PARKLANE_VERSION:-latest}
+    container_name: parklane-backend
+    restart: unless-stopped
+    # Node ignores Docker's stop signal as PID 1; a small init passes it on.
+    init: true
+    env_file: .env
+    # Only this server reaches it; nginx in front serves the public HTTPS address.
+    ports:
+      - "127.0.0.1:${PORT:-8787}:${PORT:-8787}"
+    # The Docker socket creates each unit's Home Assistant container. It is root on the
+    # host: never publish this container or the socket anywhere else.
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID in backend/.env (stat -c %g /var/run/docker.sock)}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mounted at the same path as on the host, so the unit folders this backend writes
+      # are the ones it hands to Docker for the units' containers.
+      - ${PARKLANE_DATA:?Set PARKLANE_DATA in backend/.env}:${PARKLANE_DATA}
+    networks:
+      - ha
+    healthcheck:
+      # Any HTTP answer (401 without a token) means the backend is serving.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:' + process.env.PORT + '/api/home').then(() => process.exit(0), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+networks:
+  ha:
+    # Shared with the units' containers, which the backend reaches as http://parklane-ha-<unit>:8123.
+    name: ${HA_NETWORK:-parklane-ha}
+    external: true

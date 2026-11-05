@@ -6,7 +6,7 @@
 #   ./scripts/dev.sh check     App typecheck and lint, backend typecheck and tests
 #   ./scripts/dev.sh attach --email you@example.com --token <long-lived token> [--url http://127.0.0.1:8123]
 #                              Puts your EMS account in a test unit and attaches Home Assistant (once)
-#   ./scripts/dev.sh server    Mode 3, on the Linux server: builds the backend image and starts it (server/compose.yaml)
+#   ./scripts/dev.sh server    Mode 3, on the Linux server: builds the backend image and starts it (backend/compose.yaml)
 #
 # Options for fake and local:
 #   --web       open the app in the web browser straight away
@@ -19,7 +19,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SERVER="$ROOT/server"
+APP="$ROOT/frontend"
+BACKEND="$ROOT/backend"
 LOGS="$ROOT/.dev-logs"
 BACKEND_PORT="${PORT:-8787}"
 # The Parklane Assistant (Al_Atal_Voice), when it runs on this PC.
@@ -91,7 +92,33 @@ require_node() {
   local major
   major="$(node -p 'process.versions.node.split(".")[0]')"
   [ "$major" -ge 22 ] || fail "Node.js $(node -v) is too old (need 22.18 or newer)."
-  [ -d "$ROOT/node_modules" ] || { info "Installing the app's packages (first run)…"; (cd "$ROOT" && npm install); }
+  [ -d "$APP/node_modules" ] || { info "Installing the app's packages (first run)…"; (cd "$APP" && npm install); }
+}
+
+# A checkout from before the app moved to frontend/ and server/ became backend/ (git pull)
+# keeps its untracked files where they were: settings in server/.env and .env.local, maybe a
+# server/data/ folder and the app's node_modules. Moving secrets is left to you; this says what
+# to run. With "strict", a missing backend/.env stops the script.
+check_leftovers() {
+  local strict="${1:-}"
+  if [ -f "$ROOT/server/.env" ] && [ ! -f "$BACKEND/.env" ]; then
+    printf '  \033[33m!\033[0m %s\n' "server/ is now backend/, but the settings are still in server/.env. Move them with:" >&2
+    printf '      mv "%s" "%s"\n' "$ROOT/server/.env" "$BACKEND/.env" >&2
+    [ "$strict" = strict ] && exit 1
+  fi
+  if [ -d "$ROOT/server/data" ]; then
+    if [ -d "$BACKEND/data" ]; then
+      info "server/data/ is left over from before the rename; the backend now reads backend/data/ (unless DATA_DIR says otherwise)."
+    else
+      info "server/data/ is left over from before the rename. Unless DATA_DIR points elsewhere, move it: mv \"$ROOT/server/data\" \"$BACKEND/data\""
+    fi
+  fi
+  if [ -f "$ROOT/.env.local" ] && [ ! -f "$APP/.env.local" ]; then
+    info "The app moved to frontend/, but its settings are still in .env.local at the top: mv \"$ROOT/.env.local\" \"$APP/.env.local\""
+  fi
+  if [ -d "$ROOT/node_modules" ]; then
+    info "node_modules/ at the top is left over from before the app moved to frontend/ and can be deleted: rm -rf \"$ROOT/node_modules\""
+  fi
 }
 
 start_app() {
@@ -101,7 +128,7 @@ start_app() {
   info "In the app: Settings → My Devices, sign in with your EMS account."
   [ "$web" = 1 ] && info "Opening the web browser…" || info "Press w for the web browser, or scan the QR code with your phone."
   echo
-  cd "$ROOT"
+  cd "$APP"
   # The variables win over .env.local, so a changed Wi-Fi address needs no file edit.
   local args=(expo start -c)
   [ "$web" = 1 ] && args+=(--web)
@@ -142,6 +169,7 @@ parse_run_options() {
 mode_fake() {
   parse_run_options "$@"
   require_node
+  check_leftovers
   mkdir -p "$LOGS"
   trap cleanup INT TERM EXIT
 
@@ -149,7 +177,7 @@ mode_fake() {
   if port_open "$BACKEND_PORT"; then
     fail "Port $BACKEND_PORT is busy: another backend is running. Stop it first (Ctrl+C in its window)."
   fi
-  (cd "$SERVER" && exec node scripts/fake-hub.ts) >"$LOGS/fake-hub.log" 2>&1 &
+  (cd "$BACKEND" && exec node scripts/fake-hub.ts) >"$LOGS/fake-hub.log" 2>&1 &
   STARTED_PIDS+=("$!")
   wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the fake hub" "$LOGS/fake-hub.log"
   ok "Fake hub ready on port $BACKEND_PORT (log: .dev-logs/fake-hub.log)"
@@ -162,12 +190,13 @@ mode_fake() {
 mode_local() {
   parse_run_options "$@"
   require_node
+  check_leftovers strict
   mkdir -p "$LOGS"
   trap cleanup INT TERM EXIT
 
   bold "Mode 2: real Home Assistant on this PC"
-  grep -qE '^ADMIN_API_KEY=.+' "$SERVER/.env" 2>/dev/null ||
-    fail "Set ADMIN_API_KEY in server/.env first (docs/SMART_HOME.md, step 2e)."
+  grep -qE '^ADMIN_API_KEY=.+' "$BACKEND/.env" 2>/dev/null ||
+    fail "Set ADMIN_API_KEY in backend/.env first (docs/SMART_HOME.md, step 2e)."
 
   # 1. Home Assistant
   if port_open "$HA_PORT"; then
@@ -194,7 +223,7 @@ mode_local() {
     ok "Backend already running on port $BACKEND_PORT"
   else
     info "Starting the backend…"
-    (cd "$SERVER" && exec node src/index.ts) >"$LOGS/backend.log" 2>&1 &
+    (cd "$BACKEND" && exec node src/index.ts) >"$LOGS/backend.log" 2>&1 &
     STARTED_PIDS+=("$!")
     wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the backend" "$LOGS/backend.log"
     ok "Backend ready on port $BACKEND_PORT (log: .dev-logs/backend.log)"
@@ -208,15 +237,18 @@ mode_local() {
 
 mode_check() {
   require_node
+  check_leftovers
   bold "App: typecheck"
-  (cd "$ROOT" && npx tsc --noEmit) && ok "types"
+  (cd "$APP" && npx tsc --noEmit) && ok "types"
   bold "App: lint"
-  (cd "$ROOT" && npx expo lint) && ok "lint"
+  (cd "$APP" && npx expo lint) && ok "lint"
   bold "Backend: typecheck"
-  (cd "$SERVER" && npm run --silent typecheck) && ok "types"
+  # TypeScript is the backend's only package, and only for this check: it runs on plain Node.
+  [ -d "$BACKEND/node_modules" ] || { info "Installing the backend's typecheck tools (first run)…"; (cd "$BACKEND" && npm ci); }
+  (cd "$BACKEND" && npm run --silent typecheck) && ok "types"
   bold "Backend: tests"
   mkdir -p "$LOGS"
-  if (cd "$SERVER" && npm test --silent) >"$LOGS/tests.log" 2>&1; then
+  if (cd "$BACKEND" && npm test --silent) >"$LOGS/tests.log" 2>&1; then
     grep -E '^ℹ (tests|pass|fail)' "$LOGS/tests.log" | sed 's/^/  /'
     ok "tests"
   else
@@ -229,10 +261,11 @@ mode_check() {
 # if it is not running (and stops it again); Home Assistant itself must already be running.
 mode_attach() {
   require_node
+  check_leftovers strict
   local has_url=0
   for arg in "$@"; do [ "$arg" = "--url" ] && has_url=1; done
-  grep -qE '^ADMIN_API_KEY=.+' "$SERVER/.env" 2>/dev/null ||
-    fail "Set ADMIN_API_KEY in server/.env first (docs/SMART_HOME.md, step 2e)."
+  grep -qE '^ADMIN_API_KEY=.+' "$BACKEND/.env" 2>/dev/null ||
+    fail "Set ADMIN_API_KEY in backend/.env first (docs/SMART_HOME.md, step 2e)."
   if [ "$has_url" = 0 ] && ! port_open "$HA_PORT"; then
     fail "Home Assistant is not running on port $HA_PORT. Start it first (ParklaneDev.exe option 1, or ./scripts/dev.sh local)."
   fi
@@ -241,12 +274,12 @@ mode_attach() {
     mkdir -p "$LOGS"
     trap cleanup INT TERM EXIT
     info "Starting the backend for a moment…"
-    (cd "$SERVER" && exec node src/index.ts) >"$LOGS/backend.log" 2>&1 &
+    (cd "$BACKEND" && exec node src/index.ts) >"$LOGS/backend.log" 2>&1 &
     STARTED_PIDS+=("$!")
     wait_for "http://127.0.0.1:$BACKEND_PORT/api/home" 60 "the backend" "$LOGS/backend.log"
   fi
 
-  cd "$SERVER"
+  cd "$BACKEND"
   if [ "$has_url" = 1 ]; then
     node scripts/attach-hub.ts "$@"
   else
@@ -254,17 +287,18 @@ mode_attach() {
   fi
 }
 
-# A value from server/.env, or nothing.
-env_value() { grep -E "^$1=" "$SERVER/.env" | tail -n 1 | cut -d= -f2-; }
+# A value from backend/.env, or nothing.
+env_value() { grep -E "^$1=" "$BACKEND/.env" | tail -n 1 | cut -d= -f2-; }
 
-# Mode 3 runs on the Linux server: see docs/production.md. Builds the backend image from server/
-# (tagged with the git commit) and starts it with server/compose.yaml, settings from server/.env.
+# Mode 3 runs on the Linux server: see docs/production.md. Builds the backend image from backend/
+# (tagged with the git commit) and starts it with backend/compose.yaml, settings from backend/.env.
 mode_server() {
   command -v docker >/dev/null 2>&1 || fail "Docker is not installed on this machine."
-  [ -f "$SERVER/.env" ] || fail "Create server/.env first (copy server/.env.example and fill it in)."
-  grep -qE '^ADMIN_API_KEY=.+' "$SERVER/.env" || fail "Set ADMIN_API_KEY in server/.env."
-  grep -qE '^PARKLANE_DATA=/' "$SERVER/.env" || fail "Set PARKLANE_DATA in server/.env: the folder for the database and the units."
-  grep -qE '^PUBLIC_URL=https://' "$SERVER/.env" || info "PUBLIC_URL is not an https:// address; brands that sign in on their own page will stay off."
+  check_leftovers strict
+  [ -f "$BACKEND/.env" ] || fail "Create backend/.env first (copy backend/.env.example and fill it in)."
+  grep -qE '^ADMIN_API_KEY=.+' "$BACKEND/.env" || fail "Set ADMIN_API_KEY in backend/.env."
+  grep -qE '^PARKLANE_DATA=/' "$BACKEND/.env" || fail "Set PARKLANE_DATA in backend/.env: the folder for the database and the units."
+  grep -qE '^PUBLIC_URL=https://' "$BACKEND/.env" || info "PUBLIC_URL is not an https:// address; brands that sign in on their own page will stay off."
 
   local network data port version
   network="$(env_value HA_NETWORK)"
@@ -273,7 +307,7 @@ mode_server() {
   port="$(env_value PORT)"
   port="${port:-8787}"
   version="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo latest)"
-  [ -z "$(git -C "$ROOT" status --porcelain -- server 2>/dev/null)" ] || version="$version-dirty"
+  [ -z "$(git -C "$ROOT" status --porcelain -- backend 2>/dev/null)" ] || version="$version-dirty"
 
   bold "Mode 3: production backend on Docker"
   docker network inspect "$network" >/dev/null 2>&1 || { docker network create "$network" >/dev/null && ok "Created network $network"; }
@@ -286,10 +320,10 @@ mode_server() {
     docker rm -f parklane-backend >/dev/null
   fi
   info "Building parklane-backend:$version…"
-  (cd "$SERVER" && PARKLANE_VERSION="$version" DOCKER_GID="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock)}" docker compose up -d --build)
+  (cd "$BACKEND" && PARKLANE_VERSION="$version" DOCKER_GID="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock)}" docker compose up -d --build)
   wait_for "http://127.0.0.1:$port/api/home" 60 "the backend"
   ok "Backend $version running on 127.0.0.1:$port (logs: docker logs -f parklane-backend)"
-  info "Back to an earlier build: cd server && PARKLANE_VERSION=<commit> docker compose up -d --no-build"
+  info "Back to an earlier build: cd backend && PARKLANE_VERSION=<commit> docker compose up -d --no-build"
 }
 
 # ---- Main --------------------------------------------------------------------------------

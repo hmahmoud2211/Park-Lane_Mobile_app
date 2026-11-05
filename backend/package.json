@@ -1,0 +1,21 @@
+{
+  "name": "parklane-device-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EMS accounts and realtime updates for the Parklane app, in front of the Home Assistant smart-home platform.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "fake-hub": "node scripts/fake-hub.ts",
+    "attach-hub": "node scripts/attach-hub.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "~26.6.2",
+    "typescript": "~6.0.3"
+  }
+}
