@@ -7,6 +7,7 @@ The resident app for the Park Lane compound: one codebase for iOS, Android and t
 - **Home, profile and my unit**: the resident's unit, payments and documents (receipts and passes as PDFs).
 - **Visitor access**: invite visitors and share a QR pass.
 - **Parking**: a working demo of visitor bookings, QR gate entry and exit, directions to the exact bay, EV charging, a security console and demo controls. It runs on the device; see [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md).
+- **Health Passport**: a family's medical records, documents read and checked item by item, and a spoken summary for the doctor, in English and Arabic. It runs on a mock until the backend's `/health` API is in place; see [docs/HEALTH_PASSPORT.md](docs/HEALTH_PASSPORT.md).
 - **Maintenance, community and amenities**: requests, announcements, polls, feedback and bookings (mock content until their backends exist).
 - **Smart home**: devices from brand clouds through the EMS backend, and local devices through the CUBE Gateway, with add-device wizards (soft-AP Wi-Fi setup for Shelly, SONOFF and LG ACs), live updates and full controls.
 - **Parklane Assistant**: chat and voice, able to read and control the resident's devices.
@@ -92,5 +93,6 @@ Four device classes (`frontend/src/theme/breakpoints.ts`): mobile (< 768), table
 | [docs/SMART_HOME.md](docs/SMART_HOME.md) | The smart home through the EMS backend and Home Assistant |
 | [docs/CUBE_GATEWAY.md](docs/CUBE_GATEWAY.md), [gateway/API.md](gateway/API.md) | The CUBE Gateway |
 | [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) | The parking demo |
+| [docs/HEALTH_PASSPORT.md](docs/HEALTH_PASSPORT.md) | Health Passport, its API and what is still open |
 | [docs/production.md](docs/production.md) | Running the backend in production |
 | [AGENTS.md](AGENTS.md) | Rules for coding agents working in this repository |

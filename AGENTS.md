@@ -54,6 +54,8 @@ See docs/PROJECT_STRUCTURE.md. In short:
   `SelectableCard` and `useScreenMenu` rather than re-implementing them.
 - Settings go in `src/config/`. A new `EXPO_PUBLIC_*` variable is read only in
   `src/config/env.ts`, written out in full (`process.env.EXPO_PUBLIC_X`) so Expo inlines it.
+  The one exception is `EXPO_PUBLIC_HEALTH_API` at the mock's `require()` calls: reading it
+  through `env.ts` there ships sample medical records (docs/HEALTH_PASSPORT.md).
 - API types the backend shares live in `../shared/contracts`, imported with `import type`
   only (CI checks it); `src/types/home.types.ts` and `ems.types.ts` build on them.
 - Backend: routes in `backend/src/routes`, SQL in `backend/src/repositories`; keep it one
