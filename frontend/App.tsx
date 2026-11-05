@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from './src/context/AppContext';
 import { EmsProvider } from './src/features/ems/context/EmsContext';
 import { GatewayProvider } from './src/features/gateway/context/GatewayContext';
+import { HealthProvider } from './src/features/health/context/HealthContext';
 import { ParkingDemoProvider } from './src/features/parking/context/ParkingDemoContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -40,9 +41,11 @@ export default function App() {
             <EmsProvider>
               <GatewayProvider>
                 <ParkingDemoProvider>
-                  {/* Every screen is dark, so light status bar content is the default. */}
-                  <StatusBar style="light" />
-                  {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
+                  <HealthProvider>
+                    {/* Every screen is dark, so light status bar content is the default. */}
+                    <StatusBar style="light" />
+                    {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
+                  </HealthProvider>
                 </ParkingDemoProvider>
               </GatewayProvider>
             </EmsProvider>

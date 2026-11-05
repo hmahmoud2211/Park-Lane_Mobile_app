@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import type { DocumentType, HealthLang, RecordSection } from './health.types';
 import type { IconSet } from './icons.types';
 import type { Lang } from './i18n.types';
 
@@ -64,12 +65,45 @@ export type RootStackParamList = {
   SecurityConsole: undefined;
   /** Demo only: clock, simulated events and data reset. */
   DemoControls: undefined;
+
+  /** Health Passport home; sends a resident who hasn't consented to onboarding first. */
+  HealthPassport: undefined;
+  HealthOnboarding: undefined;
+  /** A profile's basic details; without `profileId` it adds a family member. */
+  HealthProfile: { profileId?: string } | undefined;
+  HealthRecords: { profileId: string; tab?: RecordTab };
+  HealthDocument: { docId: string };
+  /** `retryOf` names a failed document this upload replaces. */
+  HealthUpload: { profileId: string; type?: DocumentType; retryOf?: string };
+  /** Checking what the server read from a document, item by item. */
+  HealthReview: { docId: string };
+  /**
+   * Adds an item by hand, or edits `itemId`. Without `section` the resident
+   * picks one first; `labTest` starts a new lab result for that test.
+   */
+  HealthItemForm: { profileId: string; section?: RecordSection; itemId?: string; labTest?: string };
+  /** With `lang` (and `specialty`), opens straight on that summary: its player, progress or failure. */
+  HealthSummary: { profileId: string; lang?: HealthLang; specialty?: string | null };
+  HealthSettings: undefined;
 };
 
-/** Routes that can be opened without params, e.g. from data-driven tiles and tabs. */
-export type ParamlessRoute = {
-  [K in keyof RootStackParamList]: undefined extends RootStackParamList[K] ? K : never;
-}[keyof RootStackParamList];
+/** The Records screen's tabs: each record section, then the documents. */
+export type RecordTab = RecordSection | 'documents';
+
+/** Paramless routes that only their own flow opens, by name; no tile or tab points at them. */
+type FlowOnlyRoute = 'HealthOnboarding' | 'HealthProfile' | 'HealthSettings';
+
+/**
+ * Routes that can be opened without params, e.g. from data-driven tiles and tabs.
+ *
+ * TypeScript compares a union argument with navigate()'s overloads only up to 25 members;
+ * past that every `navigate(tile.route)` fails to compile. New routes that no tile or tab
+ * opens belong in FlowOnlyRoute.
+ */
+export type ParamlessRoute = Exclude<
+  { [K in keyof RootStackParamList]: undefined extends RootStackParamList[K] ? K : never }[keyof RootStackParamList],
+  FlowOnlyRoute
+>;
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;

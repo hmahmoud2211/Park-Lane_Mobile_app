@@ -1,0 +1,1 @@
+export { HealthRecordsScreen } from './HealthRecordsScreen';
