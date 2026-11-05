@@ -145,7 +145,7 @@ Results from the final run of each check:
 
 **Visual capture:** headless Chrome with software rendering, a fixed clock and seeded randomness; a capture compared with itself shows 0 differences. Its harness is `frontend/scripts/visual-regression.mjs`.
 
-**The uncommitted Direct-mode work** was carried along but never committed. Its files are `frontend/src/features/direct`, `screens/DirectPairingScreen`, `backend/src/direct` and `backend/test/direct.test.ts`; the feature folder moved from `src/services/direct`, with its imports updated. It shows exactly the 12 app and 13 backend typecheck errors it had before.
+**The unfinished Direct-mode work** was carried through the refactor uncommitted, with only its import paths updated. It was later merged with the refactor, which failed the new CI, so it now lives on the `feature/direct-mode` branch until it is finished. Nothing in the app or backend imported it, so removing it from Master changes no behaviour.
 
 **Not run:**
 - An EAS build: it uses the account's build quota, so it is left to the reviewer (Actions → "App build (EAS)" on this branch).
@@ -155,7 +155,7 @@ Results from the final run of each check:
 
 ## Steps outside the repository
 
-1. **Vercel**: set the project's Root Directory to `frontend`, then redeploy. Until then, preview builds of this branch fail; the live site keeps serving.
+1. **Vercel**: set Root Directory to `frontend` on both projects, then redeploy `park-lane-mobile-app`. **Do this as part of merging, not after:** that project has no build command of its own, so with the old setting a Master build finds nothing to build, "succeeds" with an empty deployment, and replaces the live site with a 404. That happened when this branch was merged. `park-lane_mobile_app_2` deploys production from `feature/home-assistant-integration`, so it only fails its Master previews.
 2. **Production backend** (`/opt/parklane`, branch `feature/home-assistant-integration`): once that branch gets this change, `git pull && ./scripts/dev.sh server` stops and prints the command. Run `mv server/.env backend/.env && rmdir server`, then `./scripts/dev.sh server` again. Data in `/srv/parklane` is not affected; see [production.md](production.md).
 3. **Each development machine**:
    - `mv .env.local frontend/`.
@@ -187,6 +187,6 @@ Results from the final run of each check:
   - Unused `theme` parameters in three `createStyles(theme)` functions (the codebase's convention).
   - The gateway API client keeps wrappers the app does not call yet.
   - `docker/rethink/.env` stays tracked: it holds only a LAN IP, and untracking it would delete it on other clones.
-- **The Direct-mode work** still needs:
+- **The Direct-mode work** (branch `feature/direct-mode`) still needs:
   - its `/api/direct` routes (now a `routes/direct.ts` module added to `API_ROUTES`), a migration for `direct_devices`, `config.direct`, `membersOfUnit` and its error codes in `shared/contracts/errors.ts`;
   - in the app: its types in `shared/contracts`, `EmsContext` support and a registered route.
