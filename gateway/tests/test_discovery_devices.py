@@ -227,7 +227,8 @@ def test_brands_come_from_the_loaded_adapters(settings):
     with Harness(settings, real=True) as h:
         h.claim()
         brands = {b["id"]: b for b in h.get("/brands").json()["data"]}
-        assert list(brands) == ["lg", "samsung", "sonoff", "tuya", "tplink", "xiaomi", "shelly", "wiz", "lifx", "wled", "daikin", "midea", "other"]
+        assert list(brands)[:12] == ["lg", "samsung", "sonoff", "tuya", "tplink", "xiaomi", "shelly", "wiz", "lifx", "wled", "daikin", "midea"]
+        assert list(brands)[-1] == "other" and "switchbot" in brands
         lg = brands["lg"]
         methods = {m["id"]: m for m in lg["methods"]}
         assert methods["find:lg_thinq_rethink"]["available"] is False  # no CUBE_RETHINK_MQTT_URL

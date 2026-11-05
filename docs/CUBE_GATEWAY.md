@@ -54,7 +54,10 @@ and devices reach it because they connect out to the server:
 - **Shelly Gen2/Gen3/Gen4:** set up from the phone. The Shelly gets the home Wi-Fi, CUBE's own CA and its own
   login to CUBE's MQTT broker (`mqtt-cube.ems-iot.com:8885`, TLS), and from then on it connects there.
 - **LG ThinQ ACs:** through ReThink, as before. Each apartment only sees the appliances it set up.
-- **Everything else:** linked through the brand's cloud account in Add Device.
+- **Brands with a cloud (SONOFF, Tuya, SwitchBot and others):** linked through the brand's account on the
+  building's Home Assistant hub, from the brand's page in Add Device.
+- **Brands that only work on the home network (TP-Link, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea):**
+  listed in Add Device and marked as needing a box at home.
 
 Residents pair the app with their apartment's gateway through the relay, using a setup code or QR code the
 building gives them. The full operator guide is in

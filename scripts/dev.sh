@@ -248,11 +248,13 @@ mode_check() {
   (cd "$BACKEND" && npm run --silent typecheck) && ok "types"
   bold "Backend: tests"
   mkdir -p "$LOGS"
+  # Node prints the summary as "ℹ pass 73" on a terminal and "# pass 73" into a file, depending on its
+  # version. `|| true`: finding no line must not stop this script (set -e with pipefail).
   if (cd "$BACKEND" && npm test --silent) >"$LOGS/tests.log" 2>&1; then
-    grep -E '^ℹ (tests|pass|fail)' "$LOGS/tests.log" | sed 's/^/  /'
+    grep -E '^(ℹ|#) (tests|pass|fail)' "$LOGS/tests.log" | sed 's/^/  /' || true
     ok "tests"
   else
-    grep -E '^ℹ (tests|pass|fail)|✖' "$LOGS/tests.log" | sed 's/^/  /'
+    grep -E '^(ℹ|#) (tests|pass|fail)|^not ok|✖' "$LOGS/tests.log" | sed 's/^/  /' || true
     fail "Backend tests failed: see .dev-logs/tests.log"
   fi
 }

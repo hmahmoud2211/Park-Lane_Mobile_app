@@ -19,7 +19,7 @@ import * as homeApi from '../../features/home/services/homeApi';
 import type { ConnectionMethod, MethodGroup } from '../../types/gateway.types';
 import type { Integration } from '../../types/home.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { addDeviceMethodCopy as copy, cloudIntegrations, groupCopy } from './AddDeviceMethodScreen.data';
+import { addDeviceMethodCopy as copy, groupCopy } from './AddDeviceMethodScreen.data';
 import { BUTTON_HEIGHT, createStyles } from './AddDeviceMethodScreen.styles';
 import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 import { SelectableCard } from '../../components/ui/SelectableCard';
@@ -35,7 +35,9 @@ const CHEVRON_SIZE = 18;
  * gateway decides which methods exist and whether each works here (an LG
  * appliance needs ReThink, a Kasa setup needs the gateway's Wi-Fi radio);
  * unavailable ones stay visible with the reason. When the building's hub can
- * link the brand's cloud account, that is offered last, clearly labelled.
+ * link the brand's cloud account, that is offered after them, clearly labelled.
+ * For some brands it is the only way. Signed out, the same button opens
+ * ConnectAccount, which signs in to EMS there and carries straight on to the brand.
  */
 export function AddDeviceMethodScreen() {
   const theme = useAppTheme();
@@ -46,11 +48,14 @@ export function AddDeviceMethodScreen() {
   const ems = useEms();
   const { brands, error, reload } = useBrands();
   const brand = brands?.find((entry) => entry.id === params.brandId) ?? null;
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [integrations, setIntegrations] = useState<Integration[] | null>(null);
+  const [cloudFailed, setCloudFailed] = useState(false);
   const hasHub = readyHome(ems.status, ems.home) !== null;
+  const hubIds = useMemo(() => brand?.hub_integrations ?? [], [brand]);
+  const wantsIntegrations = hasHub && hubIds.length > 0;
 
   useEffect(() => {
-    if (!hasHub || !cloudIntegrations[params.brandId]) {
+    if (!wantsIntegrations) {
       return;
     }
     let cancelled = false;
@@ -58,14 +63,14 @@ export function AddDeviceMethodScreen() {
       (list) => {
         if (!cancelled) setIntegrations(list);
       },
-      () => undefined,
+      () => {
+        if (!cancelled) setCloudFailed(true);
+      },
     );
     return () => {
       cancelled = true;
     };
-  }, [hasHub, params.brandId]);
-
-  const cloud = integrations.filter((entry) => entry.available && cloudIntegrations[params.brandId]?.includes(entry.id));
+  }, [wantsIntegrations]);
 
   const open = (method: ConnectionMethod) => {
     if (!brand || !method.available) {
@@ -109,6 +114,52 @@ export function AddDeviceMethodScreen() {
     </SelectableCard>
   );
 
+  const renderCloudActions = () => {
+    if (ems.status === 'loading') {
+      return <LoadingState accessibilityLabel="Checking your EMS account" />;
+    }
+    if (ems.status !== 'signedIn') {
+      return (
+        <>
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.cloudSignInBody}
+          </AppText>
+          <AppButton
+            title={copy.cloudSignIn}
+            variant="gradient"
+            height={BUTTON_HEIGHT}
+            onPress={() => navigation.navigate('ConnectAccount', { integration: hubIds[0] })}
+          />
+        </>
+      );
+    }
+    if (!hasHub) {
+      return (
+        <AppText variant="tileCaption" color={theme.colors.textSupport}>
+          {copy.cloudNoHub}
+        </AppText>
+      );
+    }
+    if (cloudFailed) {
+      return <Notice tone="warning">{copy.cloudLoadFailed}</Notice>;
+    }
+    if (!integrations) {
+      return <LoadingState accessibilityLabel="Loading" />;
+    }
+    return integrations
+      .filter((entry) => hubIds.includes(entry.id))
+      .map((integration) => (
+        <AppButton
+          key={integration.id}
+          title={integration.available ? copy.cloudAction(integration.name) : copy.cloudNotEnabled(integration.name)}
+          variant="secondary"
+          height={BUTTON_HEIGHT}
+          disabled={!integration.available}
+          onPress={() => navigation.navigate('ConnectAccount', { integration: integration.id })}
+        />
+      ));
+  };
+
   const renderBody = () => {
     if (gateway.status !== 'online') {
       return <Notice tone="warning">{gateway.problem ?? copy.offline}</Notice>;
@@ -149,21 +200,13 @@ export function AddDeviceMethodScreen() {
           );
         })}
 
-        {cloud.length > 0 ? (
+        {hubIds.length > 0 ? (
           <NeonPanel style={styles.panel}>
             <PanelHeading title={copy.cloudTitle} iconSet="ionicons" iconName="cloud-outline" divider />
             <AppText variant="tileCaption" color={theme.colors.textSupport}>
               {copy.cloudBody}
             </AppText>
-            {cloud.map((integration) => (
-              <AppButton
-                key={integration.id}
-                title={copy.cloudAction(integration.name)}
-                variant="secondary"
-                height={BUTTON_HEIGHT}
-                onPress={() => navigation.navigate('ConnectAccount', { integration: integration.id })}
-              />
-            ))}
+            {renderCloudActions()}
           </NeonPanel>
         ) : null}
 

@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sqlite3
 from dataclasses import replace
+from pathlib import Path
 
 import httpx
 import pytest
@@ -19,7 +21,7 @@ from cube_gateway.adapters.base import AdapterContext, DeviceUnreachable, ScanCo
 from cube_gateway.adapters.lg_rethink import LgRethinkAdapter
 from cube_gateway.adapters.registry import AdapterRegistry
 from cube_gateway.adapters.shelly_cloud import ShellyCloudAdapter
-from cube_gateway.catalog import build_brands
+from cube_gateway.catalog import BRANDS, build_brands
 from cube_gateway.cloud.broker import DynsecAdmin, _acls
 from cube_gateway.models import Category
 from tests.conftest import Harness
@@ -197,15 +199,56 @@ def _hosted_harness(hosted) -> tuple[Harness, FakeLink]:
     return h, link
 
 
-def test_server_mode_catalog_offers_only_brands_that_reach_the_server(hosted):
+def test_server_mode_lists_every_brand_with_its_real_route(hosted):
     h, _ = _hosted_harness(hosted)
-    brands = {b.id: b for b in build_brands(h.registry, hosted)}
-    assert set(brands) == {"lg", "shelly"}
+    listed = build_brands(h.registry, hosted)
+    brands = {b.id: b for b in listed}
+    assert set(brands) == {b.id for b in BRANDS}
+
+    # Devices that reach the server themselves.
     shelly = {m.id: m for m in brands["shelly"].methods}
     assert "setup:shelly_cloud_softap" in shelly and "setup:shelly_softap" not in shelly and "find:shelly" not in shelly
     assert shelly["find:shelly_cloud"].available
     lg = {m.id for m in brands["lg"].methods}
     assert "find:lg_webos" not in lg and "setup:lg_thinq_softap" in lg
+
+    # Brands linked through their cloud: nothing local to offer, and no text about the home network.
+    sonoff = brands["sonoff"]
+    assert sonoff.hub_integrations == ["sonoff"] and sonoff.methods == [] and not sonoff.needs_home_gateway
+    assert sonoff.status == "supported" and "eWeLink" in sonoff.summary and "DIY" not in " ".join(sonoff.notes)
+    assert brands["tuya"].methods == [] and brands["switchbot"].hub_integrations == ["switchbot_cloud"]
+
+    # Brands that only work on the home network stay listed, last, and can't be started.
+    home_only = {"tplink", "xiaomi", "wiz", "lifx", "wled", "daikin", "midea", "other"}
+    assert {b.id for b in listed if b.needs_home_gateway} == home_only
+    assert all(b.needs_home_gateway for b in listed[-len(home_only) :])
+    for brand_id in home_only:
+        methods = brands[brand_id].methods
+        assert [m.id for m in methods] == ["setup:none"] and methods[0].available is False
+        assert "home" in (methods[0].unavailable_reason or "") and brands[brand_id].notes == []
+
+    # A device's address means nothing from the server.
+    assert not [m.id for b in listed for m in b.methods if m.id.startswith("manual:")]
+
+
+def test_home_gateways_keep_their_local_routes_and_can_link_cloud_brands(settings):
+    with Harness(settings, real=True) as h:
+        brands = {b.id: b for b in build_brands(h.gateway.registry, settings)}
+    sonoff = brands["sonoff"]
+    assert "find:sonoff_lan" in {m.id for m in sonoff.methods} and sonoff.hub_integrations == ["sonoff"]
+    assert not any(b.needs_home_gateway for b in brands.values())
+    assert brands["ring"].methods == [] and brands["ring"].status == "supported"
+    assert any(m.id.startswith("manual:") for m in brands["shelly"].methods)
+
+
+def test_hub_integrations_match_the_backend():
+    """Every brand the backend can link has a place in Add Device, and the catalog names only real integrations."""
+    source = Path(__file__).resolve().parents[2] / "backend" / "src" / "ha" / "integrations.ts"
+    if not source.exists():
+        pytest.skip("the backend is not next to the gateway here")
+    offered = set(re.findall(r"\{ id: '([a-z_]+)', name:", source.read_text(encoding="utf-8")))
+    assert len(offered) >= 19
+    assert offered == {integration for brand in BRANDS for integration in brand.hub}
 
 
 def test_cloud_shelly_setup_keeps_the_device_password_off_disk(hosted):

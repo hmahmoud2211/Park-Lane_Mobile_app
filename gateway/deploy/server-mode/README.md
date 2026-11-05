@@ -52,10 +52,12 @@ Each gateway listens on 127.0.0.1 only; nothing per apartment is exposed to the 
 | --- | --- | --- |
 | Shelly Gen2, Gen3, Gen4 | Add Device → Shelly → **Set up a new Shelly (connects to CUBE's server)**. The phone joins the Shelly's Wi-Fi and gives it the home Wi-Fi, CUBE's CA and its own broker login | None |
 | LG ThinQ ACs (ReThink models) | Add Device → LG → **Set up an LG ThinQ appliance for ReThink** | None |
-| Other brands | Add Device → brand → **Link manufacturer account (cloud)**, through the building's Home Assistant | The brand's account |
+| SONOFF, Tuya / Smart Life, SwitchBot, Ring, ecobee, tado°, Sensibo, Blink, EZVIZ, Ecovacs | Add Device → brand → **Link … account**, through the building's Home Assistant. The resident signs in to EMS first, and adds the device in the maker's app before linking | The brand's account |
+| Samsung SmartThings, Google Nest, Netatmo, August, Yale Home, Miele, Home Connect | The same, once the company has registered an app with the brand ([docs/SMART_HOME.md](../../../docs/SMART_HOME.md), step 3d). Until then they say "not available yet" | The brand's account |
+| TP-Link Kasa / Tapo, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea, other brands | Listed, marked **Needs a box at home**. They only work on the home network, which the server can't reach, so they need a [gateway in the home](../../../docs/CUBE_GATEWAY.md) | |
 
-Not offered: Shelly Gen1, WLED and Tasmota on ESP8266. They only speak unencrypted MQTT, which would send their
-passwords across the internet in clear text.
+Shelly Gen1, WLED and Tasmota on ESP8266 can't use the broker: they only speak unencrypted MQTT, which would send
+their passwords across the internet in clear text.
 
 ## Security
 

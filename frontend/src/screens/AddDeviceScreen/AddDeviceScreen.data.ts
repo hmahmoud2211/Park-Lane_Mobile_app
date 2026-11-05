@@ -3,8 +3,7 @@ export const addDeviceCopy = {
   title: 'Add Device',
   subtitle: 'Choose who made your device.',
   brandsTitle: 'Manufacturer',
-  brandsIntro:
-    'Your CUBE Gateway connects to devices over your home Wi-Fi, without the maker’s app or account wherever the device allows it.',
+  brandsIntro: 'CUBE connects to your devices without the maker’s app or account wherever it can. Other brands link through your account with the maker.',
   search: 'Search brands',
   noMatch: 'No brand matches. Choose Other / Unknown brand to see what the gateway finds.',
   loadFailed: 'The brands could not be loaded.',
