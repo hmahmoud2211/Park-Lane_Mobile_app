@@ -3,9 +3,35 @@ import { randomUUID } from 'node:crypto';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import type { User } from '../ems/auth.ts';
-import { db, transaction } from '../ems/db.ts';
+import { transaction } from '../ems/db.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { cleanItem, consentGiven, insertItem, profileById, readSections, touch } from '../health/passport.ts';
+import { completeAppointment } from '../repositories/clinicAppointments.ts';
+import {
+  deleteConsultationSegments,
+  deleteTranscriptSegment,
+  findConsultation,
+  findConsultationForAppointment,
+  findConsultationIdForAppointment,
+  insertAddendum,
+  insertConsultationIfMissing,
+  insertSegmentIfMissing,
+  listAddenda,
+  listConsultationsDueForPurge,
+  listDoctorHistory,
+  listTranscriptSegments,
+  markConsultationFinal,
+  purgeConsultationContent,
+  saveAiDraft,
+  setPassportSynced,
+  setRecordingConsent,
+  updateDraftIfVersion,
+  type ConsultationRow,
+  type DraftColumn,
+} from '../repositories/clinicConsultations.ts';
+import { deleteExpiredHistorySummaries, deleteExpiredSpokenSummaries } from '../repositories/clinicSummaries.ts';
+import { countHealthItemsFromSource } from '../repositories/healthItems.ts';
+import { findUserName } from '../repositories/users.ts';
 import { draftNote, type NoteDraft } from './ai/noteDraft.ts';
 import { audit } from './audit.ts';
 import {
@@ -39,29 +65,6 @@ import { addDays, ageAt, clinicDate } from './time.ts';
  * together or not at all, and finalizing again changes nothing.
  */
 
-interface ConsultationRow {
-  id: string;
-  appointment_id: string;
-  doctor_id: string;
-  patient_profile_id: string | null;
-  status: 'draft' | 'final';
-  version: number;
-  recording_consent_at: string | null;
-  notes: string | null;
-  draft: string | null;
-  transcript_edited: string | null;
-  ai_draft: string | null;
-  ai_generated_at: string | null;
-  ai_used: number;
-  final: string | null;
-  finalized_at: string | null;
-  finalized_by: string | null;
-  passport_synced_at: string | null;
-  content_purged_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Segment {
   id: string;
   seq: number;
@@ -94,34 +97,19 @@ export interface ConsultationView {
 
 const now = () => new Date().toISOString();
 
-function row(id: string): ConsultationRow | null {
-  return (db().prepare('SELECT * FROM clinic_consultations WHERE id = ?').get(id) as ConsultationRow | undefined) ?? null;
-}
-
 const open = <T>(value: string | null, fallback: T): T => (value ? (JSON.parse(unseal(value)) as T) : fallback);
 
 function segmentsOf(consultationId: string): Segment[] {
-  const rows = db()
-    .prepare('SELECT id, seq, duration_ms, language, content, created_at FROM clinic_transcript_segments WHERE consultation_id = ? ORDER BY seq')
-    .all(consultationId) as { id: string; seq: number; duration_ms: number | null; language: string | null; content: string; created_at: string }[];
-  return rows.map(({ content, ...rest }) => ({ ...rest, ...(JSON.parse(unseal(content)) as { text: string; utterances: Utterance[] }) }));
+  return listTranscriptSegments(consultationId).map(({ content, ...rest }) => ({ ...rest, ...(JSON.parse(unseal(content)) as { text: string; utterances: Utterance[] }) }));
 }
 
 function addenda(consultationId: string): ConsultationView['addenda'] {
-  const rows = db()
-    .prepare(
-      `SELECT a.id, a.text, a.created_at, u.name AS author FROM clinic_addenda a JOIN users u ON u.id = a.author_id
-       WHERE a.consultation_id = ? ORDER BY a.created_at`,
-    )
-    .all(consultationId) as { id: string; text: string; created_at: string; author: string }[];
-  return rows.map((entry) => ({ ...entry, text: unseal(entry.text) }));
+  return listAddenda(consultationId).map((entry) => ({ ...entry, text: unseal(entry.text) }));
 }
 
 function view(consultation: ConsultationRow): ConsultationView {
   const appointment = appointmentRow(consultation.appointment_id) as AppointmentRow;
-  const finalizer = consultation.finalized_by
-    ? (db().prepare('SELECT name FROM users WHERE id = ?').get(consultation.finalized_by) as { name: string } | undefined)
-    : undefined;
+  const finalizer = consultation.finalized_by ? findUserName(consultation.finalized_by) : null;
   return {
     id: consultation.id,
     status: consultation.status,
@@ -137,7 +125,7 @@ function view(consultation: ConsultationRow): ConsultationView {
     ai_draft: open<NoteDraft | null>(consultation.ai_draft, null),
     final: open<ClinicalNote | null>(consultation.final, null),
     finalized_at: consultation.finalized_at,
-    finalized_by: finalizer?.name ?? null,
+    finalized_by: finalizer,
     ai_assisted: consultation.ai_used === 1,
     passport_synced: consultation.passport_synced_at !== null,
     content_purged: consultation.content_purged_at !== null,
@@ -147,7 +135,7 @@ function view(consultation: ConsultationRow): ConsultationView {
 
 /** The doctor's own consultation, or 404. */
 function ownConsultation(doctor: DoctorRow, id: string): ConsultationRow {
-  const found = row(id);
+  const found = findConsultation(id);
   if (!found || found.doctor_id !== doctor.id) throw new ApiError('not_found', 'Consultation not found.');
   return found;
 }
@@ -168,24 +156,16 @@ const actorOf = (user: User, doctor: DoctorRow): Actor => ({ user, doctorId: doc
 export function openConsultation(user: User, doctor: DoctorRow, appointmentId: string): ConsultationView {
   const actor = actorOf(user, doctor);
   const appointment = appointmentFor(actor, appointmentId);
-  const existing = db().prepare('SELECT id FROM clinic_consultations WHERE appointment_id = ?').get(appointmentId) as { id: string } | undefined;
+  const existing = findConsultationIdForAppointment(appointmentId);
   if (appointment.status === 'checked_in' || appointment.status === 'waiting') {
     transition(actor, appointmentId, 'start');
   } else if (appointment.status !== 'in_consultation' && !(existing && appointment.status === 'completed')) {
     throw new ApiError('invalid_transition', 'Check the patient in before starting the consultation.');
   }
   if (!existing) {
-    const at = now();
-    const id = randomUUID();
-    // INSERT OR IGNORE: two clicks on "Start" make one consultation.
-    db()
-      .prepare(
-        `INSERT OR IGNORE INTO clinic_consultations (id, appointment_id, doctor_id, patient_profile_id, status, version, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'draft', 1, ?, ?)`,
-      )
-      .run(id, appointmentId, doctor.id, appointment.patient_profile_id, at, at);
+    insertConsultationIfMissing({ id: randomUUID(), appointmentId, doctorId: doctor.id, patientProfileId: appointment.patient_profile_id, at: now() });
   }
-  const consultation = db().prepare('SELECT * FROM clinic_consultations WHERE appointment_id = ?').get(appointmentId) as unknown as ConsultationRow;
+  const consultation = findConsultationForAppointment(appointmentId) as ConsultationRow;
   audit({ actor: user, action: 'consultation.opened', appointmentId, consultationId: consultation.id, patientProfileId: appointment.patient_profile_id });
   return view(consultation);
 }
@@ -201,7 +181,7 @@ export function saveDraft(user: User, doctor: DoctorRow, id: string, body: Recor
   const consultation = ownConsultation(doctor, id);
   editable(consultation);
   if (typeof body.version !== 'number') throw new ApiError('invalid', 'version is required.', 'version');
-  const sets: Record<string, string | number | null> = {};
+  const sets: Partial<Record<DraftColumn, string | number | null>> = {};
   if (body.notes !== undefined) {
     if (typeof body.notes !== 'string') throw new ApiError('invalid', 'notes must be text.', 'notes');
     sets.notes = body.notes ? seal(body.notes.slice(0, 50_000)) : null;
@@ -214,18 +194,11 @@ export function saveDraft(user: User, doctor: DoctorRow, id: string, body: Recor
     sets.transcript_edited = body.transcript_edited ? seal(body.transcript_edited.slice(0, 200_000)) : null;
   }
   if (body.ai_applied === true) sets.ai_used = 1;
-  const columns = Object.keys(sets);
-  const result = db()
-    .prepare(
-      `UPDATE clinic_consultations SET ${[...columns.map((column) => `${column} = ?`), 'version = version + 1', 'updated_at = ?'].join(', ')}
-       WHERE id = ? AND version = ? AND status = 'draft'`,
-    )
-    .run(...columns.map((column) => sets[column]), now(), id, body.version);
-  if (Number(result.changes) !== 1) {
+  if (!updateDraftIfVersion(id, body.version, sets, now())) {
     throw new ApiError('version_conflict', 'This draft was changed elsewhere. Reload it before saving again.');
   }
   audit({ actor: user, action: 'consultation.draft_saved', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
-  return view(row(id) as ConsultationRow);
+  return view(findConsultation(id) as ConsultationRow);
 }
 
 /**
@@ -241,10 +214,10 @@ export function recordRecordingConsent(user: User, doctor: DoctorRow, id: string
     throw new ApiError('consent_required', 'Record the patient’s consent to AI assistance for this visit first.');
   }
   if (!consultation.recording_consent_at) {
-    db().prepare('UPDATE clinic_consultations SET recording_consent_at = ?, updated_at = ? WHERE id = ?').run(now(), now(), id);
+    setRecordingConsent(id, now());
     audit({ actor: user, action: 'consultation.recording_consent', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
   }
-  return view(row(id) as ConsultationRow);
+  return view(findConsultation(id) as ConsultationRow);
 }
 
 function requireAiConsent(appointment: AppointmentRow) {
@@ -290,12 +263,7 @@ export async function addSegment(
   const result = await transcribe(audio, meta.mimeType, { lang: meta.lang, keyterms: keyterms(appointment) });
   const segmentId = randomUUID();
   const content = seal(JSON.stringify({ text: result.text, utterances: result.utterances }));
-  db()
-    .prepare(
-      `INSERT OR IGNORE INTO clinic_transcript_segments (id, consultation_id, seq, duration_ms, language, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(segmentId, id, meta.seq, meta.durationMs, result.language, content, now());
+  insertSegmentIfMissing({ id: segmentId, consultationId: id, seq: meta.seq, durationMs: meta.durationMs, language: result.language, content, createdAt: now() });
   audit({
     actor: user,
     action: 'consultation.segment_transcribed',
@@ -311,10 +279,9 @@ export async function addSegment(
 export function removeSegment(user: User, doctor: DoctorRow, id: string, segmentId: string): ConsultationView {
   const consultation = ownConsultation(doctor, id);
   editable(consultation);
-  const result = db().prepare('DELETE FROM clinic_transcript_segments WHERE id = ? AND consultation_id = ?').run(segmentId, id);
-  if (Number(result.changes) !== 1) throw new ApiError('not_found', 'Segment not found.');
+  if (!deleteTranscriptSegment(segmentId, id)) throw new ApiError('not_found', 'Segment not found.');
   audit({ actor: user, action: 'consultation.segment_removed', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
-  return view(row(id) as ConsultationRow);
+  return view(findConsultation(id) as ConsultationRow);
 }
 
 const SPEAKER = /^speaker_(\d+)$/;
@@ -358,9 +325,7 @@ export async function draftWithAi(user: User, doctor: DoctorRow, id: string, lan
   );
   const at = now();
   // The draft the doctor is editing is untouched; a version bump tells other tabs something changed.
-  db()
-    .prepare('UPDATE clinic_consultations SET ai_draft = ?, ai_generated_at = ?, version = version + 1, updated_at = ? WHERE id = ? AND status = ?')
-    .run(seal(JSON.stringify(draft)), at, at, id, 'draft');
+  saveAiDraft(id, seal(JSON.stringify(draft)), at);
   audit({
     actor: user,
     action: 'consultation.drafted_by_ai',
@@ -369,7 +334,7 @@ export async function draftWithAi(user: User, doctor: DoctorRow, id: string, lan
     patientProfileId: consultation.patient_profile_id,
     detail: { lang, flags: draft.flags.length },
   });
-  return view(row(id) as ConsultationRow);
+  return view(findConsultation(id) as ConsultationRow);
 }
 
 /** What finalizing writes into the Health Passport: a visit, and each prescribed medicine not already current there. */
@@ -377,8 +342,7 @@ function syncPassport(consultation: ConsultationRow, appointment: AppointmentRow
   const profile = consultation.patient_profile_id ? profileById(consultation.patient_profile_id) : null;
   if (!profile || !consentGiven(profile.owner_id)) return false;
   const source = `consultation:${consultation.id}`;
-  const already = db().prepare('SELECT COUNT(*) AS count FROM health_items WHERE source = ?').get(source) as { count: number };
-  if (already.count > 0) return true;
+  if (countHealthItemsFromSource(source) > 0) return true;
   const date = clinicDate(Date.parse(appointment.starts_at));
   const diagnosis = note.diagnoses.map((entry) => entry.name).join(', ');
   insertItem(
@@ -441,19 +405,10 @@ export function finalize(user: User, doctor: DoctorRow, id: string, body: Record
       throw new ApiError('invalid_transition', 'Resume the consultation before finalizing it.');
     }
     const at = now();
-    const sealed = seal(JSON.stringify(note));
-    db()
-      .prepare(
-        `UPDATE clinic_consultations SET status = 'final', final = ?, draft = ?, finalized_at = ?, finalized_by = ?,
-           ai_used = CASE WHEN ? = 1 THEN 1 ELSE ai_used END, version = version + 1, updated_at = ?
-         WHERE id = ? AND status = 'draft'`,
-      )
-      .run(sealed, sealed, at, user.id, body.ai_applied === true ? 1 : 0, at, id);
-    db()
-      .prepare("UPDATE clinic_appointments SET status = 'completed', completed_at = ?, updated_at = ? WHERE id = ? AND status = 'in_consultation'")
-      .run(at, at, appointment.id);
+    markConsultationFinal({ id, note: seal(JSON.stringify(note)), finalizedBy: user.id, aiApplied: body.ai_applied === true ? 1 : 0, at });
+    completeAppointment(appointment.id, at);
     const synced = syncPassport(consultation, appointment, doctor, note);
-    if (synced) db().prepare('UPDATE clinic_consultations SET passport_synced_at = ? WHERE id = ?').run(at, id);
+    if (synced) setPassportSynced(id, at);
     audit({
       actor: user,
       action: 'consultation.finalized',
@@ -462,7 +417,7 @@ export function finalize(user: User, doctor: DoctorRow, id: string, body: Record
       patientProfileId: consultation.patient_profile_id,
       detail: { passport_synced: synced, medications: note.medications.length, diagnoses: note.diagnoses.length },
     });
-    return row(id) as ConsultationRow;
+    return findConsultation(id) as ConsultationRow;
   });
   if (!already) {
     const appointment = appointmentRow(finished.appointment_id) as AppointmentRow;
@@ -481,29 +436,14 @@ export function addAddendum(user: User, doctor: DoctorRow, id: string, body: Rec
   if (consultation.status !== 'final') throw new ApiError('invalid_transition', 'Edit the draft instead: it is not finalized yet.');
   const text = typeof body.text === 'string' ? body.text.trim().slice(0, 4_000) : '';
   if (!text) throw new ApiError('invalid', 'Write the addendum first.', 'text');
-  db()
-    .prepare('INSERT INTO clinic_addenda (id, consultation_id, author_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(randomUUID(), id, user.id, seal(text), now());
+  insertAddendum({ id: randomUUID(), consultationId: id, authorId: user.id, text: seal(text), createdAt: now() });
   audit({ actor: user, action: 'consultation.addendum', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
-  return view(row(id) as ConsultationRow);
+  return view(findConsultation(id) as ConsultationRow);
 }
 
 /** The doctor's finalized consultations, newest first, searched by patient name. */
 export function doctorHistory(doctor: DoctorRow, filters: { q?: string | null; limit?: number }) {
-  const rows = db()
-    .prepare(
-      `SELECT c.id, c.appointment_id, c.doctor_id, c.final, c.finalized_at, c.ai_used, a.starts_at, a.patient_name,
-              a.patient_profile_id, d.display_name, d.display_name_ar, s.name_en AS specialty_en, s.name_ar AS specialty_ar
-       FROM clinic_consultations c
-       JOIN clinic_appointments a ON a.id = c.appointment_id
-       JOIN clinic_doctors d ON d.id = c.doctor_id
-       JOIN clinic_specialties s ON s.id = d.specialty_id
-       WHERE c.doctor_id = ? AND c.status = 'final' ORDER BY c.finalized_at DESC LIMIT ?`,
-    )
-    .all(doctor.id, Math.min(filters.limit ?? 200, 500)) as unknown as (Parameters<typeof entryOf>[0] & {
-    patient_name: string;
-    patient_profile_id: string | null;
-  })[];
+  const rows = listDoctorHistory(doctor.id, Math.min(filters.limit ?? 200, 500));
   const query = (filters.q ?? '').trim().toLowerCase();
   return rows
     .filter((entry) => !query || entry.patient_name.toLowerCase().includes(query))
@@ -516,19 +456,15 @@ export function doctorHistory(doctor: DoctorRow, filters: { q?: string | null; l
  */
 export function purgeExpiredContent(nowMs = Date.now()): number {
   const cutoff = new Date(nowMs - config.clinic.transcriptRetentionDays * 24 * 3600_000).toISOString();
-  const due = db()
-    .prepare("SELECT id, appointment_id, patient_profile_id FROM clinic_consultations WHERE status = 'final' AND finalized_at < ? AND content_purged_at IS NULL")
-    .all(cutoff) as { id: string; appointment_id: string; patient_profile_id: string | null }[];
+  const due = listConsultationsDueForPurge(cutoff);
   for (const entry of due) {
     transaction(() => {
-      db().prepare('DELETE FROM clinic_transcript_segments WHERE consultation_id = ?').run(entry.id);
-      db()
-        .prepare('UPDATE clinic_consultations SET transcript_edited = NULL, ai_draft = NULL, content_purged_at = ? WHERE id = ?')
-        .run(new Date(nowMs).toISOString(), entry.id);
+      deleteConsultationSegments(entry.id);
+      purgeConsultationContent(entry.id, new Date(nowMs).toISOString());
       audit({ actor: null, action: 'consultation.purged', appointmentId: entry.appointment_id, consultationId: entry.id, patientProfileId: entry.patient_profile_id });
     });
   }
-  db().prepare('DELETE FROM clinic_history_summaries WHERE expires_at < ?').run(nowMs);
-  db().prepare('DELETE FROM clinic_spoken_summaries WHERE expires_at < ?').run(nowMs);
+  deleteExpiredHistorySummaries(nowMs);
+  deleteExpiredSpokenSummaries(nowMs);
   return due.length;
 }

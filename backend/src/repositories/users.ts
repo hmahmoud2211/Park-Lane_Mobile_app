@@ -24,6 +24,10 @@ export function findUserByEmail(email: string): User | null {
   return (db().prepare('SELECT id, email, name, role FROM users WHERE email = ?').get(email) as User | undefined) ?? null;
 }
 
+export function findUserName(id: string): string | null {
+  return (db().prepare('SELECT name FROM users WHERE id = ?').get(id) as { name: string } | undefined)?.name ?? null;
+}
+
 export function updatePasswordHash(userId: string, passwordHash: string): void {
   db().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, userId);
 }
@@ -31,4 +35,9 @@ export function updatePasswordHash(userId: string, passwordHash: string): void {
 /** The clinic's front desk, who are told about every doctor's day. */
 export function deskUserIds(): string[] {
   return (db().prepare("SELECT id FROM users WHERE role = 'clinic_staff'").all() as { id: string }[]).map((row) => row.id);
+}
+
+/** The same accounts by name and email, for the clinic CLI. */
+export function listDeskAccounts(): { name: string; email: string }[] {
+  return db().prepare("SELECT name, email FROM users WHERE role = 'clinic_staff' ORDER BY name").all() as { name: string; email: string }[];
 }

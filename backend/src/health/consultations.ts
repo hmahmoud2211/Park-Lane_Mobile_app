@@ -1,6 +1,6 @@
 import { entryOf, finalConsultations, type ConsultationEntry } from '../clinic/history.ts';
 import { ApiError } from '../errors.ts';
-import { db } from '../ems/db.ts';
+import { findPatientConsultation } from '../repositories/clinicConsultations.ts';
 import { profileById } from './passport.ts';
 
 /**
@@ -39,27 +39,7 @@ export interface PatientConsultation extends ConsultationEntry {
 
 /** One finalized visit, for the resident who booked it or who owns the patient's profile; 404 for anyone else. */
 export function patientConsultation(userId: string, consultationId: string): PatientConsultation {
-  const row = db()
-    .prepare(
-      `SELECT c.id, c.appointment_id, c.doctor_id, c.final, c.finalized_at, c.ai_used, c.patient_profile_id,
-              a.starts_at, a.booked_by, a.patient_name, d.display_name, d.display_name_ar, d.title,
-              s.name_en AS specialty_en, s.name_ar AS specialty_ar, u.name AS approved_by
-       FROM clinic_consultations c
-       JOIN clinic_appointments a ON a.id = c.appointment_id
-       JOIN clinic_doctors d ON d.id = c.doctor_id
-       JOIN clinic_specialties s ON s.id = d.specialty_id
-       LEFT JOIN users u ON u.id = c.finalized_by
-       WHERE c.id = ? AND c.status = 'final'`,
-    )
-    .get(consultationId) as
-    | (Parameters<typeof entryOf>[0] & {
-        patient_profile_id: string | null;
-        booked_by: string;
-        patient_name: string;
-        title: string | null;
-        approved_by: string | null;
-      })
-    | undefined;
+  const row = findPatientConsultation(consultationId);
   const ownsProfile = row?.patient_profile_id ? profileById(row.patient_profile_id)?.owner_id === userId : false;
   if (!row || !(row.booked_by === userId || ownsProfile)) {
     throw new ApiError('not_found', 'Consultation not found.');

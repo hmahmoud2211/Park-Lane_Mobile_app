@@ -1,10 +1,10 @@
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import type { User } from '../ems/auth.ts';
-import { db } from '../ems/db.ts';
 import { seal, sha256, unseal } from '../ems/secrets.ts';
 import { gapsFor, profileById, type HealthLang, type RecordSections } from '../health/passport.ts';
 import { buildFacts, writeSpokenSummary } from '../health/spoken.ts';
+import { findHistorySummary, findSpokenScript, findSpokenSummary, upsertHistorySummary, upsertSpokenSummary } from '../repositories/clinicSummaries.ts';
 import { buildInput, summarizeHistory, type HistorySummary } from './ai/historySummary.ts';
 import { appointmentFor, reasonOf, type AppointmentRow } from './appointments.ts';
 import { audit } from './audit.ts';
@@ -29,9 +29,7 @@ function requireSummaryConsent(appointment: AppointmentRow): void {
 }
 
 function stored(appointmentId: string, lang: HealthLang): { summary: HistorySummary; hash: string } | null {
-  const row = db()
-    .prepare('SELECT content, source_hash FROM clinic_history_summaries WHERE appointment_id = ? AND lang = ? AND expires_at > ?')
-    .get(appointmentId, lang, Date.now()) as { content: string; source_hash: string } | undefined;
+  const row = findHistorySummary(appointmentId, lang, Date.now());
   return row ? { summary: JSON.parse(unseal(row.content)) as HistorySummary, hash: row.source_hash } : null;
 }
 
@@ -66,14 +64,14 @@ export async function generateSummary(
   }
   const { summary, hash } = await summarizeHistory(history, visit, lang);
   const expiresAt = Date.parse(appointment.ends_at) + config.clinic.historySummaryTtlMs;
-  db()
-    .prepare(
-      `INSERT INTO clinic_history_summaries (appointment_id, lang, content, source_hash, generated_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(appointment_id, lang) DO UPDATE SET content = excluded.content, source_hash = excluded.source_hash,
-         generated_at = excluded.generated_at, expires_at = excluded.expires_at`,
-    )
-    .run(appointmentId, lang, seal(JSON.stringify(summary)), hash, summary.generated_at, Math.max(expiresAt, Date.now() + 3600_000));
+  upsertHistorySummary({
+    appointmentId,
+    lang,
+    content: seal(JSON.stringify(summary)),
+    sourceHash: hash,
+    generatedAt: summary.generated_at,
+    expiresAt: Math.max(expiresAt, Date.now() + 3600_000),
+  });
   audit({
     actor: user,
     action: 'history.summarized',
@@ -119,18 +117,17 @@ export async function prepareSpokenSummary(user: User, doctor: DoctorRow, appoin
   );
   const specialty = doctor.specialty_en.toLowerCase();
   const hash = sha256(JSON.stringify({ facts, specialty }));
-  const stored = db()
-    .prepare('SELECT script, source_hash FROM clinic_spoken_summaries WHERE appointment_id = ? AND lang = ? AND expires_at > ?')
-    .get(appointmentId, lang, Date.now()) as { script: string; source_hash: string } | undefined;
+  const stored = findSpokenSummary(appointmentId, lang, Date.now());
   let script = stored?.source_hash === hash ? unseal(stored.script) : null;
   if (!script) {
     script = await writeSpokenSummary(facts, lang, specialty, 'clinic_spoken_summary');
-    db()
-      .prepare(
-        `INSERT INTO clinic_spoken_summaries (appointment_id, lang, script, source_hash, expires_at) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(appointment_id, lang) DO UPDATE SET script = excluded.script, source_hash = excluded.source_hash, expires_at = excluded.expires_at`,
-      )
-      .run(appointmentId, lang, seal(script), hash, Math.max(Date.parse(appointment.ends_at) + config.clinic.historySummaryTtlMs, Date.now() + 3600_000));
+    upsertSpokenSummary({
+      appointmentId,
+      lang,
+      script: seal(script),
+      sourceHash: hash,
+      expiresAt: Math.max(Date.parse(appointment.ends_at) + config.clinic.historySummaryTtlMs, Date.now() + 3600_000),
+    });
   }
   audit({ actor: user, action: 'history.spoken', appointmentId, patientProfileId: appointment.patient_profile_id, detail: { lang } });
   return { version: spokenVersion(script), parts: speechParts(script).map((part) => part.length) };
@@ -149,9 +146,7 @@ export async function speakSummaryPart(
 ): Promise<Buffer> {
   const appointment = appointmentFor({ user, doctorId: doctor.id }, appointmentId);
   requireSummaryConsent(appointment);
-  const stored = db()
-    .prepare('SELECT script FROM clinic_spoken_summaries WHERE appointment_id = ? AND lang = ? AND expires_at > ?')
-    .get(appointmentId, lang, Date.now()) as { script: string } | undefined;
+  const stored = findSpokenScript(appointmentId, lang, Date.now());
   if (!stored) throw new ApiError('not_found', 'The spoken summary has expired. Listen again.');
   const script = unseal(stored.script);
   if (spokenVersion(script) !== version) throw new ApiError('version_conflict', 'The summary was rewritten since this started. Listen again.');

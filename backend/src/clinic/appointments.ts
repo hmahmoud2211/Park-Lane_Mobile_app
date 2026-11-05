@@ -3,10 +3,33 @@ import { randomUUID } from 'node:crypto';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import type { Role, User } from '../ems/auth.ts';
-import { db, transaction } from '../ems/db.ts';
+import { transaction } from '../ems/db.ts';
 import { normalize } from '../lib/text.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { consentGiven, ownedProfile } from '../health/passport.ts';
+import {
+  claimNextNotification,
+  countOverlappingAppointments,
+  countUpcomingBookings,
+  findAppointment,
+  findOtherConsultationInProgress,
+  insertAppointment,
+  listDayAppointments,
+  listDoctorAppointments,
+  listDoctorPatients,
+  listQueueAppointments,
+  listResidentAppointments,
+  listUpcomingAppointments,
+  markAppointmentRescheduled,
+  setAppointmentAiConsent,
+  updateAppointmentColumns,
+  updateAppointmentIfStatus,
+  type AppointmentChanges,
+  type AppointmentRow,
+  type AppointmentStatus,
+} from '../repositories/clinicAppointments.ts';
+import { findConsultationRef } from '../repositories/clinicConsultations.ts';
+import { deleteHistorySummaries, deleteSpokenSummaries } from '../repositories/clinicSummaries.ts';
 import { audit } from './audit.ts';
 import { activeDoctor, bookableSlot, doctorRow, presentDoctor, type DoctorProfile, type DoctorRow } from './doctors.ts';
 import { broadcast } from './events.ts';
@@ -26,15 +49,8 @@ import { ageAt, clinicDate, clinicDayBounds, clinicTime, ISO_DATE } from './time
  * finalizing the consultation (consultations.ts).
  */
 
-export type Status =
-  | 'scheduled'
-  | 'checked_in'
-  | 'waiting'
-  | 'in_consultation'
-  | 'completed'
-  | 'cancelled'
-  | 'no_show'
-  | 'rescheduled';
+export type Status = AppointmentStatus;
+export type { AppointmentRow };
 
 export type Action = 'check_in' | 'mark_ready' | 'start' | 'return_to_queue' | 'no_show' | 'cancel';
 
@@ -56,44 +72,11 @@ export const TRANSITIONS: Record<Action, Rule> = {
 const ACTIVE: readonly Status[] = ['scheduled', 'checked_in', 'waiting', 'in_consultation'];
 export const IN_CLINIC: readonly Status[] = ['checked_in', 'waiting'];
 
-export interface AppointmentRow {
-  id: string;
-  doctor_id: string;
-  patient_profile_id: string | null;
-  patient_name: string;
-  patient_sex: string | null;
-  patient_dob: string | null;
-  booked_by: string;
-  starts_at: string;
-  ends_at: string;
-  status: Status;
-  reason: string | null;
-  share_history: number;
-  share_history_at: string | null;
-  ai_consent: number;
-  ai_consent_at: string | null;
-  ai_consent_by: string | null;
-  checked_in_at: string | null;
-  checked_in_by: string | null;
-  ready_at: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  cancelled_at: string | null;
-  cancelled_by: string | null;
-  cancel_reason: string | null;
-  no_show_at: string | null;
-  rescheduled_from: string | null;
-  rescheduled_to: string | null;
-  next_notified_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 const now = () => new Date().toISOString();
 const graceMs = () => config.clinic.lateGraceMinutes * 60_000;
 
 export function appointmentRow(id: string): AppointmentRow | null {
-  return (db().prepare('SELECT * FROM clinic_appointments WHERE id = ?').get(id) as AppointmentRow | undefined) ?? null;
+  return findAppointment(id);
 }
 
 export const reasonOf = (row: AppointmentRow) => (row.reason ? unseal(row.reason) : null);
@@ -128,14 +111,6 @@ export interface StaffAppointment {
   consultation: { id: string; status: 'draft' | 'final' } | null;
 }
 
-function consultationRef(appointmentId: string): StaffAppointment['consultation'] {
-  return (
-    (db().prepare('SELECT id, status FROM clinic_consultations WHERE appointment_id = ?').get(appointmentId) as
-      | StaffAppointment['consultation']
-      | undefined) ?? null
-  );
-}
-
 function arrivedLate(row: AppointmentRow): boolean {
   return Boolean(row.checked_in_at && Date.parse(row.checked_in_at) > Date.parse(row.starts_at) + graceMs());
 }
@@ -168,7 +143,7 @@ export function staffView(row: AppointmentRow, nowMs = Date.now()): StaffAppoint
     cancel_reason: row.cancel_reason,
     arrived_late: arrivedLate(row),
     overdue: row.status === 'scheduled' && nowMs > start + graceMs(),
-    consultation: consultationRef(row.id),
+    consultation: findConsultationRef(row.id),
   };
 }
 
@@ -197,7 +172,7 @@ export function residentView(row: AppointmentRow, nowMs = Date.now()): ResidentA
   const doctor = presentDoctor(doctorRow(row.doctor_id) as DoctorRow);
   const start = Date.parse(row.starts_at);
   const upcoming = row.status === 'scheduled' && start > nowMs;
-  const consultation = consultationRef(row.id);
+  const consultation = findConsultationRef(row.id);
   return {
     id: row.id,
     doctor: {
@@ -279,61 +254,40 @@ export function book(user: User, body: Record<string, unknown>, nowMs = Date.now
         throw new ApiError('invalid', 'A rescheduled visit stays with the same patient.', 'patient_profile_id');
       }
     } else {
-      const upcoming = db()
-        .prepare("SELECT COUNT(*) AS count FROM clinic_appointments WHERE booked_by = ? AND status = 'scheduled' AND starts_at > ?")
-        .get(user.id, new Date(nowMs).toISOString()) as { count: number };
-      if (upcoming.count >= config.clinic.maxUpcomingPerResident) {
+      if (countUpcomingBookings(user.id, new Date(nowMs).toISOString()) >= config.clinic.maxUpcomingPerResident) {
         throw new ApiError('invalid', 'You have the most upcoming appointments allowed. Cancel one to book another.');
       }
     }
     // The same patient cannot be in two consultations at once, with any doctor.
-    const overlap = db()
-      .prepare(
-        `SELECT COUNT(*) AS count FROM clinic_appointments
-         WHERE patient_profile_id = ? AND status IN ('scheduled', 'checked_in', 'waiting', 'in_consultation')
-           AND starts_at < ? AND ends_at > ? AND id != ?`,
-      )
-      .get(profile.id, slot.ends_at, slot.starts_at, rescheduleOf ?? '') as { count: number };
-    if (overlap.count > 0) {
+    if (countOverlappingAppointments(profile.id, slot.ends_at, slot.starts_at, rescheduleOf ?? '') > 0) {
       throw new ApiError('slot_taken', `${profile.name} already has an appointment at that time.`);
     }
 
     const at = new Date(nowMs).toISOString();
     if (previous) {
       // Frees the old slot first, so moving within the same day cannot collide with itself.
-      db()
-        .prepare("UPDATE clinic_appointments SET status = 'rescheduled', rescheduled_to = ?, updated_at = ? WHERE id = ?")
-        .run(id, at, previous.id);
+      markAppointmentRescheduled(previous.id, id, at);
     }
     try {
-      db()
-        .prepare(
-          `INSERT INTO clinic_appointments (
-             id, doctor_id, patient_profile_id, patient_name, patient_sex, patient_dob, booked_by,
-             starts_at, ends_at, status, reason, share_history, share_history_at, ai_consent, ai_consent_at, ai_consent_by,
-             rescheduled_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          id,
-          doctor.id,
-          profile.id,
-          profile.name,
-          profile.sex,
-          profile.date_of_birth,
-          user.id,
-          slot.starts_at,
-          slot.ends_at,
-          reason ? seal(reason) : null,
-          shareHistory ? 1 : 0,
-          shareHistory ? at : null,
-          aiConsent ? 1 : 0,
-          aiConsent ? at : null,
-          aiConsent ? 'resident' : null,
-          previous?.id ?? null,
-          at,
-          at,
-        );
+      insertAppointment({
+        id,
+        doctorId: doctor.id,
+        patientProfileId: profile.id,
+        patientName: profile.name,
+        patientSex: profile.sex,
+        patientDob: profile.date_of_birth,
+        bookedBy: user.id,
+        startsAt: slot.starts_at,
+        endsAt: slot.ends_at,
+        reason: reason ? seal(reason) : null,
+        shareHistory: shareHistory ? 1 : 0,
+        shareHistoryAt: shareHistory ? at : null,
+        aiConsent: aiConsent ? 1 : 0,
+        aiConsentAt: aiConsent ? at : null,
+        aiConsentBy: aiConsent ? 'resident' : null,
+        rescheduledFrom: previous?.id ?? null,
+        at,
+      });
     } catch (error) {
       if (isUniqueViolation(error)) throw new ApiError('slot_taken', 'That slot was just booked. Pick another time.');
       throw error;
@@ -405,15 +359,12 @@ export function transition(actor: Actor, id: string, action: Action, options: { 
       throw new ApiError('invalid_transition', 'Only upcoming appointments can be cancelled from the app. Call the clinic.');
     }
     if (action === 'start') {
-      const busy = db()
-        .prepare("SELECT id FROM clinic_appointments WHERE doctor_id = ? AND status = 'in_consultation' AND id != ?")
-        .get(row.doctor_id, row.id) as { id: string } | undefined;
-      if (busy) {
+      if (findOtherConsultationInProgress(row.doctor_id, row.id)) {
         throw new ApiError('invalid_transition', 'Finish the current consultation, or return that patient to the queue, first.');
       }
     }
 
-    const sets: Record<string, string | null> = { status: rule.to, updated_at: at };
+    const sets: AppointmentChanges = { status: rule.to, updated_at: at };
     if (action === 'check_in') Object.assign(sets, { checked_in_at: at, checked_in_by: actor.user.id, no_show_at: null });
     if (action === 'mark_ready') sets.ready_at = at;
     if (action === 'start') sets.started_at = row.started_at ?? at;
@@ -422,11 +373,9 @@ export function transition(actor: Actor, id: string, action: Action, options: { 
       const reason = typeof options.reason === 'string' ? options.reason.trim().slice(0, 300) : '';
       Object.assign(sets, { cancelled_at: at, cancelled_by: actor.user.id, cancel_reason: reason || null });
     }
-    const columns = Object.keys(sets);
-    const result = db()
-      .prepare(`UPDATE clinic_appointments SET ${columns.map((column) => `${column} = ?`).join(', ')} WHERE id = ? AND status = ?`)
-      .run(...columns.map((column) => sets[column]), row.id, row.status);
-    if (Number(result.changes) !== 1) throw new ApiError('version_conflict', 'The appointment changed meanwhile. Refresh and try again.');
+    if (!updateAppointmentIfStatus(row.id, row.status, sets)) {
+      throw new ApiError('version_conflict', 'The appointment changed meanwhile. Refresh and try again.');
+    }
     audit({
       actor: actor.user,
       action: 'appointment.status',
@@ -447,10 +396,7 @@ export function afterChange(row: AppointmentRow, nowMs = Date.now()): void {
   const next = queueRows(row.doctor_id, clinicDate(nowMs))[0];
   if (!next || next.next_notified_at) return;
   // Claimed atomically, so two changes at once cannot both announce the same patient.
-  const claimed = db()
-    .prepare('UPDATE clinic_appointments SET next_notified_at = ? WHERE id = ? AND next_notified_at IS NULL')
-    .run(new Date(nowMs).toISOString(), next.id);
-  if (Number(claimed.changes) === 1) {
+  if (claimNextNotification(next.id, new Date(nowMs).toISOString())) {
     broadcast(
       { kind: 'next_patient', appointment_id: next.id, doctor_id: next.doctor_id, patient_name: next.patient_name, starts_at: next.starts_at },
       { doctorUserId: recipients.doctorUserId },
@@ -463,8 +409,7 @@ export function recordInPersonAiConsent(actor: Actor, id: string): AppointmentRo
   const row = appointmentFor(actor, id);
   if (!ACTIVE.includes(row.status)) throw new ApiError('invalid_transition', 'This appointment is closed.');
   if (row.ai_consent !== 1) {
-    const at = now();
-    db().prepare('UPDATE clinic_appointments SET ai_consent = 1, ai_consent_at = ?, ai_consent_by = ?, updated_at = ? WHERE id = ?').run(at, actor.user.id, at, id);
+    setAppointmentAiConsent(id, actor.user.id, now());
     audit({ actor: actor.user, action: 'appointment.consent', appointmentId: id, patientProfileId: row.patient_profile_id, detail: { ai_consent: true, source: 'in_person' } });
   }
   return appointmentRow(id) as AppointmentRow;
@@ -475,7 +420,7 @@ export function updateResidentConsents(user: User, id: string, body: Record<stri
   const row = appointmentFor({ user }, id);
   if (!ACTIVE.includes(row.status)) throw new ApiError('invalid_transition', 'This appointment is closed.');
   const at = now();
-  const changes: Record<string, string | number | null> = { updated_at: at };
+  const changes: AppointmentChanges = { updated_at: at };
   if (body.share_history !== undefined) {
     const share = flag(body.share_history, 'share_history');
     Object.assign(changes, { share_history: share ? 1 : 0, share_history_at: share ? at : null });
@@ -484,14 +429,11 @@ export function updateResidentConsents(user: User, id: string, body: Record<stri
     const consent = flag(body.ai_consent, 'ai_consent');
     Object.assign(changes, { ai_consent: consent ? 1 : 0, ai_consent_at: consent ? at : null, ai_consent_by: consent ? 'resident' : null });
   }
-  const columns = Object.keys(changes);
-  db()
-    .prepare(`UPDATE clinic_appointments SET ${columns.map((column) => `${column} = ?`).join(', ')} WHERE id = ?`)
-    .run(...columns.map((column) => changes[column]), id);
+  updateAppointmentColumns(id, changes);
   if (changes.share_history === 0 || changes.ai_consent === 0) {
     // Nothing made from data the resident just withdrew stays behind.
-    db().prepare('DELETE FROM clinic_history_summaries WHERE appointment_id = ?').run(id);
-    db().prepare('DELETE FROM clinic_spoken_summaries WHERE appointment_id = ?').run(id);
+    deleteHistorySummaries(id);
+    deleteSpokenSummaries(id);
   }
   audit({
     actor: user,
@@ -512,10 +454,7 @@ export function updateResidentConsents(user: User, id: string, body: Record<stri
 // ---- Lists, queue and dashboard -------------------------------------------------------------
 
 export function residentAppointments(user: User): ResidentAppointment[] {
-  const rows = db()
-    .prepare("SELECT * FROM clinic_appointments WHERE booked_by = ? AND status != 'rescheduled' ORDER BY starts_at DESC LIMIT 200")
-    .all(user.id) as unknown as AppointmentRow[];
-  return rows.map((row) => residentView(row));
+  return listResidentAppointments(user.id).map((row) => residentView(row));
 }
 
 /**
@@ -526,12 +465,7 @@ export function residentAppointments(user: User): ResidentAppointment[] {
  */
 export function queueRows(doctorId: string, date: string): AppointmentRow[] {
   const bounds = clinicDayBounds(date);
-  const rows = db()
-    .prepare(
-      `SELECT * FROM clinic_appointments WHERE doctor_id = ? AND starts_at >= ? AND starts_at < ?
-       AND status IN ('checked_in', 'waiting')`,
-    )
-    .all(doctorId, bounds.from, bounds.to) as unknown as AppointmentRow[];
+  const rows = listQueueAppointments(doctorId, bounds.from, bounds.to);
   const key = (row: AppointmentRow) => (arrivedLate(row) ? Date.parse(row.checked_in_at as string) : Date.parse(row.starts_at));
   return rows.sort((a, b) => key(a) - key(b) || a.starts_at.localeCompare(b.starts_at) || a.id.localeCompare(b.id));
 }
@@ -550,11 +484,7 @@ export interface Dashboard {
 
 function dayRows(doctorId: string | null, date: string): AppointmentRow[] {
   const bounds = clinicDayBounds(date);
-  const sql = `SELECT * FROM clinic_appointments WHERE starts_at >= ? AND starts_at < ? AND status != 'rescheduled'
-               ${doctorId ? 'AND doctor_id = ?' : ''} ORDER BY starts_at, id`;
-  return db()
-    .prepare(sql)
-    .all(...(doctorId ? [bounds.from, bounds.to, doctorId] : [bounds.from, bounds.to])) as unknown as AppointmentRow[];
+  return listDayAppointments(doctorId, bounds.from, bounds.to);
 }
 
 export function dashboard(doctorId: string, date: string | null, nowMs = Date.now()): Dashboard {
@@ -564,13 +494,7 @@ export function dashboard(doctorId: string, date: string | null, nowMs = Date.no
   const queue = queueRows(doctorId, day).map((row) => staffView(row, nowMs));
   const count = (...statuses: Status[]) => views.filter((view) => statuses.includes(view.status)).length;
   const after = clinicDayBounds(day).to;
-  const upcoming = (
-    db()
-      .prepare(
-        "SELECT * FROM clinic_appointments WHERE doctor_id = ? AND starts_at >= ? AND status = 'scheduled' ORDER BY starts_at LIMIT 8",
-      )
-      .all(doctorId, after) as unknown as AppointmentRow[]
-  ).map((row) => staffView(row, nowMs));
+  const upcoming = listUpcomingAppointments(doctorId, after).map((row) => staffView(row, nowMs));
   return {
     date: day,
     timezone: config.clinic.timezone,
@@ -614,12 +538,7 @@ export function doctorAppointments(
 ): StaffAppointment[] {
   const from = filters.from && ISO_DATE.test(filters.from) ? clinicDayBounds(filters.from).from : '0000';
   const to = filters.to && ISO_DATE.test(filters.to) ? clinicDayBounds(filters.to).to : '9999';
-  const rows = db()
-    .prepare(
-      `SELECT * FROM clinic_appointments WHERE doctor_id = ? AND starts_at >= ? AND starts_at < ? AND status != 'rescheduled'
-       ORDER BY starts_at DESC LIMIT 500`,
-    )
-    .all(doctorId, from, to) as unknown as AppointmentRow[];
+  const rows = listDoctorAppointments(doctorId, from, to);
   const statuses = filters.status ? filters.status.split(',') : null;
   const query = normalize(filters.q ?? '');
   return rows
@@ -630,20 +549,7 @@ export function doctorAppointments(
 
 /** Patients this doctor has appointments with: the only patients they can look up. */
 export function doctorPatients(doctorId: string, q: string | null) {
-  const rows = db()
-    .prepare(
-      `SELECT patient_profile_id, patient_name, patient_sex, patient_dob, MAX(starts_at) AS last_at, COUNT(*) AS visits
-       FROM clinic_appointments WHERE doctor_id = ? AND patient_profile_id IS NOT NULL AND status NOT IN ('rescheduled')
-       GROUP BY patient_profile_id ORDER BY last_at DESC LIMIT 300`,
-    )
-    .all(doctorId) as {
-    patient_profile_id: string;
-    patient_name: string;
-    patient_sex: string | null;
-    patient_dob: string | null;
-    last_at: string;
-    visits: number;
-  }[];
+  const rows = listDoctorPatients(doctorId);
   const query = normalize(q ?? '');
   return rows
     .filter((row) => !query || normalize(row.patient_name).includes(query))

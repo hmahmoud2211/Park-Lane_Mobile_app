@@ -3,8 +3,18 @@ import { join } from 'node:path';
 
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
-import { db } from '../ems/db.ts';
 import { normalize } from '../lib/text.ts';
+import { listBookedStarts } from '../repositories/clinicAppointments.ts';
+import {
+  findDoctor,
+  findDoctorForUser,
+  listActiveDoctors,
+  listScheduleBlocks,
+  listTimeOff,
+  type DoctorRow,
+  type ScheduleBlock,
+} from '../repositories/clinicDoctors.ts';
+import { listSpecialtiesWithActiveDoctors } from '../repositories/clinicSpecialties.ts';
 import { addDays, clinicDate, clinicDayBounds, clinicInstant, ISO_DATE, minutesOf, timeOf, weekdayOf } from './time.ts';
 
 /**
@@ -24,11 +34,7 @@ export interface Specialty {
   doctor_count: number;
 }
 
-export interface ScheduleBlock {
-  weekday: number;
-  start: string;
-  end: string;
-}
+export type { DoctorRow, ScheduleBlock };
 
 /** What residents see of a doctor. */
 export interface DoctorProfile {
@@ -45,45 +51,8 @@ export interface DoctorProfile {
   schedule: ScheduleBlock[];
 }
 
-export interface DoctorRow {
-  id: string;
-  user_id: string;
-  specialty_id: string;
-  display_name: string;
-  display_name_ar: string | null;
-  title: string | null;
-  title_ar: string | null;
-  bio: string | null;
-  bio_ar: string | null;
-  years_experience: number | null;
-  consultation_minutes: number;
-  fee_egp: number | null;
-  languages: string | null;
-  photo: string | null;
-  active: number;
-  specialty_en: string;
-  specialty_ar: string;
-}
-
-const DOCTOR_SELECT = `
-  SELECT d.*, s.name_en AS specialty_en, s.name_ar AS specialty_ar
-  FROM clinic_doctors d JOIN clinic_specialties s ON s.id = d.specialty_id`;
-
 export function listSpecialties(): Specialty[] {
-  const rows = db()
-    .prepare(
-      `SELECT s.id, s.name_en, s.name_ar, COUNT(d.id) AS doctor_count
-       FROM clinic_specialties s JOIN clinic_doctors d ON d.specialty_id = s.id AND d.active = 1
-       GROUP BY s.id ORDER BY s.name_en`,
-    )
-    .all() as { id: string; name_en: string; name_ar: string; doctor_count: number }[];
-  return rows.map((row) => ({ id: row.id, name: { en: row.name_en, ar: row.name_ar }, doctor_count: row.doctor_count }));
-}
-
-function scheduleOf(doctorId: string): ScheduleBlock[] {
-  return db()
-    .prepare('SELECT weekday, start_time AS start, end_time AS end FROM clinic_schedules WHERE doctor_id = ? ORDER BY weekday, start_time')
-    .all(doctorId) as unknown as ScheduleBlock[];
+  return listSpecialtiesWithActiveDoctors().map((row) => ({ id: row.id, name: { en: row.name_en, ar: row.name_ar }, doctor_count: row.doctor_count }));
 }
 
 const pair = (en: string | null, ar: string | null): Localized | null => (en || ar ? { en: en ?? ar ?? '', ar: ar ?? en ?? '' } : null);
@@ -100,16 +69,16 @@ export function presentDoctor(row: DoctorRow): DoctorProfile {
     fee_egp: row.fee_egp,
     languages: row.languages ? (JSON.parse(row.languages) as string[]) : [],
     photo_url: row.photo ? `/api/clinic/doctors/${row.id}/photo` : null,
-    schedule: scheduleOf(row.id),
+    schedule: listScheduleBlocks(row.id),
   };
 }
 
 export function doctorRow(doctorId: string): DoctorRow | null {
-  return (db().prepare(`${DOCTOR_SELECT} WHERE d.id = ?`).get(doctorId) as DoctorRow | undefined) ?? null;
+  return findDoctor(doctorId);
 }
 
 export function doctorForUser(userId: string): DoctorRow | null {
-  return (db().prepare(`${DOCTOR_SELECT} WHERE d.user_id = ?`).get(userId) as DoctorRow | undefined) ?? null;
+  return findDoctorForUser(userId);
 }
 
 /** An active doctor, or 404. */
@@ -121,11 +90,7 @@ export function activeDoctor(doctorId: string): DoctorRow {
 
 /** Residents' directory: filtered by specialty, and searched by name, title or specialty in either language. */
 export function listDoctors(filters: { specialty?: string | null; q?: string | null }): DoctorProfile[] {
-  const rows = (
-    filters.specialty
-      ? db().prepare(`${DOCTOR_SELECT} WHERE d.active = 1 AND d.specialty_id = ? ORDER BY d.display_name`).all(filters.specialty)
-      : db().prepare(`${DOCTOR_SELECT} WHERE d.active = 1 ORDER BY d.display_name`).all()
-  ) as unknown as DoctorRow[];
+  const rows = listActiveDoctors(filters.specialty);
   const query = normalize(filters.q ?? '');
   const matching = query
     ? rows.filter((row) =>
@@ -165,21 +130,11 @@ export interface Slot {
 export const HOLDING_STATUSES = ['scheduled', 'checked_in', 'waiting', 'in_consultation', 'completed', 'no_show'] as const;
 
 function bookedStarts(doctorId: string, from: string, to: string): Set<string> {
-  const placeholders = HOLDING_STATUSES.map(() => '?').join(', ');
-  const rows = db()
-    .prepare(
-      `SELECT starts_at FROM clinic_appointments
-       WHERE doctor_id = ? AND starts_at >= ? AND starts_at < ? AND status IN (${placeholders})`,
-    )
-    .all(doctorId, from, to, ...HOLDING_STATUSES) as { starts_at: string }[];
-  return new Set(rows.map((row) => row.starts_at));
+  return new Set(listBookedStarts(doctorId, from, to, HOLDING_STATUSES));
 }
 
 function timeOff(doctorId: string, from: string, to: string): { start: number; end: number }[] {
-  const rows = db()
-    .prepare('SELECT starts_at, ends_at FROM clinic_time_off WHERE doctor_id = ? AND ends_at > ? AND starts_at < ?')
-    .all(doctorId, from, to) as { starts_at: string; ends_at: string }[];
-  return rows.map((row) => ({ start: Date.parse(row.starts_at), end: Date.parse(row.ends_at) }));
+  return listTimeOff(doctorId, from, to).map((row) => ({ start: Date.parse(row.starts_at), end: Date.parse(row.ends_at) }));
 }
 
 /** The first and last bookable clinic dates, from today. */
@@ -199,7 +154,7 @@ export function slotsFor(doctor: DoctorRow, date: string, nowMs = Date.now()): S
   }
   const window = bookingWindow(nowMs);
   if (date < window.first || date > window.last) return [];
-  const blocks = scheduleOf(doctor.id).filter((block) => block.weekday === weekdayOf(date));
+  const blocks = listScheduleBlocks(doctor.id).filter((block) => block.weekday === weekdayOf(date));
   if (blocks.length === 0) return [];
   const bounds = clinicDayBounds(date);
   const booked = bookedStarts(doctor.id, bounds.from, bounds.to);

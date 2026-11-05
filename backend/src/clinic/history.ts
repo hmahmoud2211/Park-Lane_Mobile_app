@@ -1,6 +1,7 @@
-import { db } from '../ems/db.ts';
 import { unseal } from '../ems/secrets.ts';
 import { consentGiven, gapsFor, profileById, readSections, type Gap, type RecordSections } from '../health/passport.ts';
+import { listPastVisits } from '../repositories/clinicAppointments.ts';
+import { listAddendaForHistory, listFinalConsultations, type FinalConsultationRow } from '../repositories/clinicConsultations.ts';
 import type { AppointmentRow } from './appointments.ts';
 import type { DoctorRow, Localized } from './doctors.ts';
 import type { ClinicalNote } from './note.ts';
@@ -63,48 +64,16 @@ export interface ConsultationEntry {
   addenda: { text: string; created_at: string; author: string }[];
 }
 
-interface FinalRow {
-  id: string;
-  appointment_id: string;
-  doctor_id: string;
-  final: string;
-  finalized_at: string;
-  ai_used: number;
-  starts_at: string;
-  display_name: string;
-  display_name_ar: string | null;
-  specialty_en: string;
-  specialty_ar: string;
-}
-
 function addendaOf(consultationId: string): ConsultationEntry['addenda'] {
-  const rows = db()
-    .prepare(
-      `SELECT a.text, a.created_at, u.name AS author FROM clinic_addenda a JOIN users u ON u.id = a.author_id
-       WHERE a.consultation_id = ? ORDER BY a.created_at`,
-    )
-    .all(consultationId) as { text: string; created_at: string; author: string }[];
-  return rows.map((row) => ({ ...row, text: unseal(row.text) }));
+  return listAddendaForHistory(consultationId).map((row) => ({ ...row, text: unseal(row.text) }));
 }
 
 /** Finalized consultations for a patient, newest first; `doctorId` keeps only that doctor's. */
 export function finalConsultations(profileId: string, doctorId: string | null = null, limit = 50): ConsultationEntry[] {
-  const rows = db()
-    .prepare(
-      `SELECT c.id, c.appointment_id, c.doctor_id, c.final, c.finalized_at, c.ai_used, a.starts_at,
-              d.display_name, d.display_name_ar, s.name_en AS specialty_en, s.name_ar AS specialty_ar
-       FROM clinic_consultations c
-       JOIN clinic_appointments a ON a.id = c.appointment_id
-       JOIN clinic_doctors d ON d.id = c.doctor_id
-       JOIN clinic_specialties s ON s.id = d.specialty_id
-       WHERE c.patient_profile_id = ? AND c.status = 'final' ${doctorId ? 'AND c.doctor_id = ?' : ''}
-       ORDER BY a.starts_at DESC LIMIT ?`,
-    )
-    .all(...(doctorId ? [profileId, doctorId, limit] : [profileId, limit])) as unknown as FinalRow[];
-  return rows.map(entryOf);
+  return listFinalConsultations(profileId, doctorId, limit).map(entryOf);
 }
 
-export function entryOf(row: FinalRow): ConsultationEntry {
+export function entryOf(row: FinalConsultationRow): ConsultationEntry {
   return {
     id: row.id,
     appointment_id: row.appointment_id,
@@ -130,21 +99,7 @@ export interface PastVisit {
 }
 
 function pastVisits(profileId: string, doctorId: string | null, beforeIso: string): PastVisit[] {
-  const rows = db()
-    .prepare(
-      `SELECT a.id, a.starts_at, a.status, d.display_name, s.name_en
-       FROM clinic_appointments a JOIN clinic_doctors d ON d.id = a.doctor_id JOIN clinic_specialties s ON s.id = d.specialty_id
-       WHERE a.patient_profile_id = ? AND a.starts_at < ? AND a.status IN ('completed', 'no_show')
-       ${doctorId ? 'AND a.doctor_id = ?' : ''} ORDER BY a.starts_at DESC LIMIT 30`,
-    )
-    .all(...(doctorId ? [profileId, beforeIso, doctorId] : [profileId, beforeIso])) as {
-    id: string;
-    starts_at: string;
-    status: string;
-    display_name: string;
-    name_en: string;
-  }[];
-  return rows.map((row) => ({
+  return listPastVisits(profileId, doctorId, beforeIso).map((row) => ({
     appointment_id: row.id,
     date: clinicDate(Date.parse(row.starts_at)),
     doctor_name: row.display_name,
