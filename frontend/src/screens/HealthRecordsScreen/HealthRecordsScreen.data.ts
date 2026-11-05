@@ -1,5 +1,5 @@
 import type { HealthLang } from '../../types/health.types';
-import { RECORD_SECTIONS } from '../../types/health.types';
+import { RECORD_SECTIONS } from '../../features/health/services/selectors';
 import { num } from '../../features/health/services/i18n';
 import type { RecordTab } from '../../types/navigation.types';
 

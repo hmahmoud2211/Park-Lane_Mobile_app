@@ -4,10 +4,12 @@
  * a time are `YYYY-MM-DD`; timestamps are ISO 8601 in UTC.
  */
 
+import type { Lang } from './i18n.types';
+
 export type IsoDate = string;
 export type IsoTime = string;
 
-export type HealthLang = 'en' | 'ar';
+export type HealthLang = Lang;
 
 export type Sex = 'male' | 'female';
 export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
@@ -90,15 +92,6 @@ export interface SectionItems {
 
 export type RecordSection = keyof SectionItems;
 
-export const RECORD_SECTIONS: readonly RecordSection[] = [
-  'allergies',
-  'medications',
-  'conditions',
-  'labs',
-  'procedures',
-  'visits',
-];
-
 export type RecordItem = SectionItems[RecordSection];
 
 /** An item's fields without its id or source, as sent to create or update it. */
@@ -127,14 +120,6 @@ export interface HealthGap {
 }
 
 export type DocumentType = 'prescription' | 'lab_report' | 'discharge_summary' | 'imaging_report' | 'other';
-
-export const DOCUMENT_TYPES: readonly DocumentType[] = [
-  'prescription',
-  'lab_report',
-  'discharge_summary',
-  'imaging_report',
-  'other',
-];
 
 export type DocumentStatus = 'processing' | 'needs_review' | 'confirmed' | 'failed';
 

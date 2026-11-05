@@ -14,6 +14,11 @@ import type {
 } from '../../../types/health.types';
 import { formatDate, healthStrings, num } from './i18n';
 
+/** A record's sections, in the order the app lists them. */
+export const RECORD_SECTIONS: readonly RecordSection[] = ['allergies', 'medications', 'conditions', 'labs', 'procedures', 'visits'];
+
+export const DOCUMENT_TYPES: readonly DocumentType[] = ['prescription', 'lab_report', 'discharge_summary', 'imaging_report', 'other'];
+
 /* -------------------------------------------------------------- Labs */
 
 export type LabFlag = 'high' | 'low' | null;

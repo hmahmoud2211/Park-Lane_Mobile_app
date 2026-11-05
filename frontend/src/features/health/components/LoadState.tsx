@@ -1,49 +1,45 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useAppTheme } from '../../../hooks/useAppTheme';
+import { ErrorNotice } from '../../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../../components/feedback/LoadingState';
+import { Notice } from '../../../components/feedback/Notice';
+import { Panel } from '../../../components/ui/Panel';
 import { useHealth } from '../hooks/useHealth';
 import type { HealthResource } from '../hooks/useHealthData';
 import type { HealthError } from '../services/healthService';
-import { AppText } from '../../../components/common/AppText';
-import { Notice } from '../../../components/feedback/Notice';
-import { Panel } from '../../../components/ui/Panel';
-import { ParkingButton } from '../../../components/ui/ParkingButton';
 
-export interface ErrorNoticeProps {
+export interface HealthErrorNoticeProps {
   error: HealthError;
   /** Offered for failures worth repeating; a 401 signs out instead. */
   onRetry?: () => void;
 }
 
 /** A failed request, explained in the UI's language, with a retry where one can help. */
-export function ErrorNotice({ error, onRetry }: ErrorNoticeProps) {
+export function HealthErrorNotice({ error, onRetry }: HealthErrorNoticeProps) {
   const { t } = useHealth();
   const copy = t.errors[error.kind];
-  const canRetry = onRetry && error.kind !== 'unauthorized' && error.kind !== 'aborted' && error.kind !== 'not_found';
+  const tone = error.kind === 'busy' || error.kind === 'network' || error.kind === 'timeout' ? 'warning' : 'error';
+  const body = error.kind === 'invalid' && error.detail ? `${copy.body} (${error.detail})` : copy.body;
+  if (!onRetry || error.kind === 'unauthorized' || error.kind === 'aborted' || error.kind === 'not_found') {
+    return (
+      <Notice tone={tone} title={copy.title}>
+        {body}
+      </Notice>
+    );
+  }
   return (
-    <Notice
-      tone={error.kind === 'busy' || error.kind === 'network' || error.kind === 'timeout' ? 'warning' : 'error'}
-      title={copy.title}
-      actions={canRetry ? <ParkingButton compact icon="refresh" label={t.actions.retry} onPress={onRetry} /> : undefined}
-    >
-      {error.kind === 'invalid' && error.detail ? `${copy.body} (${error.detail})` : copy.body}
-    </Notice>
+    <ErrorNotice tone={tone} title={copy.title} retryLabel={t.actions.retry} onRetry={onRetry}>
+      {body}
+    </ErrorNotice>
   );
 }
 
 /** The panel shown while a screen's data loads. */
 export function LoadingPanel({ label }: { label?: string }) {
-  const theme = useAppTheme();
   const { t } = useHealth();
   return (
     <Panel>
-      <View style={styles.loading} accessibilityRole="progressbar" accessibilityLabel={label ?? t.loading}>
-        <ActivityIndicator color={theme.colors.textPrimary} />
-        <AppText variant="caption" color={theme.colors.textSecondary}>
-          {label ?? t.loading}
-        </AppText>
-      </View>
+      <LoadingState label={label ?? t.loading} inset="md" />
     </Panel>
   );
 }
@@ -62,22 +58,13 @@ export function ResourceView<T>({ resource, children, loadingLabel }: ResourceVi
   if (resource.data !== undefined) {
     return (
       <>
-        {resource.error && !resource.loading ? <ErrorNotice error={resource.error} onRetry={resource.reload} /> : null}
+        {resource.error && !resource.loading ? <HealthErrorNotice error={resource.error} onRetry={resource.reload} /> : null}
         {children(resource.data)}
       </>
     );
   }
   if (resource.error && !resource.loading) {
-    return <ErrorNotice error={resource.error} onRetry={resource.reload} />;
+    return <HealthErrorNotice error={resource.error} onRetry={resource.reload} />;
   }
   return <LoadingPanel label={loadingLabel} />;
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    minHeight: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-});

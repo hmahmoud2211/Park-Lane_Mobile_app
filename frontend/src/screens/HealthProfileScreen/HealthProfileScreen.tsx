@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import { AppText } from '../../components/common/AppText';
 import { DateField } from '../../features/health/components/DateField';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
-import { ErrorNotice, ResourceView } from '../../features/health/components/LoadState';
+import { HealthErrorNotice, ResourceView } from '../../features/health/components/LoadState';
 import { ChipGroup, Field } from '../../components/ui/Controls';
 import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
@@ -40,7 +40,7 @@ export function HealthProfileScreen() {
   return (
     <HealthFrame title={copy.editTitle}>
       <ResourceView resource={profiles}>
-        {() => <ErrorNotice error={new HealthError('not_found', 'Profile not found.')} />}
+        {() => <HealthErrorNotice error={new HealthError('not_found', 'Profile not found.')} />}
       </ResourceView>
     </HealthFrame>
   );
@@ -125,7 +125,7 @@ function ProfileForm({ profile }: { profile: HealthProfile | null }) {
           </AppText>
         </View>
       </Panel>
-      {error ? <ErrorNotice error={error} onRetry={() => void save()} /> : null}
+      {error ? <HealthErrorNotice error={error} onRetry={() => void save()} /> : null}
     </HealthFrame>
   );
 }

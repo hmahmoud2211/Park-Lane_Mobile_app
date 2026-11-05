@@ -16,7 +16,7 @@ import { useHealth } from '../../features/health/hooks/useHealth';
 import { useHealthProfiles } from '../../features/health/hooks/useHealthData';
 import type { HealthProfile } from '../../types/health.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { dataUsePoints } from '../HealthOnboardingScreen/HealthOnboardingScreen.data';
+import { dataUsePoints } from '../../features/health/services/dataUse';
 import { settingsCopy } from './HealthSettingsScreen.data';
 import { createStyles } from './HealthSettingsScreen.styles';
 

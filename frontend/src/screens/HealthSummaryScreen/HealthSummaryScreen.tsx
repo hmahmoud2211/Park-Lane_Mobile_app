@@ -7,7 +7,7 @@ import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BidiText } from '../../features/health/components/BidiText';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
-import { ErrorNotice, LoadingPanel } from '../../features/health/components/LoadState';
+import { HealthErrorNotice, LoadingPanel } from '../../features/health/components/LoadState';
 import { SummaryPlayer } from '../../features/health/components/SummaryPlayer';
 import { CheckRow, ChipGroup } from '../../components/ui/Controls';
 import { Notice } from '../../components/feedback/Notice';
@@ -143,7 +143,7 @@ function SummaryBody({ profileId, initial }: { profileId: string; initial: Summa
   };
 
   const errorNotice = error ? (
-    <ErrorNotice
+    <HealthErrorNotice
       error={error}
       onRetry={() => (view.kind === 'job' ? again(view.lang, view.specialty) : setupLang && void generate(setupLang, null))}
     />
@@ -160,7 +160,7 @@ function SummaryBody({ profileId, initial }: { profileId: string; initial: Summa
       </HealthFrame>
     );
     if (state === undefined) {
-      return frame(job.error && !job.loading ? <ErrorNotice error={job.error} onRetry={job.reload} /> : <LoadingPanel />);
+      return frame(job.error && !job.loading ? <HealthErrorNotice error={job.error} onRetry={job.reload} /> : <LoadingPanel />);
     }
     if (state === null) {
       return frame(

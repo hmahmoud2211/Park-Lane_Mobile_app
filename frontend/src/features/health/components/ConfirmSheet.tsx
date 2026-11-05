@@ -10,7 +10,7 @@ import { AppText } from '../../../components/common/AppText';
 import { DirectionView } from '../../../components/common/DirectionView';
 import { Field } from '../../../components/ui/Controls';
 import { ParkingButton, type ParkingButtonTone } from '../../../components/ui/ParkingButton';
-import { ErrorNotice } from './LoadState';
+import { HealthErrorNotice } from './LoadState';
 
 export interface ConfirmOption {
   id: string;
@@ -104,7 +104,7 @@ function Sheet({ title, body, options, onSelect, onClose, typeToConfirm, childre
                       autoCorrect={false}
                     />
                   ) : null}
-                  {error ? <ErrorNotice error={error} /> : null}
+                  {error ? <HealthErrorNotice error={error} /> : null}
                   <View style={styles.actions}>
                     {options.map((option) => (
                       <ParkingButton

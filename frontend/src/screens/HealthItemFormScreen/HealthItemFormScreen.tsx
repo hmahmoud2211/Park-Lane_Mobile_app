@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { HealthFrame } from '../../features/health/components/HealthFrame';
 import { ItemFields } from '../../features/health/components/ItemFields';
-import { ErrorNotice, ResourceView } from '../../features/health/components/LoadState';
+import { HealthErrorNotice, ResourceView } from '../../features/health/components/LoadState';
 import { sectionIcon } from '../../features/health/components/presenters';
 import { ChipGroup } from '../../components/ui/Controls';
 import { Notice } from '../../components/feedback/Notice';
@@ -13,7 +13,8 @@ import { ParkingButton } from '../../components/ui/ParkingButton';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHealth } from '../../features/health/hooks/useHealth';
 import { useHealthRecord } from '../../features/health/hooks/useHealthData';
-import { RECORD_SECTIONS, type ItemData, type RecordItem, type RecordSection } from '../../types/health.types';
+import { RECORD_SECTIONS } from '../../features/health/services/selectors';
+import type { ItemData, RecordItem, RecordSection } from '../../types/health.types';
 import { isHealthError, type HealthError } from '../../features/health/services/healthService';
 import { dataFrom, draftFrom, emptyDraft, validateDraft, type Draft, type DraftErrors } from '../../features/health/services/itemForm';
 import type { RootStackScreenProps } from '../../types/navigation.types';
@@ -120,7 +121,7 @@ function ItemForm({ profileId, initialSection, item, sectionFixed, labTest }: It
           <ItemFields section={section} draft={draft} onChange={setDraft} errors={errors} />
         </View>
       </Panel>
-      {error ? <ErrorNotice error={error} onRetry={() => void save()} /> : null}
+      {error ? <HealthErrorNotice error={error} onRetry={() => void save()} /> : null}
     </HealthFrame>
   );
 }

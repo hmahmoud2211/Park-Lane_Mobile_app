@@ -4,15 +4,16 @@ import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
-import { ErrorNotice } from '../../features/health/components/LoadState';
+import { HealthErrorNotice } from '../../features/health/components/LoadState';
 import { CheckRow, InfoRow } from '../../components/ui/Controls';
 import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHealth } from '../../features/health/hooks/useHealth';
+import { dataUsePoints } from '../../features/health/services/dataUse';
 import { isHealthError, type HealthError } from '../../features/health/services/healthService';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { dataUsePoints, onboardingCopy } from './HealthOnboardingScreen.data';
+import { onboardingCopy } from './HealthOnboardingScreen.data';
 import { createStyles } from './HealthOnboardingScreen.styles';
 
 /**
@@ -80,7 +81,7 @@ export function HealthOnboardingScreen() {
           <CheckRow label={copy.consentLabel} detail={copy.consentDetail} checked={agreed} onChange={setAgreed} />
         </View>
       </Panel>
-      {error ? <ErrorNotice error={error} onRetry={() => void agree()} /> : null}
+      {error ? <HealthErrorNotice error={error} onRetry={() => void agree()} /> : null}
     </HealthFrame>
   );
 }

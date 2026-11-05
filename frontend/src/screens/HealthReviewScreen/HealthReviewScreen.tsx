@@ -6,7 +6,7 @@ import { AppText } from '../../components/common/AppText';
 import { BidiText } from '../../features/health/components/BidiText';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
 import { ItemFields } from '../../features/health/components/ItemFields';
-import { ErrorNotice, ResourceView } from '../../features/health/components/LoadState';
+import { HealthErrorNotice, ResourceView } from '../../features/health/components/LoadState';
 import { OriginalFile } from '../../features/health/components/OriginalFile';
 import { sectionIcon } from '../../features/health/components/presenters';
 import { TextLink } from '../../features/health/components/TextLink';
@@ -360,7 +360,7 @@ function ReviewBody({ doc, onSaved }: { doc: HealthDocument; onSaved: (saved: Sa
       </Notice>
       {sideBySide ? null : originalPanel}
       {entries.map(card)}
-      {error ? <ErrorNotice error={error} onRetry={() => void save(everythingDecided)} /> : null}
+      {error ? <HealthErrorNotice error={error} onRetry={() => void save(everythingDecided)} /> : null}
     </HealthFrame>
   );
 }

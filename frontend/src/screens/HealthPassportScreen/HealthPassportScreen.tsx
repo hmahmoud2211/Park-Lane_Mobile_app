@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import { AppText } from '../../components/common/AppText';
 import { BidiText } from '../../features/health/components/BidiText';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
-import { ErrorNotice, LoadingPanel, ResourceView } from '../../features/health/components/LoadState';
+import { HealthErrorNotice, LoadingPanel, ResourceView } from '../../features/health/components/LoadState';
 import { documentIcon, documentLines, profileLine, statusTone } from '../../features/health/components/presenters';
 import { TextLink } from '../../features/health/components/TextLink';
 import { ChipGroup } from '../../components/ui/Controls';
@@ -62,7 +62,7 @@ export function HealthPassportScreen() {
   }
   return (
     <HealthFrame title={copy.title} subtitle={copy.subtitle}>
-      {consent.error && !consent.loading ? <ErrorNotice error={consent.error} onRetry={consent.reload} /> : <LoadingPanel />}
+      {consent.error && !consent.loading ? <HealthErrorNotice error={consent.error} onRetry={consent.reload} /> : <LoadingPanel />}
     </HealthFrame>
   );
 }

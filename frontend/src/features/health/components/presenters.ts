@@ -6,7 +6,7 @@ import type { StatusTone } from '../../../components/ui/StatusChip';
 
 /**
  * Icons, chip tones and short labels shared by the Health Passport screens,
- * as components/parking/presenters does for parking.
+ * as features/parking/components/presenters does for parking.
  */
 
 export const sectionIcon: Record<RecordSection, keyof typeof Ionicons.glyphMap> = {

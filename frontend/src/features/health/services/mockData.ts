@@ -16,7 +16,7 @@ import type {
  * Plain data only (no React Native), so the Node checks can load it.
  */
 
-/** Media the mock points at; services/health/media resolves these to bundled files. */
+/** Media the mock points at; media.ts resolves these to bundled files. */
 export const MOCK_MEDIA = {
   audioAhmedEn: 'mock://audio/ahmed-en',
   audioAhmedAr: 'mock://audio/ahmed-ar',

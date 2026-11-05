@@ -8,7 +8,7 @@ import { ActivityIndicator, Image, Linking, Pressable, View } from 'react-native
 import { AppText } from '../../components/common/AppText';
 import { DateField } from '../../features/health/components/DateField';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
-import { ErrorNotice } from '../../features/health/components/LoadState';
+import { HealthErrorNotice } from '../../features/health/components/LoadState';
 import { ChipGroup } from '../../components/ui/Controls';
 import { Notice } from '../../components/feedback/Notice';
 import { Panel } from '../../components/ui/Panel';
@@ -16,10 +16,10 @@ import { ParkingButton } from '../../components/ui/ParkingButton';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHealth } from '../../features/health/hooks/useHealth';
-import { DOCUMENT_TYPES, type DocumentType, type UploadFile } from '../../types/health.types';
+import type { DocumentType, UploadFile } from '../../types/health.types';
 import { isHealthError, uploadLimits, type HealthError } from '../../features/health/services/healthService';
 import { isPdf, prepareDocument, prepareImage } from '../../features/health/services/prepareFiles';
-import { checkDate } from '../../features/health/services/selectors';
+import { DOCUMENT_TYPES, checkDate } from '../../features/health/services/selectors';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { cameraTips, uploadCopy } from './HealthUploadScreen.data';
 import { createStyles } from './HealthUploadScreen.styles';
@@ -299,7 +299,7 @@ export function HealthUploadScreen() {
         <DateField label={copy.dateLabel} value={date} onChange={setDate} hint={copy.dateHint} error={dateError} optional />
       </Panel>
 
-      {error ? <ErrorNotice error={error} onRetry={() => void start()} /> : null}
+      {error ? <HealthErrorNotice error={error} onRetry={() => void start()} /> : null}
     </HealthFrame>
   );
 }

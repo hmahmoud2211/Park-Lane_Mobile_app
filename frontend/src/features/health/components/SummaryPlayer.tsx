@@ -11,7 +11,7 @@ import type { AppTheme } from '../../../types/theme.types';
 import { AppText } from '../../../components/common/AppText';
 import { DirectionView } from '../../../components/common/DirectionView';
 import { Segmented } from '../../../components/ui/Controls';
-import { ErrorNotice } from './LoadState';
+import { HealthErrorNotice } from './LoadState';
 import { HealthError } from '../services/healthService';
 
 export interface SummaryPlayerCopy {
@@ -109,7 +109,7 @@ export function SummaryPlayer({ audioUrl, copy }: SummaryPlayerProps) {
   }, [seekBar, duration, player]);
 
   if (status.error) {
-    return <ErrorNotice error={new HealthError('server', status.error)} onRetry={() => player.replace(source)} />;
+    return <HealthErrorNotice error={new HealthError('server', status.error)} onRetry={() => player.replace(source)} />;
   }
 
   const ready = status.isLoaded && duration > 0;

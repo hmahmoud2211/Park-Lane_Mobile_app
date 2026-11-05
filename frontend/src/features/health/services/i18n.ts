@@ -1,6 +1,6 @@
 /**
  * Health Passport wording shared across its screens, in English and Arabic,
- * the way the visitor pass does it (services/parking/i18n): one table per
+ * the way the visitor pass does it (features/parking/services/i18n): one table per
  * language, Arabic-Indic digits in Arabic, and record data (drug names,
  * doses, test names) left exactly as entered or read from the document.
  * Each screen keeps its own copy in its `.data.ts`.
