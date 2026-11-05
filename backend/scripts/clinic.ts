@@ -154,11 +154,16 @@ function setSchedule(doctorId: string, blocks: { weekday: number; start: string;
   });
 }
 
+/** The slot loop steps by this, so zero or less would never finish and would freeze the backend. */
+function consultationMinutes(minutes: number): number {
+  if (minutes < 5 || minutes > 240) fail('--minutes must be between 5 and 240.');
+  return minutes;
+}
+
 async function addDoctor(): Promise<void> {
   if (!values.specialty) fail('--specialty is required.');
   requireSpecialty(values.specialty);
-  const minutes = intOption('minutes', values.minutes) ?? 20;
-  if (minutes < 5 || minutes > 240) fail('--minutes must be between 5 and 240.');
+  const minutes = consultationMinutes(intOption('minutes', values.minutes) ?? 20);
   const account = await staffAccount('doctor');
   const id = randomUUID();
   const at = new Date().toISOString();
@@ -196,7 +201,7 @@ function updateDoctor(email: string | undefined): void {
     changes.specialty_id = values.specialty;
   }
   const minutes = intOption('minutes', values.minutes);
-  if (minutes !== null) changes.consultation_minutes = minutes;
+  if (minutes !== null) changes.consultation_minutes = consultationMinutes(minutes);
   if (values.photo) changes.photo = storePhoto(doctor.id, values.photo);
   const columns = Object.keys(changes);
   if (columns.length === 0) fail('Nothing to change.');

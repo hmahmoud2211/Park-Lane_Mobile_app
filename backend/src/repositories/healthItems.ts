@@ -11,9 +11,10 @@ export interface ItemRow {
   source: string | null;
 }
 
+/** In the order they were saved: `created_at` alone ties within a millisecond, and ids are random. */
 export function listHealthItems(profileId: string): ItemRow[] {
   return db()
-    .prepare('SELECT id, section, data, source FROM health_items WHERE profile_id = ? ORDER BY created_at, id')
+    .prepare('SELECT id, section, data, source FROM health_items WHERE profile_id = ? ORDER BY created_at, rowid')
     .all(profileId) as unknown as ItemRow[];
 }
 

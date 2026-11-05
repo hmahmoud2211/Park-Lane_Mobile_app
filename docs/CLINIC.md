@@ -429,3 +429,6 @@ npm run clinic -- list
   can be Arabic (right-to-left where needed).
 - Scheduled appointments nobody marks are not turned into no-shows
   automatically.
+- Rescheduling goes through `book()`, which does not require the same doctor. The
+  app only offers the same doctor; a client that moved a visit to another doctor
+  would notify the new doctor but not the original one.

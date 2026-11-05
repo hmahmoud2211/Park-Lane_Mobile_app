@@ -429,22 +429,25 @@ export function updateResidentConsents(user: User, id: string, body: Record<stri
     const consent = flag(body.ai_consent, 'ai_consent');
     Object.assign(changes, { ai_consent: consent ? 1 : 0, ai_consent_at: consent ? at : null, ai_consent_by: consent ? 'resident' : null });
   }
-  updateAppointmentColumns(id, changes);
-  if (changes.share_history === 0 || changes.ai_consent === 0) {
-    // Nothing made from data the resident just withdrew stays behind.
-    deleteHistorySummaries(id);
-    deleteSpokenSummaries(id);
-  }
-  audit({
-    actor: user,
-    action: 'appointment.consent',
-    appointmentId: id,
-    patientProfileId: row.patient_profile_id,
-    detail: {
-      share_history: body.share_history === undefined ? null : Boolean(body.share_history),
-      ai_consent: body.ai_consent === undefined ? null : Boolean(body.ai_consent),
-      source: 'resident',
-    },
+  // All or nothing: a crash must not leave a summary behind after its consent was withdrawn.
+  transaction(() => {
+    updateAppointmentColumns(id, changes);
+    if (changes.share_history === 0 || changes.ai_consent === 0) {
+      // Nothing made from data the resident just withdrew stays behind.
+      deleteHistorySummaries(id);
+      deleteSpokenSummaries(id);
+    }
+    audit({
+      actor: user,
+      action: 'appointment.consent',
+      appointmentId: id,
+      patientProfileId: row.patient_profile_id,
+      detail: {
+        share_history: body.share_history === undefined ? null : Boolean(body.share_history),
+        ai_consent: body.ai_consent === undefined ? null : Boolean(body.ai_consent),
+        source: 'resident',
+      },
+    });
   });
   const updated = appointmentRow(id) as AppointmentRow;
   broadcast({ kind: 'appointment', appointment_id: id, doctor_id: row.doctor_id, status: updated.status }, recipientsOf(updated));
