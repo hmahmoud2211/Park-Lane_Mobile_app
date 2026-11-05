@@ -1,0 +1,54 @@
+import type { HealthLang } from '../../types/health.types';
+import { num } from '../../features/health/services/i18n';
+
+export const doctorCopy = {
+  en: {
+    title: 'Doctor',
+    rescheduleTitle: 'Choose a new time',
+    experience: 'Experience',
+    years: (count: number) => `${count} years`,
+    fee: 'Consultation fee',
+    duration: 'Consultation',
+    minutes: (count: number) => `${count} minutes`,
+    languages: 'Languages',
+    languageNames: { en: 'English', ar: 'Arabic' } as Record<string, string>,
+    about: 'About',
+    hours: 'Clinic hours',
+    date: 'Date',
+    noDays: 'No free appointments in the next two weeks. Check again later.',
+    times: 'Available times',
+    noTimes: 'No free times on this day. Choose another date.',
+    booked: 'Booked',
+    open: (count: number) => (count === 1 ? '1 free' : `${count} free`),
+    full: 'Full',
+    continue: 'Continue',
+    pick: 'Choose a time to continue',
+    timezone: 'Times are Cairo time.',
+  },
+  ar: {
+    title: 'الطبيب',
+    rescheduleTitle: 'اختر موعدًا جديدًا',
+    experience: 'الخبرة',
+    years: (count: number) => `${num(count, 'ar')} سنة`,
+    fee: 'سعر الكشف',
+    duration: 'مدة الكشف',
+    minutes: (count: number) => `${num(count, 'ar')} دقيقة`,
+    languages: 'اللغات',
+    languageNames: { en: 'الإنجليزية', ar: 'العربية' } as Record<string, string>,
+    about: 'نبذة',
+    hours: 'مواعيد العيادة',
+    date: 'التاريخ',
+    noDays: 'لا توجد مواعيد متاحة خلال الأسبوعين القادمين. حاول لاحقًا.',
+    times: 'المواعيد المتاحة',
+    noTimes: 'لا توجد مواعيد متاحة في هذا اليوم. اختر تاريخًا آخر.',
+    booked: 'محجوز',
+    open: (count: number) => `${num(count, 'ar')} متاح`,
+    full: 'مكتمل',
+    continue: 'متابعة',
+    pick: 'اختر موعدًا للمتابعة',
+    timezone: 'المواعيد بتوقيت القاهرة.',
+  },
+} satisfies Record<HealthLang, unknown>;
+
+/** How many days the date strip offers. */
+export const DAYS_SHOWN = 14;

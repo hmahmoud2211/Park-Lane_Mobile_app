@@ -13,6 +13,14 @@ export const RATE_LIMITS = {
   'account-flow-step': { max: 60, windowMs: 60_000 },
   'account-refresh': { max: 6, windowMs: 60_000 },
   'room-create': { max: 20, windowMs: 60_000 },
+  'health-upload': { max: 20, windowMs: 3_600_000 },
+  'health-summary': { max: 30, windowMs: 3_600_000 },
+  'clinic-book': { max: 20, windowMs: 60_000 },
+  'clinic-ai': { max: 40, windowMs: 3_600_000 },
+  'clinic-tts': { max: 40, windowMs: 3_600_000 },
+  /** A listen is one prepare and a handful of parts. */
+  'clinic-tts-part': { max: 600, windowMs: 3_600_000 },
+  'clinic-stt': { max: 600, windowMs: 3_600_000 },
 } as const satisfies Record<string, { max: number; windowMs: number }>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

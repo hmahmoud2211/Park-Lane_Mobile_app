@@ -1,3 +1,4 @@
+import type { ClinicEvent } from './clinic.ts';
 import type { Device, HubStatus, Room } from './home.ts';
 
 /**
@@ -12,4 +13,5 @@ export type RealtimeEvent =
   | { type: 'rooms'; rooms: Room[] }
   | { type: 'hub_status'; status: HubStatus; haVersion: string | null }
   | { type: 'accounts' }
+  | ({ type: 'clinic' } & ClinicEvent)
   | { type: 'error'; code: string };

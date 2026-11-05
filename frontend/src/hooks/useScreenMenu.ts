@@ -3,21 +3,20 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useMemo, useState } from 'react';
 
 import type { AppMenuItem } from '../components/ui/AppMenu';
+import { useEms } from '../features/ems/hooks/useEms';
 import type { RootStackParamList } from '../types/navigation.types';
 
 /**
- * Logging out: back to the sign-in screen, with the stack reset so back cannot
- * return to where the resident was.
- *
- * Frontend only: the login is not wired to a backend, so there is no session to
- * clear, and it deliberately leaves the EMS smart-home session alone, as before.
- * TODO(auth): clear the stored session here once one exists.
+ * Logging out: ends the session, then back to the sign-in screen, with the stack
+ * reset so back cannot return to where the resident was. In that order, because
+ * the sign-in screen passes a live session straight through to Home.
  */
 export function useLogout(): () => void {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { signOut } = useEms();
   return useCallback(() => {
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+    void signOut().finally(() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] }));
+  }, [navigation, signOut]);
 }
 
 /**

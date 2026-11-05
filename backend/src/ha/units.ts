@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { findUserByEmail, normalizeEmail } from '../ems/auth.ts';
+import { findUserByEmail, loginOf } from '../ems/auth.ts';
 import { ApiError } from '../errors.ts';
 import { trimmedText } from '../lib/text.ts';
 import * as units from '../repositories/units.ts';
@@ -40,7 +40,7 @@ export function deleteUnit(id: string): void {
 /** Puts a resident (an existing EMS account) in a unit, moving them from any other. */
 export function addMember(unitId: string, emailInput: unknown, roleInput: unknown) {
   getUnit(unitId);
-  const user = findUserByEmail(normalizeEmail(emailInput));
+  const user = findUserByEmail(loginOf(emailInput));
   if (!user) {
     throw new ApiError('not_found', 'No EMS account with that email. The resident signs up in the app first.');
   }

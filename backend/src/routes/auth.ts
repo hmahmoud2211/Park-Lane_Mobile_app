@@ -30,7 +30,7 @@ export const authRoutes: RouteGroup = async ({ req, res, path, method }) => {
     throttle('auth', clientIp(req));
     const body = await readJson(req);
     const user = await verifyCredentials(body.email, body.password);
-    ok(res, { user, token: createSession(user.id) });
+    ok(res, { user, token: createSession(user.id, user.role) });
     return true;
   }
   if (path === '/api/auth/logout' && method === 'POST') {

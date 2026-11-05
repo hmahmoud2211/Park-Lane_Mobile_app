@@ -68,6 +68,7 @@ const BASIC_ROUTES = [
   { name: 'SmartHome', path: '/visual/SmartHome' },
   { name: 'AmenitiesBooking', path: '/visual/AmenitiesBooking' },
   { name: 'Services', path: '/visual/Services' },
+  { name: 'Clinic', path: '/clinic' },
   { name: 'Settings', path: '/visual/Settings' },
   { name: 'Assistant', path: '/visual/Assistant' },
   { name: 'UnderDevelopment', path: '/visual/UnderDevelopment?title=Contact%20Us&iconSet=ionicons&iconName=call-outline' },
@@ -136,6 +137,7 @@ const INTERACTION_ROUTES = [
   { name: 'CommunityMenu', path: '/visual/Community', steps: [{ click: 'Open menu', shot: 'open' }] },
   { name: 'MaintenanceMenu', path: '/visual/Maintenance', steps: [{ click: 'Open menu', shot: 'open' }] },
   { name: 'AmenitiesBookingMenu', path: '/visual/AmenitiesBooking', steps: [{ click: 'Open menu', shot: 'open' }] },
+  { name: 'LoginCreate', path: '/visual/Login', steps: [{ click: 'Create account', shot: 'create' }] },
 ];
 
 const HEALTH_CONSENT = 'I agree to store and process my health data for this service.';

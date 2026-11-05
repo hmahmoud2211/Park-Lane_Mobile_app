@@ -1,59 +1,29 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAppTheme } from '../../../hooks/useAppTheme';
 import { useEms } from '../hooks/useEms';
-import { EmsError } from '../services/emsApi';
 import type { AppTheme } from '../../../types/theme.types';
+import type { RootStackParamList } from '../../../types/navigation.types';
 import { AppButton } from '../../../components/common/AppButton';
-import { AppInput } from '../../../components/common/AppInput';
 import { AppText } from '../../../components/common/AppText';
 import { Notice } from '../../../components/feedback/Notice';
-import { FilterChip } from '../../../components/ui/FilterChip';
 import { NeonPanel } from '../../../components/ui/NeonPanel';
 import { PanelHeading } from '../../../components/ui/PanelHeading';
 
-type Mode = 'signIn' | 'create';
-
-const FIELD_HEIGHT = 54;
 const BUTTON_HEIGHT = 48;
 
 /**
- * The EMS account that owns the devices. Separate from the app's own login
- * screen, which is still frontend-only: devices need a real account on the
- * backend.
+ * The resident's account where smart-home screens show it: who is signed in, or for a guest
+ * a way to the login screen, the only place the app signs in.
  */
 export function EmsAccountPanel({ intro }: { intro: string }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { status, user, configured, signIn, createAccount, signOut, sessionNotice } = useEms();
-  const [mode, setMode] = useState<Mode>('signIn');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = useCallback(async () => {
-    if (!email.trim() || password.length < 8) {
-      setError('Enter your email and a password of at least 8 characters.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      if (mode === 'signIn') {
-        await signIn(email.trim(), password);
-      } else {
-        await createAccount(name.trim(), email.trim(), password);
-      }
-      setPassword('');
-    } catch (caught) {
-      setError(caught instanceof EmsError ? caught.message : 'Could not reach the EMS backend.');
-    } finally {
-      setBusy(false);
-    }
-  }, [mode, name, email, password, signIn, createAccount]);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { status, user, configured, signOut, sessionNotice } = useEms();
 
   if (status === 'signedIn') {
     return (
@@ -88,64 +58,10 @@ export function EmsAccountPanel({ intro }: { intro: string }) {
       ) : (
         <View style={styles.form}>
           {sessionNotice ? <Notice tone="info">{sessionNotice}</Notice> : null}
-          <View style={styles.modes} accessibilityRole="tablist">
-            <FilterChip
-              label="Sign in"
-              iconSet="ionicons"
-              iconName="log-in-outline"
-              selected={mode === 'signIn'}
-              onPress={() => setMode('signIn')}
-            />
-            <FilterChip
-              label="Create account"
-              iconSet="ionicons"
-              iconName="person-add-outline"
-              selected={mode === 'create'}
-              onPress={() => setMode('create')}
-            />
-          </View>
-          {mode === 'create' ? (
-            <AppInput
-              variant="field"
-              label="Name"
-              value={name}
-              onChangeText={setName}
-              autoComplete="name"
-              height={FIELD_HEIGHT}
-            />
-          ) : null}
-          <AppInput
-            variant="field"
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            height={FIELD_HEIGHT}
-          />
-          <AppInput
-            variant="field"
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-            onSubmitEditing={() => void submit()}
-            height={FIELD_HEIGHT}
-          />
-          {error ? (
-            <AppText variant="tileCaption" color={theme.colors.error} accessibilityRole="alert">
-              {error}
-            </AppText>
-          ) : null}
           <AppButton
-            title={mode === 'signIn' ? 'Sign in' : 'Create account'}
-            variant="gradient"
+            title="Sign in"
             height={BUTTON_HEIGHT}
-            loading={busy}
-            disabled={busy}
-            onPress={() => void submit()}
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
           />
         </View>
       )}
@@ -172,11 +88,6 @@ function createStyles(theme: AppTheme) {
     },
     form: {
       gap: theme.spacing.md - 4,
-    },
-    modes: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
     },
   });
 }

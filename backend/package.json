@@ -11,6 +11,7 @@
     "start": "node src/index.ts",
     "fake-hub": "node scripts/fake-hub.ts",
     "attach-hub": "node scripts/attach-hub.ts",
+    "clinic": "node scripts/clinic.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p ."
   },

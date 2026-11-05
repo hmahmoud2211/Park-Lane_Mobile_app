@@ -20,7 +20,7 @@ import type { HealthDocument, HealthRecord, LabResult, RecordItem, RecordSection
 import { formatDate, num } from '../../features/health/services/i18n';
 import { describeItem, groupLabs, labFlag, rangeText, splitMedications } from '../../features/health/services/selectors';
 import type { RecordTab, RootStackScreenProps } from '../../types/navigation.types';
-import { RECORD_TABS, TREND_MIN_RESULTS, recordsCopy } from './HealthRecordsScreen.data';
+import { CONSULTATION_SOURCE, RECORD_TABS, TREND_MIN_RESULTS, recordsCopy } from './HealthRecordsScreen.data';
 import { createStyles } from './HealthRecordsScreen.styles';
 
 type Navigation = RootStackScreenProps<'HealthRecords'>['navigation'];
@@ -54,6 +54,10 @@ export function HealthRecordsScreen() {
 
   const source = (sourceId: string | null) => {
     if (sourceId === null) return { sourceLabel: t.sourceManual };
+    if (sourceId.startsWith(CONSULTATION_SOURCE)) {
+      const consultationId = sourceId.slice(CONSULTATION_SOURCE.length);
+      return { sourceLabel: copy.fromClinic, onSourcePress: () => navigation.navigate('HealthConsultation', { consultationId }) };
+    }
     const doc = docsById.get(sourceId);
     return {
       sourceLabel: doc

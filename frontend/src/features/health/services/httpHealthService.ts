@@ -2,6 +2,7 @@ import { healthConfig } from '../../../config/health';
 import { jsonRequest, timedFetch, type NoAnswer } from '../../../lib/http/request';
 import { timedUpload } from '../../../lib/http/upload';
 import type {
+  ClinicConsultation,
   ConfirmInput,
   Consent,
   HealthDocument,
@@ -170,6 +171,9 @@ export class HttpHealthService implements HealthService {
   /** Answers at once: 200 with a current summary, or 202 with the background job. */
   generateSummary = (profileId: string, request: SummaryRequest) =>
     this.call<SummaryState>('POST', `/health/profiles/${enc(profileId)}/summary`, { body: request });
+
+  getConsultation = (consultationId: string) =>
+    this.call<ClinicConsultation>('GET', `/health/consultations/${enc(consultationId)}`);
 
   /** Multipart, with progress: see timedUpload. */
   async uploadDocument(

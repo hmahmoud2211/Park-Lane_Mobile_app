@@ -22,6 +22,25 @@ npm ci && npm run typecheck   # TypeScript is a dev dependency of the backend it
 
 In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`.
 
+### Run it in Docker
+
+One image holds the whole backend: accounts, smart home, Health Passport, the clinic and its admin tool. Stop `npm start` first, as both use port 8787.
+
+```bash
+cd backend
+docker build -t parklane-backend .
+docker run -d --init --name parklane-backend --env-file .env -p 8787:8787 -v parklane-data:/app/data parklane-backend
+```
+
+The `parklane-data` volume keeps the database and the clinic's files, so to upgrade, build again, run `docker rm -f parklane-backend`, and repeat the `docker run`. A new volume starts empty, apart from the default account. To carry on with the data `npm start` uses, mount that folder instead: `-v "$PWD/data":/app/data`.
+
+```bash
+docker logs -f parklane-backend                        # what it is doing
+docker exec parklane-backend npm run clinic -- list    # the clinic's admin tool
+```
+
+This is the same image the server runs. The server's `compose.yaml` adds what only it needs: the Docker socket that starts each apartment's Home Assistant, and the network they share. So provisioning an apartment works there, not with the command above. The CUBE Gateway (`gateway/`) and rethink (`docker/rethink`) are separate programs with their own images.
+
 ### Attach a Home Assistant you run yourself
 
 For a real hub without Docker (on Windows, Home Assistant runs inside WSL), start the backend (`npm start`), sign up in the app, create a long-lived token in Home Assistant (profile → Security), then:
@@ -147,16 +166,18 @@ src/
   config.ts         every setting, read once from the environment and backend/.env
   http/             request plumbing: context, router, guards (who may call what), rate limits,
                     JSON bodies and answers, CORS, error answers, the access log
-  routes/           one file per API area (auth, home, accounts, ops), each listing its endpoints
+  routes/           one file per API area (auth, home, accounts, clinic, health, ops), each listing its endpoints
   ems/              EMS accounts and tokens, the realtime channel, database migrations, sealing secrets
   ha/               the home facade: hubs (hubStore, hubRuntime, the registry in hubs.ts), mapping
                     Home Assistant to devices and rooms, the command allowlist, linking brand
                     accounts, provisioning a unit's Home Assistant
+  clinic/           the clinic: doctors, booking, consultations, history access, audit (../docs/CLINIC.md)
+  health/           Health Passport: records, documents, spoken summaries, sealed files
   repositories/     every SQL statement, one file per table
-  integrations/     outside systems besides Home Assistant: the Docker Engine API
+  integrations/     outside systems besides Home Assistant: the Docker Engine API, the AI services, ElevenLabs
   lib/              small pure helpers
 test/               HTTP-level tests against a real server, plus a stand-in Home Assistant (fakeHa.ts)
-scripts/            development tools: fake-hub (the backend against fakeHa), attach-hub
+scripts/            fake-hub (the backend against fakeHa), attach-hub, clinic (the clinic's admin CLI: npm run clinic)
 ```
 
 The API's types are shared with the app in `../shared/contracts`, imported with `import type` only: Node's type stripping erases them, so the image (which has no `shared/` folder) runs without them. Routes check the caller before the method, and a method a route does not take ends as 404; `test/routing.test.ts` pins this.

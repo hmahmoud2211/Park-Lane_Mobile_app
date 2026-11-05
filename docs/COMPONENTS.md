@@ -87,9 +87,10 @@ The app's UI is built from shared components in `frontend/src/components/`, each
 |---|---|
 | `features/home/components` | `DeviceCard` (a device from the EMS backend or a gateway: name, room, state, quick toggle), `DeviceControl` (full controls per capability), `LevelSlider` |
 | `features/gateway/components` | `GatewayStatusRow`, `NoGatewayNotice`, `BrandBadge`, `RequirementChips` (support level, methods, candidate), `CredentialFields`, `StepList` |
-| `features/ems/components` | `EmsAccountPanel` (sign in or create an EMS account) |
+| `features/ems/components` | `EmsAccountPanel` (who is signed in, on smart-home screens, or a way to the Login screen for a guest) |
 | `features/parking/components` | `Rows` (`PassQr`, `Timeline`), `GuestTrackerCard`, `site-map/*` (`SiteMap`, `MapLayers`, `RouteLayer`) |
-| `features/health/components` | `HealthFrame` (`ParkingFrame` with Arabic layout and the language switch), `HealthNotifier` (the banner over every screen), `LoadState` (`HealthErrorNotice`, `LoadingPanel`, `ResourceView`), `ConfirmSheet`, `DateField`, `ItemFields`, `ItemRow`, `OriginalFile`, `ZoomableImage`, `SummaryPlayer`, `Sparkline`, `BidiText`, `TextLink` |
+| `features/clinic/components` | `DoctorCard`, and `presenters` (status tones and labels) |
+| `features/health/components` (the clinic screens use them too) | `HealthFrame` (`ParkingFrame` with Arabic layout and the language switch), `HealthNotifier` (the banner over every screen), `LoadState` (`HealthErrorNotice`, `LoadingPanel`, `ResourceView`), `ConfirmSheet`, `DateField`, `ItemFields`, `ItemRow`, `OriginalFile`, `ZoomableImage`, `SummaryPlayer`, `Sparkline`, `BidiText`, `TextLink` |
 | `features/assistant/components` | `AssistantOrb`, `ChatBubble`, `ChatComposer`, `VoiceControls`, `VoiceStatusPill`, `VoiceTranscript`, `ModeSwitch`, `SuggestionChips`, `InsightBadges`, `RichText` and their helpers |
 
 ### Hooks for UI

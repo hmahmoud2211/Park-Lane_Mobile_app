@@ -1,4 +1,5 @@
 import type {
+  ClinicConsultation,
   ConfirmInput,
   Consent,
   HealthDocument,
@@ -525,6 +526,14 @@ export class MockHealthService implements HealthService {
       };
     }
     return slot.ready ? { ...slot.ready, cached: false } : null;
+  }
+
+  /* ------------------------------------------------ Clinic visits */
+
+  /** The mock has no clinic: visits come from the real backend (EXPO_PUBLIC_HEALTH_API=http). */
+  async getConsultation(_consultationId: string): Promise<ClinicConsultation> {
+    await this.wait();
+    throw new HealthError('not_found', 'Clinic visits are only available with the real backend.', { status: 404 });
   }
 
   /* ----------------------------------------------------- Helpers */

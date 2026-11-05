@@ -91,7 +91,7 @@ async function assistantTokenFor(session: string): Promise<string> {
 function assertCors(answer: Answer) {
   assert.equal(answer.headers.get('access-control-allow-origin'), '*');
   assert.equal(answer.headers.get('access-control-allow-headers'), 'Authorization, Content-Type');
-  assert.equal(answer.headers.get('access-control-allow-methods'), 'GET, POST, PATCH, DELETE, OPTIONS');
+  assert.equal(answer.headers.get('access-control-allow-methods'), 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
 }
 
 function assertError(answer: Answer, status: number, code: string) {

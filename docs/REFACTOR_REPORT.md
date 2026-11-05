@@ -177,7 +177,7 @@ Results from the final run of each check:
 - **Kept on purpose:**
   - **EmsContext and GatewayContext** still hold many concerns and start at launch. Splitting them or loading them lazily changes network timing.
   - **The three demo identities stay separate:** the screens' resident, the parking seed's `res-ahmed` and the assistant's resident 1001. Unifying them changes visible data, and the assistant's ID is a real record on its backend; `config/demo.ts` documents them.
-  - **The app's Login screen is not wired to a backend,** and logging out does not end the EMS session (`TODO(auth)`).
+  - **The app's Login screen was not wired to a backend,** and logging out did not end the EMS session. Done since, with the clinic: see [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Not abstracted yet:** the "listen for events, poll as a fallback" loops (five places) and the fetch-on-mount effects with a `cancelled` flag.
 - **Platform and dependency work:**
   - **API types:** the gateway's are still mirrored by hand (Python ↔ `types/gateway.types.ts`).

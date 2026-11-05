@@ -112,11 +112,20 @@ export function createStyles(theme: AppTheme, isWide: boolean) {
     fieldGap: {
       marginTop: FIELD_GAP,
     },
-    forgotPassword: {
-      alignSelf: 'flex-end',
+    nameField: {
+      marginBottom: FIELD_GAP,
+    },
+    links: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
       marginTop: FIELD_TO_FORGOT,
+    },
+    link: {
       // Widens the tap target without moving the label.
       paddingVertical: theme.spacing.xs,
+    },
+    formError: {
+      marginTop: theme.spacing.sm,
     },
     submit: {
       marginTop: FORGOT_TO_SUBMIT,

@@ -21,8 +21,10 @@ There is no install at the repository root. `./scripts/dev.sh check` installs wh
 
 | File | Copy from | Holds |
 |---|---|---|
-| `frontend/.env.local` | `frontend/.env.example` | `EXPO_PUBLIC_DEVICE_BACKEND_URL` (the backend; on a phone use your computer's LAN address), `EXPO_PUBLIC_ASSISTANT_URL` (unset: the hosted demo), `EXPO_PUBLIC_HEALTH_API` and `EXPO_PUBLIC_HEALTH_API_URL` (unset: the mock in development), `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` |
+| `frontend/.env.local` | `frontend/.env.example` | `EXPO_PUBLIC_DEVICE_BACKEND_URL` (the backend; on a phone use your computer's LAN address), `EXPO_PUBLIC_ASSISTANT_URL` (unset: the hosted demo), `EXPO_PUBLIC_HEALTH_API` and `EXPO_PUBLIC_HEALTH_API_URL` (unset: the mock in development; `http` to use the real backend), `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` |
 | `backend/.env` | `backend/.env.example` | `PORT`, `ADMIN_API_KEY`, `PUBLIC_URL`, `DATA_DIR`, `EMS_ENCRYPTION_KEY`, the `HA_*` settings; each is documented in the example |
+
+**In development, a value in `.env.local` beats the same variable set in the shell**, so `EXPO_PUBLIC_DEVICE_BACKEND_URL=… npx expo start` is ignored when the file sets it too. Change the file. Web exports and EAS builds work the other way round: there the shell or build profile wins.
 
 `EXPO_PUBLIC_*` values are built into the app, so never put a secret in one. Both env files are git-ignored. `frontend/src/config/env.ts` is the only place the app reads them.
 
@@ -58,6 +60,8 @@ npm start                 # node src/index.ts, port 8787
 npm run fake-hub          # with a stand-in Home Assistant and a demo unit; nothing is kept
 npm run attach-hub -- --email you@example.com --url http://127.0.0.1:8123 --token <long-lived token>
 ```
+
+The whole backend also runs as one Docker image: see [Run it in Docker](../backend/README.md#run-it-in-docker).
 
 The database is SQLite in `DATA_DIR` (default `backend/data/ems.db`), created and migrated on start (`backend/src/ems/db.ts`). To look inside: `sqlite3 backend/data/ems.db`. **Keep the backend one process**: live state (hub connections, the event bus, rate limits) is in memory.
 

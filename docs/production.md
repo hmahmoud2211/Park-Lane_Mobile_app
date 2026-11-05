@@ -154,7 +154,8 @@ npx eas-cli@latest build --profile production --platform all      # store builds
 | **One apartment's logs** | `docker ps` (find `parklane-ha-…`), then `docker logs -f parklane-ha-…` |
 | **Retry a failed apartment** | `curl -X POST $API/api/admin/units/<id>/provision -H "Authorization: Bearer $KEY"` |
 | **Upgrade Home Assistant** | Change `HA_IMAGE`, then per apartment `docker rm -f parklane-ha-…` and call `/provision` for it. Its data and linked accounts are kept |
-| **Back up** | Copy `/srv/parklane` (database and every apartment's data) plus your `EMS_ENCRYPTION_KEY`, for example nightly |
+| **Set up the clinic** | Doctors and desk accounts come from the CLI: `docker exec parklane-backend npm run clinic -- …`, see [CLINIC.md](CLINIC.md#setting-up-real-doctors). Add the AI and ElevenLabs keys to `backend/.env` before Health Passport can read documents or make summaries, and read its [production checklist](CLINIC.md#production-checklist) first |
+| **Back up** | Copy `/srv/parklane` (database, the clinic's sealed files and every apartment's data) plus your `EMS_ENCRYPTION_KEY`, for example nightly |
 
 ### Updating a server set up before `server/` became `backend/`
 
@@ -168,6 +169,12 @@ rmdir server            # only if nothing else is left in it
 ```
 
 The database and the apartments live in `PARKLANE_DATA` (`/srv/parklane`), outside the repo, so nothing else moves. The running container keeps serving until the new build replaces it, and the compose project and container names stay `parklane` and `parklane-backend`.
+
+### The default account
+
+The backend creates one ready-made sign-in when it starts: username `ems`, password `5002`. It is an ordinary resident account, made once and never overwritten.
+
+**That password is short and known, and the login route allows 10 tries a minute from each address, so treat this account as public.** Never link it to a real resident's apartment, because anyone could then control that home's devices, and keep no real medical records in it. To change it before the first start, set `EMS_DEFAULT_USERNAME` and `EMS_DEFAULT_PASSWORD` in `backend/.env`; to turn it off, set both empty. Once the account exists, those settings no longer change it.
 
 **Security:** the backend container has access to Docker, which means full control of the server. Keep `ADMIN_API_KEY` and `.env` private, never open port 8787 to the internet (the script binds it to the server itself only), and keep SSH key-only.
 

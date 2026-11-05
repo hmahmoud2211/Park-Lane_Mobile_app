@@ -12,6 +12,7 @@ export const recordsCopy = {
     deleteTitle: (name: string) => `Delete “${name}”?`,
     deleteBody: 'It will be removed from the record and from future summaries. This can’t be undone.',
     unknownDocument: 'From a document',
+    fromClinic: 'From your clinic visit',
     trend: (test: string) => `${test} trend, oldest to newest`,
     upload: 'Upload document',
     noDocuments: 'No documents yet.',
@@ -23,12 +24,16 @@ export const recordsCopy = {
     deleteTitle: (name: string) => `حذف «${name}»؟`,
     deleteBody: 'سيُحذف من السجل ومن الملخصات القادمة. لا يمكن التراجع عن ذلك.',
     unknownDocument: 'من مستند',
+    fromClinic: 'من زيارتك للعيادة',
     trend: (test: string) => `تطور ${test} من الأقدم إلى الأحدث`,
     upload: 'رفع مستند',
     noDocuments: 'لا توجد مستندات بعد.',
     results: (n: number) => (n === 1 ? 'نتيجة واحدة' : `${num(n, 'ar')} نتائج`),
   },
 } satisfies Record<HealthLang, unknown>;
+
+/** A record item's source when a clinic doctor's finalized visit added it. */
+export const CONSULTATION_SOURCE = 'consultation:';
 
 /** A trend line needs this many results to say anything. */
 export const TREND_MIN_RESULTS = 3;

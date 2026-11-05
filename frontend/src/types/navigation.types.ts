@@ -85,6 +85,16 @@ export type RootStackParamList = {
   /** With `lang` (and `specialty`), opens straight on that summary: its player, progress or failure. */
   HealthSummary: { profileId: string; lang?: HealthLang; specialty?: string | null };
   HealthSettings: undefined;
+  /** A clinic visit its doctor finalized, as it appears in Health Passport. */
+  HealthConsultation: { consultationId: string };
+
+  /** Clinical Appointment: the clinic's doctors, by specialty, and the resident's appointments. */
+  Clinic: undefined;
+  /** A doctor's profile and free slots. `rescheduleOf` moves that appointment rather than booking a new one. */
+  ClinicDoctor: { doctorId: string; rescheduleOf?: string };
+  /** Confirming a slot. `date` and `time` are clinic time, as the slot listed them. */
+  ClinicBooking: { doctorId: string; startsAt: string; date: string; time: string; rescheduleOf?: string };
+  ClinicAppointment: { appointmentId: string; justBooked?: boolean };
 };
 
 /** The Records screen's tabs: each record section, then the documents. */

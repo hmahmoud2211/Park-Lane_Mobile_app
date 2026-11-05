@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -26,16 +26,21 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { assistantConfig } from '../../config/assistant';
 import { images } from '../../constants/images';
+import { useEms } from '../../features/ems/hooks/useEms';
+import { emsErrorText } from '../../features/ems/services/emsHttp';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { AppTheme } from '../../types/theme.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
+  accountCopy,
   loginCopy,
   signInMethods,
   validateLogin,
+  validateNewAccount,
   type LoginErrors,
+  type LoginMode,
   type SignInMethodId,
 } from './LoginScreen.data';
 import {
@@ -78,6 +83,11 @@ function FormCard({ wide, style, children }: FormCardProps) {
   return wide ? <View style={style}>{children}</View> : <>{children}</>;
 }
 
+/**
+ * The app's one sign-in, against the EMS accounts every part of the app shares: smart home,
+ * Health Passport and the clinic use the session it starts. A stored session skips the form,
+ * and "Continue as Guest" opens the app without one.
+ */
 export function LoginScreen() {
   const theme = useAppTheme();
   const { isWide } = useScreenLayout();
@@ -87,28 +97,58 @@ export function LoginScreen() {
   const fieldHeight = isWide ? FIELD_HEIGHT_WIDE : FIELD_HEIGHT;
   const submitHeight = isWide ? SUBMIT_HEIGHT_WIDE : SUBMIT_HEIGHT;
   const { setResidentId } = useAppContext();
+  const { status, signIn, createAccount, sessionNotice } = useEms();
 
+  const [mode, setMode] = useState<LoginMode>('signIn');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<LoginErrors>({});
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
+  const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
 
-  const handleSubmit = useCallback(() => {
-    const nextErrors = validateLogin(email, password);
+  const creating = mode === 'create';
+
+  // Signed in, just now or by a stored session. `replace` rather than `navigate`
+  // so the back gesture does not return to the login form.
+  useEffect(() => {
+    if (status === 'signedIn') {
+      setResidentId(assistantConfig.defaultResidentId);
+      navigation.replace('Home');
+    }
+  }, [status, navigation, setResidentId]);
+
+  const handleSubmit = useCallback(async () => {
+    const nextErrors = creating ? validateNewAccount(name, email, password) : validateLogin(email, password);
     setErrors(nextErrors);
+    setFailure(null);
 
     if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
-    // Frontend only: nothing is authenticated here. `replace` rather than
-    // `navigate` so the back gesture does not return to the login form.
-    // TODO(auth): verify credentials before routing once a backend exists.
-    setResidentId(assistantConfig.defaultResidentId);
-    navigation.replace('Home');
-  }, [email, password, navigation, setResidentId]);
+    setBusy(true);
+    try {
+      if (creating) {
+        await createAccount(name.trim(), email.trim(), password);
+      } else {
+        await signIn(email.trim(), password);
+      }
+    } catch (error) {
+      setFailure(emsErrorText(error));
+      setBusy(false);
+    }
+  }, [creating, name, email, password, signIn, createAccount]);
+
+  const switchMode = useCallback(() => {
+    setMode((current) => (current === 'signIn' ? 'create' : 'signIn'));
+    setErrors({});
+    setFailure(null);
+  }, []);
 
   // Straight to Home with no resident, so the assistant answers as for a guest.
   const handleGuest = useCallback(() => {
@@ -122,12 +162,14 @@ export function LoginScreen() {
         handleGuest();
         return;
       case 'biometric':
-        // TODO(auth): wire to the device's biometric prompt once sign-in exists.
+        // TODO(auth): wire to the device's biometric prompt.
         return;
     }
   };
 
   const togglePassword = useCallback(() => setShowPassword((shown) => !shown), []);
+
+  const notice = failure ?? sessionNotice;
 
   return (
     <ScreenWrapper
@@ -168,11 +210,36 @@ export function LoginScreen() {
             </View>
 
             <AppText variant="bodySmall" color={theme.colors.textAccentSoft} style={styles.subtitle}>
-              {loginCopy.subtitle}
+              {creating ? accountCopy.subtitle : loginCopy.subtitle}
             </AppText>
 
             <View style={styles.form}>
+              {creating ? (
+                <AppInput
+                  placeholder={accountCopy.nameLabel}
+                  accessibilityLabel={accountCopy.nameLabel}
+                  value={name}
+                  onChangeText={setName}
+                  height={fieldHeight}
+                  error={errors.name}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  containerStyle={styles.nameField}
+                  leftIcon={
+                    <Ionicons
+                      name="person-circle-outline"
+                      size={FIELD_ICON_SIZE}
+                      color={theme.colors.textPrimary}
+                    />
+                  }
+                />
+              ) : null}
+
               <AppInput
+                ref={emailRef}
                 placeholder={loginCopy.emailLabel}
                 accessibilityLabel={loginCopy.emailLabel}
                 value={email}
@@ -206,10 +273,10 @@ export function LoginScreen() {
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoComplete="password"
-                textContentType="password"
+                autoComplete={creating ? 'new-password' : 'password'}
+                textContentType={creating ? 'newPassword' : 'password'}
                 returnKeyType="go"
-                onSubmitEditing={handleSubmit}
+                onSubmitEditing={() => void handleSubmit()}
                 containerStyle={styles.fieldGap}
                 leftIcon={
                   <Ionicons
@@ -234,21 +301,37 @@ export function LoginScreen() {
                 }
               />
 
-              <Pressable
-                onPress={() => {
-                  // TODO(nav): route to password recovery once that screen exists.
-                }}
-                style={styles.forgotPassword}
-                accessibilityRole="button"
-              >
-                <AppText variant="bodySmall" color={theme.colors.link}>
-                  {loginCopy.forgotPassword}
+              <View style={styles.links}>
+                <Pressable onPress={switchMode} style={styles.link} accessibilityRole="button">
+                  <AppText variant="bodySmall" color={theme.colors.link}>
+                    {creating ? accountCopy.signInLink : accountCopy.createLink}
+                  </AppText>
+                </Pressable>
+                {creating ? null : (
+                  <Pressable
+                    onPress={() => {
+                      // TODO(nav): route to password recovery once that screen exists.
+                    }}
+                    style={styles.link}
+                    accessibilityRole="button"
+                  >
+                    <AppText variant="bodySmall" color={theme.colors.link}>
+                      {loginCopy.forgotPassword}
+                    </AppText>
+                  </Pressable>
+                )}
+              </View>
+
+              {notice ? (
+                <AppText variant="bodySmall" color={theme.colors.error} accessibilityRole="alert" style={styles.formError}>
+                  {notice}
                 </AppText>
-              </Pressable>
+              ) : null}
 
               <AppButton
-                title={loginCopy.submit}
-                onPress={handleSubmit}
+                title={creating ? accountCopy.submit : loginCopy.submit}
+                onPress={() => void handleSubmit()}
+                loading={busy}
                 height={submitHeight}
                 labelVariant="buttonSoft"
                 trailingIcon={<ArrowRightIcon size={14} />}

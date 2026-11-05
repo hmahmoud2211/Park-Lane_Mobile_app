@@ -1,7 +1,7 @@
 /**
- * The signed-in resident and their unit, as the screens show them until the app has real
- * accounts (the login is not wired to a backend yet). Mock content shaped the way a real
- * API response would be; the wording matches the Figma reference.
+ * The resident and their unit, as Home, Profile and My Unit show them until those screens
+ * read the signed-in account. Mock content shaped the way a real API response would be; the
+ * wording matches the Figma reference.
  *
  * Shown on Home, Profile and My Unit, and printed on the visitor pass and receipts. Other
  * demo identities are separate on purpose (config/demo.ts lists them all).

@@ -2,12 +2,12 @@ import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { promisify } from 'node:util';
 
-import type { User } from '../../../shared/contracts/auth.ts';
+import type { Role, User } from '../../../shared/contracts/auth.ts';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { trimmedText } from '../lib/text.ts';
 import { findToken, insertToken, revokeTokenAndChildren, revokeUserTokens, type TokenKind, type TokenRow } from '../repositories/tokens.ts';
-import { findUserById, findUserWithPassword, insertUser } from '../repositories/users.ts';
+import { findUserByEmail, findUserById, findUserWithPassword, insertUser, updatePasswordHash } from '../repositories/users.ts';
 import { newToken, sha256 } from './secrets.ts';
 
 /**
@@ -17,7 +17,7 @@ import { newToken, sha256 } from './secrets.ts';
  * devices. The routes (src/routes/) decide which take which kind.
  */
 
-export type { TokenKind, User };
+export type { Role, TokenKind, User };
 export { findUserByEmail } from '../repositories/users.ts';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
@@ -50,14 +50,33 @@ export function normalizeEmail(value: unknown): string {
   return email;
 }
 
-export async function createUser(emailInput: unknown, passwordInput: unknown, nameInput: unknown): Promise<User> {
+/** How an account is looked up: its email or, for the default account, its username. */
+export const loginOf = (value: unknown) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
+/**
+ * The ready-made sign-in from the settings, made on starting if it is not there yet and never
+ * overwritten, so a password changed later stays changed. A username and a short password are
+ * allowed here only: createUser's rules are for the accounts people make themselves.
+ */
+export async function ensureDefaultAccount(): Promise<void> {
+  const username = loginOf(config.ems.defaultAccount.username);
+  const { password } = config.ems.defaultAccount;
+  if (!username || !password || findUserByEmail(username)) {
+    return;
+  }
+  const user: User = { id: randomUUID(), email: username, name: username.toUpperCase(), role: 'resident' };
+  insertUser(user, await hashPassword(password), new Date().toISOString());
+}
+
+/** `role` is only ever set by the clinic CLI; the register route always makes a resident. */
+export async function createUser(emailInput: unknown, passwordInput: unknown, nameInput: unknown, role: Role = 'resident'): Promise<User> {
   const email = normalizeEmail(emailInput);
   const password = typeof passwordInput === 'string' ? passwordInput : '';
   if (password.length < 8 || password.length > 128) {
     throw new ApiError('bad_request', 'The password must be 8 to 128 characters.');
   }
   const name = trimmedText(nameInput) || email.split('@')[0];
-  const user: User = { id: randomUUID(), email, name };
+  const user: User = { id: randomUUID(), email, name, role };
   const passwordHash = await hashPassword(password);
   try {
     insertUser(user, passwordHash, new Date().toISOString());
@@ -71,14 +90,23 @@ export async function createUser(emailInput: unknown, passwordInput: unknown, na
 }
 
 export async function verifyCredentials(emailInput: unknown, passwordInput: unknown): Promise<User> {
-  const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   const password = typeof passwordInput === 'string' ? passwordInput : '';
-  const row = findUserWithPassword(email);
+  const row = findUserWithPassword(loginOf(emailInput));
   const matches = await passwordMatches(password, row?.password_hash ?? DUMMY_HASH);
   if (!row || !matches) {
     throw new ApiError('unauthorized', 'Wrong email or password.');
   }
-  return { id: row.id, email: row.email, name: row.name };
+  return { id: row.id, email: row.email, name: row.name, role: row.role };
+}
+
+/** For the clinic CLI: a doctor's or desk account's new password. Every session signed in with the old one ends. */
+export async function setPassword(userId: string, passwordInput: unknown): Promise<void> {
+  const password = typeof passwordInput === 'string' ? passwordInput : '';
+  if (password.length < 10 || password.length > 128) {
+    throw new ApiError('bad_request', 'Clinic passwords must be 10 to 128 characters.');
+  }
+  updatePasswordHash(userId, await hashPassword(password));
+  revokeTokens(userId, ['session']);
 }
 
 export function getUser(id: string): User | null {
@@ -96,7 +124,9 @@ export function issueToken(
   return token;
 }
 
-export const createSession = (userId: string) => issueToken(userId, 'session', Date.now() + config.ems.sessionTtlMs);
+/** Doctors and desk staff work on shared clinic machines, so their sessions are hours, not the app's 30 days. */
+export const createSession = (userId: string, role: Role = 'resident') =>
+  issueToken(userId, 'session', Date.now() + (role === 'resident' ? config.ems.sessionTtlMs : config.clinic.staffSessionTtlMs));
 
 /**
  * An assistant token for the session behind `sessionToken`: it never outlives
@@ -151,3 +181,12 @@ export function authenticate(req: IncomingMessage, kinds: readonly TokenKind[] =
 
 /** The signed-in user behind a request, or 401. */
 export const requireUser = (req: IncomingMessage, kinds: readonly TokenKind[] = ['session']): User => authenticate(req, kinds).user;
+
+/** The signed-in user, who must hold one of `roles` (403 otherwise). */
+export function requireRole(req: IncomingMessage, roles: readonly Role[]): User {
+  const user = requireUser(req);
+  if (!roles.includes(user.role)) {
+    throw new ApiError('forbidden', 'This account cannot use this part of the clinic.');
+  }
+  return user;
+}

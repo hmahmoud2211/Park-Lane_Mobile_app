@@ -6,5 +6,5 @@ import { config } from '../config.ts';
 export function applyCors(res: ServerResponse): void {
   res.setHeader('Access-Control-Allow-Origin', config.corsOrigin);
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
 }

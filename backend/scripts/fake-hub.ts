@@ -32,10 +32,12 @@ Object.assign(process.env, {
 
 const { FakeHa, demoHome } = await import('../test/fakeHa.ts');
 const { createApp } = await import('../src/app.ts');
+const { ensureDefaultAccount } = await import('../src/ems/auth.ts');
 
 const HUB_TOKEN = 'fake-hub-token-000000000000';
 const ha = new FakeHa(demoHome(), HUB_TOKEN);
 await ha.listen();
+await ensureDefaultAccount();
 const app = createApp();
 await new Promise<void>((resolve) => app.listen(PORT, '0.0.0.0', resolve));
 

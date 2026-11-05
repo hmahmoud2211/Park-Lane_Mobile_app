@@ -7,7 +7,8 @@ The resident app for the Park Lane compound: one codebase for iOS, Android and t
 - **Home, profile and my unit**: the resident's unit, payments and documents (receipts and passes as PDFs).
 - **Visitor access**: invite visitors and share a QR pass.
 - **Parking**: a working demo of visitor bookings, QR gate entry and exit, directions to the exact bay, EV charging, a security console and demo controls. It runs on the device; see [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md).
-- **Health Passport**: a family's medical records, documents read and checked item by item, and a spoken summary for the doctor, in English and Arabic. It runs on a mock until the backend's `/health` API is in place; see [docs/HEALTH_PASSPORT.md](docs/HEALTH_PASSPORT.md).
+- **Health Passport**: a family's medical records, documents read and checked item by item, and a spoken summary for the doctor, in English and Arabic. See [docs/HEALTH_PASSPORT.md](docs/HEALTH_PASSPORT.md).
+- **Clinical Appointment**: book a doctor at the compound's clinic; the visit they approve lands in the patient's Health Passport. See [docs/CLINIC.md](docs/CLINIC.md).
 - **Maintenance, community and amenities**: requests, announcements, polls, feedback and bookings (mock content until their backends exist).
 - **Smart home**: devices from brand clouds through the EMS backend, and local devices through the CUBE Gateway, with add-device wizards (soft-AP Wi-Fi setup for Shelly, SONOFF and LG ACs), live updates and full controls.
 - **Parklane Assistant**: chat and voice, able to read and control the resident's devices.
@@ -42,7 +43,7 @@ cp .env.example .env.local      # point EXPO_PUBLIC_DEVICE_BACKEND_URL at a back
 npx expo start                  # w for the web, or scan the QR code
 
 # the backend with a stand-in Home Assistant, plus the app, in one command (repository root)
-./scripts/dev.sh fake           # sign in to My Devices as demo@parklane.test / correct horse battery
+./scripts/dev.sh fake           # sign in as ems / 5002, or demo@parklane.test / correct horse battery
 
 # before you push
 ./scripts/dev.sh check          # app typecheck and lint, backend typecheck and tests
@@ -94,5 +95,6 @@ Four device classes (`frontend/src/theme/breakpoints.ts`): mobile (< 768), table
 | [docs/CUBE_GATEWAY.md](docs/CUBE_GATEWAY.md), [gateway/API.md](gateway/API.md) | The CUBE Gateway |
 | [docs/PARKING_DEMO.md](docs/PARKING_DEMO.md) | The parking demo |
 | [docs/HEALTH_PASSPORT.md](docs/HEALTH_PASSPORT.md) | Health Passport, its API and what is still open |
+| [docs/CLINIC.md](docs/CLINIC.md) | The clinic: booking, consultations, AI, access rules, setting up doctors |
 | [docs/production.md](docs/production.md) | Running the backend in production |
 | [AGENTS.md](AGENTS.md) | Rules for coding agents working in this repository |

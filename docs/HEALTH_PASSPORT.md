@@ -2,7 +2,7 @@
 
 A resident keeps their family's medical records in the app and, at a doctor's visit, plays a clear spoken summary of the whole record. The feature is fully in English and Arabic, with right-to-left layout.
 
-**Status:** the app side is complete and runs on a built-in mock. This repository's backend (`backend/`) does not serve the `/health` API yet, so a release build shows an error until it does. See [What is still open](#what-is-still-open).
+**Status:** complete, on `backend/`, with a built-in mock for development. Reading documents and spoken summaries need the AI and ElevenLabs keys ([CLINIC.md](CLINIC.md)); without them those two answer 503 and everything else works. See [What is still open](#what-is-still-open).
 
 ## What it does
 
@@ -39,7 +39,7 @@ Entered from the Health Passport row on the Services screen, or at `/health` on 
 | `features/health/hooks/` | `useHealth`, and `useHealthData` for one cached resource each |
 | `features/health/components/` | `HealthFrame`, `HealthNotifier`, `ConfirmSheet`, `DateField`, `SummaryPlayer`, `ZoomableImage`, `ItemRow` and friends |
 | `screens/Health*Screen/` | One folder per route, each with its own English and Arabic copy in `.data.ts` |
-| `types/health.types.ts` | The API's types, snake_case as sent |
+| `types/health.types.ts` | The API's types, snake_case as sent, from `shared/contracts/health.ts` |
 | `config/health.ts` | Backend address, timeouts, polling schedules |
 
 ## Mock or real backend
@@ -49,6 +49,8 @@ Entered from the Health Passport row on the Services screen, or at `/health` on 
 | unset | mock | real backend |
 | `mock` | mock | mock |
 | `http` | real backend | real backend |
+
+`./scripts/dev.sh` and `.env.example` choose `http`, because the clinic always uses the real backend and books against the same record. Use `mock` only to work on these screens with no backend.
 
 `EXPO_PUBLIC_HEALTH_API_URL` sets the backend, and defaults to the EMS backend. The app only ever talks to its own backend: no AI address or key belongs in it.
 
@@ -62,7 +64,7 @@ Entered from the Health Passport row on the Services screen, or at `/health` on 
 
 ## The API it expects
 
-Bodies are plain JSON in snake_case, without the `{ ok, data }` envelope (`types/health.types.ts`). Requests carry `Authorization: Bearer <EMS session>` and `Accept-Language: en|ar`, and texts come back in that language. Paths are `/health/...`, not `/api/...`.
+The server side is `backend/src/routes/health.ts` over `backend/src/health/`. Bodies are plain JSON in snake_case, without the `{ ok, data }` envelope (`shared/contracts/health.ts`). Requests carry `Authorization: Bearer <EMS session>` and `Accept-Language: en|ar`, and texts come back in that language. Paths are `/health/...`, not `/api/...`.
 
 | Method and path | Purpose |
 | --- | --- |
@@ -78,15 +80,16 @@ Bodies are plain JSON in snake_case, without the `{ ok, data }` envelope (`types
 | `DELETE /health/documents/:id?delete_items=` | Delete a document, optionally with its items |
 | `GET /health/profiles/:id/summary?lang=&specialty=` | Current summary state. 404 means none yet |
 | `POST /health/profiles/:id/summary` | Ask for a summary: 200 if current, 202 with the background job |
+| `GET /health/consultations/:id` | A clinic visit its doctor finalized, as the resident reads it |
+| `GET /health/media/document/:id/:page`, `/health/media/summary/:id` | A page or recording, by session or signed link |
 
 Failures map to `HealthError` kinds that the screens explain: 401 ends the session, 404 `not_found`, 413 `too_large`, 422 `invalid`, 503 `busy`. A message in `detail`, `message` or `error.message` is used.
 
 ## What is still open
 
-1. **The backend.** It exists on branch `feature/clinical-system`, under the old `server/` path, along with the Clinic and its AI keys. It has to be moved to `backend/`. Until then a release build gets a 404 on opening Health Passport and shows "Not found: This may have been deleted." The resident is not signed out, but that wording is alarming on a medical record, so settle this before residents see the Services row: move the backend, or build with `EXPO_PUBLIC_HEALTH_API=mock` for a demo, which shows sample records.
-2. **Two changes the backend port needs here.** `backend/src/app.ts` dispatches only `/api/` paths, and `backend/src/http/cors.ts` does not allow `PUT`, which the web app uses to change profiles and items.
-3. **Sign-in.** The API uses the EMS session, but the app's own login is not wired to EMS yet. A resident with no EMS session would get a 401, and `HealthNotifier` then sends them to Login, which does not create one. Health Passport needs to ask for the EMS sign-in first, or the two logins need joining.
-4. **Icon.** `service-health.png` is not from the Figma design; replace it when an official export exists.
+1. **Real keys.** The AI and ElevenLabs integrations are tested against local stand-ins, not the live services ([CLINIC.md](CLINIC.md#limitations-and-next-steps)).
+2. **A guest.** Health Passport needs a signed-in account, so a guest who opens it against the real backend is sent to the login screen.
+3. **Icon.** `service-health.png` is not from the Figma design; replace it when an official export exists.
 
 ## Checks
 
