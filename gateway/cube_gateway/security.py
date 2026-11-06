@@ -25,9 +25,15 @@ import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .crypto import Sealer, constant_time_equal, identity_proof, new_token, token_hash
 from .db import Database
+from .netutil import phone_address
+from .relay.client import gateway_url
+
+if TYPE_CHECKING:
+    from .config import Settings
 
 log = logging.getLogger("cube.security")
 
@@ -100,6 +106,8 @@ class Security:
         self.sealer = sealer
         #: The current setup code, readable by `cube-gateway setup-code` (docker exec) while unclaimed. Mode 0600.
         self.code_file = code_file
+        #: Where a pairing QR code sends a phone: see pairing_target. A rotated code needs it too.
+        self.pair_target = ""
         self.gateway_id = ""
         self.name = "CUBE Gateway"
         self._setup_code: str | None = None
@@ -273,27 +281,23 @@ class Security:
         return identity_proof(pin_key, self.gateway_id, nonce)
 
 
-def setup_payload(security: Security, host: str | None, port: int) -> str:
-    target = f"{host}:{port}" if host else ""
-    return f"cubegw://pair?host={target}&id={security.gateway_id}&code={security.setup_code or ''}"
+def pairing_target(settings: Settings, gateway_id: str) -> str:
+    """The part of a pairing QR code that says where a phone finds this gateway; empty when it can't tell, and the
+    app then asks for the address. The relay goes first only where the first phone may claim through it: a home
+    gateway with a relay is still claimed on the home network.
+    """
+    if settings.relay_url and settings.allow_remote_claim:
+        return f"url={gateway_url(settings.relay_url, gateway_id)}"
+    host = phone_address(settings.host)
+    return f"host={host}:{settings.port}" if host else ""
 
 
-def announce_setup_code(security: Security, host: str | None = None, port: int = 8686) -> None:
-    """Prints the setup code in a block that stands out in `docker logs`, with a scannable QR code."""
-    code = security.setup_code
-    if not code:
-        return
-    payload = setup_payload(security, host, port)
-    lines = [
-        "",
-        "=" * 64,
-        "  CUBE Gateway is not paired yet.",
-        f"  Gateway: {security.name}  ({security.gateway_id})",
-        f"  Setup code: {code}",
-        "  In CUBE OS: Add Device -> Connect gateway, then enter this code",
-        "  or scan the QR code below.",
-        "=" * 64,
-    ]
+def setup_payload(gateway_id: str, code: str, target: str = "") -> str:
+    return "cubegw://pair?" + "&".join(part for part in (target, f"id={gateway_id}", f"code={code}") if part)
+
+
+def render_qr(payload: str) -> str:
+    """The QR code as text for a terminal. Empty if it can't be drawn: the code on its own is enough."""
     try:
         import io
 
@@ -303,9 +307,28 @@ def announce_setup_code(security: Security, host: str | None = None, port: int =
         qr.add_data(payload)
         buffer = io.StringIO()
         qr.print_ascii(out=buffer, invert=True)
-        lines.append(buffer.getvalue())
-    except Exception:  # noqa: BLE001 - the code above is enough without the QR
-        pass
+        return buffer.getvalue()
+    except Exception:  # noqa: BLE001 - see above
+        return ""
+
+
+def announce_setup_code(security: Security) -> None:
+    """Prints the setup code in a block that stands out in `docker logs`, with a scannable QR code."""
+    code = security.setup_code
+    if not code:
+        return
+    payload = setup_payload(security.gateway_id, code, security.pair_target)
+    lines = [
+        "",
+        "=" * 64,
+        "  CUBE Gateway is not paired yet.",
+        f"  Gateway: {security.name}  ({security.gateway_id})",
+        f"  Setup code: {code}",
+        "  In CUBE OS: Add Device -> Connect gateway, then enter this code",
+        "  or scan the QR code below.",
+        "=" * 64,
+        render_qr(payload),
+    ]
     # Printed rather than logged so the QR stays intact; the code is single-use and only for the owner.
     print("\n".join(lines), flush=True)  # noqa: T201
     log.info("waiting for the owner to pair", extra={"gateway_id": security.gateway_id, "setup_url": payload.split("&code=")[0]})

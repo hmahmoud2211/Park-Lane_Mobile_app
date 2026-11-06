@@ -18,9 +18,9 @@ from .devices import DeviceManager, PairingManager
 from .discovery.engine import DiscoveryEngine
 from .discovery.mdns import MdnsService
 from .events import EventBus
-from .netutil import primary_address
+from .netutil import phone_address
 from .provisioning.engine import ProvisioningEngine
-from .security import Security, announce_setup_code
+from .security import Security, announce_setup_code, pairing_target
 
 log = logging.getLogger("cube.gateway")
 
@@ -57,6 +57,7 @@ class Gateway:
     async def start(self) -> None:
         version = await self.db.open()
         await self.security.load(self.settings.name)
+        self.security.pair_target = pairing_target(self.settings, self.security.gateway_id)
         log.info(
             "gateway starting",
             extra={"version": __version__, "gateway_id": self.security.gateway_id, "schema": version, "data_dir": str(self.settings.data_dir)},
@@ -75,14 +76,12 @@ class Gateway:
         if self.cloud is not None:
             self.cloud.start()
         if not await self.security.is_claimed():
-            announce_setup_code(self.security, self.address(), self.settings.port)
+            announce_setup_code(self.security)
         loaded = sorted(self.registry.adapters)
         log.info("gateway ready", extra={"port": self.settings.port, "adapters": loaded, "failed_adapters": sorted(self.registry.failed)})
 
     def address(self) -> str | None:
-        """The address phones should use: CUBE_HOST when it names one, else the first private LAN address."""
-        host = self.settings.host
-        return host if host and host not in {"0.0.0.0", "::"} else primary_address()
+        return phone_address(self.settings.host)
 
     async def advertise(self) -> None:
         if self.settings.mdns_advertise:

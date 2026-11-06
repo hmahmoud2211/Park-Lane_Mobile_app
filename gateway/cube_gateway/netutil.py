@@ -83,6 +83,23 @@ def primary_address() -> str | None:
     return str(lan[0].address) if lan else None
 
 
+def _is_loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def phone_address(bind_host: str) -> str | None:
+    """The address phones should use: the bind address when it names one, else the first private LAN address.
+    None when the gateway listens only on this machine, where no phone can reach it."""
+    if not bind_host or bind_host in {"0.0.0.0", "::"}:
+        return primary_address()
+    return None if _is_loopback(bind_host) else bind_host
+
+
 def tailscale_addresses() -> list[str]:
     return [str(iface.address) for iface in interfaces() if iface.name.startswith("tailscale") or iface.address in _CGNAT]
 

@@ -78,6 +78,7 @@ See [gateway/README.md](../gateway/README.md) and [CUBE_GATEWAY.md](CUBE_GATEWAY
 | Parking demo rules (23 checks) | `npm run check:parking` (`frontend/`) |
 | HTTP and realtime clients (35 checks) | `npm run check:transport` (`frontend/`) |
 | Health Passport (25 checks) | `npm run check:health` (`frontend/`) |
+| Gateway pairing codes (11 checks) | `npm run check:pairing` (`frontend/`) |
 | Web build | `npx expo export --platform web` (`frontend/`) |
 | Backend typecheck | `npm run typecheck` (`backend/`) |
 | Backend tests (HTTP level, including routing rules) | `npm test` (`backend/`) |
