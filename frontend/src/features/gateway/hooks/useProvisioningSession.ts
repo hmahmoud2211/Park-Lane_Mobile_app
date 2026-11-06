@@ -117,7 +117,8 @@ export function useProvisioningSession() {
     () =>
       subscribe((event) => {
         if (event.type === 'provisioning.updated' && event.data.session.id === sessionId.current) {
-          setSession(event.data.session);
+          // Events leave out secrets, which only this phone's own requests return; keep the ones it has.
+          setSession((current) => ({ ...event.data.session, setup: { ...current?.setup, ...event.data.session.setup } }));
         }
       }),
     [subscribe],

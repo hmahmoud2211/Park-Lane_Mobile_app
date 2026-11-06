@@ -4,6 +4,12 @@ import type { MethodGroup } from '../../types/gateway.types';
 export const addDeviceMethodCopy = {
   title: 'Connect a device',
   fallbackTitle: 'Connect a device',
+  routeTitle: 'How do you want to connect?',
+  routeIntro: 'You can pair the device yourself, or use the account you already have with the maker.',
+  routePairTitle: 'Pair it from the start',
+  routePairBody: 'Connect the device directly, without the maker’s app wherever it allows that. Control stays with CUBE.',
+  routeAccountTitle: (brand: string) => `Use my ${brand} app account`,
+  routeAccountBody: 'Sign in with your account from the maker’s app. Your devices appear here, and control goes through the maker’s cloud.',
   missingBrand: 'This brand is not offered by your gateway.',
   back: 'Back to brands',
   notes: 'Good to know',

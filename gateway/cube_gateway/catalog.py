@@ -42,6 +42,9 @@ class BrandEntry:
     #: Shown by a gateway on CUBE's server, where `summary` and `notes` about local control don't apply.
     server_summary: str | None = None
     server_notes: tuple[str, ...] | None = None
+    #: The adapters are an extra most gateways don't have (their own server): until one is set up here, the brand
+    #: reads exactly as if it had none, rather than listing a route the resident can't use.
+    only_when_configured: bool = False
 
 
 BRANDS: list[BrandEntry] = [
@@ -168,10 +171,13 @@ BRANDS: list[BrandEntry] = [
         "daikin",
         "Daikin",
         "daikin",
-        "Daikin Wi-Fi adapters with the local HTTP API (experimental).",
-        ("daikin",),
-        notes=("BRP069 adapters answer locally; newer BRP072C/SKYFi adapters need a key or are not supported.",),
-        no_setup_reason="Set up the Daikin Wi-Fi adapter with Daikin's app, then find it here.",
+        "Daikin Wi-Fi adapters and Faikout modules over local HTTP (experimental).",
+        ("daikin", "faikout"),
+        notes=(
+            "BRP069 adapters answer locally; newer BRP072C/SKYFi adapters need a key or are not supported.",
+            "Faikout, an ESP32 module that replaces Daikin's Wi-Fi adapter, needs no key or account. Clear any web password on it first.",
+        ),
+        no_setup_reason="Set up a Daikin Wi-Fi adapter with Daikin's app. For a Faikout module, join its own Wi-Fi network and enter yours on its page. Then find it here.",
     ),
     BrandEntry(
         "midea",
@@ -183,9 +189,68 @@ BRANDS: list[BrandEntry] = [
         notes=("Newer (V3) units need a token and key obtained once from Midea's service.",),
         no_setup_reason="Midea units join Wi-Fi through Midea's app (account required). Then find them here.",
     ),
+    BrandEntry(
+        "meross",
+        "Meross",
+        "meross",
+        "Plugs, strips and bulbs that connect straight to CUBE's server, with no Meross account (experimental).",
+        ("meross_cloud",),
+        notes=("Setup replaces the device's link to Meross, so it stops working in the Meross app until you reset it.",),
+        no_setup_reason="Meross setup connects the device to CUBE's server. This gateway runs at home and isn't connected to it.",
+    ),
+    BrandEntry(
+        "tasmota",
+        "Tasmota / OpenBeken",
+        "tasmota",
+        "Plugs, switches and lights running Tasmota or OpenBeken firmware, over their local HTTP API (experimental).",
+        ("tasmota",),
+        aliases=("OpenBeken", "OpenBK", "OBK"),
+        notes=(
+            "Not yet tested on real hardware.",
+            "If the device has a web password, enter it when pairing.",
+            "Give the device a fixed address on your router: if its address changes, it shows offline until you find and add it again.",
+        ),
+    ),
+    BrandEntry(
+        "gree",
+        "Gree",
+        "gree",
+        "Gree air conditioners over their local protocol (experimental).",
+        ("gree",),
+        aliases=("Tosot", "Sinclair", "Cooper & Hunter", "Trane", "Innova", "Proklima", "Tadiran", "Heiwa", "Ekokai", "Lessar", "Wilfa"),
+        notes=(
+            "Not yet tested on real hardware.",
+            "The unit's Wi-Fi firmware decides whether local control works. Some firmware has none, and some may need to reach Gree's servers.",
+        ),
+        no_setup_reason="Gree air conditioners usually join Wi-Fi through the Gree+ app. Afterwards the gateway finds them on your network.",
+    ),
+    BrandEntry(
+        "esphome",
+        "ESPHome",
+        "esphome",
+        "Devices running ESPHome firmware, controlled on your network with no account (experimental).",
+        ("esphome",),
+        aliases=("ESP Home", "ESP32", "ESP8266"),
+        notes=(
+            "ESPHome firmware is built per device, so the controls shown are whatever that device's configuration defines.",
+            "If the device has an API encryption key, you need it to connect: it is the api: encryption: key value in its configuration.",
+            "Buttons, numbers, selects, text sensors, locks, valves, media players and cameras are not shown yet.",
+        ),
+        no_setup_reason="ESPHome devices get their Wi-Fi details from their own firmware or setup page. Set the device up in ESPHome, then use Find existing device.",
+    ),
     # Reached only through their cloud, from the building's hub: no gateway adapter.
     BrandEntry("switchbot", "SwitchBot", "switchbot", "SwitchBot devices through your SwitchBot account.", (), hub=("switchbot_cloud",)),
-    BrandEntry("nest", "Google Nest", "nest", "Nest thermostats and cameras through your Google account.", (), aliases=("Nest", "Google"), hub=("nest",)),
+    BrandEntry(
+        "nest",
+        "Google Nest",
+        "nest",
+        "Nest thermostats and cameras through your Google account.",
+        ("nolongerevil",),
+        aliases=("Nest", "Google"),
+        notes=("Local control is for Nest Learning Thermostats gen 1 or 2 flashed with NoLongerEvil, through your own server.",),
+        hub=("nest",),
+        only_when_configured=True,
+    ),
     BrandEntry("ring", "Ring", "ring", "Ring doorbells and cameras through your Ring account.", (), hub=("ring",)),
     BrandEntry("ecobee", "ecobee", "ecobee", "ecobee thermostats through your ecobee account.", (), hub=("ecobee",)),
     BrandEntry("tado", "tado°", "tado", "tado° heating and air conditioning through your tado° account.", (), aliases=("tado",), hub=("tado",)),
@@ -220,8 +285,18 @@ FIND_TEXT: dict[str, tuple[str, str]] = {
     "samsung_tv": ("Find a Samsung TV", "Finds Samsung TVs on your network. You allow the connection on the TV."),
     "tuya_local": ("Find a Tuya device", "Finds Tuya devices on your network. You'll need each device's local key."),
     "sonoff_lan": ("Find a SONOFF device", "Finds devices in DIY or eWeLink LAN mode on your network."),
+    "daikin": ("Find a Daikin Wi-Fi adapter", "Finds Daikin BRP069 adapters on your network."),
+    "faikout": ("Find a Faikout module", "Finds Faikout modules fitted to Daikin air conditioners on your network."),
+    "esphome": ("Find an ESPHome device", "Finds ESPHome devices on your network. If one uses encryption, you'll need its API encryption key."),
+    "gree": ("Find a Gree air conditioner", "Finds Gree and rebranded air conditioners already on your Wi-Fi."),
+    "nolongerevil": ("Find a Nest on NoLongerEvil", "Lists Nest Learning Thermostats already connected to your NoLongerEvil server."),
+    "tasmota": ("Find a Tasmota or OpenBeken device", "Finds devices with this firmware on your network. You'll need the web password if one is set."),
     "shelly_cloud": ("Find a Shelly on CUBE's server", "Lists Shelly devices already connected to CUBE's server for this home that are not added yet."),
+    "meross_cloud": ("Find a Meross on CUBE's server", "Lists Meross devices set up for this home that are connected to CUBE's server and not added yet."),
 }
+
+#: Told apart when a brand has more than one kind of device to add by address.
+MANUAL_TITLES: dict[str, str] = {"daikin": "Add a Daikin adapter by IP address", "faikout": "Add a Faikout module by IP address"}
 
 
 def _find_method(registry: AdapterRegistry, adapter_id: str) -> ConnectionMethod | None:
@@ -251,7 +326,10 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
     brands: list[Brand] = []
     for entry in BRANDS:
         adapters = [registry.adapters[a] for a in entry.adapters if a in registry.adapters]
-        methods: list[ConnectionMethod] = [m for a in entry.adapters if (m := _find_method(registry, a))]
+        if entry.only_when_configured:
+            adapters = [a for a in adapters if a.available()[0]]
+        offered = [a.info.id for a in adapters] if entry.only_when_configured else entry.adapters
+        methods: list[ConnectionMethod] = [m for a in offered if (m := _find_method(registry, a))]
 
         hosted = settings.server_hosted
         home_only = hosted and not adapters and not entry.hub
@@ -300,7 +378,7 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                     unavailable_reason=HOME_ONLY_REASON,
                 )
             )
-        elif entry.adapters and (adapters or not hosted) and not any(m.group == "new" for m in methods):
+        elif offered and (adapters or not hosted) and not any(m.group == "new" for m in methods):
             methods.append(
                 ConnectionMethod(
                     id="setup:none",
@@ -321,7 +399,7 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                     ConnectionMethod(
                         id=f"manual:{adapter.info.id}",
                         group="advanced",
-                        title="Add by IP address",
+                        title=MANUAL_TITLES.get(adapter.info.id, "Add by IP address"),
                         description="For a device that is on your network but not found by scanning (e.g. mDNS blocked by the router).",
                         adapter_id=adapter.info.id,
                         transport="lan",
@@ -349,7 +427,7 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
                 categories=categories,
                 adapters=[a.info.id for a in adapters],
                 methods=methods,
-                notes=[] if home_only else list(entry.notes if not hosted or entry.server_notes is None else entry.server_notes),
+                notes=[] if home_only or (entry.only_when_configured and not adapters) else list(entry.notes if not hosted or entry.server_notes is None else entry.server_notes),
                 hub_integrations=list(entry.hub),
                 needs_home_gateway=home_only,
             )

@@ -50,6 +50,11 @@ export const provisioningCopy = {
   cloudRejected: (step: 'certificate' | 'mqtt' | 'wifi', message: string) =>
     `${step === 'certificate' ? 'The Shelly refused CUBE’s certificate' : step === 'mqtt' ? 'The Shelly refused the CUBE server settings' : 'The Shelly refused the Wi-Fi settings'}: ${message}`,
   cloudRestartHint: 'If the Shelly does not appear within a few minutes, unplug it and plug it back in so the new settings apply.',
+  merossWifiIntro: 'The phone sends your Wi-Fi and the address of CUBE’s server straight to the device. Nothing is stored by the app.',
+  merossSending: 'Sending the settings to the device…',
+  merossNoLogin: 'The gateway did not prepare this device’s connection to CUBE’s server. Start again; if it keeps happening, the gateway is not connected to CUBE’s server.',
+  merossRejected: (step: 'encryption' | 'server' | 'wifi', message: string) =>
+    `${step === 'encryption' ? 'The device did not accept the secure connection' : step === 'server' ? 'The device refused CUBE’s server settings' : 'The device refused the Wi-Fi settings'}: ${message}`,
   guidedTitle: 'Enter your Wi-Fi on the device’s page',
   guidedIntro: 'The device’s own setup page opens. Choose your 2.4 GHz home network, enter its password and save.',
   openPage: 'Open setup page',

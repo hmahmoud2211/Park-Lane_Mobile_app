@@ -169,6 +169,8 @@ class DaikinAdapter(DeviceAdapter):
                     return None
         if info.get("ret") != "OK" or info.get("type", "aircon") != "aircon":
             return None
+        if type(self) is DaikinAdapter and info.get("ver") and info.get("ver") == info.get("rev"):
+            return None  # A Faikout module: adapters/faikout.py takes it, with fixes the plain adapter lacks.
         mac = normalize_mac(info.get("mac"))
         unique = (mac or ip).replace(":", "")
         candidate = make_candidate(

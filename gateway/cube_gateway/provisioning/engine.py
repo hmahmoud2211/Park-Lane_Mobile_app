@@ -21,6 +21,7 @@ import secrets
 import time
 from typing import Any
 
+from ..adapters import _meross
 from ..adapters.base import AdapterError
 from ..adapters.registry import AdapterRegistry
 from ..config import Settings
@@ -45,7 +46,7 @@ log = logging.getLogger("cube.provisioning")
 S = ConnectionStatus
 WAIT_WINDOW = 180.0
 #: Session setup values that are secrets: kept in memory for the owner's phone, never written to the database.
-SECRET_SETUP_KEYS = {"mqtt_password"}
+SECRET_SETUP_KEYS = {"mqtt_password", "meross_key"}
 
 ORDER = [
     S.PAIRING_MODE_REQUIRED,
@@ -199,14 +200,14 @@ class ProvisioningEngine:
 
     async def _save(self, session: ProvisioningSession) -> None:
         session.updated_at = time.time()
-        # The device's broker password goes to the owner's phone, never to disk.
+        # Secrets go to the owner's phone in its own requests: never to disk, nor to every client's event stream.
         stored = session.model_copy(update={"setup": {k: v for k, v in session.setup.items() if k not in SECRET_SETUP_KEYS}})
         await self.db.execute(
             "INSERT INTO provisioning_sessions (id, data, created_at, expires_at) VALUES (?, ?, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET data = excluded.data",
             (session.id, stored.model_dump_json(), session.created_at, session.expires_at),
         )
-        self.bus.publish("provisioning.updated", session=session.model_dump(mode="json"))
+        self.bus.publish("provisioning.updated", session=stored.model_dump(mode="json"))
 
     async def _move(self, session: ProvisioningSession, state: ConnectionStatus, note: str | None = None) -> None:
         session.state = state
@@ -220,6 +221,9 @@ class ProvisioningEngine:
         slot = session.expect.get("slot")
         if slot and self.cloud is not None and not session.device_id:
             asyncio.get_running_loop().create_task(self.cloud.release_device(slot))
+        appliance = session.expect.get("uuid")
+        if appliance and self.cloud is not None and not session.device_id:
+            asyncio.get_running_loop().create_task(self.cloud.release_appliance(appliance))
         await self._move(session, S.PAIRING_FAILED, code)
         log.info("provisioning failed", extra={"session": session.id, "plugin": session.plugin_id, "code": code})
 
@@ -285,6 +289,17 @@ class ProvisioningEngine:
                 "mqtt_topic_prefix": str(login["topic_prefix"]),
                 "mqtt_ca_pem": str(login.get("ca_pem") or ""),
             }
+        if plugin.adapter_id == "meross_cloud":
+            if self.cloud is None:
+                raise DeviceError("cloud_unavailable", ERRORS["cloud_unavailable"][0], 422, ERRORS["cloud_unavailable"][1])
+            try:
+                server = await self.cloud.device_server()
+            except Exception as error:  # noqa: BLE001
+                raise DeviceError("cloud_unavailable", ERRORS["cloud_unavailable"][0], 503, ERRORS["cloud_unavailable"][1]) from error
+            # A Meross device signs with this key and derives its broker password from it and its MAC.
+            key = secrets.token_hex(16)
+            session.setup = {"mqtt_server": server, "meross_key": key, "meross_user_id": str(secrets.randbelow(10**9) + 1)}
+            self._secrets[session.id] = {"key": key}
         self.sessions[session.id] = session
         await self._save(session)
         log.info("provisioning started", extra={"session": session.id, "plugin": plugin.id, "model": model, "experimental": session.experimental})
@@ -312,6 +327,8 @@ class ProvisioningEngine:
             session.expect.update(plugin.expect(ssid))
         if event.event == "device_info":
             self._absorb_device_info(session, event.data)
+            if session.plugin_id == "meross_cloud_softap" and not await self._register_meross(session):
+                return session
             await self._save(session)
             return session
         target = EVENT_STATE.get(event.event)
@@ -337,9 +354,37 @@ class ProvisioningEngine:
             mac = re.sub(r"[^0-9a-f]", "", str(data.get("mac") or "").lower())
             if len(mac) == 12:
                 session.expect["mac_suffix"] = mac
+        elif session.plugin_id == "meross_cloud_softap":
+            uuid, mac = str(data.get("uuid") or ""), str(data.get("mac") or "")
+            if _meross.UUID.match(uuid) and _meross.MAC.match(mac):
+                session.expect["uuid"] = uuid
+                # Kept as the device spells it: its broker password is derived from this exact text.
+                session.expect["mac"] = mac
         model = data.get("model")
         if isinstance(model, str) and model.strip() and not session.model:
             session.model = model.strip()[:40]
+
+    async def _register_meross(self, session: ProvisioningSession) -> bool:
+        """The device's MAC is known now, so its broker login can exist before it first connects."""
+        uuid, mac = session.expect.get("uuid"), session.expect.get("mac")
+        key = self._secrets.get(session.id, {}).get("key")
+        user_id = session.setup.get("meross_user_id")
+        if not (uuid and mac):
+            await self._fail(session, "provisioning_protocol_failed", "The device did not report a valid id.")
+            return False
+        if not (key and user_id):
+            await self._fail(session, "gateway_restarted")
+            return False
+        try:
+            await self.cloud.register_appliance(uuid, mac, _meross.device_password(mac, key, user_id))
+        except Exception:  # noqa: BLE001
+            log.warning("could not create the device's broker login", extra={"session": session.id})
+            await self._fail(session, "cloud_unavailable")
+            return False
+        adapter = self.registry.adapters.get(session.adapter_id)
+        if adapter is not None and hasattr(adapter, "expect"):
+            adapter.expect(uuid, key)
+        return True
 
     async def cancel(self, session_id: str) -> ProvisioningSession:
         return await self.event(session_id, ProvisioningEvent(event="cancel"))
@@ -392,6 +437,8 @@ class ProvisioningEngine:
         expect = session.expect
         if "slot" in expect:
             return str(candidate.details.get("slot") or "") == expect["slot"]
+        if "uuid" in expect:
+            return candidate.unique_id == expect["uuid"]
         if "exclude" in expect:
             if candidate.unique_id in set(filter(None, expect["exclude"].split(","))):
                 return False

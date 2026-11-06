@@ -30,14 +30,18 @@ import { readyHome } from '../../features/ems/services/readyHome';
 const GROUPS: readonly MethodGroup[] = ['existing', 'new', 'advanced'];
 const CHEVRON_SIZE = 18;
 
+type Route = 'pair' | 'account';
+
 /**
  * Add Device, Screen 2: how to connect a device of the chosen brand. The
  * gateway decides which methods exist and whether each works here (an LG
  * appliance needs ReThink, a Kasa setup needs the gateway's Wi-Fi radio);
  * unavailable ones stay visible with the reason. When the building's hub can
- * link the brand's cloud account, that is offered after them, clearly labelled.
- * For some brands it is the only way. Signed out, the same button opens
- * ConnectAccount, which signs in to EMS there and carries straight on to the brand.
+ * also link the brand's cloud account, the resident first chooses between
+ * pairing the device from the start and using their account in the maker's app.
+ * With only one route there is nothing to choose, so it opens directly. Signed
+ * out, the account button opens ConnectAccount, which signs in to EMS there and
+ * carries straight on to the brand.
  */
 export function AddDeviceMethodScreen() {
   const theme = useAppTheme();
@@ -50,6 +54,7 @@ export function AddDeviceMethodScreen() {
   const brand = brands?.find((entry) => entry.id === params.brandId) ?? null;
   const [integrations, setIntegrations] = useState<Integration[] | null>(null);
   const [cloudFailed, setCloudFailed] = useState(false);
+  const [route, setRoute] = useState<Route | null>(null);
   const hasHub = readyHome(ems.status, ems.home) !== null;
   const hubIds = useMemo(() => brand?.hub_integrations ?? [], [brand]);
   const wantsIntegrations = hasHub && hubIds.length > 0;
@@ -111,6 +116,23 @@ export function AddDeviceMethodScreen() {
         {method.available ? method.description : (method.unavailable_reason ?? method.description)}
       </AppText>
       <MethodChips method={method} />
+    </SelectableCard>
+  );
+
+  const renderRouteOption = (option: Route, title: string, body: string) => (
+    <SelectableCard
+      key={option}
+      onPress={() => setRoute(option)}
+      selected={route === option}
+      accessibilityLabel={`${title}. ${body}`}
+      accessibilityState={{ selected: route === option }}
+      pressedStyle={styles.pressed}
+      style={styles.method}
+    >
+      <AppText variant="statValue">{title}</AppText>
+      <AppText variant="tileCaption" color={theme.colors.textSupport}>
+        {body}
+      </AppText>
     </SelectableCard>
   );
 
@@ -184,10 +206,25 @@ export function AddDeviceMethodScreen() {
         </Notice>
       );
     }
+    const hasAccount = hubIds.length > 0;
+    const hasBothRoutes = hasAccount && brand.methods.length > 0;
+    const showPairing = !hasBothRoutes || route === 'pair';
+    const showAccount = hasAccount && (!hasBothRoutes || route === 'account');
     return (
       <>
+        {hasBothRoutes ? (
+          <NeonPanel style={styles.panel}>
+            <PanelHeading title={copy.routeTitle} iconSet="ionicons" iconName="git-branch-outline" divider />
+            <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              {copy.routeIntro}
+            </AppText>
+            {renderRouteOption('pair', copy.routePairTitle, copy.routePairBody)}
+            {renderRouteOption('account', copy.routeAccountTitle(brand.name), copy.routeAccountBody)}
+          </NeonPanel>
+        ) : null}
+
         {GROUPS.map((group) => {
-          const methods = brand.methods.filter((method) => method.group === group);
+          const methods = showPairing ? brand.methods.filter((method) => method.group === group) : [];
           if (methods.length === 0) {
             return null;
           }
@@ -200,7 +237,7 @@ export function AddDeviceMethodScreen() {
           );
         })}
 
-        {hubIds.length > 0 ? (
+        {showAccount ? (
           <NeonPanel style={styles.panel}>
             <PanelHeading title={copy.cloudTitle} iconSet="ionicons" iconName="cloud-outline" divider />
             <AppText variant="tileCaption" color={theme.colors.textSupport}>

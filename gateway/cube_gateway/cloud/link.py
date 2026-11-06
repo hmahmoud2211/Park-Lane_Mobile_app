@@ -4,6 +4,9 @@ The gateway asks the relay for its broker login (authenticated with its relay tu
 the database, and stays connected to the broker, subscribed to its own topics (cube/<gateway_id>/#, which is all
 its login may touch). Adapters register handlers for messages and publish through it. The relay also hands out
 per-device logins when a new device is set up (`allocate_device`).
+
+Devices with fixed topics (Meross) live outside that prefix: `register_appliance` asks the relay for the login and
+for access to that device's topics, and the gateway remembers them so it subscribes again after a restart.
 """
 
 from __future__ import annotations
@@ -41,6 +44,8 @@ class CloudLink:
         self._handlers: list[Handler] = []
         self._ready = asyncio.Event()
         self._wake = asyncio.Event()
+        #: Uuids of fixed-topic devices this gateway may use.
+        self._appliances: set[str] = set()
 
     def wake(self) -> None:
         """Called after enrolling with the relay, so the broker connection starts without waiting."""
@@ -60,7 +65,7 @@ class CloudLink:
             return None
         return url, self.gateway.sealer.unseal(sealed, "relay")
 
-    async def _relay_call(self, method: str, path: str) -> dict[str, Any]:
+    async def _relay_call(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         relay = await self._relay()
         if relay is None:
             raise CloudError("This gateway is not enrolled with a relay.")
@@ -68,7 +73,7 @@ class CloudLink:
         headers = {"Authorization": f"Bearer {self.gateway.security.gateway_id}.{secret}"}
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                response = await client.request(method, f"{url}{path}", headers=headers)
+                response = await client.request(method, f"{url}{path}", headers=headers, json=body)
             payload = response.json()
         except (httpx.HTTPError, ValueError) as error:
             raise CloudError("The relay could not be reached.") from error
@@ -87,6 +92,28 @@ class CloudLink:
         with contextlib.suppress(CloudError):
             await self._relay_call("DELETE", f"/relay/v1/mqtt/devices/{slot}")
 
+    async def device_server(self) -> str:
+        """host:port of the broker, as devices reach it."""
+        return str((await self._relay_call("GET", "/relay/v1/mqtt/server"))["server"])
+
+    async def register_appliance(self, uuid: str, mac: str, password: str) -> None:
+        await self._relay_call("POST", "/relay/v1/mqtt/appliances", {"uuid": uuid, "mac": mac, "password": password})
+        await self._load_appliances()
+        self._appliances.add(uuid)
+        await self.gateway.db.set_meta("cloud_appliances", json.dumps(sorted(self._appliances)))
+        if self.connected and self._client is not None:
+            await self._client.subscribe(appliance_topic(uuid))
+
+    async def release_appliance(self, uuid: str) -> None:
+        with contextlib.suppress(CloudError):
+            await self._relay_call("DELETE", f"/relay/v1/mqtt/appliances/{uuid}")
+        await self._load_appliances()
+        self._appliances.discard(uuid)
+        await self.gateway.db.set_meta("cloud_appliances", json.dumps(sorted(self._appliances)))
+
+    async def _load_appliances(self) -> None:
+        self._appliances |= set(json.loads(await self.gateway.db.get_meta("cloud_appliances") or "[]"))
+
     # ---- broker connection ----
 
     @property
@@ -99,7 +126,8 @@ class CloudLink:
     async def publish(self, topic: str, payload: str) -> None:
         if not self.connected or self._client is None:
             raise CloudError("The gateway is not connected to the device broker.")
-        if not topic.startswith(self.prefix + "/"):
+        allowed = topic.startswith(self.prefix + "/") or any(topic.startswith(f"/appliance/{uuid}/") for uuid in self._appliances)
+        if not allowed:
             raise CloudError("Refusing to publish outside this gateway's topics.")
         await self._client.publish(topic, payload)
 
@@ -159,6 +187,9 @@ class CloudLink:
                     self.last_error = None
                     backoff = 2.0
                     await client.subscribe(f"{self.prefix}/#")
+                    await self._load_appliances()
+                    for uuid in sorted(self._appliances):
+                        await client.subscribe(appliance_topic(uuid))
                     self._ready.set()
                     log.info("connected to the device broker", extra={"broker": url.hostname, "port": url.port})
                     async for message in client.messages:
@@ -188,6 +219,10 @@ class CloudLink:
                     await result
             except Exception:  # noqa: BLE001 - one handler's failure must not stop the others
                 log.debug("message handler failed", exc_info=True)
+
+
+def appliance_topic(uuid: str) -> str:
+    return f"/appliance/{uuid}/publish"
 
 
 def parse_json(payload: bytes) -> Any:

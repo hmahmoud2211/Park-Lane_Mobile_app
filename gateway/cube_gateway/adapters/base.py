@@ -335,6 +335,9 @@ class DeviceAdapter(ABC):
     async def disconnect(self, device: StoredDevice) -> None:
         """Releases anything held open for the device (sockets, sessions)."""
 
+    async def forget(self, device: StoredDevice) -> None:
+        """The user removed the device: gives up anything kept for it beyond a restart, such as a broker login."""
+
 
 # ---- helpers shared by adapters --------------------------------------------------------------------
 

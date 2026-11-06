@@ -9,4 +9,6 @@ export const vendorDevices = {
   shellySetupIp: '192.168.33.1',
   /** SONOFF / eWeLink devices in AP (pairing) mode. */
   sonoffSetupIp: '10.10.7.1',
+  /** Meross devices in pairing mode. */
+  merossSetupIp: '10.10.10.1',
 } as const;

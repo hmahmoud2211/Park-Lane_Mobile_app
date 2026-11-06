@@ -52,9 +52,10 @@ Each gateway listens on 127.0.0.1 only; nothing per apartment is exposed to the 
 | --- | --- | --- |
 | Shelly Gen2, Gen3, Gen4 | Add Device → Shelly → **Set up a new Shelly (connects to CUBE's server)**. The phone joins the Shelly's Wi-Fi and gives it the home Wi-Fi, CUBE's CA and its own broker login | None |
 | LG ThinQ ACs (ReThink models) | Add Device → LG → **Set up an LG ThinQ appliance for ReThink** | None |
+| Meross plugs, strips and bulbs (experimental) | Add Device → Meross → **Set up a new Meross device (connects to CUBE's server)**. The phone joins the device's Wi-Fi and gives it the home Wi-Fi and the broker's address | None |
 | SONOFF, Tuya / Smart Life, SwitchBot, Ring, ecobee, tado°, Sensibo, Blink, EZVIZ, Ecovacs | Add Device → brand → **Link … account**, through the building's Home Assistant. The resident signs in to EMS first, and adds the device in the maker's app before linking | The brand's account |
 | Samsung SmartThings, Google Nest, Netatmo, August, Yale Home, Miele, Home Connect | The same, once the company has registered an app with the brand ([docs/SMART_HOME.md](../../../docs/SMART_HOME.md), step 3d). Until then they say "not available yet" | The brand's account |
-| TP-Link Kasa / Tapo, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea, other brands | Listed, marked **Needs a box at home**. They only work on the home network, which the server can't reach, so they need a [gateway in the home](../../../docs/CUBE_GATEWAY.md) | |
+| TP-Link Kasa / Tapo, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea, Gree, Tasmota / OpenBeken, ESPHome, other brands | Listed, marked **Needs a box at home**. They only work on the home network, which the server can't reach, so they need a [gateway in the home](../../../docs/CUBE_GATEWAY.md) | |
 
 Shelly Gen1, WLED and Tasmota on ESP8266 can't use the broker: they only speak unencrypted MQTT, which would send
 their passwords across the internet in clear text.
@@ -71,11 +72,21 @@ their passwords across the internet in clear text.
   Shelly's `Shelly.PutUserCA`.
 - **Passwords:** a device's broker password goes from the gateway to the owner's phone to the device. It's never
   written to the gateway's database.
+- **Meross:** its firmware fixes its topics (`/appliance/<uuid>/...`) and derives its login from its MAC and a key the
+  gateway makes for it, so the login is created once the phone reports the MAC. The relay gives that device and its
+  gateway exactly those topics, and refuses a device that already belongs to another gateway. Unlike a Shelly, a Meross
+  device can't be given CUBE's CA, so whether its firmware checks the broker's certificate is unknown, and whether it
+  connects to this broker at all hasn't been tried with a real device. Test one before offering it to residents.
 - **LG appliances on the shared ReThink** are visible only to the gateway that set them up (or paired them).
   During an LG setup, only appliances new to ReThink can match. If two appear at once, the gateway refuses to
   guess.
 - **Ownership:** a server-hosted gateway can be claimed through the relay (`CUBE_ALLOW_REMOTE_CLAIM`), still
   only with its single-use setup code (rate-limited, rotated after 10 wrong tries).
+
+## Upgrading
+
+Meross needs the relay's new routes, so upgrade `cube-relay` as well as the apartment gateways. The relay adds its
+new table by itself.
 
 ## Checks
 

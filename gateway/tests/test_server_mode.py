@@ -19,7 +19,7 @@ import pytest
 
 from cube_gateway.adapters.base import AdapterContext, DeviceUnreachable, ScanContext, StoredDevice
 from cube_gateway.adapters.lg_rethink import LgRethinkAdapter
-from cube_gateway.adapters.registry import AdapterRegistry
+from cube_gateway.adapters.registry import SERVER_HOSTED_ADAPTERS, AdapterRegistry
 from cube_gateway.adapters.shelly_cloud import ShellyCloudAdapter
 from cube_gateway.catalog import BRANDS, build_brands
 from cube_gateway.cloud.broker import DynsecAdmin, _acls
@@ -190,7 +190,7 @@ def _hosted_harness(hosted) -> tuple[Harness, FakeLink]:
     h.ctx.cloud = link
     h.gateway.cloud = link  # type: ignore[assignment]
     h.gateway.provisioning.cloud = link
-    h.registry = AdapterRegistry(h.ctx, modules=[("cube_gateway.adapters.shelly_cloud", "ShellyCloudAdapter"), ("cube_gateway.adapters.lg_rethink", "LgRethinkAdapter")])
+    h.registry = AdapterRegistry(h.ctx, modules=SERVER_HOSTED_ADAPTERS)
     h.gateway.registry = h.registry
     h.gateway.devices.registry = h.registry
     h.gateway.discovery.registry = h.registry
@@ -219,7 +219,7 @@ def test_server_mode_lists_every_brand_with_its_real_route(hosted):
     assert brands["tuya"].methods == [] and brands["switchbot"].hub_integrations == ["switchbot_cloud"]
 
     # Brands that only work on the home network stay listed, last, and can't be started.
-    home_only = {"tplink", "xiaomi", "wiz", "lifx", "wled", "daikin", "midea", "other"}
+    home_only = {"tplink", "xiaomi", "wiz", "lifx", "wled", "daikin", "midea", "tasmota", "gree", "esphome", "other"}
     assert {b.id for b in listed if b.needs_home_gateway} == home_only
     assert all(b.needs_home_gateway for b in listed[-len(home_only) :])
     for brand_id in home_only:
@@ -239,6 +239,28 @@ def test_home_gateways_keep_their_local_routes_and_can_link_cloud_brands(setting
     assert not any(b.needs_home_gateway for b in brands.values())
     assert brands["ring"].methods == [] and brands["ring"].status == "supported"
     assert any(m.id.startswith("manual:") for m in brands["shelly"].methods)
+
+
+def test_a_local_extra_stays_out_of_sight_until_it_is_set_up(settings):
+    """Nest reads as it always did on a gateway without a NoLongerEvil server, with no route the resident can't use."""
+    with Harness(settings, real=True) as h:
+        plain = {b.id: b for b in build_brands(h.gateway.registry, settings)}["nest"]
+    assert plain.methods == [] and plain.adapters == [] and plain.notes == []
+    assert plain.status == "supported" and plain.account_free is False and plain.hub_integrations == ["nest"]
+
+    configured = replace(settings, nle_url="http://192.168.1.10:8082")
+    with Harness(configured, real=True) as h:
+        nest = {b.id: b for b in build_brands(h.gateway.registry, configured)}["nest"]
+    assert [m.id for m in nest.methods if m.available] == ["find:nolongerevil"] and nest.hub_integrations == ["nest"]
+    assert nest.notes and nest.status == "experimental"
+
+
+def test_each_way_to_add_a_daikin_reads_differently(settings):
+    with Harness(settings, real=True) as h:
+        daikin = {b.id: b for b in build_brands(h.gateway.registry, settings)}["daikin"]
+    titles = [m.title for m in daikin.methods]
+    assert len(titles) == len(set(titles))
+    assert {"find:daikin", "find:faikout", "manual:daikin", "manual:faikout"} <= {m.id for m in daikin.methods}
 
 
 def test_hub_integrations_match_the_backend():

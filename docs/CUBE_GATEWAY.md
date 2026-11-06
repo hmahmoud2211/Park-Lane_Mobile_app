@@ -1,4 +1,4 @@
-# awesdsdCUBE Gateway: install, connect, compatibility and limits
+# CUBE Gateway: install, connect, compatibility and limits
 
 CUBE OS adds and controls smart devices through the **CUBE Gateway**, a Linux service in one Docker image that
 sits on the home network. It finds devices, sets up new ones on Wi-Fi, pairs them locally and keeps them
@@ -13,6 +13,7 @@ install (EAS build); Docker only packages the gateway.
 - [Compatibility](#compatibility)
 - [LG ThinQ appliances via ReThink](#lg-thinq-appliances-via-rethink)
 - [SONOFF and the S26R2TPF](#sonoff-and-the-s26r2tpf)
+- [Installer-only routes](#installer-only-routes)
 - [Remote access](#remote-access)
 - [Configuration](#configuration)
 - [Security model](#security-model)
@@ -30,7 +31,8 @@ install (EAS build); Docker only packages the gateway.
    ▼
  CUBE Gateway  (Docker, --network host, volume /data)
    ├─ discovery: mDNS, SSDP, vendor UDP, authorized subnet probe
-   ├─ adapters: Shelly, WLED, SONOFF, Kasa/Tapo, Tuya, LG webOS, Samsung TV, Yeelight, WiZ, LIFX, Daikin, Midea, LG ThinQ (ReThink)
+   ├─ adapters: Shelly, WLED, SONOFF, Kasa/Tapo, Tuya, LG webOS, Samsung TV, Yeelight, WiZ, LIFX, Daikin, Faikout, Midea, Gree,
+   │            Tasmota/OpenBeken, ESPHome, LG ThinQ (ReThink), Nest (NoLongerEvil)
    ├─ provisioning sessions (SoftAP state machine) and pairing
    └─ SQLite registry with sealed credentials, live state, WebSocket events
    │  local protocols only (no manufacturer cloud)
@@ -41,8 +43,9 @@ install (EAS build); Docker only packages the gateway.
 **Relation to the existing smart home (Home Assistant per unit, `backend/`).** That system links brand
 *cloud accounts*. It stays in place because the Parklane Assistant and the deployed `api-iot-2.ems-iot.com`
 backend use it, and because some brands have no local protocol. In the app, **Add Device is now the only way
-to onboard a device**. Linking a brand account appears there only as a clearly labelled fallback,
-"Link manufacturer account (cloud)", for brands that have one. Devices already linked through Home
+to onboard a device**. When a brand has both routes the resident chooses first: **Pair it from the start** (the
+methods below) or **Use my … app account** (linking through the hub). Brands with one route open it directly.
+Devices already linked through Home
 Assistant keep working and still show in My Devices. Cloud-linked devices can't be moved onto the gateway
 automatically: the gateway controls devices over the LAN, the hub through a brand's cloud.
 
@@ -54,9 +57,12 @@ and devices reach it because they connect out to the server:
 - **Shelly Gen2/Gen3/Gen4:** set up from the phone. The Shelly gets the home Wi-Fi, CUBE's own CA and its own
   login to CUBE's MQTT broker (`mqtt-cube.ems-iot.com:8885`, TLS), and from then on it connects there.
 - **LG ThinQ ACs:** through ReThink, as before. Each apartment only sees the appliances it set up.
+- **Meross plugs, strips and bulbs (experimental):** set up from the phone. The device gets the home Wi-Fi and CUBE's
+  broker address, and from then on it connects there.
 - **Brands with a cloud (SONOFF, Tuya, SwitchBot and others):** linked through the brand's account on the
   building's Home Assistant hub, from the brand's page in Add Device.
-- **Brands that only work on the home network (TP-Link, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea):**
+- **Brands that only work on the home network (TP-Link, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea, Gree,
+  Tasmota / OpenBeken, ESPHome):**
   listed in Add Device and marked as needing a box at home.
 
 Residents pair the app with their apartment's gateway through the relay, using a setup code or QR code the
@@ -159,8 +165,12 @@ that don't report back (TV keys) show "Sent, this device doesn't report back".
 | `kasa_softap`             | TP-Link Kasa | Gateway joins with its own radio, python-kasa `wifi join`                                               | `TP-LINK_…_XXXX`, open                                                                                                | Experimental; needs `CUBE_SOFTAP_INTERFACE`                                         |
 | `lg_thinq_softap`         | LG ThinQ     | The phone joins the appliance's network and runs ReThink's setup protocol (ThinQ1, ThinQ2, Whisen) itself | `LGE_…` or `[LG_…]`; you type the password (the app suggests ReThink's documented default for that name, editable) | Experimental; needs ReThink                                                           |
 | `lg_thinq_softap_gateway` | LG ThinQ     | Gateway joins with its own radio and runs ReThink's `rethink-setup`                                     | Same                                                                                                                     | Experimental; needs ReThink, `CUBE_SOFTAP_INTERFACE` and `CUBE_RETHINK_SETUP_CMD` |
+| `meross_cloud_softap`     | Meross       | Phone sends the Wi-Fi and CUBE's broker address (`Appliance.Config.Key`, `Config.Wifi` or `WifiX`), with Meross's key exchange and encryption on newer firmware | `Meross_…`, open, 10.10.10.1 | Experimental; needs a relay with a device broker |
+| `tasmota_softap`          | Tasmota      | You choose your network on the device's page                                                             | `tasmota-XXXXXX-1234`, open, 192.168.4.1 (three minutes after power-up, one client) | Experimental |
+| `openbeken_softap`        | OpenBeken    | You enter your network on the device's page                                                              | `Open…_XXXXXXXX`, open, 192.168.4.1 | Experimental |
+| `gree_softap_gateway`     | Gree         | Gateway joins with its own radio and sends the Wi-Fi as a UDP packet, which the phone can't send         | 8 characters from the MAC, 192.168.1.1; you type the password (community sources give `12345678`) | Experimental; needs `CUBE_SOFTAP_INTERFACE` |
 
-Tuya/Smart Life, Yeelight, WiZ, LIFX, Midea and Daikin join Wi-Fi only through their own apps. TVs join from
+Tuya/Smart Life, Yeelight, WiZ, LIFX, Midea and Daikin's own adapters join Wi-Fi only through their own apps. TVs join from
 their own settings. For these brands, "Connect new device" is shown greyed out with that explanation; once
 the device is on Wi-Fi, use Find existing device.
 
@@ -187,6 +197,12 @@ residents.
 | WLED                           | `wled`             | JSON API                                | Supported                               | No                                                                         | None                                  | No                                                                                                                  |
 | Daikin (BRP069)                | `daikin`           | Unofficial local HTTP                   | **Experimental**                  | No                                                                         | None (BRP072C: adapter key, untested) | No                                                                                                                  |
 | Midea ACs                      | `midea`            | msmart-ng, no cloud calls               | Limited                                 | V3 token and key, obtained once                                            | Token + key                           | No                                                                                                                  |
+| Meross plugs, strips, bulbs    | `meross_cloud`     | Meross MQTT through CUBE's broker       | **Experimental**                  | No                                                                         | None (set up from the app)            | No, simulated from real traces. An internet broker with CUBE's private CA is unproven                                |
+| Tasmota, OpenBeken firmware    | `tasmota`          | HTTP `/cm?cmnd=`                        | **Experimental**                  | No                                                                         | None (or web password)                | No                                                                                                                  |
+| ESPHome firmware               | `esphome`          | ESPHome native API (aioesphomeapi)      | **Experimental**                  | No                                                                         | None, or its API encryption key       | No, run against a stand-in server written from the firmware's source                                                 |
+| Gree ACs and rebrands          | `gree`             | UDP 7000, AES ECB or GCM                | **Experimental**                  | No, but firmware decides: some builds are cloud-only                       | None (local bind)                     | No. The cipher was checked against packets people posted in public issue reports                                    |
+| Faikout (ESP32 Daikin module)  | `faikout`          | Daikin legacy HTTP, as Faikout serves it | **Experimental**                 | No                                                                         | None; clear any web password first    | No                                                                                                                  |
+| Nest Learning gen 1–2          | `nolongerevil`     | NoLongerEvil's control API              | **Experimental**                  | No, once flashed                                                           | None; needs your server and `CUBE_NLE_URL` | No                                                                                                             |
 | Other / unknown                | `generic`          | mDNS / SSDP                             | Detection only                          | —                                                                         | Cannot be paired                      | —                                                                                                                  |
 
 ## LG ThinQ appliances via ReThink
@@ -245,6 +261,23 @@ Notes:
   mode, pairing can still finish with the encrypted LAN protocol (also experimental).
 - **Devices set up with the eWeLink app** encrypt their LAN traffic. They are found but need their device key.
   Pairing checks the key against the device's announcement before accepting it.
+
+## Installer-only routes
+
+These projects change a device's firmware or depend on the home network's DNS, so they can't be a step in the app.
+A resident can't undo them, and some can brick a device. They are for your installers, on hardware you own.
+
+| Project | What it does | How it reaches CUBE |
+| ------- | ------------ | ------------------- |
+| [tuya-cloudcutter](https://github.com/tuya-cloudcutter/tuya-cloudcutter) (MIT) | Detaches Tuya devices from Tuya's cloud over Wi-Fi, or flashes new firmware. Needs Linux and a Wi-Fi card. Only Beken and some Realtek chips, on firmware from before Tuya's February 2022 patch. The device stops working with Tuya's apps | A detached device with a local key you set: **Tuya / Smart Life**. Flashed with OpenBeken: **Tasmota / OpenBeken** |
+| Tasmota, ESPHome | Replacement firmware for ESP devices, flashed by serial or over the air. An ESPHome device is built per device, so the app can't set one up, only find it | **Tasmota / OpenBeken**, **ESPHome** |
+| [NoLongerEvil](https://docs.nolongerevil.com/self-hosted/installation) (MIT) | Firmware for Nest Learning gen 1–2, flashed over USB from macOS or Linux, plus a server you run. A failed flash can brick the thermostat | Set `CUBE_NLE_URL` to its control API. **Never expose port 8082: it has no authentication.** Google Nest then also lists **Find a Nest on NoLongerEvil** |
+| [Faikout](https://codeberg.org/RevK/ESP32-Faikout) (GPL-3.0) | A module that replaces Daikin's Wi-Fi adapter on the S21 or X50 port. It also supports MQTT with TLS to a remote broker, but its topics are fixed, so that route isn't built | **Daikin → Find a Faikout module**, on the home network |
+| [Bumper](https://bumper.readthedocs.io/en/latest/DNS_Setup/) (GPL-3.0) | Replaces Ecovacs's cloud. Needs a DNS override on the apartment's network and a separate server. It offers no command API, only the Ecovacs app's own protocol | **No adapter.** Ecovacs stays on its account link |
+| [Fake-Gree-server](https://github.com/rapi3/Fake-Gree-server) (GPL-3.0) | Answers a Gree unit's registration and heartbeat, for units that stop working without them. Needs a DNS override | Not used by the gateway. **Gree** control is local; run this alongside it only if a unit needs it |
+
+GPL projects run as separate programs; none of their code is in the gateway. The gateway's adapters are written from
+each protocol's published behaviour.
 
 ## Remote access
 
@@ -341,6 +374,7 @@ All optional, as `-e NAME=value` on `docker run`.
 | `CUBE_RETHINK_DISCOVERY_PREFIX` / `CUBE_RETHINK_PREFIX`                                                                      | `homeassistant` / `rethink` | ReThink topic prefixes                                                                                                                                          |
 | `CUBE_RETHINK_API_SERVER` / `CUBE_RETHINK_MQTT_SERVER`                                                                       | —                              | ReThink's public addresses, handed to ThinQ2 appliances during phone setup so they need no DNS override (set both)                                              |
 | `CUBE_RETHINK_SETUP_CMD`                                                                                                       | —                              | Command that runs ReThink's `rethink-setup` (gateway-side LG setup)                                                                                           |
+| `CUBE_NLE_URL`                                                                                                                 | —                              | NoLongerEvil's control API, e.g. `http://192.168.1.10:8082`; enables Nest Learning gen 1–2                                                                    |
 | `CUBE_SOFTAP_INTERFACE`                                                                                                        | —                              | Spare Wi-Fi interface for gateway-side setup. Also needs `-v /run/dbus:/run/dbus:ro --user 0` and NetworkManager on the host                                  |
 | `CUBE_RELAY_URL`                                                                                                               | —                              | Relay to connect to at start (normally set from the app instead)                                                                                                |
 | `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT`                                                                                | — / `8687`                   | Relay mode: who may enrol. Gateway mode: with `CUBE_RELAY_URL`, enrol automatically at start                                                                  |
@@ -388,7 +422,7 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 
 | Check                                                                                          | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Gateway tests: `cd gateway && .venv/bin/pytest -q`                                           | **134 passed**: API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks, and the LG settings mapping against the real discovery message of an RAC_056905_WW |
+| Gateway tests: `cd gateway && .venv/bin/pytest -q`                                           | **591 passed** on 2026-11-05 (macOS, Python 3.14.6): API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks, and the LG settings mapping against the real discovery message of an RAC_056905_WW |
 | `ruff check cube_gateway tests`                                                              | Clean                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `docker build gateway/` (amd64)                                                              | Builds; image 321 MB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Container first start → setup code via `docker exec` → claim → data → `docker restart` | Data and token survive; Docker health `healthy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -397,6 +431,10 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 | ARM64                                                                                          | Every dependency resolves to an aarch64 wheel for CPython 3.14. The arm64 image build itself runs in CI (QEMU); it was not run on this server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | App: `npx tsc --noEmit`, `npx expo lint`                                                   | Both pass                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | App: `npx expo export` (Android, web)                                                        | Builds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+**The brands added on 2026-11-05 are untested on real hardware:** Meross, Tasmota / OpenBeken, ESPHome, Gree, Faikout and
+Nest (NoLongerEvil). Each runs against a protocol simulator. The first real Meross test decides whether that route works:
+whether the firmware accepts a broker on the internet with CUBE's private certificate is unknown.
 
 **Still to test on real hardware:** every adapter other than the read-only LG check above; commands to the
 LG AC; Wi-Fi provisioning for Shelly, WLED and SONOFF (especially the S26R2TPF) from a phone; the Android and
@@ -408,12 +446,15 @@ setup over NetworkManager; the relay from a phone on mobile data; the arm64 imag
 | Not supported                                                             | Why                                                                                                                                         |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Universal compatibility                                                   | Each brand speaks its own protocol, and many have no local one. Only the brands above have adapters                                         |
-| Tuya Wi-Fi setup in the app; reading Tuya local keys                      | Tuya's pairing protocol needs its cloud. Keys come only from Tuya's cloud API (`tinytuya wizard`). The gateway doesn't bypass this        |
+| Tuya Wi-Fi setup in the app; reading Tuya local keys                      | Tuya's pairing protocol needs its cloud. Keys come only from Tuya's cloud API (`tinytuya wizard`), or from an installer's tuya-cloudcutter run ([Installer-only routes](#installer-only-routes)) |
+| ESPHome devices without a key, after February 2027                        | ESPHome's source marks plaintext as to be removed after 2027.2.0. Those devices will need its zero-PSK setup, which isn't built            |
+| Ecovacs without an account                                                | Bumper needs DNS control and offers no command API; see [Installer-only routes](#installer-only-routes)                                     |
+| Meross on a gateway at home                                               | Meross setup points the device at CUBE's broker, which a home gateway doesn't use. Its local HTTP mode isn't built                         |
 | Samsung appliances (SmartThings), LG appliances outside ReThink's list    | No local API; cloud only (available through the Home Assistant cloud fallback where linked)                                                 |
 | Other Xiaomi / Mi Home devices                                            | They need a per-device token from Xiaomi's cloud; not implemented                                                                           |
 | SONOFF `POST /ap` (eWeLink app-style setup)                             | Undocumented. It timed out on the S26R2TPF and would register the device with eWeLink's cloud                                               |
 | Guessed or brute-forced hotspot passwords                                 | Only published, model-specific defaults are filled in                                                                                       |
-| BLE provisioning                                                          | No verified BLE protocol for the target devices yet, and the hardware is Wi-Fi focused. The provisioning engine has a transport slot for it |
+| BLE provisioning                                                          | No verified BLE protocol for the target devices yet, and the hardware is Wi-Fi focused. The provisioning engine has a transport slot for it. Meross and Gree models that pair only over Bluetooth can't be set up here |
 | Zigbee, Z-Wave, Thread/Matter                                             | Need radios and stacks the gateway doesn't include. Matter devices are detected only                                                        |
 | Native mDNS in the app                                                    | React Native has no mDNS without another native module. The app probes the /24 instead, and the gateway still advertises `_cube-gw._tcp`  |
 | HTTPS on the LAN                                                          | See the security model; use Tailscale                                                                                                       |

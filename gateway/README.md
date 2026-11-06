@@ -33,7 +33,7 @@ Python 3.12 or newer (the image uses 3.14).
 ```bash
 cd gateway
 uv venv .venv && uv pip install --python .venv/bin/python -e '.[test]'   # or: python -m venv .venv && .venv/bin/pip install -e '.[test]'
-.venv/bin/pytest -q                      # 124 tests: protocol mocks, no network beyond localhost
+.venv/bin/pytest -q                      # protocol mocks, no network beyond localhost
 .venv/bin/ruff check cube_gateway tests
 CUBE_DATA_DIR=./data CUBE_LOG_FORMAT=text .venv/bin/cube-gateway serve
 ```

@@ -59,9 +59,9 @@ Credentials are sealed with the gateway's key and never returned.
 
 | Method & path | Auth | What it does |
 | --- | --- | --- |
-| `POST /provisioning/sessions` `{plugin_id, model?}` | owner | Opens a 15-minute session: `ProvisioningSession` with `transport`, `steps`, `hotspot` (`ssid_pattern`, `ssid_prefixes`, `password_rule`: `none` / `verified_rule` (then `password` is set) / `user`, `device_ip`), `experimental`, and `setup` (values the phone needs, e.g. `rethink_api_server` and `rethink_mqtt_server` for LG ThinQ2 setup). |
+| `POST /provisioning/sessions` `{plugin_id, model?}` | owner | Opens a 15-minute session: `ProvisioningSession` with `transport`, `steps`, `hotspot` (`ssid_pattern`, `ssid_prefixes`, `password_rule`: `none` / `verified_rule` (then `password` is set) / `user`, `device_ip`), `experimental`, and `setup` (values the phone needs, e.g. `rethink_api_server` and `rethink_mqtt_server` for LG ThinQ2 setup). Secrets in `setup` (`mqtt_password`, `meross_key`) appear only in answers to the owner's requests: never on disk, and never in `provisioning.updated` events. |
 | `GET /provisioning/sessions/{id}` | owner | Current state, `error` (`code`, `message`, `recovery`), `device_id` when done. |
-| `POST /provisioning/sessions/{id}/events` `{event, data}` | owner | The phone reports progress (`phone` and `guided` transports): `pairing_mode_confirmed`, `joining_device_ap`, `device_ap_joined` (`data.ssid`), `hotspot_password_needed`, `device_info` (`data` from the device's setup network, e.g. SONOFF `deviceid`, `apikey`), `wifi_config_sent`, `phone_returned`, `failed` (`data.code`, `data.message`), `cancel`. |
+| `POST /provisioning/sessions/{id}/events` `{event, data}` | owner | The phone reports progress (`phone` and `guided` transports): `pairing_mode_confirmed`, `joining_device_ap`, `device_ap_joined` (`data.ssid`), `hotspot_password_needed`, `device_info` (`data` from the device's setup network, e.g. SONOFF `deviceid`, `apikey`; Meross `uuid`, `mac`), `wifi_config_sent`, `phone_returned`, `failed` (`data.code`, `data.message`), `cancel`. |
 | `POST /provisioning/sessions/{id}/run` `{home_ssid, home_password, hotspot_ssid, hotspot_password?}` | owner | `gateway` transport: the gateway joins the hotspot and runs the setup itself. Passwords are used in memory only. |
 | `DELETE /provisioning/sessions/{id}` | owner | Cancels. |
 
@@ -136,3 +136,6 @@ device broker configured (`GET /relay/v1/health` → `device_broker: true`):
 | `POST /relay/v1/mqtt/gateway` | The gateway's own broker login: `{url, username, password, prefix: "cube/<gateway_id>", ca_pem}` (re-issued on each call) |
 | `POST /relay/v1/mqtt/devices` | A login for one new device: `{slot, server, username, password, topic_prefix: "cube/<gateway_id>/<slot>", ca_pem}` |
 | `DELETE /relay/v1/mqtt/devices/{slot}` | Removes that device's login |
+| `GET /relay/v1/mqtt/server` | The broker's address as devices reach it: `{server: "host:port"}` |
+| `POST /relay/v1/mqtt/appliances` `{uuid, mac, password}` | A login for a device with fixed topics (Meross), limited to `/appliance/<uuid>/#`; the calling gateway gets the same topics. `409 conflict` if another gateway owns that device |
+| `DELETE /relay/v1/mqtt/appliances/{uuid}` | Removes that device's login and the gateway's access to its topics |

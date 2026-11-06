@@ -39,8 +39,12 @@ log = logging.getLogger("cube.relay")
 GATEWAY_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 MAX_BODY = 1024 * 1024
 REQUEST_TIMEOUT = 45.0
+APPLIANCE_UUID = re.compile(r"^[0-9a-f]{32}$")
+APPLIANCE_MAC = re.compile(r"^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$")
+APPLIANCE_PASSWORD = re.compile(r"^[0-9]{1,12}_[0-9a-f]{32}$")
 RELAY_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS relay_gateways (id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, created_at REAL NOT NULL, last_seen REAL)",
+    "CREATE TABLE IF NOT EXISTS relay_appliances (uuid TEXT PRIMARY KEY, gateway_id TEXT NOT NULL, mac TEXT NOT NULL, created_at REAL NOT NULL)",
 ]
 
 
@@ -181,6 +185,52 @@ def create_relay_app(settings: Settings) -> FastAPI:
         except BrokerError as error:
             return _error("broker_unavailable", str(error), 503)
         return JSONResponse({"ok": True, "data": {"removed": slot}})
+
+    @app.get("/relay/v1/mqtt/server")
+    async def mqtt_server(request: Request) -> JSONResponse:
+        """The broker address devices are given during setup, for devices that have no login until later."""
+        _, refused = await broker_guard(request)
+        return refused or JSONResponse({"ok": True, "data": {"server": settings.mqtt_public_server}})
+
+    @app.post("/relay/v1/mqtt/appliances")
+    async def mqtt_appliance(request: Request) -> JSONResponse:
+        gateway_id, refused = await broker_guard(request)
+        if refused:
+            return refused
+        try:
+            body = await request.json()
+        except ValueError:
+            return _error("bad_request", "Send JSON.", 400)
+        uuid, mac, password = str(body.get("uuid") or ""), str(body.get("mac") or ""), str(body.get("password") or "")
+        if not (APPLIANCE_UUID.match(uuid) and APPLIANCE_MAC.match(mac) and APPLIANCE_PASSWORD.match(password)):
+            return _error("bad_request", "uuid, mac and password are not valid for a Meross device.", 400)
+        owner = await db.fetchone("SELECT gateway_id FROM relay_appliances WHERE uuid = ?", (uuid,))
+        if owner and owner["gateway_id"] != gateway_id:
+            return _error("conflict", "This device already belongs to another gateway.", 409)
+        try:
+            await relay.broker.appliance_login(gateway_id, uuid, mac, password)  # type: ignore[union-attr]
+        except BrokerError as error:
+            return _error("broker_unavailable", str(error), 503)
+        await db.execute(
+            "INSERT INTO relay_appliances (uuid, gateway_id, mac, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(uuid) DO UPDATE SET mac = excluded.mac",
+            (uuid, gateway_id, mac, time.time()),
+        )
+        return JSONResponse({"ok": True, "data": {"uuid": uuid}}, status_code=201)
+
+    @app.delete("/relay/v1/mqtt/appliances/{uuid}")
+    async def mqtt_appliance_remove(request: Request, uuid: str) -> JSONResponse:
+        gateway_id, refused = await broker_guard(request)
+        if refused:
+            return refused
+        owner = await db.fetchone("SELECT gateway_id, mac FROM relay_appliances WHERE uuid = ?", (uuid,))
+        if not owner or owner["gateway_id"] != gateway_id:
+            return _error("not_found", "No such device on this gateway.", 404)
+        try:
+            await relay.broker.remove_appliance(gateway_id, uuid, owner["mac"])  # type: ignore[union-attr]
+        except BrokerError as error:
+            return _error("broker_unavailable", str(error), 503)
+        await db.execute("DELETE FROM relay_appliances WHERE uuid = ?", (uuid,))
+        return JSONResponse({"ok": True, "data": {"removed": uuid}})
 
     @app.post("/relay/v1/gateways")
     async def enroll(request: Request) -> JSONResponse:

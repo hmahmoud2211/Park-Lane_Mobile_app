@@ -18,6 +18,7 @@ import { useGateway } from '../../features/gateway/hooks/useGateway';
 import { useProvisioningSession } from '../../features/gateway/hooks/useProvisioningSession';
 import * as api from '../../features/gateway/services/gatewayApi';
 import { deviceRequest } from '../../features/provisioning/services/deviceHttp';
+import { detectMeross, merossLoginFrom, sendSetupToMeross, type MerossIdentity } from '../../features/provisioning/services/merossSoftap';
 import { openDeviceSetupPage } from '../../features/provisioning/services/setupPage';
 import { cloudLoginFrom, detectShelly, sendCloudSetupToShelly, sendWifiToShelly } from '../../features/provisioning/services/shellySoftap';
 import { readSonoffDevice, type SonoffSetupInfo } from '../../features/provisioning/services/sonoffSoftap';
@@ -43,9 +44,12 @@ const OTHER_MODEL = '__other__';
 const DETECT_WINDOW_MS = 20_000;
 
 /** Is the expected device answering on its setup network? Returns what it said, or null. */
-async function probeSetupDevice(pluginId: string, ip: string): Promise<object | null> {
+async function probeSetupDevice(pluginId: string, ip: string, setup?: Record<string, string>): Promise<object | null> {
   if (pluginId.startsWith('shelly')) {
     return detectShelly(ip);
+  }
+  if (pluginId.startsWith('meross')) {
+    return detectMeross(ip, setup?.meross_key);
   }
   if (pluginId.startsWith('sonoff')) {
     return readSonoffDevice(ip);
@@ -61,8 +65,8 @@ async function probeSetupDevice(pluginId: string, ip: string): Promise<object | 
  * Setting up a factory-new device on the home Wi-Fi, driven by the gateway's
  * provisioning plugin for the brand:
  *
- * - phone (Shelly): the phone joins the device's open hotspot and sends the
- *   Wi-Fi with Shelly's documented API.
+ * - phone (Shelly, Meross): the phone joins the device's open hotspot and sends
+ *   the Wi-Fi itself, with the maker's API.
  * - guided (WLED, SONOFF DIY): the phone joins the hotspot and the resident
  *   enters the Wi-Fi on the device's own page.
  * - gateway (Kasa, LG via ReThink): the gateway joins the hotspot with its own
@@ -91,6 +95,7 @@ export function DeviceProvisioningScreen() {
   const [homeSsid, setHomeSsid] = useState('');
   const [homePassword, setHomePassword] = useState('');
   const [sonoff, setSonoff] = useState<SonoffSetupInfo | null | undefined>(undefined);
+  const merossIdentity = useRef<MerossIdentity | null>(null);
   const joinedSsid = useRef<string | null>(null);
   const onHotspot = useRef(false);
   /** The phone is (or may be) on the device's hotspot, away from the gateway. */
@@ -165,7 +170,7 @@ export function DeviceProvisioningScreen() {
 
   const afterJoined = async (ssid: string | null) => {
     setBusy(copy.checkingDevice);
-    const found = await waitForDevice(() => probeSetupDevice(params.pluginId, deviceIp), { timeoutMs: DETECT_WINDOW_MS, intervalMs: 2_000 });
+    const found = await waitForDevice(() => probeSetupDevice(params.pluginId, deviceIp, session?.setup), { timeoutMs: DETECT_WINDOW_MS, intervalMs: 2_000 });
     setBusy(null);
     if (!found) {
       setStepError(copy.deviceNotFound);
@@ -177,6 +182,9 @@ export function DeviceProvisioningScreen() {
     await provisioning.report('device_ap_joined', ssid ? { ssid } : {}, { queueIfUnreachable: true });
     if (params.pluginId.startsWith('sonoff')) {
       setSonoff(found as SonoffSetupInfo);
+    }
+    if (params.pluginId.startsWith('meross')) {
+      merossIdentity.current = found as MerossIdentity;
     }
     setStage(transport === 'phone' ? 'wifi' : 'guided');
   };
@@ -259,6 +267,27 @@ export function DeviceProvisioningScreen() {
     await backHome();
   };
 
+  /** Meross connecting to CUBE's server: its login there is made from what it reports, so that goes to the gateway first. */
+  const sendMerossSetup = async () => {
+    const login = merossLoginFrom(session?.setup);
+    const identity = merossIdentity.current;
+    if (!login || !identity) {
+      setStepError(copy.merossNoLogin);
+      return;
+    }
+    setBusy(copy.merossSending);
+    await provisioning.report('device_info', { uuid: identity.uuid, mac: identity.mac, model: identity.model }, { queueIfUnreachable: true });
+    const outcome = await sendSetupToMeross(identity, { ssid: homeSsid.trim(), password: homePassword }, login, { ip: deviceIp || undefined });
+    setHomePassword('');
+    setBusy(null);
+    if (outcome.kind === 'rejected') {
+      await failOnPhone('provisioning_protocol_failed', copy.merossRejected(outcome.step, outcome.message));
+      return;
+    }
+    await provisioning.report('wifi_config_sent', { outcome: outcome.kind }, { queueIfUnreachable: true });
+    await backHome();
+  };
+
   const sendWifi = async () => {
     if (!homeSsid.trim()) {
       setStepError(`${copy.homeSsid}: ${copy.required}`);
@@ -267,6 +296,10 @@ export function DeviceProvisioningScreen() {
     setStepError(null);
     if (params.pluginId === 'shelly_cloud_softap') {
       await sendCloudSetup();
+      return;
+    }
+    if (params.pluginId === 'meross_cloud_softap') {
+      await sendMerossSetup();
       return;
     }
     setBusy(copy.sending);
@@ -473,7 +506,7 @@ export function DeviceProvisioningScreen() {
     <NeonPanel style={styles.panel}>
       <PanelHeading title={copy.wifiTitle} iconSet="ionicons" iconName="home-outline" divider />
       <AppText variant="bodySmall" color={theme.colors.textSupport}>
-        {params.pluginId === 'shelly_cloud_softap' ? copy.cloudWifiIntro : copy.wifiIntro}
+        {params.pluginId === 'shelly_cloud_softap' ? copy.cloudWifiIntro : params.pluginId === 'meross_cloud_softap' ? copy.merossWifiIntro : copy.wifiIntro}
       </AppText>
       {renderHomeWifiFields()}
       <AppButton title={copy.send} variant="gradient" height={BUTTON_HEIGHT} disabled={busy !== null} onPress={() => void sendWifi()} />

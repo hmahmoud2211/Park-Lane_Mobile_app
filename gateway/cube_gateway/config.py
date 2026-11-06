@@ -100,6 +100,8 @@ class Settings:
     mqtt_gateway_url: str
     #: The CA certificate (PEM file) that signed the broker's certificate; given to devices and gateways.
     mqtt_ca_file: str
+    #: NoLongerEvil self-hosted control API (Nest Learning gen 1-2), e.g. http://192.168.1.10:8082. Empty: adapter idle.
+    nle_url: str = ""
     extra: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -149,4 +151,5 @@ def load_settings() -> Settings:
         mqtt_public_server=os.environ.get("CUBE_MQTT_PUBLIC_SERVER", "").strip(),
         mqtt_gateway_url=os.environ.get("CUBE_MQTT_GATEWAY_URL", "").strip(),
         mqtt_ca_file=os.environ.get("CUBE_MQTT_CA_FILE", "").strip(),
+        nle_url=os.environ.get("CUBE_NLE_URL", "").strip().rstrip("/"),
     )

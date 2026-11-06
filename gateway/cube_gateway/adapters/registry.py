@@ -33,7 +33,12 @@ ADAPTERS: list[tuple[str, str]] = [
     ("cube_gateway.adapters.wiz", "WizAdapter"),
     ("cube_gateway.adapters.lifx", "LifxAdapter"),
     ("cube_gateway.adapters.daikin", "DaikinAdapter"),
+    ("cube_gateway.adapters.faikout", "FaikoutAdapter"),
     ("cube_gateway.adapters.midea", "MideaAdapter"),
+    ("cube_gateway.adapters.gree", "GreeAdapter"),
+    ("cube_gateway.adapters.nolongerevil", "NoLongerEvilAdapter"),
+    ("cube_gateway.adapters.tasmota", "TasmotaAdapter"),
+    ("cube_gateway.adapters.esphome", "EsphomeAdapter"),
     ("cube_gateway.adapters.generic", "GenericAdapter"),
 ]
 
@@ -42,6 +47,7 @@ ADAPTERS: list[tuple[str, str]] = [
 SERVER_HOSTED_ADAPTERS: list[tuple[str, str]] = [
     ("cube_gateway.adapters.shelly_cloud", "ShellyCloudAdapter"),
     ("cube_gateway.adapters.lg_rethink", "LgRethinkAdapter"),
+    ("cube_gateway.adapters.meross_cloud", "MerossCloudAdapter"),
 ]
 
 

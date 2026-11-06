@@ -150,6 +150,10 @@ def make_runner(interface: str) -> Callable[..., Awaitable[None]]:
                     raise ProvisioningFailure("provisioning_protocol_failed", "The Kasa device did not accept the Wi-Fi settings.") from error
             elif plugin.id == "lg_thinq_softap_gateway":
                 await run_rethink_setup(device_ip, home_ssid, home_password)
+            elif plugin.id == "gree_softap_gateway":
+                from ..adapters.gree import join_wifi as gree_join_wifi
+
+                await gree_join_wifi(device_ip, home_ssid, home_password)
             else:
                 raise ProvisioningFailure("unsupported_model", f"{plugin.title} does not run on the gateway.")
         await progress(ConnectionStatus.CONNECTING_HOME_NETWORK)

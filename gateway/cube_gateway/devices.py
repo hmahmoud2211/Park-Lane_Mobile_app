@@ -297,6 +297,8 @@ class DeviceManager:
         if adapter:
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(adapter.disconnect(device), 5)
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(adapter.forget(device), 10)
         await self.db.execute("DELETE FROM devices WHERE id = ?", (device_id,))
         await self.db.audit("device.removed", target=device_id)
         self.bus.publish("device.removed", id=device_id)

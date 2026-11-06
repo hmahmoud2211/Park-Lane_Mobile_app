@@ -9,6 +9,12 @@ gateway and every device gets its own login from Mosquitto's dynamic security pl
 So one apartment's gateway can never see or command another apartment's devices, and a device's leaked password
 only exposes that device. Only the relay holds the broker's admin login; gateways ask the relay for credentials,
 authenticated with their tunnel secret.
+
+Meross devices can't change their topics or their login, which their firmware derives from the MAC:
+
+    appliance  <mac>                  may publish/subscribe  /appliance/<uuid>/#
+
+The device's gateway gets the same topics added to its role, and the relay records which gateway owns each uuid.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ from urllib.parse import urlparse
 log = logging.getLogger("cube.broker")
 CONTROL = "$CONTROL/dynamic-security/v1"
 SLOT = re.compile(r"^[a-z0-9]{6,32}$")
+APPLIANCE = re.compile(r"^[0-9a-f]{32}$")
 
 
 class BrokerError(Exception):
@@ -36,6 +43,10 @@ def gateway_prefix(gateway_id: str) -> str:
 
 def device_prefix(gateway_id: str, slot: str) -> str:
     return f"cube/{gateway_id}/{slot}"
+
+
+def appliance_prefix(uuid: str) -> str:
+    return f"/appliance/{uuid}"
 
 
 def _acls(prefix: str) -> list[dict[str, Any]]:
@@ -80,8 +91,8 @@ class DynsecAdmin:
                 raise BrokerError(f"The device broker could not be reached: {type(error).__name__}") from error
         return []
 
-    async def _ensure_client(self, username: str, rolename: str, prefix: str) -> str:
-        password = secrets.token_urlsafe(24)
+    async def _ensure_client(self, username: str, rolename: str, prefix: str, password: str | None = None) -> str:
+        password = password or secrets.token_urlsafe(24)
         responses = await self.run(
             [
                 {"command": "createRole", "rolename": rolename, "acls": _acls(prefix)},
@@ -117,3 +128,28 @@ class DynsecAdmin:
             raise BrokerError("Invalid device slot.")
         username = f"d-{gateway_id}-{slot}"
         await self.run([{"command": "deleteClient", "username": username}, {"command": "deleteRole", "rolename": username}])
+
+    async def appliance_login(self, gateway_id: str, uuid: str, mac: str, password: str) -> None:
+        """A login for a device with fixed topics and a firmware-derived password; its gateway may use those topics too."""
+        if not APPLIANCE.match(uuid):
+            raise BrokerError("Invalid device id.")
+        prefix = appliance_prefix(uuid)
+        await self._ensure_client(mac, f"a-{uuid}", prefix, password)
+        responses = await self.run([{"command": "addRoleACL", "rolename": f"gw-{gateway_id}", **acl} for acl in _acls(prefix)])
+        failed = [r["error"] for r in responses if r.get("error") and "already" not in str(r["error"]).lower()]
+        if failed:
+            raise BrokerError(f"Could not give the gateway access to the device: {failed[0]}")
+
+    async def remove_appliance(self, gateway_id: str, uuid: str, mac: str) -> None:
+        if not APPLIANCE.match(uuid):
+            raise BrokerError("Invalid device id.")
+        await self.run(
+            [
+                {"command": "deleteClient", "username": mac},
+                {"command": "deleteRole", "rolename": f"a-{uuid}"},
+                *[
+                    {"command": "removeRoleACL", "rolename": f"gw-{gateway_id}", "acltype": acl["acltype"], "topic": acl["topic"]}
+                    for acl in _acls(appliance_prefix(uuid))
+                ],
+            ]
+        )

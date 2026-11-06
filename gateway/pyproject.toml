@@ -25,6 +25,8 @@ dependencies = [
   "qrcode>=8",
   "dbus-fast>=2.24",
   "msmart-ng>=2026.9.0",
+  # Capped: the library is on major version 46 and its API moves between majors.
+  "aioesphomeapi>=46.28,<47",
 ]
 
 [project.optional-dependencies]
