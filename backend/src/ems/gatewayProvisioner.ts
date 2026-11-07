@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
-import { docker, dockerOk, ensureImage } from '../integrations/docker.ts';
+import { docker, dockerOk, ensureImage, hasImage } from '../integrations/docker.ts';
 import { log } from '../log.ts';
 import * as store from '../repositories/gatewayContainers.ts';
 import { deleteGateway, findGatewayOfUnit } from '../repositories/gateways.ts';
@@ -15,7 +15,8 @@ import { attachGateway, publicKey } from './gatewayAccess.ts';
  *   1. picks its id and container name, and a free local port from GATEWAY_PORTS (skipping gateways that
  *      new-apartment.sh started),
  *   2. links it to the unit with a new sync secret before it runs, so its first member check is accepted,
- *   3. creates and starts the container as new-apartment.sh does without a tunnel box: host network,
+ *   3. pulls the image, so a new gateway gets the newest build of GATEWAY_IMAGE (an older copy is used only when the
+ *      pull fails), then creates and starts the container as new-apartment.sh does without a tunnel box: host network,
  *      127.0.0.1:<port>, enrolled with the relay, the backend's pass key pinned, its data in a volume of its name,
  *   4. waits until it has checked in here and answers through the relay at its address, as phones reach it.
  * Updating pulls the image again and recreates the container with the same settings and data (a tunnel box that
@@ -187,6 +188,18 @@ export function gatewayProvisioningDone(unitId: string): Promise<void> {
   return running.get(unitId) ?? Promise.resolve();
 }
 
+/** A new gateway gets the newest build of the tag; when the registry can't be reached, the copy Docker already has. */
+async function pullNewest(image: string): Promise<void> {
+  try {
+    await ensureImage(image, { pull: true });
+  } catch (error) {
+    if (!(await hasImage(image))) {
+      throw error;
+    }
+    log.warn('Pulling the gateway image failed; using the copy already on this server', { image, reason: (error as Error).message });
+  }
+}
+
 async function provision(row: store.GatewayContainer, unitName: string, update: boolean): Promise<void> {
   const settings = config.gateways;
   const name = row.containerName;
@@ -198,8 +211,10 @@ async function provision(row: store.GatewayContainer, unitName: string, update: 
     }
   };
   const info = await inspect(name);
-  if (!info || update) {
-    await ensureImage(settings.image, { pull: update });
+  if (update) {
+    await ensureImage(settings.image, { pull: true });
+  } else if (!info) {
+    await pullNewest(settings.image);
   }
   const kept = envValue(info?.Config?.Env, 'CUBE_EMS_SECRET');
   if (info && !kept) {

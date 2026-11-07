@@ -88,7 +88,8 @@ GATEWAY_RELAY_ENROLL_TOKEN=<CUBE_RELAY_ENROLL_TOKEN from /home/ems-server/EMS/cu
 `GATEWAY_RELAY_ENROLL_TOKEN` turns on the gateway per apartment. To copy it:
 `grep '^CUBE_RELAY_ENROLL_TOKEN=' /home/ems-server/EMS/cube-relay/relay.env`. Leave it empty and apartments get no
 gateway by themselves (`new-apartment.sh` still works). Other `GATEWAY_*` settings are in `backend/.env.example`.
-Their defaults match `new-apartment.sh`.
+Their defaults match `new-apartment.sh`. Each new gateway gets the newest build of `GATEWAY_IMAGE` (it is pulled
+every time). Existing gateways move to it with **Update** on their apartment's page.
 
 > 🔑 **Keep a copy of `EMS_ENCRYPTION_KEY` somewhere safe.** It encrypts every apartment's Home Assistant token. If it's lost, every apartment has to be set up again.
 

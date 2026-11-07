@@ -55,5 +55,15 @@ export async function ensureImage(image: string, { pull = false } = {}): Promise
   }
   const colon = image.lastIndexOf(':');
   const [name, tag] = colon > image.lastIndexOf('/') ? [image.slice(0, colon), image.slice(colon + 1)] : [image, 'latest'];
-  await dockerOk('POST', `/images/create?fromImage=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`);
+  const progress = await dockerOk('POST', `/images/create?fromImage=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`);
+  // A pull that fails part way (rate limit, registry down) still answers 200: the error is in the progress stream.
+  const failed = /"error"\s*:\s*"([^"]*)"/.exec(typeof progress === 'string' ? progress : JSON.stringify(progress ?? {}));
+  if (failed) {
+    throw new Error(`Docker could not pull ${image}: ${failed[1]}`);
+  }
+}
+
+/** Whether Docker has `image` already. */
+export async function hasImage(image: string): Promise<boolean> {
+  return (await docker('GET', `/images/${encodeURIComponent(image)}/json`)).status !== 404;
 }

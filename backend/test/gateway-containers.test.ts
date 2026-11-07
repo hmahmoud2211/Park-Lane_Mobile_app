@@ -57,6 +57,10 @@ const calls: string[] = [];
 const onRelay = new Set<string>();
 /** When set, started gateways stay silent: no check-in, nothing on the relay. */
 let silent = false;
+/** Whether Docker has the image, and whether pulling it fails (as on a rate limit: HTTP 200, the error in the stream). */
+let imagePresent = false;
+let pullFails = false;
+const pulls = () => calls.filter((call) => call === 'POST /images/create').length;
 
 const envOf = (container: FakeContainer, key: string) => container.body.Env.find((entry) => entry.startsWith(`${key}=`))?.slice(key.length + 1) ?? '';
 
@@ -82,8 +86,15 @@ function dockerApi(req: IncomingMessage, res: ServerResponse) {
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(payload));
     };
-    if (url.pathname.startsWith('/images/') && url.pathname.endsWith('/json')) return json(calls.includes('POST /images/create') ? 200 : 404, {});
-    if (url.pathname === '/images/create') return json(200, { status: 'Downloaded newer image' });
+    if (url.pathname.startsWith('/images/') && url.pathname.endsWith('/json')) return json(imagePresent ? 200 : 404, {});
+    if (url.pathname === '/images/create') {
+      if (pullFails) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end('{"status":"Pulling from hmahmoud2211/cube-os-gateway"}\n{"errorDetail":{"message":"toomanyrequests"},"error":"toomanyrequests: pull rate limit"}\n');
+      }
+      imagePresent = true;
+      return json(200, { status: 'Downloaded newer image' });
+    }
     if (url.pathname === '/containers/json') {
       return json(200, [...containers.keys()].map((name) => ({ Names: [`/${name}`] })));
     }
@@ -210,13 +221,13 @@ describe('the gateway that comes with an apartment', () => {
     // As if new-apartment.sh had since moved it into its own namespace for a tunnel box.
     container.body.Env.push('CUBE_TUNNEL_SUBNETS=192.168.1.0/24', 'PATH=/old/bin');
     container.body.HostConfig = { ...container.body.HostConfig, NetworkMode: 'bridge', CapAdd: ['NET_ADMIN'], PortBindings: { '51820/udp': [{ HostPort: '51821' }] } };
-    const pulls = calls.filter((call) => call === 'POST /images/create').length;
+    const before = pulls();
 
     assert.equal((await api('POST', `/api/admin/units/${unitId}/gateway`, { update: true })).status, 200);
     await gatewayProvisioningDone(unitId);
     const unit = await detail(unitId);
     assert.equal(unit.gatewayContainer?.status, 'running', unit.gatewayContainer?.lastError ?? '');
-    assert.equal(calls.filter((call) => call === 'POST /images/create').length, pulls + 1, 'the image is pulled again');
+    assert.equal(pulls(), before + 1, 'the image is pulled again');
 
     const recreated = containers.get(first.containerName) as FakeContainer;
     assert.notEqual(recreated, container);
@@ -230,6 +241,7 @@ describe('the gateway that comes with an apartment', () => {
 
   test('a gateway that never checks in fails with a reason, and a retry starts it', async () => {
     silent = true;
+    const before = pulls();
     const created = await api<{ id: string; gatewayContainer: GatewayContainer }>('POST', '/api/admin/units', { name: 'برج ب ٤', provision: false });
     const id = created.data.id;
     assert.match(created.data.gatewayContainer.containerName, /^cube-gw-[0-9a-f]{12}$/, 'a name without Latin letters falls back to the unit id');
@@ -238,6 +250,7 @@ describe('the gateway that comes with an apartment', () => {
     assert.equal(unit.gatewayContainer?.status, 'failed');
     assert.match(unit.gatewayContainer?.lastError ?? '', /didn't check in.*docker logs cube-gw-/);
     assert.equal(unit.gatewayContainer?.port, 18752);
+    assert.equal(pulls(), before + 1, 'a new gateway gets the newest image although the server has one');
 
     silent = false;
     containers.get(unit.gatewayContainer?.containerName as string)!.running = false; // as if it had stopped
@@ -246,6 +259,27 @@ describe('the gateway that comes with an apartment', () => {
     unit = await detail(id);
     assert.equal(unit.gatewayContainer?.status, 'running', unit.gatewayContainer?.lastError ?? '');
     assert.equal(unit.gatewayContainer?.port, 18752, 'the retry keeps its port and container');
+  });
+
+  test('when the pull fails, a new gateway starts from the copy the server has, and without one it fails clearly', async () => {
+    pullFails = true;
+    try {
+      const withCopy = (await api<{ id: string }>('POST', '/api/admin/units', { name: 'Tower C · 0101', provision: false })).data.id;
+      await gatewayProvisioningDone(withCopy);
+      assert.equal((await detail(withCopy)).gatewayContainer?.status, 'running');
+
+      imagePresent = false;
+      const without = (await api<{ id: string }>('POST', '/api/admin/units', { name: 'Tower C · 0102', provision: false })).data.id;
+      await gatewayProvisioningDone(without);
+      const failed = (await detail(without)).gatewayContainer;
+      assert.equal(failed?.status, 'failed');
+      assert.match(failed?.lastError ?? '', /could not pull hmahmoud2211\/cube-os-gateway:latest: toomanyrequests/);
+      await api('DELETE', `/api/admin/units/${withCopy}`);
+      await api('DELETE', `/api/admin/units/${without}`);
+    } finally {
+      pullFails = false;
+      imagePresent = true;
+    }
   });
 
   test('an apartment with a box at home linked gets no second gateway', async () => {
