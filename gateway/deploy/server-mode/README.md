@@ -47,6 +47,59 @@ Scan QR code** (or enter the code and the relay URL). The code works once. A los
 
 Each gateway listens on 127.0.0.1 only; nothing per apartment is exposed to the internet.
 
+## Apartments with home-only devices: the tunnel box
+
+TP-Link, Gree, WiZ, Yeelight, Daikin, Tasmota, ESPHome and similar devices never connect out to the internet, so a
+gateway on this server can't reach them by itself. For those apartments, a small box at home (a Raspberry Pi, or any
+Debian/Ubuntu machine) opens a private WireGuard tunnel from the home network to **that apartment's own gateway
+container**. All the logic stays here; the box only passes traffic.
+
+```
+cube-gw-<apartment> (own network namespace, wg0 10.200.0.1) <── WireGuard, opened by the box ── box at home ── home devices
+```
+
+Each apartment's container has its own network namespace and its own tunnel, so two apartments can both use
+192.168.1.0/24. The box connects out, so nothing is opened on the home router.
+
+**Once, on the server side:**
+1. **DNS:** `vpn.ems-iot.com` A → the server's public IP, **DNS only (grey cloud)** (or set `TUNNEL_HOST`).
+2. **Router:** forward a UDP range to the server, one port per tunnelled apartment (for example 51821–51999), and
+   `sudo ufw allow 51821:51999/udp`.
+3. **LG appliances in tunnelled apartments:** these containers aren't on the host network, so they reach ReThink's
+   MQTT at `host.docker.internal:1885`. ReThink's broker must listen on the Docker bridge too, not only 127.0.0.1,
+   and `sudo ufw allow from 172.16.0.0/12 to any port 1885 proto tcp`. The device broker needs nothing extra: they use
+   its TLS listener, which already listens on all addresses.
+
+**Per apartment:**
+```bash
+./new-apartment.sh tower-a-1203 18701 192.168.1.0/24 51821     # name, local port, the home's subnet, its UDP port
+```
+This prints the setup code and QR code as usual, and writes `tower-a-1203-tunnel.conf`, which holds the box's key.
+Copy that file and `tunnel-box.sh` to the box, delete the config here, and on the box run:
+```bash
+sudo ./tunnel-box.sh tower-a-1203-tunnel.conf
+```
+It installs WireGuard, starts the tunnel at every boot, and says when the server answered. Check from the server:
+`curl -s http://127.0.0.1:18701/api/v1/remote -H "Authorization: Bearer <owner token>"` shows `tunnel.received_bytes`
+growing, or simply `docker logs cube-gw-tower-a-1203 | grep tunnel`.
+
+**What changes for the resident:** Add Device lists the home-network brands too, as with a box at home.
+- **Found by scanning the home subnet through the tunnel:** Shelly, Daikin, SONOFF (DIY/LAN mode), Tasmota, Samsung TVs.
+- **Added with Add by IP address** (find the address in the router's device list): TP-Link Kasa/Tapo, Yeelight,
+  ESPHome, WLED, WiZ, LIFX, Gree, Midea, LG TVs.
+- **Not through the tunnel:** Tuya (found only by broadcast, and it has no add-by-address route yet), Faikout and
+  Matter.
+
+**Limits:**
+- **No home internet, no control,** even at home: everything goes through this server.
+- **No broadcast or mDNS discovery** through the tunnel, so no Tuya, and **no Matter** (it needs the home network's
+  IPv6 and multicast). A full gateway box at home has neither limit.
+- **The box must stay powered and online.** Its config holds a private key: treat it like a password.
+- **The container runs as root only to create its tunnel** (`--user 0 --cap-add NET_ADMIN`), then continues as the
+  normal unprivileged user. The server's kernel needs WireGuard (Linux 5.6 or later; Ubuntu 20.04+ has it).
+- **Not tested on real Linux yet:** the commands, keys, configs and routing logic are tested as data; nobody has
+  brought a tunnel up on the server or a box.
+
 ## What residents can add
 
 | Device | How | Account needed |

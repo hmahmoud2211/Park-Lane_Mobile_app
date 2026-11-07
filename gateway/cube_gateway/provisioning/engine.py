@@ -40,6 +40,7 @@ from ..models import (
     ProvisioningEvent,
     ProvisioningSession,
 )
+from ..tasks import spawn
 from .plugins import PLUGINS_BY_ID, ProvisioningPlugin
 
 log = logging.getLogger("cube.provisioning")
@@ -220,10 +221,10 @@ class ProvisioningEngine:
         self._close_window(session)
         slot = session.expect.get("slot")
         if slot and self.cloud is not None and not session.device_id:
-            asyncio.get_running_loop().create_task(self.cloud.release_device(slot))
+            spawn(self.cloud.release_device(slot), name="release-device")
         appliance = session.expect.get("uuid")
         if appliance and self.cloud is not None and not session.device_id:
-            asyncio.get_running_loop().create_task(self.cloud.release_appliance(appliance))
+            spawn(self.cloud.release_appliance(appliance), name="release-appliance")
         await self._move(session, S.PAIRING_FAILED, code)
         log.info("provisioning failed", extra={"session": session.id, "plugin": session.plugin_id, "code": code})
 
@@ -517,13 +518,13 @@ class ProvisioningEngine:
                 session.pairing_id = pairing.id
                 self._secrets.pop(session.id, None)
                 self._close_window(session)
-                asyncio.get_running_loop().create_task(self._move(session, S.CONNECTED))
+                spawn(self._move(session, S.CONNECTED), name="provisioning-move")
             elif pairing.status == "needs_input":
                 session.pairing_id = pairing.id
                 code = "local_key_required" if pairing.error_code and "key" in pairing.error_code else None
                 if code:
                     session.error = error_for(code)
-                asyncio.get_running_loop().create_task(self._move(session, S.LOCAL_AUTHORIZATION_REQUIRED))
+                spawn(self._move(session, S.LOCAL_AUTHORIZATION_REQUIRED), name="provisioning-move")
             elif pairing.status == "failed" and session.state != S.LOCAL_AUTHORIZATION_REQUIRED:
                 with contextlib.suppress(RuntimeError):
-                    asyncio.get_running_loop().create_task(self._fail(session, "pairing_failed", pairing.message))
+                    spawn(self._fail(session, "pairing_failed", pairing.message), name="provisioning-fail")

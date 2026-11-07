@@ -24,6 +24,7 @@ from typing import Any
 
 from ..cloud.link import CloudError, parse_json
 from ..models import AdapterInfo, AuthKind, Candidate, Category, CommandResult, ConnectionStatus, PairingRequirements, SupportLevel
+from ..tasks import spawn
 from . import _meross as protocol
 from . import caps
 from .base import (
@@ -159,7 +160,7 @@ class MerossCloudAdapter(DeviceAdapter):
 
         def fire() -> None:
             self._debounce.pop(uuid, None)
-            loop.create_task(self._push(uuid))
+            spawn(self._push(uuid), name="meross-push")
 
         self._debounce[uuid] = loop.call_later(PUSH_DEBOUNCE, fire)
 

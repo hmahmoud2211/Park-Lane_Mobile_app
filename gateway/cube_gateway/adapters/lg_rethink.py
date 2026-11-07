@@ -24,6 +24,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from ..models import AdapterInfo, AuthKind, Candidate, Category, CommandResult, ConnectionStatus, Setting, SupportLevel
+from ..tasks import spawn
 from . import caps
 from .base import (
     AdapterError,
@@ -246,7 +247,7 @@ class LgRethinkAdapter(DeviceAdapter):
 
         def fire() -> None:
             self._debounce.pop(device_id, None)
-            loop.create_task(self._push(device_id, callback))
+            spawn(self._push(device_id, callback), name="rethink-push")
 
         self._debounce[device_id] = loop.call_later(0.3, fire)
 

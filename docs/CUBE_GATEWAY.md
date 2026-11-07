@@ -13,8 +13,10 @@ install (EAS build); Docker only packages the gateway.
 - [Compatibility](#compatibility)
 - [LG ThinQ appliances via ReThink](#lg-thinq-appliances-via-rethink)
 - [SONOFF and the S26R2TPF](#sonoff-and-the-s26r2tpf)
+- [Matter devices (experimental)](#matter-devices-experimental)
 - [Installer-only routes](#installer-only-routes)
 - [Remote access](#remote-access)
+- [HTTPS at home and through the relay](#https-at-home-and-through-the-relay)
 - [Configuration](#configuration)
 - [Security model](#security-model)
 - [Operations](#operations)
@@ -63,7 +65,10 @@ and devices reach it because they connect out to the server:
   building's Home Assistant hub, from the brand's page in Add Device.
 - **Brands that only work on the home network (TP-Link, Xiaomi / Yeelight, WiZ, LIFX, WLED, Daikin, Midea, Gree,
   Tasmota / OpenBeken, ESPHome):**
-  listed in Add Device and marked as needing a box at home.
+  listed in Add Device and marked as needing a box at home. An apartment can instead get a **tunnel box**: a
+  small machine at home that opens a WireGuard tunnel to its own gateway container on the server, so most
+  home-network brands work with the logic still on the server (not Tuya or Matter)
+  ([gateway/deploy/server-mode/README.md](../gateway/deploy/server-mode/README.md), "the tunnel box").
 
 Residents pair the app with their apartment's gateway through the relay, using a setup code or QR code the
 building gives them. The full operator guide is in
@@ -206,6 +211,7 @@ residents.
 | Gree ACs and rebrands          | `gree`             | UDP 7000, AES ECB or GCM                | **Experimental**                  | No, but firmware decides: some builds are cloud-only                       | None (local bind)                     | No. The cipher was checked against packets people posted in public issue reports                                    |
 | Faikout (ESP32 Daikin module)  | `faikout`          | Daikin legacy HTTP, as Faikout serves it | **Experimental**                 | No                                                                         | None; clear any web password first    | No                                                                                                                  |
 | Nest Learning gen 1–2          | `nolongerevil`     | NoLongerEvil's control API              | **Experimental**                  | No, once flashed                                                           | None; needs your server and `CUBE_NLE_URL` | No                                                                                                             |
+| Matter devices (any brand)     | `matter`           | Matter, through a Matter Server         | **Experimental**                  | No                                                                         | The Matter setup code, or nothing if already on CUBE's fabric | No                                                                                                             |
 | Other / unknown                | `generic`          | mDNS / SSDP                             | Detection only                          | —                                                                         | Cannot be paired                      | —                                                                                                                  |
 
 ## LG ThinQ appliances via ReThink
@@ -265,6 +271,44 @@ Notes:
 - **Devices set up with the eWeLink app** encrypt their LAN traffic. They are found but need their device key.
   Pairing checks the key against the device's announcement before accepting it.
 
+## Matter devices (experimental)
+
+The gateway controls Matter devices through a **Matter Server** running next to it on the same machine. The
+Matter Server is the Open Home Foundation's controller; Home Assistant uses the same one. It holds CUBE's Matter
+network ("fabric"), adds devices to it and keeps a live connection to each. The gateway talks to it over a local
+WebSocket.
+
+```bash
+docker run -d --name matter-server --network host --restart unless-stopped \
+  -v matter-server-data:/data ghcr.io/matter-js/matterjs-server:stable
+
+# then start (or re-create) the gateway with:
+#   -e CUBE_MATTER_URL=ws://127.0.0.1:5580/ws
+```
+
+The older `ghcr.io/matter-js/python-matter-server:stable` image works too: it has the same API. The Matter Server
+needs host networking and IPv6 on the home network. Keep its port (5580) off the internet: it has no login.
+
+**Adding a device.** Add Device → Matter → **Find a Matter device** lists two kinds of device:
+
+- **In pairing mode on your network.** Enter the device's 11-digit Matter setup code. This is the usual route for a
+  device already set up in Apple Home, Google Home or its maker's app: use that app's "share" or "pair with
+  another app" option, which gives a fresh pairing code and opens a pairing window for a few minutes.
+- **Already on CUBE's Matter network** but not added in CUBE yet. No code needed.
+
+**Thread devices** also need a Thread border router at home, such as an Apple TV 4K, a HomePod mini or a Nest Hub.
+
+**What works:** on/off, brightness, white temperature, thermostats (Heat, Cool, Auto, Off), blinds and covers,
+and readings for temperature, humidity, door and window contact, motion, power and battery. State changes are
+pushed by the device.
+
+**Not yet:** setting up a brand-new device over Bluetooth (it needs Bluetooth on the gateway and your Wi-Fi password
+in the Matter Server); Matter bridges such as a Hue Bridge (refused, with a reason); a power strip's other outlets;
+locks, fans and colour. Removing a device in CUBE also removes it from CUBE's Matter network.
+
+**Not tested on a real Matter device yet.** The adapter is tested against a simulator that speaks the Matter
+Server's API (`gateway/tests/adapters/test_matter.py`). Try a plug and a light before offering it to residents.
+
 ## Installer-only routes
 
 These projects change a device's firmware or depend on the home network's DNS, so they can't be a step in the app.
@@ -303,7 +347,11 @@ the gateway's address.
 The same image runs a relay: `cube-gateway relay`. Gateways keep an outbound WebSocket to it, so no router
 ports are opened. The app calls `https://<relay>/relay/v1/g/<gateway_id>/api/v1/...` with the same token it
 uses at home. **The gateway checks every request itself.** The relay only routes. It stores gateway IDs and
-hashed tunnel secrets, never client tokens or device credentials. Owners can't be claimed through the relay.
+hashed tunnel secrets, never client tokens or device credentials. Owners can't be claimed through the relay,
+however the address is written: the gateway accepts only plain API paths from the tunnel and checks again in the
+claim itself. Each caller behind the relay is rate-limited separately. A relay that manages the device broker won't
+start without `CUBE_RELAY_ENROLL_TOKEN`, and it only believes `X-Real-IP` / `X-Forwarded-For` from a proxy on its
+own host or private network (including Docker's bridge).
 
 Run it on a public server, behind HTTPS:
 
@@ -353,8 +401,84 @@ on the gateway (`DELETE /api/v1/auth/clients/{id}`) cuts it off through the rela
 To restart or upgrade it: `docker rm -f cube-relay`, then
 `docker run -d --name cube-relay --network host --restart unless-stopped --env-file /home/ems-server/EMS/cube-relay/relay.env -v cube-relay-data:/data <image> relay`.
 
-**Limitation:** TLS ends at the relay, so whoever operates the relay could read traffic in transit. Use
-Tailscale when that matters. End-to-end encryption through the relay is not implemented.
+**Limitation of the relay's HTTP route:** TLS ends at the relay, so whoever operates the relay could read
+traffic in transit. The HTTPS route below doesn't have this problem; older app versions use this one.
+
+## HTTPS at home and through the relay
+
+Once the relay is set up for it, every enrolled gateway gets a real certificate, and the app uses HTTPS:
+
+- **At home:** `https://<gateway id>.gw.ems-iot.com:8688`. That name points at the gateway's home address.
+- **Away:** `https://<gateway id>.r.ems-iot.com`. The relay reads only the name the app asks for and passes the
+  encrypted connection to that gateway without decrypting it, so tokens and data are readable only by the phone
+  and the gateway.
+
+The gateway makes its own key, which never leaves it. The relay gets a Let's Encrypt certificate for it, proving
+the names with DNS records on Cloudflare (DNS-01), and the gateway renews it on its own. Where HTTPS doesn't work
+(an older gateway, no certificate yet, a router that blocks the home name), the app falls back to the routes
+above, so nothing breaks.
+
+### Set it up on the relay (once)
+
+1. **Cloudflare API token:** Zone → DNS → Edit, for `ems-iot.com` only.
+2. **DNS:** one record, `*.r.ems-iot.com` A → the relay server's public IP, **DNS only (grey cloud)**. A proxied
+   record would end TLS at Cloudflare. The relay creates each gateway's `<id>.gw.ems-iot.com` record itself.
+3. **The relay's env file:**
+   ```bash
+   CUBE_RELAY_TLS_REMOTE_ZONE=r.ems-iot.com
+   CUBE_RELAY_TLS_LAN_ZONE=gw.ems-iot.com
+   CUBE_RELAY_TLS_PORT=8689
+   CUBE_CLOUDFLARE_API_TOKEN=<token>
+   CUBE_ACME_EMAIL=<an address Let's Encrypt can warn about expiry>
+   # first run only: CUBE_ACME_DIRECTORY=https://acme-staging-v02.api.letsencrypt.org/directory
+   ```
+   Try once with the staging directory. Its certificates aren't trusted by phones, but they prove the DNS and
+   token work without using up Let's Encrypt's limits. Then remove that line and restart.
+4. **Let the app reach the pass-through listener**, one of two ways:
+   - **Port 443 through nginx (recommended: every network allows 443).** nginx reads the requested name before
+     any TLS and sends `*.r.ems-iot.com` to the relay. Your existing HTTPS sites move to a local port:
+     ```nginx
+     stream {
+         map $ssl_preread_server_name $cube_upstream {
+             ~\.r\.ems-iot\.com$  127.0.0.1:8689;   # CUBE_RELAY_TLS_PORT
+             default              127.0.0.1:8443;   # the existing HTTPS sites
+         }
+         server {
+             listen 443;
+             ssl_preread on;
+             proxy_protocol on;            # hands on each caller's address, for per-caller rate limits
+             proxy_pass $cube_upstream;
+         }
+     }
+     # and in each existing https server block:
+     #   listen 127.0.0.1:8443 ssl proxy_protocol;
+     #   set_real_ip_from 127.0.0.1;  real_ip_header proxy_protocol;
+     ```
+   - **Its own port.** Open `CUBE_RELAY_TLS_PORT` in the firewall (e.g. 8444) and set
+     `CUBE_RELAY_TLS_PUBLIC_PORT=8444`. Simpler, but some networks block ports other than 443.
+5. Restart the relay (a relay run with `-p` instead of `--network host` also needs `-p 127.0.0.1:8689:8689`).
+   Each connected gateway gets its certificate within about five minutes. Its log says
+   `HTTPS certificate installed`, and `GET /api/v1/health` then shows `tls`.
+
+**On the gateway** nothing needs setting. `CUBE_TLS_PORT` (8688) is the home HTTPS port. Server-hosted gateways
+listen on a loopback port and are reached only through the relay.
+
+**Limits:**
+
+- **No relay, no HTTPS.** A gateway that isn't enrolled with a relay keeps plain HTTP, with the identity check.
+- **Router DNS filters.** Some routers drop DNS answers that point at private addresses ("DNS rebinding
+  protection"); on those networks the app uses plain HTTP at home. To allow it, add an exception for
+  `gw.ems-iot.com` (dnsmasq/OpenWrt: `rebind_domain`).
+- **The relay operator.** The operator controls the zone and could have another certificate issued for a
+  gateway's name. Every certificate issued for these names is public in Certificate Transparency logs
+  (crt.sh), so that can't happen unseen.
+- **Let's Encrypt limits.** 50 new certificates per registered domain per week. Renewing the same names is
+  treated more leniently ([letsencrypt.org/docs/rate-limits](https://letsencrypt.org/docs/rate-limits/)), so plan
+  large rollouts, or use a separate domain for gateways. The relay also caps each gateway at four a week.
+- **App versions.** Only the new app build uses HTTPS. It trusts names in `gw.ems-iot.com` and `r.ems-iot.com`
+  only, unless the build sets `EXPO_PUBLIC_GATEWAY_TLS_ZONES`. Older app versions keep using the routes above.
+- **Not yet tried against Let's Encrypt or Cloudflare.** The ACME client has issued certificates from Pebble
+  (Let's Encrypt's test CA) with real DNS-01 validation; Cloudflare's API and the nginx setup are untested.
 
 ## Configuration
 
@@ -378,9 +502,16 @@ All optional, as `-e NAME=value` on `docker run`.
 | `CUBE_RETHINK_API_SERVER` / `CUBE_RETHINK_MQTT_SERVER`                                                                       | —                              | ReThink's public addresses, handed to ThinQ2 appliances during phone setup so they need no DNS override (set both)                                              |
 | `CUBE_RETHINK_SETUP_CMD`                                                                                                       | —                              | Command that runs ReThink's `rethink-setup` (gateway-side LG setup)                                                                                           |
 | `CUBE_NLE_URL`                                                                                                                 | —                              | NoLongerEvil's control API, e.g. `http://192.168.1.10:8082`; enables Nest Learning gen 1–2                                                                    |
+| `CUBE_MATTER_URL`                                                                                                              | —                              | The Matter Server's WebSocket, e.g. `ws://127.0.0.1:5580/ws`; enables Matter devices ([Matter devices](#matter-devices-experimental))                         |
 | `CUBE_SOFTAP_INTERFACE`                                                                                                        | —                              | Spare Wi-Fi interface for gateway-side setup. Also needs `-v /run/dbus:/run/dbus:ro --user 0` and NetworkManager on the host                                  |
+| `CUBE_TLS_PORT`                                                                                                                | `8688` (`0` server-hosted)     | Home HTTPS port, opened once the relay has issued a certificate; `0` = loopback only |
+| `CUBE_RELAY_TLS_REMOTE_ZONE` / `CUBE_RELAY_TLS_LAN_ZONE`                                                                       | —                              | Relay mode: zones for gateway certificates (`<id>.<zone>`); the remote zone turns certificates on |
+| `CUBE_RELAY_TLS_PORT` / `CUBE_RELAY_TLS_PUBLIC_PORT`                                                                           | `0` / `443`                    | Relay mode: the pass-through listener's local port, and the port apps reach it on |
+| `CUBE_CLOUDFLARE_API_TOKEN` / `CUBE_CLOUDFLARE_ZONE_ID`                                                                        | —                              | Relay mode: DNS edit on the zone(s); the zone id is looked up when not set |
+| `CUBE_ACME_DIRECTORY` / `CUBE_ACME_EMAIL` / `CUBE_DNS_PROPAGATION_WAIT`                                                        | Let's Encrypt / — / `20`       | Relay mode: the ACME server (staging for a first test), its contact address, seconds to wait after publishing a TXT record |
 | `CUBE_RELAY_URL`                                                                                                               | —                              | Relay to connect to at start (normally set from the app instead)                                                                                                |
 | `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT`                                                                                | — / `8687`                   | Relay mode: who may enrol. Gateway mode: with `CUBE_RELAY_URL`, enrol automatically at start                                                                  |
+| `CUBE_TUNNEL_SUBNETS` / `CUBE_TUNNEL_ENDPOINT` / `CUBE_TUNNEL_PORT`                                                            | — / — / `51820`                | Server-hosted apartment with a tunnel box: its home subnet(s), the address boxes connect to, WireGuard's port in the container (needs `--user 0 --cap-add NET_ADMIN`) |
 | `CUBE_SERVER_HOSTED`                                                                                                           | `0`                           | Run on the company server for one apartment: only Shelly-over-broker and LG via ReThink; claim allowed through the relay; LG appliances private to this gateway |
 | `CUBE_CLOUD_MQTT_URL`                                                                                                          | (from the relay)                | How this gateway reaches the device broker, e.g. `mqtt://127.0.0.1:1886` on the broker's own server                                                           |
 | `CUBE_ALLOW_REMOTE_CLAIM` / `CUBE_RETHINK_ONLY_PROVISIONED`                                                                  | follow `CUBE_SERVER_HOSTED`   | The two server-hosted behaviours, separately                                                                                                                    |
@@ -389,8 +520,8 @@ All optional, as `-e NAME=value` on `docker run`.
 ## Security model
 
 - **Ownership:** proven by reading the setup code from the gateway's log or with `docker exec`, both of which
-  need access to the server. 10 wrong codes rotate it, claims are rate-limited, and claiming is refused
-  through the relay.
+  need access to the server. 10 wrong codes rotate it, claims are rate-limited per caller (through the relay too),
+  and claiming is refused through the relay unless the gateway is server-hosted.
 - **Clients:** random 256-bit bearer tokens, stored as SHA-256 hashes, revocable at once (WebSocket closed
   too). Roles are owner and member; members can't pair, remove, rename or manage access.
 - **Gateway identity:** an HMAC challenge before a phone sends its token to a new address.
@@ -405,8 +536,10 @@ All optional, as `-e NAME=value` on `docker run`.
   its own operation and is logged; a broken adapter module is listed as not loaded and the rest load.
 - **No silent cloud uploads:** the gateway contacts no manufacturer cloud. msmart-ng runs with
   `auto_connect=False`, and Tapo credentials are used for local authentication only.
-- **LAN transport:** on the home network the API is plain HTTP, like most home hubs; React Native can't pin a
-  self-signed certificate without extra native code. Use Tailscale (WireGuard) if the LAN isn't trusted.
+- **Transport:** with a relay set up for certificates, HTTPS at home and end to end through the relay (see
+  [HTTPS at home and through the relay](#https-at-home-and-through-the-relay)); the gateway's key never leaves
+  it. Without one, plain HTTP on the home network with the identity check, and the relay's HTTP route, where
+  TLS ends at the relay. Use Tailscale (WireGuard) where neither is enough.
 
 ## Operations
 
@@ -425,7 +558,7 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 
 | Check                                                                                          | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Gateway tests: `cd gateway && .venv/bin/pytest -q`                                           | **602 passed** on 2026-11-06 (macOS, Python 3.14.6): API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets, every adapter against protocol mocks, and the LG settings mapping against the real discovery message of an RAC_056905_WW |
+| Gateway tests: `cd gateway && .venv/bin/pytest -q`                                           | **658 passed** on 2026-11-07 (macOS, Python 3.14.6, installed from `uv.lock`): API and auth, ownership, invites, revocation, identity proof, rate limits, WebSocket events, discovery (dedupe, scope, cancellation, crash isolation), pairing (local key, approval, detection-only), registry persistence and restart, commands (confirmed / assumed / pending / unsupported / offline back-off), the SoftAP state machine (happy path, wrong network, Wi-Fi rejected, device not found, expiry, cancel, restart recovery, gateway transport), hotspot password rules, relay end to end over real sockets (including disguised claim paths and per-caller rate limits), monitoring that survives unexpected errors, every adapter against protocol mocks, the Matter adapter against a simulated Matter Server, HTTPS end to end through the relay's pass-through (the relay sees only ciphertext; claims through it are refused) with certificates from a strict fake ACME CA, the tunnel-box setup (keys, box config, wg0 commands, privilege drop, adapters and catalog; not a live tunnel), and the LG settings mapping against the real discovery message of an RAC_056905_WW |
 | `ruff check cube_gateway tests`                                                              | Clean                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `docker build gateway/` (amd64)                                                              | Builds; image 321 MB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Container first start → setup code via `docker exec` → claim → data → `docker restart` | Data and token survive; Docker health `healthy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -436,7 +569,8 @@ Run on 2026-11-04 on the development server (Ubuntu, x86_64, Docker 29.8, Python
 | App: `npx expo export` (Android, web)                                                        | Builds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 **The brands added on 2026-11-05 are untested on real hardware:** Meross, Tasmota / OpenBeken, ESPHome, Gree, Faikout and
-Nest (NoLongerEvil). Each runs against a protocol simulator. The first real Meross test decides whether that route works:
+Nest (NoLongerEvil). So is Matter (added 2026-11-07). The first Meross test is written out step by step in
+[gateway/deploy/server-mode/MEROSS_TEST.md](../gateway/deploy/server-mode/MEROSS_TEST.md). Each runs against a protocol simulator. The first real Meross test decides whether that route works:
 whether the firmware accepts a broker on the internet with CUBE's private certificate is unknown.
 
 **Still to test on real hardware:** every adapter other than the read-only LG check above; commands to the
@@ -458,7 +592,7 @@ setup over NetworkManager; the relay from a phone on mobile data; the arm64 imag
 | SONOFF `POST /ap` (eWeLink app-style setup)                             | Undocumented. It timed out on the S26R2TPF and would register the device with eWeLink's cloud                                               |
 | Guessed or brute-forced hotspot passwords                                 | Only published, model-specific defaults are filled in                                                                                       |
 | BLE provisioning                                                          | No verified BLE protocol for the target devices yet, and the hardware is Wi-Fi focused. The provisioning engine has a transport slot for it. Meross and Gree models that pair only over Bluetooth can't be set up here |
-| Zigbee, Z-Wave, Thread/Matter                                             | Need radios and stacks the gateway doesn't include. Matter devices are detected only                                                        |
+| Zigbee, Z-Wave                                                            | Need radios and stacks the gateway doesn't include                                                                                          |
 | Native mDNS in the app                                                    | React Native has no mDNS without another native module. The app probes the /24 instead, and the gateway still advertises `_cube-gw._tcp`  |
 | HTTPS on the LAN                                                          | See the security model; use Tailscale                                                                                                       |
 | Parklane Assistant controlling gateway devices                            | The assistant service talks to the EMS backend in the cloud, which can't reach a home LAN. It would need the relay plus a backend change    |

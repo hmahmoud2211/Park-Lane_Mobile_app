@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
+import os
 import sys
 import urllib.request
 
@@ -16,10 +18,17 @@ from .logs import configure
 def _serve() -> None:
     import uvicorn
 
+    from . import tunnel
     from .api import create_app
 
     settings = load_settings()
     configure(settings.log_level, settings.log_format)
+    # Started as root only to set up the tunnel to the apartment's box: that happens first, then root is given up.
+    if os.geteuid() == 0:
+        tunnel.up(settings)
+    elif settings.tunnel_subnets:
+        logging.getLogger("cube.tunnel").error("CUBE_TUNNEL_SUBNETS is set but the container isn't root: run it with --user 0 --cap-add NET_ADMIN")
+    tunnel.drop_privileges(settings.data_dir)
     uvicorn.run(
         create_app(settings),
         host=settings.host,
@@ -97,6 +106,18 @@ def _reset_owner() -> int:
     return 0
 
 
+def _tunnel_config() -> int:
+    """Prints the WireGuard config for this apartment's tunnel box (install it with deploy/server-mode/tunnel-box.sh)."""
+    from . import tunnel
+
+    settings = load_settings()
+    if not settings.tunnel_subnets:
+        print("This gateway has no tunnel (CUBE_TUNNEL_SUBNETS is not set).")
+        return 1
+    print(tunnel.box_config(settings, tunnel.keys(settings.data_dir)), end="")
+    return 0
+
+
 def _healthcheck() -> int:
     """Healthy when the gateway API or, in relay mode, the relay answers on this host (one image, two modes)."""
     settings = load_settings()
@@ -119,6 +140,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("setup-code", help="print the setup code for pairing the first phone")
     sub.add_parser("reset-owner", help="unpair every phone and print a new setup code")
     sub.add_parser("healthcheck", help="exit 0 when the local API answers")
+    sub.add_parser("tunnel-config", help="print the WireGuard config for this apartment's tunnel box")
     args = parser.parse_args(argv)
     command = args.command or "serve"
     if command == "serve":
@@ -131,6 +153,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(_reset_owner())
     elif command == "healthcheck":
         sys.exit(_healthcheck())
+    elif command == "tunnel-config":
+        sys.exit(_tunnel_config())
 
 
 if __name__ == "__main__":

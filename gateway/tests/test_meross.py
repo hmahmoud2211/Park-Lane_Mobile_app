@@ -476,14 +476,15 @@ async def test_relay_keeps_each_device_with_one_gateway(settings, tmp_path):
     relay_settings = replace(
         settings, data_dir=tmp_path / "relay", mqtt_admin_url="mqtt://127.0.0.1:1", mqtt_admin_user="admin", mqtt_admin_password="x",
         mqtt_public_server="mqtt-cube.example.com:8885", mqtt_gateway_url="mqtts://mqtt-cube.example.com:8885",
+        relay_enroll_token="enrol-secret",
     )
     other = "22222222-3333-4444-5555-666666666666"
     app = create_relay_app(relay_settings)
     async with app.router.lifespan_context(app):
         app.state.relay.broker = FakeDynsec()
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://relay") as client:
-            mine = (await client.post("/relay/v1/gateways", json={"gateway_id": GW})).json()["data"]
-            theirs = (await client.post("/relay/v1/gateways", json={"gateway_id": other})).json()["data"]
+            mine = (await client.post("/relay/v1/gateways", json={"gateway_id": GW}, headers={"Authorization": "Bearer enrol-secret"})).json()["data"]
+            theirs = (await client.post("/relay/v1/gateways", json={"gateway_id": other}, headers={"Authorization": "Bearer enrol-secret"})).json()["data"]
             auth = {"Authorization": f"Bearer {GW}.{mine['secret']}"}
             intruder = {"Authorization": f"Bearer {other}.{theirs['secret']}"}
             body = {"uuid": UUID, "mac": MAC, "password": "7_" + "b" * 32}

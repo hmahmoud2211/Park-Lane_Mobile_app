@@ -32,13 +32,17 @@ Python 3.12 or newer (the image uses 3.14).
 
 ```bash
 cd gateway
-uv venv .venv && uv pip install --python .venv/bin/python -e '.[test]'   # or: python -m venv .venv && .venv/bin/pip install -e '.[test]'
+uv sync --locked --extra test             # .venv with exactly the versions in uv.lock
 .venv/bin/pytest -q                      # protocol mocks, no network beyond localhost
 .venv/bin/ruff check cube_gateway tests
 CUBE_DATA_DIR=./data CUBE_LOG_FORMAT=text .venv/bin/cube-gateway serve
 ```
 
-`cube-gateway` commands: `serve` (default), `relay`, `setup-code`, `reset-owner`, `healthcheck`.
+Dependencies are pinned in `uv.lock`; the image and CI install from it and fail if it's stale. To change one, edit
+`pyproject.toml`, run `uv lock` (or `uv lock --upgrade-package <name>`), and commit both. Dependabot opens weekly
+update PRs.
+
+`cube-gateway` commands: `serve` (default), `relay`, `setup-code`, `reset-owner`, `healthcheck`, `tunnel-config`.
 
 ## Layout
 
@@ -51,9 +55,21 @@ CUBE_DATA_DIR=./data CUBE_LOG_FORMAT=text .venv/bin/cube-gateway serve
 | `cube_gateway/discovery/` | mDNS (browse + advertise), SSDP, authorized subnet probe, the job engine |
 | `cube_gateway/provisioning/` | Plugins with verified hotspot rules, the session state machine, gateway-side Wi-Fi |
 | `cube_gateway/devices.py` | Persistent registry, monitoring with back-off, commands, pairing jobs |
-| `cube_gateway/relay/` | Optional remote relay: server (`cube-gateway relay`) and the gateway's tunnel client |
+| `cube_gateway/relay/` | Optional remote relay: server (`cube-gateway relay`), the gateway's tunnel client, gateway certificates (ACME DNS-01) and the pass-through TLS listener |
+| `cube_gateway/tunnel.py` | Server-hosted apartments with a tunnel box: WireGuard to the home network, set up as root then dropped |
+| `cube_gateway/tls.py` | The gateway's HTTPS: its key, certificate renewal through the relay, the listener |
 | `cube_gateway/catalog.py` | The brands the app lists, built from loaded adapters and plugins |
 | `tests/` | Unit and integration tests with protocol mocks |
+
+## Licences
+
+Check a new dependency's licence before adding it.
+To list what the image ships (runtime packages only, then put the test tools back):
+
+```bash
+uv sync --locked && uvx pip-licenses --python .venv/bin/python --from=mixed --format=markdown
+uv sync --locked --extra test
+```
 
 ## Adding an adapter
 

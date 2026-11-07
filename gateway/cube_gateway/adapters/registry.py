@@ -13,6 +13,7 @@ import logging
 from collections.abc import Awaitable
 from typing import TypeVar
 
+from ..config import Settings
 from ..models import AdapterInfo
 from .base import AdapterContext, AdapterError, DeviceAdapter
 
@@ -39,6 +40,7 @@ ADAPTERS: list[tuple[str, str]] = [
     ("cube_gateway.adapters.nolongerevil", "NoLongerEvilAdapter"),
     ("cube_gateway.adapters.tasmota", "TasmotaAdapter"),
     ("cube_gateway.adapters.esphome", "EsphomeAdapter"),
+    ("cube_gateway.adapters.matter", "MatterAdapter"),
     ("cube_gateway.adapters.generic", "GenericAdapter"),
 ]
 
@@ -49,6 +51,16 @@ SERVER_HOSTED_ADAPTERS: list[tuple[str, str]] = [
     ("cube_gateway.adapters.lg_rethink", "LgRethinkAdapter"),
     ("cube_gateway.adapters.meross_cloud", "MerossCloudAdapter"),
 ]
+
+
+def modules_for(settings: Settings) -> list[tuple[str, str]]:
+    """The adapters a gateway loads: everything at home; on CUBE's server only devices that connect out, plus every
+    home-network adapter when the apartment has a tunnel box (tunnel.py)."""
+    if not settings.server_hosted:
+        return ADAPTERS
+    if settings.tunnel_subnets:
+        return ADAPTERS + [entry for entry in SERVER_HOSTED_ADAPTERS if entry not in ADAPTERS]
+    return SERVER_HOSTED_ADAPTERS
 
 
 class AdapterRegistry:

@@ -11,22 +11,20 @@
 ARG PYTHON_VERSION=3.14
 
 FROM python:${PYTHON_VERSION}-slim AS build
-ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+# uv installs exactly the versions in uv.lock (hash-checked); the same version runs in CI.
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /bin/uv
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv UV_PYTHON_DOWNLOADS=0 UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_NO_CACHE=1
 # A compiler only for dependencies that ship no wheel for the target platform (some arm64 builds).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-# Dependencies first, in their own layer, so a code change rebuilds in seconds.
-COPY pyproject.toml README.md ./
-RUN python -m venv /opt/venv \
- && /opt/venv/bin/pip install --upgrade pip \
- && mkdir cube_gateway && touch cube_gateway/__init__.py \
- && /opt/venv/bin/pip install . \
- && rm -rf cube_gateway build *.egg-info
+# Dependencies first, in their own layer, so a code change rebuilds in seconds. --locked fails the build if
+# uv.lock no longer matches pyproject.toml, instead of quietly resolving new versions.
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --locked --no-install-project
 COPY cube_gateway ./cube_gateway
-RUN /opt/venv/bin/pip install --no-deps --force-reinstall . \
- && /opt/venv/bin/python -m compileall -q /opt/venv/lib
+RUN uv sync --locked --no-editable
 
 FROM python:${PYTHON_VERSION}-slim
 ARG VERSION=dev
@@ -41,6 +39,10 @@ ENV PATH=/opt/venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     CUBE_DATA_DIR=/data \
     CUBE_PORT=8686
+# wg and ip, only for apartments with a tunnel box (cube_gateway/tunnel.py); unused otherwise.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends wireguard-tools iproute2 \
+ && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin cube \
  && mkdir -p /data \
  && chown cube:cube /data \
@@ -48,7 +50,8 @@ RUN useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin cube
 COPY --from=build /opt/venv /opt/venv
 USER cube
 VOLUME ["/data"]
-EXPOSE 8686
+# 8686 the API over HTTP; 8688 the same API over HTTPS once the relay has issued a certificate.
+EXPOSE 8686 8688
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["cube-gateway", "healthcheck"]
 ENTRYPOINT ["cube-gateway"]
 CMD ["serve"]

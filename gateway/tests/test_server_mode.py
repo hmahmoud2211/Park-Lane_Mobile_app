@@ -219,7 +219,7 @@ def test_server_mode_lists_every_brand_with_its_real_route(hosted):
     assert brands["tuya"].methods == [] and brands["switchbot"].hub_integrations == ["switchbot_cloud"]
 
     # Brands that only work on the home network stay listed, last, and can't be started.
-    home_only = {"tplink", "xiaomi", "wiz", "lifx", "wled", "daikin", "midea", "tasmota", "gree", "esphome", "other"}
+    home_only = {"tplink", "xiaomi", "wiz", "lifx", "wled", "daikin", "midea", "tasmota", "gree", "esphome", "matter", "other"}
     assert {b.id for b in listed if b.needs_home_gateway} == home_only
     assert all(b.needs_home_gateway for b in listed[-len(home_only) :])
     for brand_id in home_only:
@@ -385,13 +385,14 @@ async def test_relay_issues_logins_only_to_enrolled_gateways(settings, tmp_path)
     relay_settings = replace(
         settings, data_dir=tmp_path / "relay", mqtt_admin_url="mqtt://127.0.0.1:1", mqtt_admin_user="admin", mqtt_admin_password="x",
         mqtt_public_server="mqtt-cube.example.com:8885", mqtt_gateway_url="mqtts://mqtt-cube.example.com:8885", mqtt_ca_file=str(ca),
+        relay_enroll_token="enrol-secret",
     )
     app = create_relay_app(relay_settings)
     async with app.router.lifespan_context(app):
         app.state.relay.broker = FakeDynsec()
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://relay") as client:
-            enrolled = (await client.post("/relay/v1/gateways", json={"gateway_id": GW})).json()["data"]
+            enrolled = (await client.post("/relay/v1/gateways", json={"gateway_id": GW}, headers={"Authorization": "Bearer enrol-secret"})).json()["data"]
             assert enrolled["device_broker"] is True
             auth = {"Authorization": f"Bearer {GW}.{enrolled['secret']}"}
             assert (await client.post("/relay/v1/mqtt/devices")).status_code == 401

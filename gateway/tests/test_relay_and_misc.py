@@ -80,6 +80,11 @@ async def test_relay_end_to_end(relay_setup):
         # Ownership can't be claimed from outside the home network.
         claim = await client.post(f"{base}/auth/claim", json={"setup_code": gateway.security.setup_code})
         assert claim.status_code == 403
+        # Nor by spelling the path differently: the relay decodes %2563 once, the gateway would decode it again.
+        for disguised in ("auth/%2563laim", "auth/cl%2561im", "auth/claim%253Fx"):
+            sneaky = await client.post(f"{base}/{disguised}", json={"setup_code": gateway.security.setup_code})
+            assert sneaky.status_code in {400, 403}, (disguised, sneaky.text)
+        assert not await gateway.security.is_claimed()
         # The gateway, not the relay, decides authentication.
         assert (await client.get(f"{base}/devices")).status_code == 401
         # Claim locally, then use the same token through the relay.

@@ -238,6 +238,21 @@ BRANDS: list[BrandEntry] = [
         ),
         no_setup_reason="ESPHome devices get their Wi-Fi details from their own firmware or setup page. Set the device up in ESPHome, then use Find existing device.",
     ),
+    BrandEntry(
+        "matter",
+        "Matter",
+        "matter",
+        "Any device with the Matter logo, controlled on your network with no account (experimental).",
+        ("matter",),
+        aliases=("Works with Matter", "Matter over Thread", "Thread", "Matter-certified"),
+        notes=(
+            "Needs a Matter Server running next to the gateway.",
+            "Add a device that is already set up in Apple Home, Google Home or its maker's app: use that app's share or 'pair with another app' option to get a pairing code.",
+            "Thread devices also need a Thread border router at home (for example an Apple TV, a HomePod mini or a Nest Hub).",
+            "Not shown yet: Matter bridges, a power strip's other outlets, locks, fans and colour.",
+        ),
+        no_setup_reason="Setting up a brand-new Matter device over Bluetooth isn't offered yet. Set it up in another Matter app first, share it, then use Find a Matter device.",
+    ),
     # Reached only through their cloud, from the building's hub: no gateway adapter.
     BrandEntry("switchbot", "SwitchBot", "switchbot", "SwitchBot devices through your SwitchBot account.", (), hub=("switchbot_cloud",)),
     BrandEntry(
@@ -287,6 +302,7 @@ FIND_TEXT: dict[str, tuple[str, str]] = {
     "sonoff_lan": ("Find a SONOFF device", "Finds devices in DIY or eWeLink LAN mode on your network."),
     "daikin": ("Find a Daikin Wi-Fi adapter", "Finds Daikin BRP069 adapters on your network."),
     "faikout": ("Find a Faikout module", "Finds Faikout modules fitted to Daikin air conditioners on your network."),
+    "matter": ("Find a Matter device", "Finds Matter devices in pairing mode on your network, and ones already on CUBE's Matter network. You'll need the device's Matter setup code."),
     "esphome": ("Find an ESPHome device", "Finds ESPHome devices on your network. If one uses encryption, you'll need its API encryption key."),
     "gree": ("Find a Gree air conditioner", "Finds Gree and rebranded air conditioners already on your Wi-Fi."),
     "nolongerevil": ("Find a Nest on NoLongerEvil", "Lists Nest Learning Thermostats already connected to your NoLongerEvil server."),
@@ -331,7 +347,8 @@ def build_brands(registry: AdapterRegistry, settings: Settings) -> list[Brand]:
         offered = [a.info.id for a in adapters] if entry.only_when_configured else entry.adapters
         methods: list[ConnectionMethod] = [m for a in offered if (m := _find_method(registry, a))]
 
-        hosted = settings.server_hosted
+        # A server-hosted gateway with a tunnel box reaches the home network like a gateway at home does.
+        hosted = settings.server_hosted and not settings.tunnel_subnets
         home_only = hosted and not adapters and not entry.hub
         # A plugin for an adapter this gateway does not run (e.g. the cloud Shelly setup on a home gateway) is not offered.
         plugins = [p for p in PLUGINS if p.brand_id == entry.id and p.adapter_id in registry.adapters]

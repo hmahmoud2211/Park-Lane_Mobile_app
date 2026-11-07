@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# Starts a server-hosted CUBE gateway for one apartment on the company server (no box in the apartment).
+# Starts a server-hosted CUBE gateway for one apartment on the company server.
 #
-#   ./new-apartment.sh tower-a-1203 18701
+#   ./new-apartment.sh tower-a-1203 18701                       # no box: devices that connect out to the server
+#   ./new-apartment.sh tower-a-1203 18701 192.168.1.0/24 51821   # plus a tunnel box: every home-network device
+#
+# With a home subnet and a UDP port, the gateway gets its own WireGuard tunnel to a small box in the apartment
+# (cube_gateway/tunnel.py). It then runs in its own network namespace (not --network host), so apartments with the
+# same home subnet don't clash, and the script writes the box's config to <name>-tunnel.conf. The UDP port must be
+# forwarded to this server, and TUNNEL_HOST must resolve to its public address (DNS only, not proxied).
 #
 # The gateway listens on 127.0.0.1:<port> only, enrols itself with the relay, gets its broker login from the
 # relay, uses the shared ReThink for LG appliances (seeing only the ones it sets up), and prints the pairing
@@ -10,6 +16,10 @@ set -euo pipefail
 
 NAME="${1:?usage: new-apartment.sh <apartment name, e.g. tower-a-1203> <local port, e.g. 18701>}"
 PORT="${2:?usage: new-apartment.sh <name> <port>}"
+SUBNET="${3:-}"
+UDP_PORT="${4:-}"
+TUNNEL_HOST="${TUNNEL_HOST:-vpn.ems-iot.com}"
+MQTT_HOST="${MQTT_HOST:-mqtt-cube.ems-iot.com}"
 IMAGE="${IMAGE:-ghcr.io/hmahmoud2211/cube-os-gateway:latest}"
 RELAY_URL="${RELAY_URL:-https://cube-relay.ems-iot.com}"
 RELAY_ENV="${RELAY_ENV:-/home/ems-server/EMS/cube-relay/relay.env}"
@@ -18,9 +28,27 @@ RETHINK_API="${RETHINK_API:-https://lg.ems-iot.com:4443}"
 RETHINK_MQTTS="${RETHINK_MQTTS:-ssl://lg.ems-iot.com:8884}"
 
 [[ "$NAME" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "Use lower-case letters, digits and dashes for the name."; exit 1; }
+if [ -n "$SUBNET" ]; then
+  [[ "$SUBNET" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$ ]] || { echo "The home subnet looks like 192.168.1.0/24."; exit 1; }
+  [[ "$UDP_PORT" =~ ^[0-9]{4,5}$ ]] || { echo "Give a UDP port for the tunnel too, e.g. 51821 (one per apartment)."; exit 1; }
+fi
 ENROLL="$(grep '^CUBE_RELAY_ENROLL_TOKEN=' "$RELAY_ENV" | cut -d= -f2-)"
 
 docker rm -f "cube-gw-$NAME" >/dev/null 2>&1 || true
+if [ -n "$SUBNET" ]; then
+  # Its own namespace for its own wg0. Root only to create wg0: the gateway then drops to its normal user.
+  # Services on this host are reached through host-gateway: the device broker over its TLS listener (as the relay
+  # hands it out), and ReThink's MQTT, which must then listen on more than 127.0.0.1.
+  docker run -d --name "cube-gw-$NAME" --restart unless-stopped \
+    --user 0 --cap-add NET_ADMIN -p "127.0.0.1:$PORT:$PORT" -p "$UDP_PORT:51820/udp" \
+    --add-host host.docker.internal:host-gateway --add-host "$MQTT_HOST:host-gateway" \
+    -e CUBE_SERVER_HOSTED=1 -e CUBE_HOST=0.0.0.0 -e CUBE_PORT="$PORT" -e CUBE_MDNS_ADVERTISE=0 \
+    -e CUBE_TUNNEL_SUBNETS="$SUBNET" -e CUBE_TUNNEL_ENDPOINT="$TUNNEL_HOST:$UDP_PORT" \
+    -e CUBE_GATEWAY_NAME="CUBE $NAME" \
+    -e CUBE_RELAY_URL="$RELAY_URL" -e CUBE_RELAY_ENROLL_TOKEN="$ENROLL" \
+    -e CUBE_RETHINK_MQTT_URL="${RETHINK_MQTT/127.0.0.1/host.docker.internal}" -e CUBE_RETHINK_API_SERVER="$RETHINK_API" -e CUBE_RETHINK_MQTT_SERVER="$RETHINK_MQTTS" \
+    -v "cube-gw-$NAME:/data" "$IMAGE" >/dev/null
+else
 docker run -d --name "cube-gw-$NAME" --restart unless-stopped --network host \
   -e CUBE_SERVER_HOSTED=1 -e CUBE_HOST=127.0.0.1 -e CUBE_PORT="$PORT" -e CUBE_MDNS_ADVERTISE=0 -e CUBE_SUBNET_SCAN=0 \
   -e CUBE_GATEWAY_NAME="CUBE $NAME" \
@@ -28,6 +56,7 @@ docker run -d --name "cube-gw-$NAME" --restart unless-stopped --network host \
   -e CUBE_CLOUD_MQTT_URL=mqtt://127.0.0.1:1886 \
   -e CUBE_RETHINK_MQTT_URL="$RETHINK_MQTT" -e CUBE_RETHINK_API_SERVER="$RETHINK_API" -e CUBE_RETHINK_MQTT_SERVER="$RETHINK_MQTTS" \
   -v "cube-gw-$NAME:/data" "$IMAGE" >/dev/null
+fi
 
 echo "Waiting for cube-gw-$NAME to enrol with the relay..."
 # Note: no `grep -q`/`head` on pipes here. They close the pipe early, and with pipefail that counts as a failure.
@@ -54,4 +83,11 @@ if [ -n "$CODE" ]; then
   docker run --rm --entrypoint python "$IMAGE" -c "import qrcode,sys; q=qrcode.QRCode(border=1); q.add_data(sys.argv[1]); q.print_ascii(invert=True)" "cubegw://pair?url=$URL&id=$ID&code=$CODE" 2>/dev/null || true
 else
   echo "Already paired. New code: docker exec cube-gw-$NAME cube-gateway reset-owner"
+fi
+if [ -n "$SUBNET" ]; then
+  ( umask 077; docker exec "cube-gw-$NAME" cube-gateway tunnel-config > "$NAME-tunnel.conf" )
+  echo
+  echo "Tunnel box:  $NAME-tunnel.conf  (holds the box's key: copy it to the box, then delete it here)"
+  echo "             On the box at home: sudo ./tunnel-box.sh $NAME-tunnel.conf"
+  echo "             The tunnel listens on UDP $UDP_PORT; $TUNNEL_HOST must point at this server and that port be forwarded to it."
 fi

@@ -35,6 +35,13 @@ def _list(name: str) -> list[str]:
     return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
 
 
+def _ws_url(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if value and not value.startswith(("ws://", "wss://")):
+        raise SystemExit(f"{name} must be a WebSocket address such as ws://127.0.0.1:5580/ws, got {value!r}")
+    return value
+
+
 def _networks(name: str) -> list[ipaddress.IPv4Network]:
     networks = []
     for item in _list(name):
@@ -102,6 +109,34 @@ class Settings:
     mqtt_ca_file: str
     #: NoLongerEvil self-hosted control API (Nest Learning gen 1-2), e.g. http://192.168.1.10:8082. Empty: adapter idle.
     nle_url: str = ""
+    #: The Matter Server's WebSocket (matter.js server or python-matter-server), e.g. ws://127.0.0.1:5580/ws. Empty: no Matter.
+    matter_url: str = ""
+    #: Gateway: HTTPS port, opened once the relay has issued a certificate. 0: any free port on 127.0.0.1, reachable
+    #: only through the relay (the default in server-hosted mode, where many gateways share one host).
+    tls_port: int = 8688
+    #: Relay: zones for gateway certificates. <gateway id>.<lan zone> points at the gateway's home address,
+    #: <gateway id>.<remote zone> at this relay (one wildcard record). Without a remote zone, no certificates.
+    relay_tls_lan_zone: str = ""
+    relay_tls_remote_zone: str = ""
+    #: Relay: raw TCP port of the pass-through TLS listener (nginx's stream proxy sends *.<remote zone> to it). 0: off.
+    relay_tls_port: int = 0
+    #: Relay: the port apps reach the pass-through on from the internet (443 behind nginx, or CUBE_RELAY_TLS_PORT if exposed directly).
+    relay_tls_public_port: int = 443
+    acme_directory: str = "https://acme-v02.api.letsencrypt.org/directory"
+    acme_email: str = ""
+    #: A CA bundle the ACME server's own HTTPS is checked against; only for testing against Pebble.
+    acme_ca_file: str = ""
+    #: Cloudflare API token with DNS edit on the zone(s); the zone id is looked up when not given.
+    cloudflare_api_token: str = ""
+    cloudflare_zone_id: str = ""
+    dns_propagation_wait: int = 20
+    #: Server-hosted apartment with a tunnel box (tunnel.py): its home network(s), e.g. 192.168.1.0/24. Set, every
+    #: home-network adapter loads too and these subnets are scanned through the tunnel.
+    tunnel_subnets: list[ipaddress.IPv4Network] = field(default_factory=list)
+    #: UDP port WireGuard listens on inside the container (published as a per-apartment port on the server).
+    tunnel_port: int = 51820
+    #: host:port the box reaches this apartment's tunnel at from the internet; written into the box's config.
+    tunnel_endpoint: str = ""
     extra: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -119,6 +154,8 @@ def load_settings() -> Settings:
     if log_format not in {"json", "text"}:
         raise SystemExit("CUBE_LOG_FORMAT must be json or text")
     cors = _list("CUBE_CORS_ORIGINS") or ["*"]
+    hosted = _bool("CUBE_SERVER_HOSTED", False)
+    tunnel_subnets = _networks("CUBE_TUNNEL_SUBNETS")
     return Settings(
         data_dir=data_dir,
         host=os.environ.get("CUBE_HOST", "0.0.0.0").strip(),
@@ -127,7 +164,7 @@ def load_settings() -> Settings:
         log_format=log_format,
         name=os.environ.get("CUBE_GATEWAY_NAME", "").strip() or None,
         mdns_advertise=_bool("CUBE_MDNS_ADVERTISE", True),
-        scan_subnets=_networks("CUBE_SCAN_SUBNETS"),
+        scan_subnets=_networks("CUBE_SCAN_SUBNETS") or tunnel_subnets,
         subnet_scan=_bool("CUBE_SUBNET_SCAN", True),
         cors_origins=cors,
         provisioning_ttl=_int("CUBE_PROVISIONING_TTL", 900, 120, 3600),
@@ -152,4 +189,19 @@ def load_settings() -> Settings:
         mqtt_gateway_url=os.environ.get("CUBE_MQTT_GATEWAY_URL", "").strip(),
         mqtt_ca_file=os.environ.get("CUBE_MQTT_CA_FILE", "").strip(),
         nle_url=os.environ.get("CUBE_NLE_URL", "").strip().rstrip("/"),
+        matter_url=_ws_url("CUBE_MATTER_URL"),
+        tls_port=_int("CUBE_TLS_PORT", 0 if hosted else 8688, 0, 65535),
+        relay_tls_lan_zone=os.environ.get("CUBE_RELAY_TLS_LAN_ZONE", "").strip().strip(".").lower(),
+        relay_tls_remote_zone=os.environ.get("CUBE_RELAY_TLS_REMOTE_ZONE", "").strip().strip(".").lower(),
+        relay_tls_port=_int("CUBE_RELAY_TLS_PORT", 0, 0, 65535),
+        relay_tls_public_port=_int("CUBE_RELAY_TLS_PUBLIC_PORT", 443, 1, 65535),
+        acme_directory=os.environ.get("CUBE_ACME_DIRECTORY", "https://acme-v02.api.letsencrypt.org/directory").strip(),
+        acme_email=os.environ.get("CUBE_ACME_EMAIL", "").strip(),
+        acme_ca_file=os.environ.get("CUBE_ACME_CA_FILE", "").strip(),
+        cloudflare_api_token=os.environ.get("CUBE_CLOUDFLARE_API_TOKEN", "").strip(),
+        cloudflare_zone_id=os.environ.get("CUBE_CLOUDFLARE_ZONE_ID", "").strip(),
+        dns_propagation_wait=_int("CUBE_DNS_PROPAGATION_WAIT", 20, 0, 300),
+        tunnel_subnets=tunnel_subnets,
+        tunnel_port=_int("CUBE_TUNNEL_PORT", 51820, 1, 65535),
+        tunnel_endpoint=os.environ.get("CUBE_TUNNEL_ENDPOINT", "").strip(),
     )

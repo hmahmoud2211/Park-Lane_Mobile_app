@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import API_VERSION, __version__
+from . import API_VERSION, __version__, tunnel
 from .adapters.base import AdapterError, AuthRequired, LocalKeyRequired, NotSupported, PairingRejected, UnsupportedCommand
 from .catalog import build_brands
 from .config import Settings
@@ -27,10 +27,10 @@ from .gateway import Gateway
 from .models import CommandRequest, GatewayProvisionRequest, PairingRequest, ProvisioningEvent
 from .netutil import is_private_host, tailscale_addresses
 from .provisioning.plugins import PLUGINS
+from .relay.client import RELAY_CALLER
 from .security import AuthError, Client, RateLimiter
 
 log = logging.getLogger("cube.api")
-RELAY_CLIENT = "relay"
 
 
 def ok(data: Any, status: int = 200) -> JSONResponse:
@@ -129,7 +129,21 @@ def gw(request: Request) -> Gateway:
 
 
 def client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    """The rate-limit key: the caller's address, or `relay:<caller's address>` for a request through the relay.
+
+    Encrypted connections through the relay reach the HTTPS listener from a local socket; the relay client records
+    which local address carries which caller (relay/client.py), so they count as relayed too."""
+    if not request.client:
+        return "unknown"
+    relay = getattr(request.app.state.gw, "relay", None) if hasattr(request.app.state, "gw") else None
+    caller = relay.callers.get((request.client.host, request.client.port)) if relay is not None else None
+    return caller or request.client.host
+
+
+def is_relayed(request: Request) -> bool:
+    """True for requests the relay tunnel delivered. Only the tunnel sets this client host; a socket peer can't."""
+    host = client_ip(request)
+    return host == RELAY_CALLER or host.startswith(f"{RELAY_CALLER}:")
 
 
 async def current_client(request: Request) -> Client:
@@ -218,6 +232,8 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
                 "claimed": await g.security.is_claimed(),
                 "uptime": round(time.time() - g.started_at),
                 "adapters": {"loaded": len(g.registry.adapters), "failed": len(g.registry.failed)},
+                # HTTPS addresses once the relay has issued a certificate (tls.py); the app prefers them.
+                "tls": g.tls.public(),
             }
         )
 
@@ -233,6 +249,9 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
     @v1.post("/auth/claim")
     async def claim(request: Request, body: ClaimBody) -> JSONResponse:
         g = gw(request)
+        # Checked here as well as in the relay client, so no spelling of the path can get round it.
+        if is_relayed(request) and not g.settings.allow_remote_claim:
+            raise AuthError("forbidden", "Not available through the relay. Pair the gateway on your home network first.", 403)
         limit(request, g.security.auth_limiter, client_ip(request))
         client, token, pin_key = await g.security.claim(body.setup_code, body.client_name)
         await g.advertise()
@@ -430,6 +449,7 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
         relay = g.relay
         return ok(
             {
+                "tunnel": tunnel.status(g.settings),
                 "tailscale": {"detected": bool(tailscale_addresses()), "addresses": tailscale_addresses(), "port": g.settings.port},
                 "relay": {
                     "configured": relay is not None,

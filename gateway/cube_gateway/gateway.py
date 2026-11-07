@@ -9,7 +9,7 @@ import time
 
 from . import __version__
 from .adapters.base import AdapterContext
-from .adapters.registry import SERVER_HOSTED_ADAPTERS, AdapterRegistry
+from .adapters.registry import AdapterRegistry, modules_for
 from .cloud.link import CloudLink
 from .config import Settings
 from .crypto import Sealer
@@ -21,6 +21,7 @@ from .events import EventBus
 from .netutil import phone_address
 from .provisioning.engine import ProvisioningEngine
 from .security import Security, announce_setup_code, pairing_target
+from .tls import TlsManager
 
 log = logging.getLogger("cube.gateway")
 
@@ -42,7 +43,7 @@ class Gateway:
         #: The device broker connection, in server-hosted mode only.
         self.cloud: CloudLink | None = CloudLink(self) if settings.server_hosted else None
         self.adapter_ctx.cloud = self.cloud
-        self.registry = registry or AdapterRegistry(self.adapter_ctx, SERVER_HOSTED_ADAPTERS if settings.server_hosted else None)
+        self.registry = registry or AdapterRegistry(self.adapter_ctx, modules_for(settings))
         self.devices = DeviceManager(self.db, self.sealer, self.registry, self.bus, settings)
         self.discovery = DiscoveryEngine(self.registry, self.db, self.bus, settings, self.mdns, self.devices.lookup)
         self.pairings = PairingManager(self.devices, self.registry, self.bus, self.discovery.candidates)
@@ -53,6 +54,8 @@ class Gateway:
             runner = make_runner(settings.softap_interface)
         self.provisioning = ProvisioningEngine(self.db, self.bus, settings, self.registry, self.discovery, self.pairings, runner, cloud=self.cloud)
         self.relay = None
+        #: HTTPS with a certificate the relay issues (tls.py); plain HTTP keeps working without it.
+        self.tls = TlsManager(self)
 
     async def start(self) -> None:
         version = await self.db.open()
@@ -71,6 +74,8 @@ class Gateway:
         self.devices.start_monitors()
         await self.advertise()
         await self.start_relay_from_settings()
+        await self.tls.load()
+        self.tls.start()
         if self.settings.relay_url and self.settings.relay_enroll_token and self.relay is None:
             self._enroll_task = asyncio.create_task(self._auto_enroll())
         if self.cloud is not None:
@@ -128,6 +133,7 @@ class Gateway:
             self._enroll_task.cancel()
         if self.cloud is not None:
             await self.cloud.stop()
+        await self.tls.stop()
         if self.relay:
             await self.relay.stop()
         await self.provisioning.stop()

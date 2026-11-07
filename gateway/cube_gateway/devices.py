@@ -42,6 +42,7 @@ from .models import (
     Setting,
     clean_text,
 )
+from .tasks import spawn
 
 log = logging.getLogger("cube.devices")
 BACKOFF_MIN = 5.0
@@ -443,13 +444,26 @@ class DeviceManager:
                 interval = float(adapter.poll_interval or self.settings.poll_interval)
             except AdapterError as error:
                 interval = self._mark_failure(device_id, error)
-                if live.unsubscribe:
-                    with contextlib.suppress(Exception):
-                        await live.unsubscribe()
-                    live.unsubscribe = None
+                await self._drop_subscription(live)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - one bad pass (a disk error, a bug) must not end monitoring for good
+                log.exception("device check failed unexpectedly; retrying", extra={"device": device_id})
+                if self._stopping or device_id not in self.devices:
+                    return
+                failure = AdapterError("The gateway hit an error while checking this device. It will try again.", code="internal")
+                interval = self._mark_failure(device_id, failure)
+                await self._drop_subscription(live)
             live.wake.clear()
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(live.wake.wait(), timeout=interval)
+
+    @staticmethod
+    async def _drop_subscription(live: _Live) -> None:
+        if live.unsubscribe:
+            with contextlib.suppress(Exception):
+                await live.unsubscribe()
+            live.unsubscribe = None
 
     def _pusher(self, device_id: str):
         async def push(state: DeviceState) -> None:
@@ -541,7 +555,7 @@ class PairingManager:
             self._publish(pairing)
             return pairing
         self._publish(pairing)
-        asyncio.create_task(self._run(pairing, candidate, credentials, request, experimental))
+        spawn(self._run(pairing, candidate, credentials, request, experimental), name=f"pairing-{pairing.id}")
         return pairing
 
     async def _run(self, pairing: Pairing, candidate: Candidate, credentials: dict[str, str], request: PairingRequest, experimental: bool | None) -> None:

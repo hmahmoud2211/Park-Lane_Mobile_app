@@ -24,6 +24,7 @@ from ..db import Database
 from ..events import EventBus
 from ..models import Candidate, ConnectionStatus, DiscoveryJob
 from ..netutil import is_private_host, scan_subnets
+from ..tasks import spawn
 from . import ssdp, subnet
 from .mdns import MdnsService
 
@@ -262,7 +263,7 @@ class DiscoveryEngine:
         if merged.id not in runtime.job.candidate_ids:
             runtime.job.candidate_ids.append(merged.id)
         self._persist.add(merged.id)
-        asyncio.get_running_loop().create_task(self._mark_paired(merged.id))
+        spawn(self._mark_paired(merged.id), name="mark-paired")
 
     async def _mark_paired(self, candidate_id: str) -> None:
         candidate = self.candidates.get(candidate_id)

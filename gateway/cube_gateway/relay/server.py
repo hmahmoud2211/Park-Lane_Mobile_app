@@ -14,6 +14,7 @@ import asyncio
 import base64
 import contextlib
 import hashlib
+import ipaddress
 import itertools
 import json
 import logging
@@ -25,6 +26,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 
@@ -34,6 +36,9 @@ from ..config import Settings
 from ..crypto import constant_time_equal
 from ..db import Database
 from ..security import RateLimiter
+from .acme import AcmeClient, AcmeError, load_or_create_key
+from .dns import CloudflareDns, DnsError
+from .tls import TLS_SCHEMA, PassThrough, TlsIssuer, TlsRefused
 
 log = logging.getLogger("cube.relay")
 GATEWAY_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -46,6 +51,32 @@ RELAY_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS relay_gateways (id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, created_at REAL NOT NULL, last_seen REAL)",
     "CREATE TABLE IF NOT EXISTS relay_appliances (uuid TEXT PRIMARY KEY, gateway_id TEXT NOT NULL, mac TEXT NOT NULL, created_at REAL NOT NULL)",
 ]
+
+
+def _trusted_proxy(peer: str) -> bool:
+    """Whose X-Real-IP / X-Forwarded-For is believed: a reverse proxy on this host or the server's private network,
+    including Docker's bridge (`-p 127.0.0.1:8687:8687` makes nginx's requests arrive from 172.17.0.1)."""
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private
+
+
+def _tls_issuer(settings: Settings, db: Database) -> TlsIssuer | None:
+    """Gateway certificates, when this relay is given a zone for them and a Cloudflare token to prove it."""
+    if not settings.relay_tls_remote_zone:
+        return None
+    if not settings.cloudflare_api_token:
+        raise SystemExit("CUBE_RELAY_TLS_REMOTE_ZONE needs CUBE_CLOUDFLARE_API_TOKEN (DNS edit on that zone) to issue gateway certificates.")
+    dns = CloudflareDns(settings.cloudflare_api_token, httpx.AsyncClient(timeout=20), zone_id=settings.cloudflare_zone_id, propagation_wait=settings.dns_propagation_wait)
+    acme = AcmeClient(
+        settings.acme_directory,
+        load_or_create_key(settings.data_dir / "acme-account.pem"),
+        httpx.AsyncClient(timeout=30, verify=settings.acme_ca_file or True),
+        email=settings.acme_email or None,
+    )
+    return TlsIssuer(db, lan_zone=settings.relay_tls_lan_zone, remote_zone=settings.relay_tls_remote_zone, dns=dns, acme=acme)
 
 
 def _hash(secret: str) -> str:
@@ -62,6 +93,8 @@ class Tunnel:
         self.socket = socket
         self.pending: dict[int, asyncio.Future] = {}
         self.streams: dict[str, WebSocket] = {}
+        #: Pass-through TLS connections carried in this tunnel (relay/tls.py Stream), by stream id.
+        self.tcp: dict[str, Any] = {}
         self.lock = asyncio.Lock()
         self.ids = itertools.count(1)
 
@@ -80,6 +113,9 @@ class Relay:
         self.ip_limiter = RateLimiter(limit=240, window=60)
         self.enroll_limiter = RateLimiter(limit=10, window=60)
         self.mqtt_limiter = RateLimiter(limit=30, window=60)
+        self.tls_limiter = RateLimiter(limit=30, window=3600)
+        #: Issues gateway certificates when CUBE_RELAY_TLS_REMOTE_ZONE is set (relay/tls.py).
+        self.tls: TlsIssuer | None = None
 
     def ca_pem(self) -> str:
         path = self.settings.mqtt_ca_file if self.settings else ""
@@ -96,31 +132,53 @@ def create_relay_app(settings: Settings) -> FastAPI:
         if settings.mqtt_admin_url and settings.mqtt_admin_user and settings.mqtt_public_server
         else None
     )
+    if broker is not None and not settings.relay_enroll_token:
+        # Open enrolment plus a device broker would let anyone on the internet mint MQTT logins.
+        raise SystemExit("This relay manages a device broker, so it needs CUBE_RELAY_ENROLL_TOKEN: only gateways holding it may enrol.")
     relay = Relay(db, settings.relay_enroll_token, broker, settings)
+    relay.tls = _tls_issuer(settings, db)
+    passthrough = (
+        PassThrough(relay, remote_zone=settings.relay_tls_remote_zone, host=settings.host, port=settings.relay_tls_port, trusted_proxy=_trusted_proxy)
+        if relay.tls is not None and settings.relay_tls_port
+        else None
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         await db.open()
-        for statement in RELAY_SCHEMA:
+        for statement in RELAY_SCHEMA + TLS_SCHEMA:
             await db.execute(statement)
-        log.info("relay ready", extra={"port": settings.relay_port, "enrollment": "token" if relay.enroll_token else "open", "device_broker": bool(broker)})
+        if passthrough is not None:
+            await passthrough.start()
+        log.info(
+            "relay ready",
+            extra={"port": settings.relay_port, "enrollment": "token" if relay.enroll_token else "open", "device_broker": bool(broker), "gateway_tls": relay.tls is not None},
+        )
         try:
             yield
         finally:
+            if passthrough is not None:
+                await passthrough.stop()
             await db.close()
 
     app = FastAPI(title="CUBE Relay", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.relay = relay
 
     def ip_of(request: Request | WebSocket) -> str:
+        # Address headers are only believed from a reverse proxy (see _trusted_proxy): anyone reaching the relay's
+        # port from the internet could otherwise send a new address per request and get a fresh rate-limit bucket.
+        # (uvicorn already replaces the peer with the X-Forwarded-For caller when the proxy is 127.0.0.1.)
+        peer = request.client.host if request.client else "unknown"
+        if not _trusted_proxy(peer):
+            return peer
         # X-Real-IP is set by the reverse proxy (overwriting anything the client sent); the first X-Forwarded-For
         # entry is client-controlled, so it is only a fallback for proxies that do not set X-Real-IP.
         real = request.headers.get("x-real-ip", "").strip()
         if real:
             return real
         forwarded = request.headers.get("x-forwarded-for", "")
-        return forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+        return forwarded.split(",")[0].strip() if forwarded else peer
 
     @app.get("/relay/v1/health")
     async def health() -> JSONResponse:
@@ -232,6 +290,61 @@ def create_relay_app(settings: Settings) -> FastAPI:
         await db.execute("DELETE FROM relay_appliances WHERE uuid = ?", (uuid,))
         return JSONResponse({"ok": True, "data": {"removed": uuid}})
 
+    # ---- gateway certificates (relay/tls.py) ----
+
+    async def tls_guard(request: Request) -> tuple[str | None, JSONResponse | None]:
+        if relay.tls is None:
+            return None, _error("not_configured", "This relay doesn't issue gateway certificates.", 501)
+        if not relay.tls_limiter.check(ip_of(request)):
+            return None, _error("rate_limited", "Too many requests; wait a while.", 429)
+        gateway_id = await gateway_of(request)
+        if gateway_id is None:
+            return None, _error("unauthorized", "Unknown gateway or wrong secret.", 401)
+        return gateway_id, None
+
+    async def tls_call(work) -> JSONResponse:
+        try:
+            return JSONResponse({"ok": True, "data": await work()})
+        except TlsRefused as error:
+            return _error(error.code, error.message, error.status)
+        except (AcmeError, DnsError) as error:
+            log.warning("gateway certificate failed", extra={"reason": str(error)})
+            return _error("issuer_failed", f"The certificate could not be issued: {error}", 502)
+
+    @app.get("/relay/v1/tls")
+    async def tls_names(request: Request) -> JSONResponse:
+        gateway_id, refused = await tls_guard(request)
+        if refused:
+            return refused
+        names = relay.tls.names(gateway_id, with_lan=True)  # type: ignore[union-attr,arg-type]
+        return JSONResponse({"ok": True, "data": {**names, "remote_port": settings.relay_tls_public_port}})
+
+    @app.post("/relay/v1/tls/certificate")
+    async def tls_certificate(request: Request) -> JSONResponse:
+        gateway_id, refused = await tls_guard(request)
+        if refused:
+            return refused
+        try:
+            body = await request.json()
+        except ValueError:
+            return _error("bad_request", "Send JSON.", 400)
+        return await tls_call(lambda: relay.tls.certificate(gateway_id, body.get("csr") or "", body.get("lan_ip")))  # type: ignore[union-attr,arg-type]
+
+    @app.post("/relay/v1/tls/address")
+    async def tls_address(request: Request) -> JSONResponse:
+        gateway_id, refused = await tls_guard(request)
+        if refused:
+            return refused
+        try:
+            body = await request.json()
+        except ValueError:
+            return _error("bad_request", "Send JSON.", 400)
+
+        async def work() -> dict[str, str]:
+            return {"name": await relay.tls.address(gateway_id, body.get("lan_ip"))}  # type: ignore[union-attr,arg-type]
+
+        return await tls_call(work)
+
     @app.post("/relay/v1/gateways")
     async def enroll(request: Request) -> JSONResponse:
         if not relay.enroll_limiter.check(ip_of(request)):
@@ -298,6 +411,17 @@ def create_relay_app(settings: Settings) -> FastAPI:
                     if client:
                         with contextlib.suppress(Exception):
                             await client.close(code=int(frame.get("code") or 1000))
+                elif kind == "tcp_data":
+                    stream = current.tcp.get(str(frame.get("sid")))
+                    if stream:
+                        try:
+                            stream.feed(base64.b64decode(frame.get("data") or ""))
+                        except ValueError:
+                            stream.close()
+                elif kind == "tcp_close":
+                    stream = current.tcp.pop(str(frame.get("sid")), None)
+                    if stream:
+                        stream.close()
         except (WebSocketDisconnect, ValueError, RuntimeError):
             pass
         finally:
@@ -309,6 +433,9 @@ def create_relay_app(settings: Settings) -> FastAPI:
             for client in current.streams.values():
                 with contextlib.suppress(Exception):
                     await client.close(code=1012)
+            for stream in current.tcp.values():
+                stream.close()
+            current.tcp.clear()
             log.info("gateway disconnected", extra={"gateway_id": gateway_id})
 
     @app.api_route("/relay/v1/g/{gateway_id}/api/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
@@ -332,6 +459,8 @@ def create_relay_app(settings: Settings) -> FastAPI:
                 "method": request.method,
                 "path": f"/api/v1/{path}",
                 "query": request.url.query,
+                # The caller, so the gateway rate-limits each one separately instead of the whole relay as one.
+                "client": ip_of(request),
                 "headers": {k: v for k, v in request.headers.items() if k.lower() in {"authorization", "content-type", "accept"}},
                 "body": base64.b64encode(body).decode() if body else "",
             }

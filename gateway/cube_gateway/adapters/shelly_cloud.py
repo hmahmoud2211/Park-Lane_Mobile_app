@@ -24,6 +24,7 @@ from typing import Any
 
 from ..cloud.link import CloudError, parse_json
 from ..models import AdapterInfo, AuthKind, Candidate, Category, ConnectionStatus, PairingRequirements, SupportLevel
+from ..tasks import spawn
 from .base import ApprovalCallback, DeviceState, DeviceUnreachable, PairResult, ScanContext, StateCallback, StoredDevice, make_candidate, normalize_mac
 from .shelly import AdapterError, ShellyAdapter, _category, _state_gen2
 
@@ -138,7 +139,7 @@ class ShellyCloudAdapter(ShellyAdapter):
 
         def fire() -> None:
             self._debounce.pop(slot, None)
-            loop.create_task(self._push(slot, callback))
+            spawn(self._push(slot, callback), name="shelly-push")
 
         self._debounce[slot] = loop.call_later(0.3, fire)
 
