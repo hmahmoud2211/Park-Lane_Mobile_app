@@ -1,0 +1,25 @@
+# Update PRs for the gateway's locked dependencies, its base image and the workflows' actions.
+# Each PR runs the gateway workflow (tests, then an image build) before anything is merged.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /gateway
+    schedule:
+      interval: weekly
+    groups:
+      gateway-python:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /gateway
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

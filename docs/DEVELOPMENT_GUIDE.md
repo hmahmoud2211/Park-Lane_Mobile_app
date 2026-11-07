@@ -12,7 +12,7 @@
 ```bash
 cd frontend && npm ci          # the app (patch-package runs on install)
 cd ../backend && npm ci        # only TypeScript, for the typecheck; the backend has no runtime packages
-cd ../gateway && python -m venv .venv && .venv/bin/pip install -e '.[test]'   # optional: the CUBE gateway (gateway/README.md)
+cd ../gateway && uv sync --locked --extra test   # optional: the CUBE gateway (gateway/README.md)
 ```
 
 There is no install at the repository root. `./scripts/dev.sh check` installs what is missing.
