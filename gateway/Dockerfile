@@ -4,7 +4,7 @@
 # mDNS, SSDP and vendor UDP broadcasts reach the home network:
 #
 #   docker run -d --name cube-os-gateway --network host --restart unless-stopped \
-#     -v cube-os-data:/data ghcr.io/hmahmoud2211/cube-os-gateway:latest
+#     -v cube-os-data:/data hmahmoud2211/cube-os-gateway:latest
 #
 # First start creates the database and keys in /data and prints a setup code: docker logs cube-os-gateway
 

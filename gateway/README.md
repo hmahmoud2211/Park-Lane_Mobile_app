@@ -12,7 +12,7 @@ optional relay.
 
 ```bash
 docker run -d --name cube-os-gateway --network host --restart unless-stopped \
-  -v cube-os-data:/data ghcr.io/hmahmoud2211/cube-os-gateway:latest
+  -v cube-os-data:/data hmahmoud2211/cube-os-gateway:latest
 
 docker logs cube-os-gateway          # shows the setup code and a QR code for the app
 ```

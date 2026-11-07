@@ -88,7 +88,7 @@ NAS or a server), with Docker installed: `curl -fsSL https://get.docker.com | su
 
 ```bash
 docker run -d --name cube-os-gateway --network host --restart unless-stopped \
-  -v cube-os-data:/data ghcr.io/hmahmoud2211/cube-os-gateway:latest
+  -v cube-os-data:/data hmahmoud2211/cube-os-gateway:latest
 docker logs cube-os-gateway
 ```
 
@@ -97,17 +97,18 @@ start creates the database and encryption key in the `cube-os-data` volume, and 
 itself and keeps its paired devices across restarts and upgrades. Docker reports it `healthy` once the API
 answers.
 
-- **The image is published by GitHub Actions** (`.github/workflows/cube-gateway.yml`): every push to `Master`
-  updates `:latest` and `:sha-<commit>`, and a tag `gateway-v1.2.3` publishes `:1.2.3` and `:1.2`. It runs
-  on `linux/amd64` and `linux/arm64`. Until the workflow has run once on `Master`, nothing is published; build
-  locally instead with `docker build -t cube-os-gateway gateway/` and use `cube-os-gateway` as the image.
-- **If the repository is private, the package is private too.** Either make it public (GitHub → Packages →
-  cube-os-gateway → Package settings → Change visibility) so `docker pull` works on a clean server, or log in
-  first: `echo <token with read:packages> | docker login ghcr.io -u <user> --password-stdin`.
+- **The image is on Docker Hub** as `hmahmoud2211/cube-os-gateway`, for `linux/amd64` and `linux/arm64`.
+  GitHub Actions (`.github/workflows/cube-gateway.yml`) publishes it: every push to `Master` updates `:latest`
+  and `:sha-<commit>`, and a tag `gateway-v1.2.3` publishes `:1.2.3` and `:1.2`. That needs the repository
+  secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Without Actions, publish from any machine logged in to
+  Docker Hub: `docker buildx build --platform linux/amd64,linux/arm64 -t hmahmoud2211/cube-os-gateway:latest --push gateway/`.
+- **Docker Hub limits anonymous pulls per address.** On a server that pulls often, `docker login` first (any
+  free Docker account) to get the higher limit. Older installs used `ghcr.io/hmahmoud2211/cube-os-gateway`,
+  which no longer gets updates.
 - **Why host networking:** mDNS, SSDP and the vendors' UDP broadcasts don't cross Docker's bridge network.
   The gateway listens on port 8686 only. It opens no other ports and exposes no device ports.
 
-Upgrade: `docker pull ghcr.io/hmahmoud2211/cube-os-gateway:latest && docker rm -f cube-os-gateway`, then run
+Upgrade: `docker pull hmahmoud2211/cube-os-gateway:latest && docker rm -f cube-os-gateway`, then run
 the same `docker run` command again. The volume keeps everything.
 
 ## Connect the app
@@ -358,7 +359,7 @@ Run it on a public server, behind HTTPS:
 ```bash
 docker run -d --name cube-relay --restart unless-stopped -p 127.0.0.1:8687:8687 \
   -e CUBE_RELAY_ENROLL_TOKEN="$(openssl rand -base64 32)" -v cube-relay-data:/data \
-  ghcr.io/hmahmoud2211/cube-os-gateway:latest relay
+  hmahmoud2211/cube-os-gateway:latest relay
 ```
 
 nginx (WebSockets must pass through):

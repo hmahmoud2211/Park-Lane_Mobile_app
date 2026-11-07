@@ -29,7 +29,7 @@ Phone (anywhere) ──▶ https://cube-relay.ems-iot.com ───┘
    docker run -d --name cube-relay --network host --restart unless-stopped \
      --env-file /home/ems-server/EMS/cube-relay/relay.env -v cube-relay-data:/data \
      -v /home/ems-server/EMS/cube-mqtt/certs/ca.crt:/ca/ca.crt:ro \
-     ghcr.io/hmahmoud2211/cube-os-gateway:latest relay
+     hmahmoud2211/cube-os-gateway:latest relay
    curl https://cube-relay.ems-iot.com/relay/v1/health    # "device_broker": true
    ```
 

@@ -111,7 +111,7 @@ It drives headless Chrome (macOS path by default; `--chrome <path>` elsewhere) a
 | Android / iOS | Actions → "App build (EAS)" → Run workflow, or `cd frontend && npx eas-cli@latest build --profile preview --platform android` |
 | Web | Vercel project `park-lane-mobile-app` (production from Master) has Root Directory `frontend` and reads `frontend/vercel.json`. `park-lane_mobile_app_2` builds from the repository root and reads the root `vercel.json`, which runs the same build in `frontend/`. Keep the two files' rewrites and headers the same |
 | Backend | `./scripts/dev.sh server` on the server (Docker compose, one container). See [production.md](production.md) |
-| Gateway image | the "CUBE Gateway" workflow publishes `ghcr.io/<owner>/cube-os-gateway` |
+| Gateway image | the "CUBE Gateway" workflow publishes `hmahmoud2211/cube-os-gateway` on Docker Hub |
 
 ## Add a feature
 
