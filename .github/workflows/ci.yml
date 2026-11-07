@@ -64,6 +64,9 @@ jobs:
       - name: Gateway pairing code checks
         run: npm run check:pairing
 
+      - name: Gateway address checks
+        run: npm run check:endpoints
+
       - name: Web export
         run: npx expo export --platform web --output-dir dist
 

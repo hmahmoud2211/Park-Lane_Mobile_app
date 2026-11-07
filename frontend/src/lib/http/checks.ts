@@ -732,6 +732,8 @@ async function main() {
       channel.retarget('https://relay.test/relay/v1/g/abc');
       equal(FakeSocket.all[0].closed, true, 'old socket closed');
       equal(FakeSocket.all[1].url, 'wss://relay.test/relay/v1/g/abc/api/v1/events', 'new address');
+      channel.retarget('https://gw1.gw.ems-iot.test:8443');
+      equal(FakeSocket.all[2].url, 'wss://gw1.gw.ems-iot.test:8443/api/v1/events', 'HTTPS name keeps its port');
     } finally {
       Math.random = realRandom;
       realTimers();

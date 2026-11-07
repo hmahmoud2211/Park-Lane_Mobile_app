@@ -1,3 +1,8 @@
+import { env } from './env';
+
+/** The zones the EMS relay issues gateway certificates in (gateway/deploy and docs/CUBE_GATEWAY.md, HTTPS). */
+const DEFAULT_TLS_ZONES = ['gw.ems-iot.com', 'r.ems-iot.com'];
+
 /**
  * The CUBE Gateway: a Docker container on a Linux machine in the home
  * (gateway/ in this repo). Nothing is configured per build: residents connect
@@ -16,6 +21,17 @@ export const gatewayConfig = {
   pairingTimeoutMs: 20_000,
   /** A quick reachability check of a known address. */
   healthTimeoutMs: 2_500,
+  /**
+   * The gateway's home HTTPS name gets less: some routers refuse DNS answers that point at a
+   * private address, and away from home that address is unreachable, so the plain-HTTP home
+   * address must take over quickly.
+   */
+  lanTlsTimeoutMs: 1_500,
+  /**
+   * Only `<gateway id>.<one of these>` counts as a gateway's own HTTPS name: a certificate for it comes from
+   * the relay for that gateway alone (features/gateway/services/gatewayEndpoints.ts).
+   */
+  tlsZones: parseZones(env.gatewayTlsZones) ?? DEFAULT_TLS_ZONES,
   /** Scanning the phone's /24 for gateways: per address, and how many at once. */
   scanProbeTimeoutMs: 1_200,
   scanBatchSize: 24,
@@ -25,6 +41,14 @@ export const gatewayConfig = {
   /** Discovery and provisioning are polled this often when the event channel is down. */
   pollMs: 1_500,
 } as const;
+
+function parseZones(value: string | undefined): string[] | null {
+  const zones = (value ?? '')
+    .split(',')
+    .map((zone) => zone.trim().replace(/^\.+|\.+$/g, '').toLowerCase())
+    .filter(Boolean);
+  return zones.length > 0 ? zones : null;
+}
 
 /** `http://host:port` for a typed host, adding the default port and scheme when missing. */
 export function gatewayBaseUrl(host: string): string {

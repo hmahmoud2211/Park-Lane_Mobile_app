@@ -13,6 +13,12 @@ export const env = {
   assistantUrl: process.env.EXPO_PUBLIC_ASSISTANT_URL,
   /** `0`, `false` or `off` hides the parking demo's tools (config/flags.ts). */
   demoTools: process.env.EXPO_PUBLIC_DEMO_TOOLS,
+  /**
+   * DNS zones whose `<gateway id>.<zone>` HTTPS names the app trusts, comma-separated (config/gateway.ts). Unset:
+   * the EMS relay's zones. A gateway reports its names in plain-HTTP health, so this list is what keeps a
+   * tampered answer from sending the app's token to a name someone else holds a certificate for.
+   */
+  gatewayTlsZones: process.env.EXPO_PUBLIC_GATEWAY_TLS_ZONES,
   /** `1` gives every screen a web address for the visual-regression script. */
   visualRoutes: process.env.EXPO_PUBLIC_VISUAL_ROUTES,
   /**

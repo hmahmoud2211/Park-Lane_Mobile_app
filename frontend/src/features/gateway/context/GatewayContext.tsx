@@ -4,6 +4,7 @@ import { AppState, Platform } from 'react-native';
 import { gatewayBaseUrl } from '../../../config/gateway';
 import * as api from '../services/gatewayApi';
 import { resolveEndpoint } from '../services/gatewayDiscovery';
+import { withTlsEndpoints } from '../services/gatewayEndpoints';
 import { GatewayError, onTokenRefused, type GatewayTarget } from '../services/gatewayHttp';
 import { gatewayStore, type StoredGateway } from '../services/gatewayStore';
 import { GatewayRealtime } from '../services/realtime';
@@ -20,8 +21,9 @@ import { brand } from '../../../config/brand';
  * events.
  *
  * Moving to a new address (the gateway's IP changed, or the phone left home)
- * only happens after that address proves it is the same gateway (hmac.ts);
- * the token is never sent anywhere unverified.
+ * only happens after that address proves it is the same gateway (hmac.ts, or
+ * a certificate for one of the gateway's own HTTPS names); the token is never
+ * sent anywhere unverified.
  */
 
 export type GatewayStatus = 'loading' | 'none' | 'connecting' | 'online' | 'offline' | 'unauthorized';
@@ -163,13 +165,19 @@ export function GatewayProvider({ children }: PropsWithChildren) {
         setDevicesLoaded(true);
         return;
       }
+      const endpoints = withTlsEndpoints(
+        endpoint.lanChanged ? { ...gateway.endpoints, lan: endpoint.url } : gateway.endpoints,
+        gateway.id,
+        endpoint.health,
+      );
+      const tlsChanged = endpoints.lanTls !== gateway.endpoints.lanTls || endpoints.remoteTls !== gateway.endpoints.remoteTls;
       const updated: StoredGateway = {
         ...gateway,
         lastUrl: endpoint.url,
         verifiedUrls: endpoint.newlyVerified ? [...gateway.verifiedUrls, endpoint.url].slice(-8) : gateway.verifiedUrls,
-        endpoints: endpoint.lanChanged ? { ...gateway.endpoints, lan: endpoint.url } : gateway.endpoints,
+        endpoints,
       };
-      if (updated.lastUrl !== gateway.lastUrl || endpoint.newlyVerified || endpoint.lanChanged) {
+      if (updated.lastUrl !== gateway.lastUrl || endpoint.newlyVerified || endpoint.lanChanged || tlsChanged) {
         await persist(updated);
       }
       try {

@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { gatewayConfig } from '../../../config/gateway';
 import type { GatewayHealth } from '../../../types/gateway.types';
 import { challenge, getHealth } from './gatewayApi';
+import { endpointAttempts } from './gatewayEndpoints';
 import { GatewayError } from './gatewayHttp';
 import type { StoredGateway } from './gatewayStore.types';
 import { identityProof, newNonce, sameProof } from './hmac';
@@ -15,8 +16,9 @@ import { identityProof, newNonce, sameProof } from './hmac';
  * Native has no mDNS without an extra native module, so the app finds it by
  * asking every address in the phone's own /24 for GET /api/v1/health. It only
  * ever probes private addresses. An answer is never trusted on its own: a
- * paired gateway must prove its identity (hmac.ts) before the phone sends its
- * token to an address it has not verified before.
+ * paired gateway must prove its identity (hmac.ts, or at one of its HTTPS
+ * names its certificate) before the phone sends its token to an address it
+ * has not verified before.
  */
 
 export interface FoundGateway {
@@ -107,38 +109,40 @@ export async function verifyGateway(baseUrl: string, gateway: Pick<StoredGateway
 
 export interface ResolvedEndpoint {
   url: string;
-  /** False when the address was verified on an earlier visit. */
+  /** False when the address was verified on an earlier visit, or is one of the gateway's HTTPS names. */
   newlyVerified: boolean;
   /** The gateway's home address changed and was found by scanning. */
   lanChanged: boolean;
+  /** Its answer there, which names its current HTTPS addresses. */
+  health: GatewayHealth;
 }
 
 /**
  * The address to use for a paired gateway: the last one that worked, its home
- * address, its remote addresses, then a scan of the home network for the same
- * gateway id (its IP may have changed). Each must answer with the right id,
- * and an address not seen before must also pass the identity proof.
+ * HTTPS name and address, its remote HTTPS name and addresses (gatewayEndpoints.ts),
+ * then a scan of the home network for the same gateway id (its IP may have
+ * changed). Each must answer with the right id, and an address not seen before
+ * must also pass the identity proof, unless it is one of the gateway's HTTPS names.
  */
 export async function resolveEndpoint(gateway: StoredGateway, options: { signal?: AbortSignal; scan?: boolean } = {}): Promise<ResolvedEndpoint | null> {
-  const known = [gateway.lastUrl, gateway.endpoints.lan, ...(gateway.endpoints.remote ?? [])].filter(
-    (url, index, all): url is string => Boolean(url) && all.indexOf(url) === index,
-  );
-
-  const accept = async (url: string, lanChanged: boolean): Promise<ResolvedEndpoint | null> => {
+  const accept = async (url: string, health: GatewayHealth, lanChanged: boolean): Promise<ResolvedEndpoint | null> => {
     if (gateway.verifiedUrls.includes(url)) {
-      return { url, newlyVerified: false, lanChanged };
+      return { url, newlyVerified: false, lanChanged, health };
     }
-    return (await verifyGateway(url, gateway)) ? { url, newlyVerified: true, lanChanged } : null;
+    return (await verifyGateway(url, gateway)) ? { url, newlyVerified: true, lanChanged, health } : null;
   };
 
-  for (const url of known) {
+  for (const attempt of endpointAttempts(gateway)) {
     if (options.signal?.aborted) {
       return null;
     }
     try {
-      const health = await getHealth(url, gatewayConfig.healthTimeoutMs, options.signal);
+      const health = await getHealth(attempt.url, attempt.timeoutMs, options.signal);
       if (health.gateway_id === gateway.id) {
-        const accepted = await accept(url, false);
+        // The TLS handshake already proved the server holds this gateway's own certificate.
+        const accepted = attempt.tls
+          ? { url: attempt.url, newlyVerified: false, lanChanged: false, health }
+          : await accept(attempt.url, health, false);
         if (accepted) {
           return accepted;
         }
@@ -155,7 +159,7 @@ export async function resolveEndpoint(gateway: StoredGateway, options: { signal?
   const found = await scanLan({ signal: options.signal }).catch(() => [] as FoundGateway[]);
   for (const entry of found) {
     if (entry.health.gateway_id === gateway.id) {
-      const accepted = await accept(entry.baseUrl, true);
+      const accepted = await accept(entry.baseUrl, entry.health, true);
       if (accepted) {
         return accepted;
       }

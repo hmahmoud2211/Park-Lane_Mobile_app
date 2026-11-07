@@ -13,6 +13,12 @@ export interface StoredGateway {
     lan?: string;
     /** Tailscale address or relay URL, tried when the home address does not answer. */
     remote?: string[];
+    /**
+     * The HTTPS names the gateway reports in its health (gatewayEndpoints.ts), kept as it last
+     * reported them. No identity challenge there: TLS proves the server holds the certificate.
+     */
+    lanTls?: string;
+    remoteTls?: string;
   };
   /** The address that last answered and proved its identity. */
   lastUrl: string | null;

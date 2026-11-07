@@ -61,6 +61,7 @@
     "check:transport": "npx --yes tsx src/lib/http/checks.ts",
     "check:health": "npx --yes tsx src/features/health/services/run-checks.ts",
     "check:pairing": "npx --yes tsx src/features/gateway/services/pairCode.checks.ts",
+    "check:endpoints": "npx --yes tsx src/features/gateway/services/gatewayEndpoints.checks.ts",
     "build": "expo export --platform web",
     "serve": "npx serve dist --single",
     "postinstall": "patch-package"

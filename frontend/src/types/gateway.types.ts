@@ -425,6 +425,18 @@ export interface GatewayHealth {
   claimed: boolean;
   uptime: number;
   adapters: { loaded: number; failed: number };
+  /** Absent or null until the gateway has a certificate; older gateways never send it. */
+  tls?: GatewayTls | null;
+}
+
+/** The gateway's HTTPS base URLs, each a name whose first label is its gateway_id. */
+export interface GatewayTls {
+  /** `https://<gateway_id>.<lan zone>:8443`: a public name for its private home address, which some routers refuse to resolve. */
+  lan_url: string | null;
+  /** `https://<gateway_id>.<remote zone>`: through the relay, which forwards the encrypted bytes without reading them. */
+  remote_url: string | null;
+  /** When the certificate expires, in Unix seconds. */
+  expires_at: number;
 }
 
 export interface GatewayClient {
