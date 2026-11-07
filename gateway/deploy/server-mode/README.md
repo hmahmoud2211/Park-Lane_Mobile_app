@@ -42,7 +42,8 @@ Phone (anywhere) ──▶ https://cube-relay.ems-iot.com ───┘
 It starts `cube-gw-tower-a-1203`, waits until it has enrolled with the relay, and prints the **setup code** and
 a **pairing QR code** (`cubegw://pair?url=…&code=…`). Give them to the resident: in the app, **Connect gateway →
 Scan QR code** (or enter the code and the relay URL). The code works once. A lost code:
-`docker exec cube-gw-tower-a-1203 cube-gateway reset-owner`, then `docker restart cube-gw-tower-a-1203`.
+`docker exec cube-gw-tower-a-1203 cube-gateway reset-owner`, which prints a new code and QR code, then
+`docker restart cube-gw-tower-a-1203`. The QR code in `docker logs` names the relay too.
 
 Each gateway listens on 127.0.0.1 only; nothing per apartment is exposed to the internet.
 

@@ -32,6 +32,11 @@ FORWARD_HEADERS = {"authorization", "content-type", "accept"}
 BLOCKED_PATHS = {"/api/v1/auth/claim"}
 
 
+def gateway_url(relay_url: str, gateway_id: str) -> str:
+    """Where apps reach a gateway through the relay."""
+    return f"{relay_url}/relay/v1/g/{gateway_id}"
+
+
 async def enroll(gateway: Gateway, url: str, enroll_token: str | None) -> None:
     """Registers this gateway with a relay and starts the tunnel. The relay's secret is stored sealed."""
     from ..devices import DeviceError
@@ -78,7 +83,7 @@ class RelayClient:
 
     @property
     def public_url(self) -> str:
-        return f"{self.url}/relay/v1/g/{self.gateway.security.gateway_id}"
+        return gateway_url(self.url, self.gateway.security.gateway_id)
 
     def start(self) -> None:
         if self._task is None:

@@ -187,5 +187,5 @@ The walkthrough was also exercised end to end in Chrome at phone size: booking, 
 - **Arabic type.** Inter has no Arabic letters, so Arabic is drawn in the system's Arabic face, as the Assistant screen already does. Arabic headings therefore show at the system face's regular weight on web.
 - **Adding Arabic names.** Site names are translated by their English name in `i18n.ts` (`AR_NAMES`, `AR_GATES`, `AR_LEVELS`). A new road, zone or gate needs its Arabic name there, or it shows in English.
 - **Phone numbers.** WhatsApp needs international numbers. Local Egyptian numbers are converted using `siteInfo.countryCallingCode` (`policy.ts`).
-- **Camera permission text.** `app.json` now mentions pass scanning, so native builds need a rebuild to pick it up. `barcodeScannerEnabled: false` was left as it was; for SDK 57 it only applies when expo-camera is built from source on Android.
+- **Camera permission text.** `app.json` now mentions pass scanning, so native builds need a rebuild to pick it up.
 - **Booking options.** Residents' own bays are fixed assignments and are not bookable. EV energy targets are in kWh; a battery-percentage target is not offered.

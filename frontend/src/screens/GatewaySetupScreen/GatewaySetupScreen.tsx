@@ -18,9 +18,10 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
 import * as api from '../../features/gateway/services/gatewayApi';
-import { isRemoteGatewayUrl, parsePairPayload, scanLan, type FoundGateway } from '../../features/gateway/services/gatewayDiscovery';
+import { scanLan, type FoundGateway } from '../../features/gateway/services/gatewayDiscovery';
 import { errorMessage } from '../../features/gateway/services/gatewayHttp';
 import type { StoredGateway } from '../../features/gateway/services/gatewayStore';
+import { isRemoteGatewayUrl, parsePairPayload } from '../../features/gateway/services/pairCode';
 import type { RemoteStatus } from '../../types/gateway.types';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { gatewaySetupCopy as copy } from './GatewaySetupScreen.data';
@@ -52,6 +53,7 @@ export function GatewaySetupScreen() {
   const [connectedName, setConnectedName] = useState<string | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [qrNeedsAddress, setQrNeedsAddress] = useState(false);
 
   const [found, setFound] = useState<FoundGateway[]>([]);
   const [scanProgress, setScanProgress] = useState<number | null>(null);
@@ -130,13 +132,15 @@ export function GatewaySetupScreen() {
 
   const onQr = (data: string) => {
     const payload = parsePairPayload(data);
+    setQrError(payload ? null : copy.qrInvalid);
+    setQrNeedsAddress(payload?.baseUrl === null);
     if (!payload) {
-      setQrError(copy.qrInvalid);
       return;
     }
-    setQrError(null);
     setQrOpen(false);
-    setHost(payload.baseUrl);
+    if (payload.baseUrl) {
+      setHost(payload.baseUrl);
+    }
     if (payload.code) {
       setCode(payload.code);
       setMode('setup');
@@ -497,6 +501,7 @@ export function GatewaySetupScreen() {
         />
         {qrOpen ? <QrScanner onScan={onQr} onClose={() => setQrOpen(false)} /> : null}
         {qrError ? <Notice tone="warning">{qrError}</Notice> : null}
+        {qrNeedsAddress && !host.trim() ? <Notice tone="warning">{copy.qrNoAddress}</Notice> : null}
         {connectError ? <Notice tone="error">{connectError}</Notice> : null}
         <View style={styles.row}>
           {Platform.OS !== 'web' ? (

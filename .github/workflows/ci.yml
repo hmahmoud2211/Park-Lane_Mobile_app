@@ -61,6 +61,9 @@ jobs:
       - name: Health Passport checks
         run: npm run check:health
 
+      - name: Gateway pairing code checks
+        run: npm run check:pairing
+
       - name: Web export
         run: npx expo export --platform web --output-dir dist
 

@@ -51,19 +51,18 @@ def _setup_code() -> int:
         return 1
     code = path.read_text().strip()
     print(f"Setup code: {code}")
-    try:
-        import qrcode
-
-        from .netutil import primary_address
-
-        qr = qrcode.QRCode(border=1)
-        gateway_id = _gateway_id(settings)
-        host = primary_address()
-        qr.add_data(f"cubegw://pair?host={host}:{settings.port}&id={gateway_id}&code={code}" if host else f"cubegw://pair?id={gateway_id}&code={code}")
-        qr.print_ascii(invert=True)
-    except Exception:  # noqa: BLE001
-        pass
+    _print_pairing_qr(settings, code)
     return 0
+
+
+def _print_pairing_qr(settings, code: str) -> None:
+    from .security import pairing_target, render_qr, setup_payload
+
+    try:
+        gateway_id = _gateway_id(settings)
+    except Exception:  # noqa: BLE001 - the code on its own is enough
+        return
+    print(render_qr(setup_payload(gateway_id, code, pairing_target(settings, gateway_id))))
 
 
 def _gateway_id(settings) -> str:
@@ -93,6 +92,7 @@ def _reset_owner() -> int:
     code = asyncio.run(run())
     print("Every paired phone was removed. Devices and rooms are kept.")
     print(f"New setup code: {code}")
+    _print_pairing_qr(settings, code)
     print("Restart the gateway so open sessions end at once: docker restart cube-os-gateway")
     return 0
 

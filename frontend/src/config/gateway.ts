@@ -7,7 +7,7 @@
 export const gatewayConfig = {
   defaultPort: 8686,
   apiPrefix: '/api/v1',
-  /** The QR code the gateway prints: cubegw://pair?host=<ip:port>&id=<gateway_id>&code=<setup_code>. */
+  /** The start of a gateway's pairing QR code; features/gateway/services/pairCode.ts reads the rest. */
   pairScheme: 'cubegw:',
   requestTimeoutMs: 10_000,
   /** A command waits for the device to report back (the gateway allows 10 s per call). */

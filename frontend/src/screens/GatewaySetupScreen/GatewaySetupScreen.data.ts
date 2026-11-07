@@ -30,6 +30,7 @@ export const gatewaySetupCopy = {
   scanQr: 'Scan QR code',
   closeQr: 'Close scanner',
   qrInvalid: 'That QR code is not a CUBE Gateway pairing code.',
+  qrNoAddress: 'Setup code added. This QR code doesn’t say where the gateway is, so enter its address above.',
   connect: 'Connect',
   connected: (name: string) => `Connected to ${name}.`,
   required: 'Required',
