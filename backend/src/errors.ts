@@ -21,6 +21,8 @@ const STATUS: Record<ApiErrorCode, number> = {
   ha_rejected: 502,
   not_configured: 503,
   flow_expired: 410,
+  no_gateway: 404,
+  password_change_required: 403,
   invalid: 422,
   too_large: 413,
   consent_required: 403,

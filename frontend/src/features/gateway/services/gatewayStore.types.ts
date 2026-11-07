@@ -25,4 +25,10 @@ export interface StoredGateway {
   /** Addresses that already proved this gateway's identity; others are challenged before the token is sent. */
   verifiedUrls: string[];
   pairedAt: number;
+  /**
+   * How this phone got its token: `account` through the resident's EMS account (accountLogin.ts),
+   * which signing out takes away again; `pairing` (or absent, as on entries from before) with a
+   * setup or invite code, which stays until forgotten.
+   */
+  source?: 'account' | 'pairing';
 }

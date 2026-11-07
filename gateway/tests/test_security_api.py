@@ -14,7 +14,7 @@ def test_health_is_public_and_minimal(harness: Harness):
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["status"] == "ok" and data["claimed"] is False and data["api_version"] == 1
-    assert set(data) == {"status", "version", "api_version", "gateway_id", "name", "claimed", "uptime", "adapters", "tls"}
+    assert set(data) == {"status", "version", "api_version", "gateway_id", "name", "claimed", "uptime", "adapters", "tls", "account_login"}
     assert data["tls"] is None  # no certificate yet: HTTP only
 
 

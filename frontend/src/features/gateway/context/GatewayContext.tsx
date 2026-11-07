@@ -2,6 +2,17 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState, type 
 import { AppState, Platform } from 'react-native';
 
 import { gatewayBaseUrl } from '../../../config/gateway';
+import { useEms } from '../../ems/hooks/useEms';
+import { getSessionToken } from '../../ems/services/emsHttp';
+import {
+  accountLinkView,
+  isAccountIssued,
+  removedOnSignOut,
+  shouldConnectOnSignIn,
+  shouldRetryRefused,
+  type AccountLink,
+} from '../services/accountAccess';
+import { accountErrorOf, loginWithAccount, revokeOwnAccess } from '../services/accountLogin';
 import * as api from '../services/gatewayApi';
 import { resolveEndpoint } from '../services/gatewayDiscovery';
 import { withTlsEndpoints } from '../services/gatewayEndpoints';
@@ -24,9 +35,15 @@ import { brand } from '../../../config/brand';
  * only happens after that address proves it is the same gateway (hmac.ts, or
  * a certificate for one of the gateway's own HTTPS names); the token is never
  * sent anywhere unverified.
+ *
+ * A signed-in resident gets their apartment's gateway through their EMS
+ * account (services/accountAccess.ts); that access is taken off the phone
+ * again when they sign out. Setup and invite codes stay for installers.
  */
 
 export type GatewayStatus = 'loading' | 'none' | 'connecting' | 'online' | 'offline' | 'unauthorized';
+
+export type { AccountLink } from '../services/accountAccess';
 
 interface GatewayContextValue {
   status: GatewayStatus;
@@ -45,7 +62,12 @@ interface GatewayContextValue {
   claim: (host: string, setupCode: string) => Promise<StoredGateway>;
   /** Joins a gateway with an invite code from its owner. */
   join: (host: string, inviteCode: string) => Promise<StoredGateway>;
+  /** Access to the apartment's gateway through the resident's EMS account. */
+  account: AccountLink;
+  /** Connects this phone to the apartment's gateway through the resident's EMS account. */
+  connectAccount: () => Promise<void>;
   select: (id: string) => void;
+  /** Removes a gateway from this phone; an account-issued one gives up its token on the gateway first (best effort). */
   forget: (id: string) => Promise<void>;
   /** Sets the addresses tried away from home (Tailscale address, relay URL). */
   setRemoteEndpoints: (id: string, urls: string[]) => Promise<void>;
@@ -80,7 +102,14 @@ function storedFrom(result: ClaimResult, baseUrl: string): StoredGateway {
     // Claiming proved this address: it accepted the one-time code.
     verifiedUrls: [baseUrl],
     pairedAt: Date.now(),
+    source: 'pairing',
   };
+}
+
+function refusedProblem(gateway: Pick<StoredGateway, 'source'> | null): string {
+  return gateway && isAccountIssued(gateway)
+    ? 'This gateway no longer accepts this phone through your account.'
+    : 'This gateway no longer accepts this phone. Pair it again, or ask its owner for an invite.';
 }
 
 export function GatewayProvider({ children }: PropsWithChildren) {
@@ -96,6 +125,24 @@ export function GatewayProvider({ children }: PropsWithChildren) {
   const listeners = useRef(new Set<(event: GatewayEvent) => void>());
   const channel = useRef<GatewayRealtime | null>(null);
   const resolving = useRef<Promise<void> | null>(null);
+  const ems = useEms();
+  // A session that must still choose its own password can't ask for a pass (403): account access waits for it.
+  const signedIn = ems.status === 'signedIn' && !ems.passwordChangeRequired;
+  const signedOut = ems.status === 'signedOut';
+  const [accountLink, setAccountLink] = useState<AccountLink>({ state: 'idle' });
+  // What one session found must not show in the next: reset whenever the session starts or ends.
+  const [linkSignedIn, setLinkSignedIn] = useState(signedIn);
+  if (linkSignedIn !== signedIn) {
+    setLinkSignedIn(signedIn);
+    setAccountLink({ state: 'idle' });
+  }
+  const accountRun = useRef<{ session: string; run: Promise<void> } | null>(null);
+  /** The session the automatic account connection last ran for. */
+  const autoConnectedFor = useRef<string | null>(null);
+  /** Gateways whose refused account token was already re-issued once this session. */
+  const refusalRetried = useRef(new Set<string>());
+  /** Account-issued gateways being taken off the phone after sign-out. */
+  const dropping = useRef(new Set<string>());
 
   const active = useMemo(() => gateways.find((gateway) => gateway.id === activeId) ?? null, [gateways, activeId]);
   const target = useMemo<GatewayTarget | null>(
@@ -160,7 +207,9 @@ export function GatewayProvider({ children }: PropsWithChildren) {
         setProblem(
           gateway.endpoints.lan
             ? 'Your gateway did not answer at its home or remote address.'
-            : 'Your gateway on CUBE’s server did not answer. Check your internet connection and try again.',
+            : isAccountIssued(gateway)
+              ? 'Your gateway did not answer through CUBE’s relay. Check your internet connection and try again.'
+              : 'Your gateway on CUBE’s server did not answer. Check your internet connection and try again.',
         );
         setDevicesLoaded(true);
         return;
@@ -188,7 +237,7 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       } catch (error) {
         if (error instanceof GatewayError && error.code === 'unauthorized') {
           setStatus('unauthorized');
-          setProblem('This gateway no longer accepts this phone. Pair it again, or ask its owner for an invite.');
+          setProblem(refusedProblem(gateway));
         } else {
           setStatus('offline');
           setProblem(error instanceof GatewayError ? error.message : 'Your gateway could not be read.');
@@ -235,7 +284,7 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       onTokenRefused((refusedUrl) => {
         if (refusedUrl === baseUrl) {
           setStatus('unauthorized');
-          setProblem('This gateway no longer accepts this phone. Pair it again, or ask its owner for an invite.');
+          setProblem(refusedProblem(activeRef.current));
         }
       }),
     [baseUrl],
@@ -278,7 +327,7 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       onState: setRealtime,
       onRefused: () => {
         setStatus('unauthorized');
-        setProblem('This gateway no longer accepts this phone. Pair it again, or ask its owner for an invite.');
+        setProblem(refusedProblem(activeRef.current));
       },
     });
     channel.current = next;
@@ -339,8 +388,117 @@ export function GatewayProvider({ children }: PropsWithChildren) {
     [persist, activate],
   );
 
+  const gatewaysRef = useRef(gateways);
+  useEffect(() => {
+    gatewaysRef.current = gateways;
+  }, [gateways]);
+
+  // One at a time per session: the automatic connection, a refused token's retry and the screen's
+  // button share it, but a new session never waits on (or inherits) the last one's attempt.
+  const connectAccount = useCallback(async () => {
+    const session = getSessionToken();
+    if (!session) {
+      return;
+    }
+    if (accountRun.current?.session === session) {
+      await accountRun.current.run;
+      return;
+    }
+    const run = (async () => {
+      setAccountLink({ state: 'connecting' });
+      try {
+        const outcome = await loginWithAccount(CLIENT_NAME, gatewaysRef.current);
+        if (getSessionToken() !== session) {
+          // Signed out meanwhile: that access belonged to the session that ended.
+          if (outcome.kind === 'connected') {
+            void revokeOwnAccess(outcome.gateway);
+          }
+          return;
+        }
+        if (outcome.kind === 'no_gateway') {
+          setAccountLink({ state: 'no_gateway' });
+          return;
+        }
+        const id = outcome.kind === 'connected' ? outcome.gateway.id : outcome.gatewayId;
+        if (outcome.kind === 'connected') {
+          await persist(outcome.gateway);
+          activate(id);
+        } else if (activeRef.current?.id !== id) {
+          activate(id);
+        }
+        setAccountLink({ state: 'connected', gatewayId: id });
+      } catch (error) {
+        if (getSessionToken() === session) {
+          setAccountLink({ state: 'error', ...accountErrorOf(error) });
+        }
+      }
+    })().finally(() => {
+      if (accountRun.current?.run === run) {
+        accountRun.current = null;
+      }
+    });
+    accountRun.current = { session, run };
+    await run;
+  }, [persist, activate]);
+
+  useEffect(() => {
+    const session = signedIn ? getSessionToken() : null;
+    const triedThisSession = session !== null && autoConnectedFor.current === session;
+    if (shouldConnectOnSignIn({ signedIn, storeLoaded: status !== 'loading', gatewayCount: gateways.length, triedThisSession })) {
+      autoConnectedFor.current = session;
+      void connectAccount();
+    }
+  }, [signedIn, status, gateways.length, connectAccount]);
+
+  // Each time the session becomes usable (signed in, or its password just set) is a fresh start.
+  useEffect(() => {
+    if (!signedIn) {
+      refusalRetried.current.clear();
+      autoConnectedFor.current = null;
+    }
+  }, [signedIn]);
+
+  useEffect(() => {
+    if (shouldRetryRefused({ gateway: active, refused: status === 'unauthorized', signedIn, retried: refusalRetried.current }) && active) {
+      refusalRetried.current.add(active.id);
+      void connectAccount();
+    }
+  }, [active, status, signedIn, connectAccount]);
+
+  // Signed out (or found signed out at launch): the next person to sign in here must not inherit
+  // the account's access. Gateways paired with a code stay. The revoke is sent while the token is
+  // still at hand, and the entry goes whether or not the gateway answers it.
+  useEffect(() => {
+    if (status === 'loading') {
+      return;
+    }
+    const doomed = removedOnSignOut(gateways, signedOut).filter((entry) => !dropping.current.has(entry.id));
+    if (doomed.length === 0) {
+      return;
+    }
+    const ids = new Set(doomed.map((entry) => entry.id));
+    doomed.forEach((entry) => {
+      dropping.current.add(entry.id);
+      void revokeOwnAccess(entry);
+    });
+    void Promise.all(doomed.map((entry) => gatewayStore.remove(entry.id).catch(() => undefined))).then(() => {
+      setGateways((current) => current.filter((entry) => !ids.has(entry.id)));
+      if (activeRef.current && ids.has(activeRef.current.id)) {
+        activate(gatewaysRef.current.find((entry) => !ids.has(entry.id))?.id ?? null);
+      }
+      ids.forEach((id) => dropping.current.delete(id));
+    });
+  }, [status, gateways, signedOut, activate]);
+
   const forget = useCallback(
     async (id: string) => {
+      const entry = gateways.find((gateway) => gateway.id === id);
+      // Forgotten on purpose: not connected straight back through the account this session (the button still can).
+      autoConnectedFor.current = getSessionToken() ?? autoConnectedFor.current;
+      // An account-issued token is given up on the gateway first, so it doesn't stay valid there.
+      if (entry && isAccountIssued(entry)) {
+        await revokeOwnAccess(entry);
+      }
       await gatewayStore.remove(id);
       const rest = gateways.filter((entry) => entry.id !== id);
       setGateways(rest);
@@ -370,6 +528,8 @@ export function GatewayProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  const account = useMemo(() => accountLinkView(accountLink, gateways), [accountLink, gateways]);
+
   const value = useMemo<GatewayContextValue>(
     () => ({
       status,
@@ -384,6 +544,8 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       problem,
       claim,
       join,
+      account,
+      connectAccount,
       select,
       forget,
       setRemoteEndpoints,
@@ -405,6 +567,8 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       problem,
       claim,
       join,
+      account,
+      connectAccount,
       select,
       forget,
       setRemoteEndpoints,

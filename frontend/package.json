@@ -62,6 +62,10 @@
     "check:health": "npx --yes tsx src/features/health/services/run-checks.ts",
     "check:pairing": "npx --yes tsx src/features/gateway/services/pairCode.checks.ts",
     "check:endpoints": "npx --yes tsx src/features/gateway/services/gatewayEndpoints.checks.ts",
+    "check:account": "npx --yes tsx src/features/gateway/services/accountAccess.checks.ts",
+    "check:phones": "npx --yes tsx src/features/gateway/services/gatewayPhones.checks.ts",
+    "check:unit": "npx --yes tsx src/features/unit/services/unitRules.checks.ts",
+    "check:password": "npx --yes tsx src/features/ems/services/passwordChange.checks.ts",
     "build": "expo export --platform web",
     "serve": "npx serve dist --single",
     "postinstall": "patch-package"

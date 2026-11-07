@@ -8,6 +8,7 @@ import logging
 import time
 
 from . import __version__
+from .accounts import AccountAccess
 from .adapters.base import AdapterContext
 from .adapters.registry import AdapterRegistry, modules_for
 from .cloud.link import CloudLink
@@ -56,10 +57,13 @@ class Gateway:
         self.relay = None
         #: HTTPS with a certificate the relay issues (tls.py); plain HTTP keeps working without it.
         self.tls = TlsManager(self)
+        #: Access through EMS accounts (accounts.py), when CUBE_EMS_URL links this gateway to an apartment.
+        self.accounts = AccountAccess(self)
 
     async def start(self) -> None:
         version = await self.db.open()
-        await self.security.load(self.settings.name)
+        await self.security.load(self.settings.name, self.settings.gateway_id)
+        self.security.account_login = self.accounts.enabled
         self.security.pair_target = pairing_target(self.settings, self.security.gateway_id)
         log.info(
             "gateway starting",
@@ -76,6 +80,7 @@ class Gateway:
         await self.start_relay_from_settings()
         await self.tls.load()
         self.tls.start()
+        self.accounts.start()
         if self.settings.relay_url and self.settings.relay_enroll_token and self.relay is None:
             self._enroll_task = asyncio.create_task(self._auto_enroll())
         if self.cloud is not None:
@@ -134,6 +139,7 @@ class Gateway:
         if self.cloud is not None:
             await self.cloud.stop()
         await self.tls.stop()
+        await self.accounts.stop()
         if self.relay:
             await self.relay.stop()
         await self.provisioning.stop()

@@ -209,9 +209,10 @@ describe('operations and admin', () => {
     assertError(await call('PUT', '/api/admin/units', { token: 'ops-key' }), 404, 'not_found');
   });
 
-  test('a session token is not the admin key', async () => {
+  test('a resident\'s session is not an admin', async () => {
     const session = await newSession();
-    assertError(await call('GET', '/api/admin/units', { token: session }), 401, 'unauthorized');
+    assertError(await call('GET', '/api/admin/units', { token: session }), 403, 'forbidden');
+    assertError(await call('GET', '/api/admin/units', { token: 'not-a-token' }), 401, 'unauthorized');
   });
 });
 

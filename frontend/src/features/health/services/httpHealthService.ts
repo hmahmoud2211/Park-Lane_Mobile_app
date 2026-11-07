@@ -28,6 +28,8 @@ export interface HttpHealthOptions {
   getLang: () => HealthLang;
   /** A 401: the session is over and the app signs out. */
   onUnauthorized: () => void;
+  /** A 403 `password_change_required`: the account must choose its own password first. */
+  onPasswordChangeRequired?: () => void;
 }
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -87,6 +89,9 @@ export class HttpHealthService implements HealthService {
   private fail(status: number, body: unknown): never {
     const kind = errorKindForStatus(status);
     if (kind === 'unauthorized') this.options.onUnauthorized();
+    if (status === 403 && (body as { error?: { code?: unknown } } | undefined)?.error?.code === 'password_change_required') {
+      this.options.onPasswordChangeRequired?.();
+    }
     throw new HealthError(kind, detailOf(body) ?? `HTTP ${status}`, { status, detail: detailOf(body) });
   }
 

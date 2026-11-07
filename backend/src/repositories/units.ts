@@ -67,3 +67,32 @@ export function memberIdsOfHub(hubId: string): string[] {
     .all(hubId) as unknown as { user_id: string }[];
   return rows.map((row) => row.user_id);
 }
+
+/** The member's role in their unit, or null. */
+export function memberRole(userId: string): MemberRole | null {
+  const row = db().prepare('SELECT role FROM unit_members WHERE user_id = ?').get(userId) as { role: string } | undefined;
+  return row ? (row.role === 'member' ? 'member' : 'owner') : null;
+}
+
+export interface MemberRow {
+  userId: string;
+  name: string;
+  email: string;
+  role: MemberRole;
+  since: string;
+}
+
+export function listMembers(unitId: string): MemberRow[] {
+  const rows = db()
+    .prepare(
+      `SELECT users.id, users.name, users.email, unit_members.role, unit_members.created_at
+       FROM unit_members JOIN users ON users.id = unit_members.user_id
+       WHERE unit_members.unit_id = ? ORDER BY unit_members.created_at, users.name`,
+    )
+    .all(unitId) as unknown as { id: string; name: string; email: string; role: string; created_at: string }[];
+  return rows.map((row) => ({ userId: row.id, name: row.name, email: row.email, role: row.role === 'member' ? 'member' : 'owner', since: row.created_at }));
+}
+
+export function deleteMember(unitId: string, userId: string): boolean {
+  return Number(db().prepare('DELETE FROM unit_members WHERE unit_id = ? AND user_id = ?').run(unitId, userId).changes) > 0;
+}

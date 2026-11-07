@@ -6,11 +6,12 @@ import {
   type Theme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
 import { flags } from '../config/flags';
+import { useEms } from '../features/ems/hooks/useEms';
 import { HealthNotifier } from '../features/health/components/HealthNotifier';
 import type { HealthNotice } from '../features/health/services/healthStore';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -18,6 +19,7 @@ import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
 import { AddDeviceScreen } from '../screens/AddDeviceScreen';
 import { AcControlScreen } from '../screens/AcControlScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
+import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
 import { ClinicAppointmentScreen } from '../screens/ClinicAppointmentScreen';
@@ -73,7 +75,7 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 /** Every registered route; the visual-regression addresses below are made from it. */
 const ROUTE_NAMES = [
-  'FirstScreen', 'Login', 'Home', 'Profile', 'MyUnit', 'VisitorAccess', 'Maintenance', 'Parking',
+  'FirstScreen', 'Login', 'ChangePassword', 'Home', 'Profile', 'MyUnit', 'VisitorAccess', 'Maintenance', 'Parking',
   'Community', 'SmartHome', 'EmsDevices', 'DeviceDetail', 'ConnectAccount', 'GatewaySetup',
   'AddDevice', 'AddDeviceMethod', 'DeviceDiscovery', 'DeviceProvisioning', 'DeviceSetup',
   'LgPairing', 'AcControl', 'AmenitiesBooking', 'Services', 'Settings', 'Assistant',
@@ -132,9 +134,25 @@ const linking: LinkingOptions<RootStackParamList> = {
   },
 };
 
+/**
+ * Where a session that must still choose its own password may stay: the way in (the first
+ * screen and Login, which sends it on), the visitor's pass (no account at all), and the step.
+ */
+const OPEN_WHILE_PASSWORD_PENDING = new Set<keyof RootStackParamList>(['FirstScreen', 'Login', 'GuestPass', 'ChangePassword']);
+
 export function AppNavigator() {
   const theme = useAppTheme();
   const [current, setCurrent] = useState<CurrentRoute>();
+  const { passwordChangeRequired } = useEms();
+
+  // A temporary password comes before anything else, also when a call says so mid-session
+  // (an admin reset it): from anywhere else, straight to the step, with nothing to go back to.
+  useEffect(() => {
+    if (!passwordChangeRequired || !current || OPEN_WHILE_PASSWORD_PENDING.has(current.name) || !navigationRef.isReady()) {
+      return;
+    }
+    navigationRef.reset({ index: 0, routes: [{ name: 'ChangePassword' }] });
+  }, [passwordChangeRequired, current]);
 
   const trackRoute = useCallback(() => {
     const route = navigationRef.getCurrentRoute();
@@ -225,6 +243,7 @@ export function AppNavigator() {
         >
           <Stack.Screen name="FirstScreen" component={FirstScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ gestureEnabled: false }} />
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="MyUnit" component={MyUnitScreen} />

@@ -24,6 +24,16 @@ const list = (value: string | undefined) =>
     .map((entry) => entry.trim())
     .filter(Boolean);
 
+/** GATEWAY_PORTS: "18700-18999", the local ports the apartments' gateways listen on (one each, 127.0.0.1 only). */
+function portRange(value: string): { first: number; last: number } {
+  const match = /^\s*(\d{2,5})\s*-\s*(\d{2,5})\s*$/.exec(value);
+  const [first, last] = match ? [Number(match[1]), Number(match[2])] : [0, 0];
+  if (!match || first < 1024 || last > 65535 || first > last) {
+    throw new Error(`GATEWAY_PORTS must be a range such as 18700-18999, got "${value}".`);
+  }
+  return { first, last };
+}
+
 /** HA_OAUTH_CREDENTIALS: {"<integration>": {"clientId": "…", "clientSecret": "…"}}, shared by every unit. */
 function oauthCredentials(value: string | undefined): Record<string, { clientId: string; clientSecret: string }> {
   if (!value) {
@@ -62,6 +72,11 @@ export const config = {
      * The ready-made sign-in the backend creates on starting. Set both empty to turn it off.
      * The password is short and known: this account must not hold anything private.
      */
+    /** The first admin for the dashboard, made when there is none (ensureAdminAccount); empty password: generated and printed. */
+    adminAccount: {
+      username: env.EMS_ADMIN_USERNAME ?? 'admin',
+      password: env.EMS_ADMIN_PASSWORD ?? '',
+    },
     defaultAccount: {
       username: env.EMS_DEFAULT_USERNAME ?? 'ems',
       password: env.EMS_DEFAULT_PASSWORD ?? '5002',
@@ -100,6 +115,28 @@ export const config = {
     commandTimeoutMs: Number(env.HA_COMMAND_TIMEOUT_MS || 8_000),
     /** How long a new container gets to answer before provisioning fails. */
     startTimeoutMs: 5 * 60_000,
+  },
+
+  /**
+   * One CUBE gateway container per unit, made with the unit (ems/gatewayProvisioner.ts) when the relay's enrol token
+   * is set. Each runs like gateway/deploy/server-mode/new-apartment.sh starts one without a tunnel box: host network,
+   * 127.0.0.1:<port>, enrolled with the relay, linked to its unit.
+   */
+  gateways: {
+    /** CUBE_RELAY_ENROLL_TOKEN from the relay's relay.env. Empty: apartments get no gateway by themselves. */
+    relayEnrollToken: env.GATEWAY_RELAY_ENROLL_TOKEN || '',
+    relayUrl: trimUrl(env.GATEWAY_RELAY_URL) || 'https://cube-relay.ems-iot.com',
+    image: env.GATEWAY_IMAGE || 'hmahmoud2211/cube-os-gateway:latest',
+    /** This backend's address as the gateways reach it (member sync): PUBLIC_URL unless set. */
+    emsUrl: trimUrl(env.GATEWAY_EMS_URL) || trimUrl(env.PUBLIC_URL),
+    ports: portRange(env.GATEWAY_PORTS || '18700-18999'),
+    /** The device broker and the shared ReThink, on this host (empty: left out). Same defaults as new-apartment.sh. */
+    cloudMqttUrl: env.GATEWAY_CLOUD_MQTT_URL ?? 'mqtt://127.0.0.1:1886',
+    rethinkMqttUrl: env.GATEWAY_RETHINK_MQTT_URL ?? 'mqtt://127.0.0.1:1885',
+    rethinkApiServer: env.GATEWAY_RETHINK_API_SERVER ?? 'https://lg.ems-iot.com:4443',
+    rethinkMqttServer: env.GATEWAY_RETHINK_MQTT_SERVER ?? 'ssl://lg.ems-iot.com:8884',
+    /** How long a new gateway gets to check in with this backend and answer through the relay. */
+    startTimeoutMs: Number(env.GATEWAY_START_TIMEOUT_MS || 3 * 60_000),
   },
 
   /** The compound clinic: booking, the doctors' workspace and consultations (see src/clinic/). */

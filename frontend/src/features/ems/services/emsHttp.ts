@@ -35,6 +35,7 @@ export function emsErrorText(error: unknown): string {
 
 let sessionToken: string | null = null;
 const expiredListeners = new Set<() => void>();
+const passwordChangeListeners = new Set<() => void>();
 
 export function setSessionToken(token: string | null) {
   sessionToken = token;
@@ -53,6 +54,20 @@ export function reportSessionExpired() {
   expiredListeners.forEach((listener) => listener());
 }
 
+/**
+ * Called when the backend refuses a call until the account sets its own password (an account
+ * building management created or reset with a temporary one), so the app can ask for it.
+ */
+export function onPasswordChangeRequired(listener: () => void): () => void {
+  passwordChangeListeners.add(listener);
+  return () => passwordChangeListeners.delete(listener);
+}
+
+/** For other clients of the same session (Health Passport) that were refused the same way. */
+export function reportPasswordChangeRequired() {
+  passwordChangeListeners.forEach((listener) => listener());
+}
+
 export const isEmsConfigured = () => emsConfig.url !== '';
 
 export interface CallInit {
@@ -61,6 +76,11 @@ export interface CallInit {
   timeoutMs?: number;
   /** Send the session token (default). Sign-in and sign-up do not. */
   auth?: boolean;
+  /**
+   * A 401 ends the session (default). Off for a call whose 401 means something else: changing
+   * the password answers 401 for a wrong current password, which must not sign the resident out.
+   */
+  sessionCheck?: boolean;
   /**
    * For reads that are safe to repeat: a GET that could not reach the backend is tried
    * once more after a short pause, so a moment without signal does not show an error.
@@ -93,8 +113,11 @@ export async function call<T>(path: string, init: CallInit = {}): Promise<T> {
           throw new EmsError('internal', `The EMS backend answered ${response.status}.`, response.status);
         }
         if (!body.ok) {
-          if (body.error.code === 'unauthorized' && useAuth) {
+          if (body.error.code === 'unauthorized' && useAuth && (init.sessionCheck ?? true)) {
             expiredListeners.forEach((listener) => listener());
+          }
+          if (body.error.code === 'password_change_required' && useAuth) {
+            reportPasswordChangeRequired();
           }
           throw new EmsError(body.error.code, body.error.message, response.status);
         }

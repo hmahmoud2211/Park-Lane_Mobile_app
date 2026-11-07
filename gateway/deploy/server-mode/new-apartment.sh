@@ -9,6 +9,10 @@
 # same home subnet don't clash, and the script writes the box's config to <name>-tunnel.conf. The UDP port must be
 # forwarded to this server, and TUNNEL_HOST must resolve to its public address (DNS only, not proxied).
 #
+# With UNIT_ID (the apartment's id in the EMS backend, from GET /api/admin/units) and ADMIN_API_KEY, the gateway is
+# also attached to that unit: its residents connect by signing in to the app with their EMS account, and the setup
+# code is only for the installer. The sync secret is kept across re-runs.
+#
 # The gateway listens on 127.0.0.1:<port> only, enrols itself with the relay, gets its broker login from the
 # relay, uses the shared ReThink for LG appliances (seeing only the ones it sets up), and prints the pairing
 # link and setup code to hand to the resident. Re-running restarts it with the same data.
@@ -19,6 +23,8 @@ PORT="${2:?usage: new-apartment.sh <name> <port>}"
 SUBNET="${3:-}"
 UDP_PORT="${4:-}"
 TUNNEL_HOST="${TUNNEL_HOST:-vpn.ems-iot.com}"
+UNIT_ID="${UNIT_ID:-}"
+EMS_URL="${EMS_URL:-https://api-iot-2.ems-iot.com}"
 MQTT_HOST="${MQTT_HOST:-mqtt-cube.ems-iot.com}"
 IMAGE="${IMAGE:-hmahmoud2211/cube-os-gateway:latest}"
 RELAY_URL="${RELAY_URL:-https://cube-relay.ems-iot.com}"
@@ -33,6 +39,14 @@ if [ -n "$SUBNET" ]; then
   [[ "$UDP_PORT" =~ ^[0-9]{4,5}$ ]] || { echo "Give a UDP port for the tunnel too, e.g. 51821 (one per apartment)."; exit 1; }
 fi
 ENROLL="$(grep '^CUBE_RELAY_ENROLL_TOKEN=' "$RELAY_ENV" | cut -d= -f2-)"
+EMS_ARGS=()
+if [ -n "$UNIT_ID" ]; then
+  [ -n "${ADMIN_API_KEY:-}" ] || { echo "Attaching to EMS unit $UNIT_ID needs ADMIN_API_KEY (the backend's admin key)."; exit 1; }
+  # Reuse the secret of a container being replaced, so the backend's copy stays valid.
+  EMS_SECRET="$(docker inspect "cube-gw-$NAME" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^CUBE_EMS_SECRET=//p' || true)"
+  [ -n "$EMS_SECRET" ] || EMS_SECRET="$(openssl rand -hex 32)"
+  EMS_ARGS=(-e CUBE_EMS_URL="$EMS_URL" -e CUBE_EMS_SECRET="$EMS_SECRET")
+fi
 
 docker rm -f "cube-gw-$NAME" >/dev/null 2>&1 || true
 if [ -n "$SUBNET" ]; then
@@ -44,14 +58,14 @@ if [ -n "$SUBNET" ]; then
     --add-host host.docker.internal:host-gateway --add-host "$MQTT_HOST:host-gateway" \
     -e CUBE_SERVER_HOSTED=1 -e CUBE_HOST=0.0.0.0 -e CUBE_PORT="$PORT" -e CUBE_MDNS_ADVERTISE=0 \
     -e CUBE_TUNNEL_SUBNETS="$SUBNET" -e CUBE_TUNNEL_ENDPOINT="$TUNNEL_HOST:$UDP_PORT" \
-    -e CUBE_GATEWAY_NAME="CUBE $NAME" \
+    -e CUBE_GATEWAY_NAME="CUBE $NAME" ${EMS_ARGS[@]+"${EMS_ARGS[@]}"} \
     -e CUBE_RELAY_URL="$RELAY_URL" -e CUBE_RELAY_ENROLL_TOKEN="$ENROLL" \
     -e CUBE_RETHINK_MQTT_URL="${RETHINK_MQTT/127.0.0.1/host.docker.internal}" -e CUBE_RETHINK_API_SERVER="$RETHINK_API" -e CUBE_RETHINK_MQTT_SERVER="$RETHINK_MQTTS" \
     -v "cube-gw-$NAME:/data" "$IMAGE" >/dev/null
 else
 docker run -d --name "cube-gw-$NAME" --restart unless-stopped --network host \
   -e CUBE_SERVER_HOSTED=1 -e CUBE_HOST=127.0.0.1 -e CUBE_PORT="$PORT" -e CUBE_MDNS_ADVERTISE=0 -e CUBE_SUBNET_SCAN=0 \
-  -e CUBE_GATEWAY_NAME="CUBE $NAME" \
+  -e CUBE_GATEWAY_NAME="CUBE $NAME" ${EMS_ARGS[@]+"${EMS_ARGS[@]}"} \
   -e CUBE_RELAY_URL="$RELAY_URL" -e CUBE_RELAY_ENROLL_TOKEN="$ENROLL" \
   -e CUBE_CLOUD_MQTT_URL=mqtt://127.0.0.1:1886 \
   -e CUBE_RETHINK_MQTT_URL="$RETHINK_MQTT" -e CUBE_RETHINK_API_SERVER="$RETHINK_API" -e CUBE_RETHINK_MQTT_SERVER="$RETHINK_MQTTS" \
@@ -73,11 +87,21 @@ if [ -z "$ID" ] || ! grep -qE "enrolled with the relay|relay tunnel open" <<<"$L
 fi
 CODE="$(docker exec "cube-gw-$NAME" cube-gateway setup-code 2>/dev/null | awk 'NR == 1 && /Setup code/ {print $3}' || true)"
 URL="$RELAY_URL/relay/v1/g/$ID"
+if [ -n "$UNIT_ID" ]; then
+  if ! curl -sf -X POST "$EMS_URL/api/admin/gateways" -H "Authorization: Bearer $ADMIN_API_KEY" -H 'Content-Type: application/json' \
+      -d "{\"unitId\":\"$UNIT_ID\",\"gatewayId\":\"$ID\",\"secret\":\"$EMS_SECRET\",\"url\":\"$URL\"}" >/dev/null; then
+    echo "The gateway runs, but EMS refused to attach it to unit $UNIT_ID. Check UNIT_ID (GET $EMS_URL/api/admin/units) and ADMIN_API_KEY, then re-run."
+    exit 1
+  fi
+fi
 echo
 echo "Apartment:   $NAME"
 echo "Gateway:     $ID  (local http://127.0.0.1:$PORT)"
 echo "Relay URL:   $URL"
-if [ -n "$CODE" ]; then
+if [ -n "$UNIT_ID" ]; then
+  echo "Residents:   members of EMS unit $UNIT_ID connect by signing in to the app. No code to hand out."
+  if [ -n "$CODE" ]; then echo "Installer setup code (keep it, don't give it to residents): $CODE"; fi
+elif [ -n "$CODE" ]; then
   echo "Setup code:  $CODE   (give this to the resident; it works once)"
   echo "Pairing link (QR): cubegw://pair?url=$URL&id=$ID&code=$CODE"
   docker run --rm --entrypoint python "$IMAGE" -c "import qrcode,sys; q=qrcode.QRCode(border=1); q.add_data(sys.argv[1]); q.print_ascii(invert=True)" "cubegw://pair?url=$URL&id=$ID&code=$CODE" 2>/dev/null || true

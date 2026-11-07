@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { promisify } from 'node:util';
 
@@ -6,8 +6,8 @@ import type { Role, User } from '../../../shared/contracts/auth.ts';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { trimmedText } from '../lib/text.ts';
-import { findToken, insertToken, revokeTokenAndChildren, revokeUserTokens, type TokenKind, type TokenRow } from '../repositories/tokens.ts';
-import { findUserByEmail, findUserById, findUserWithPassword, insertUser, updatePasswordHash } from '../repositories/users.ts';
+import { activeSessionHashes, findToken, insertToken, revokeTokenAndChildren, revokeUserTokens, type TokenKind, type TokenRow } from '../repositories/tokens.ts';
+import { countAdmins, findUserByEmail, findUserById, findUserWithPassword, insertUser, setMustChangePassword, updatePasswordHash } from '../repositories/users.ts';
 import { newToken, sha256 } from './secrets.ts';
 
 /**
@@ -96,7 +96,104 @@ export async function verifyCredentials(emailInput: unknown, passwordInput: unkn
   if (!row || !matches) {
     throw new ApiError('unauthorized', 'Wrong email or password.');
   }
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  const { password_hash: _hash, ...user } = row;
+  return user;
+}
+
+// ---- temporary passwords and the admin account ----
+
+const TEMPORARY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; // nothing that reads alike
+
+/** A password to hand over once: 14 characters, never stored as issued. */
+export const temporaryPassword = () => Array.from({ length: 14 }, () => TEMPORARY_ALPHABET[randomInt(TEMPORARY_ALPHABET.length)]).join('');
+
+/**
+ * An account building management creates for a resident (or another admin), with a temporary password the
+ * person must replace at first sign-in. Returns the password once; only its hash is kept.
+ */
+export async function createAccountWithTemporaryPassword(emailInput: unknown, nameInput: unknown, roleInput: unknown) {
+  const email = normalizeEmail(emailInput);
+  const role: Role = roleInput === 'admin' ? 'admin' : 'resident';
+  const password = temporaryPassword();
+  const user: User = { id: randomUUID(), email, name: trimmedText(nameInput) || email.split('@')[0], role };
+  try {
+    insertUser(user, await hashPassword(password), new Date().toISOString(), true);
+  } catch (error) {
+    if (/UNIQUE/.test((error as Error).message)) {
+      throw new ApiError('conflict', 'An EMS account with this email already exists.');
+    }
+    throw error;
+  }
+  return { user: { ...user, mustChangePassword: true }, temporaryPassword: password };
+}
+
+/** Admin: a new temporary password; every session of the account ends and it must choose its own again. */
+export async function resetToTemporaryPassword(userId: string): Promise<{ temporaryPassword: string }> {
+  if (!findUserById(userId)) {
+    throw new ApiError('not_found', 'No such account.');
+  }
+  const password = temporaryPassword();
+  updatePasswordHash(userId, await hashPassword(password));
+  setMustChangePassword(userId, true);
+  revokeTokens(userId, ['session', 'assistant']);
+  return { temporaryPassword: password };
+}
+
+/** The signed-in person replaces their password (a temporary one, or any). Their other sessions end. */
+export async function changeOwnPassword(user: User, currentInput: unknown, nextInput: unknown, keepTokenHash: string): Promise<User> {
+  await verifyCredentials(user.email, currentInput).catch(() => {
+    throw new ApiError('unauthorized', 'The current password isn\'t right.');
+  });
+  const next = typeof nextInput === 'string' ? nextInput : '';
+  if (next.length < 10 || next.length > 128) {
+    throw new ApiError('bad_request', 'Choose a password of 10 to 128 characters.');
+  }
+  if (next === currentInput || next.trim().toLowerCase() === user.email) {
+    throw new ApiError('bad_request', 'Choose a password that is new and isn\'t your email.');
+  }
+  updatePasswordHash(user.id, await hashPassword(next));
+  setMustChangePassword(user.id, false);
+  for (const hash of activeSessionHashes(user.id, Date.now())) {
+    if (hash !== keepTokenHash) {
+      revokeTokenAndChildren(hash, Date.now());
+    }
+  }
+  return findUserById(user.id)!;
+}
+
+/**
+ * The first admin, made on starting when there is none: `EMS_ADMIN_USERNAME` (default `admin`) with
+ * `EMS_ADMIN_PASSWORD`, or a generated password printed once to the console. Either way it must be changed at
+ * the first sign-in. Not the public demo account.
+ */
+export async function ensureAdminAccount(): Promise<void> {
+  const { username: login, password: configured } = config.ems.adminAccount;
+  const username = loginOf(login);
+  if (!username || countAdmins() > 0) {
+    return;
+  }
+  if (findUserByEmail(username)) {
+    console.warn(`EMS: no admin account exists, and "${username}" is taken by another account. Set EMS_ADMIN_USERNAME.`);
+    return;
+  }
+  const password = configured || temporaryPassword();
+  const user: User = { id: randomUUID(), email: username, name: 'Building management', role: 'admin' };
+  insertUser(user, await hashPassword(password), new Date().toISOString(), true);
+  if (!configured) {
+    // Printed rather than logged as a field, like the gateway's setup code: it's needed once, by whoever runs the server.
+    console.log(
+      [
+        '',
+        '='.repeat(64),
+        '  EMS admin account created for the admin dashboard (/admin).',
+        `  Username: ${username}`,
+        `  Temporary password: ${password}`,
+        '  You will be asked to choose your own password at the first sign-in.',
+        '='.repeat(64),
+        '',
+      ].join('\n'),
+    );
+  }
 }
 
 /** For the clinic CLI: a doctor's or desk account's new password. Every session signed in with the old one ends. */
@@ -170,17 +267,28 @@ export function bearerOf(req: IncomingMessage): string {
   return header.startsWith('Bearer ') ? header.slice(7).trim() : '';
 }
 
-/** The user behind a request and the kind of token they sent, or 401. */
-export function authenticate(req: IncomingMessage, kinds: readonly TokenKind[] = ['session']): { user: User; kind: TokenKind } {
+/**
+ * The user behind a request and the kind of token they sent, or 401. An account still on a temporary password gets
+ * 403 `password_change_required`, except where `pendingOk` (reading itself, signing out, changing the password).
+ */
+export function authenticate(
+  req: IncomingMessage,
+  kinds: readonly TokenKind[] = ['session'],
+  { pendingOk = false }: { pendingOk?: boolean } = {},
+): { user: User; kind: TokenKind } {
   const found = lookupToken(bearerOf(req), kinds);
   if (!found) {
     throw new ApiError('unauthorized', 'Sign in to your EMS account again.');
+  }
+  if (found.user.mustChangePassword && !pendingOk) {
+    throw new ApiError('password_change_required', 'Choose your own password first: your account still has a temporary one.');
   }
   return { user: found.user, kind: found.kind };
 }
 
 /** The signed-in user behind a request, or 401. */
-export const requireUser = (req: IncomingMessage, kinds: readonly TokenKind[] = ['session']): User => authenticate(req, kinds).user;
+export const requireUser = (req: IncomingMessage, kinds: readonly TokenKind[] = ['session'], options: { pendingOk?: boolean } = {}): User =>
+  authenticate(req, kinds, options).user;
 
 /** The signed-in user, who must hold one of `roles` (403 otherwise). */
 export function requireRole(req: IncomingMessage, roles: readonly Role[]): User {

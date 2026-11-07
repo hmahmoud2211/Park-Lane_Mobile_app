@@ -51,3 +51,11 @@ export function revokeUserTokens(userId: string, kinds: readonly TokenKind[], at
     .prepare(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND kind IN (${placeholders})`)
     .run(at, userId, ...kinds);
 }
+
+/** Hashes of the user's app sessions that still work. */
+export function activeSessionHashes(userId: string, now: number): string[] {
+  const rows = db()
+    .prepare("SELECT token_hash FROM tokens WHERE user_id = ? AND kind = 'session' AND revoked_at IS NULL AND expires_at > ?")
+    .all(userId, now) as unknown as { token_hash: string }[];
+  return rows.map((row) => row.token_hash);
+}

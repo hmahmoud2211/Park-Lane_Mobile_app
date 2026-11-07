@@ -8,6 +8,8 @@ import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { GatewayStatusRow } from '../../features/gateway/components/GatewayStatusRow';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
 import { Notice } from '../../components/feedback/Notice';
 import { QrScanner } from '../../components/common/QrScanner';
 import { FilterChip } from '../../components/ui/FilterChip';
@@ -16,10 +18,19 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
+import { useEms } from '../../features/ems/hooks/useEms';
+import { EmsError } from '../../features/ems/services/emsHttp';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
+import { useGatewayPhones } from '../../features/gateway/hooks/useGatewayPhones';
 import * as api from '../../features/gateway/services/gatewayApi';
 import { scanLan, type FoundGateway } from '../../features/gateway/services/gatewayDiscovery';
 import { errorMessage } from '../../features/gateway/services/gatewayHttp';
+import type { PhoneRow } from '../../features/gateway/services/gatewayPhones';
+import { useUnit } from '../../features/unit/hooks/useUnit';
+import { formatCodeInput, inviteMessage, isCodeComplete, memberRows, type MemberRow } from '../../features/unit/services/unitRules';
+import type { MyUnit, UnitInvite, UnitRole } from '../../features/unit/types';
+import { shareOutcomeMessage, shareText } from '../../utils/share';
 import type { StoredGateway } from '../../features/gateway/services/gatewayStore';
 import { isRemoteGatewayUrl, parsePairPayload } from '../../features/gateway/services/pairCode';
 import type { RemoteStatus } from '../../types/gateway.types';
@@ -31,10 +42,13 @@ import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 type Mode = 'setup' | 'invite';
 
 /**
- * Pairing this phone with a CUBE Gateway. A new gateway prints a one-time
- * setup code (and a QR code holding its address and that code) in its logs:
- * whoever can read the logs owns it. Other phones join with an invite code
- * from the owner. Also where the owner sets up access from outside the home
+ * Connecting this phone to a CUBE Gateway. A signed-in resident connects to
+ * their apartment's gateway through their EMS account (GatewayContext does it
+ * by itself; this screen shows how it went and can try again). The codes are
+ * for installers, under Installer setup: a new gateway prints a one-time setup
+ * code (and a QR code holding its address and that code) in its logs, whoever
+ * can read the logs owns it, and other phones join with an invite code from
+ * the owner. Also where the owner sets up access from outside the home
  * (Tailscale or a relay) and invites other phones.
  */
 export function GatewaySetupScreen() {
@@ -44,6 +58,10 @@ export function GatewaySetupScreen() {
   const { params } = useRoute<RootStackScreenProps<'GatewaySetup'>['route']>();
   const gateway = useGateway();
   const { target, active } = gateway;
+  const ems = useEms();
+  const resident = ems.status === 'signedIn';
+  // Open for whoever arrives with a code to enter.
+  const [installerOpen, setInstallerOpen] = useState(Boolean(params?.host || params?.code));
 
   const [host, setHost] = useState(params?.host ?? '');
   const [code, setCode] = useState(params?.code ?? '');
@@ -61,6 +79,28 @@ export function GatewaySetupScreen() {
   const scanAbort = useRef<AbortController | null>(null);
 
   const [confirmForget, setConfirmForget] = useState<string | null>(null);
+  const [forgetting, setForgetting] = useState<string | null>(null);
+  const phones = useGatewayPhones(ems.user?.id ?? null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<{ id: string; message: string } | null>(null);
+  const [confirmOthers, setConfirmOthers] = useState(false);
+  const [othersBusy, setOthersBusy] = useState(false);
+  const [othersResult, setOthersResult] = useState<number | null>(null);
+  const [othersError, setOthersError] = useState<string | null>(null);
+  const unit = useUnit();
+  const [joinCode, setJoinCode] = useState('');
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joinedName, setJoinedName] = useState<string | null>(null);
+  const [confirmMember, setConfirmMember] = useState<string | null>(null);
+  const [removingMember, setRemovingMember] = useState<string | null>(null);
+  const [memberError, setMemberError] = useState<{ id: string; message: string } | null>(null);
+  const [familyRole, setFamilyRole] = useState<UnitRole>('member');
+  const [familyInvite, setFamilyInvite] = useState<UnitInvite | null>(null);
+  const [familyBusy, setFamilyBusy] = useState(false);
+  const [familyError, setFamilyError] = useState<string | null>(null);
+  const [shareNote, setShareNote] = useState<string | null>(null);
   const [remoteDraft, setRemoteDraft] = useState<string | null>(null);
   const [remoteSaved, setRemoteSaved] = useState(false);
   const [remote, setRemote] = useState<RemoteStatus | null>(null);
@@ -153,7 +193,84 @@ export function GatewaySetupScreen() {
       return;
     }
     setConfirmForget(null);
-    void gateway.forget(stored.id);
+    setForgetting(stored.id);
+    // An account-issued gateway is told first (a short, best-effort call), so show it working.
+    void gateway.forget(stored.id).finally(() => setForgetting(null));
+  };
+
+  const removePhone = async (row: PhoneRow) => {
+    setRemoving(row.id);
+    setRemoveError(null);
+    try {
+      await phones.remove(row.id);
+      setConfirmRemove(null);
+    } catch (error) {
+      setRemoveError({ id: row.id, message: errorMessage(error, copy.removeFailed) });
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  const joinApartment = async () => {
+    setJoinBusy(true);
+    setJoinError(null);
+    try {
+      const joined = await unit.join(joinCode);
+      setJoinCode('');
+      setJoinedName(joined.unit.name);
+    } catch (error) {
+      setJoinError(error instanceof EmsError ? copy.joinError(error.code, error.message) : copy.joinFailed);
+    } finally {
+      setJoinBusy(false);
+    }
+  };
+
+  const removeUnitMember = async (row: MemberRow) => {
+    setRemovingMember(row.userId);
+    setMemberError(null);
+    try {
+      await unit.removeMember(row.userId);
+      setConfirmMember(null);
+    } catch (error) {
+      setMemberError({ id: row.userId, message: error instanceof EmsError ? error.message : copy.removeMemberFailed });
+    } finally {
+      setRemovingMember(null);
+    }
+  };
+
+  const createFamilyInvite = async () => {
+    setFamilyBusy(true);
+    setFamilyError(null);
+    setShareNote(null);
+    try {
+      setFamilyInvite(await unit.createInvite(familyRole));
+    } catch (error) {
+      setFamilyError(error instanceof EmsError ? error.message : copy.familyFailed);
+    } finally {
+      setFamilyBusy(false);
+    }
+  };
+
+  const shareFamilyInvite = async (invite: UnitInvite) => {
+    const message = inviteMessage(invite);
+    if (!message) {
+      setShareNote(copy.shareExpired);
+      return;
+    }
+    setShareNote(shareOutcomeMessage(await shareText(copy.shareTitle, message), copy.shareWhat));
+  };
+
+  const signOutOthers = async () => {
+    setOthersBusy(true);
+    setOthersError(null);
+    try {
+      setOthersResult(await ems.signOutOthers());
+      setConfirmOthers(false);
+    } catch (error) {
+      setOthersError(error instanceof EmsError ? error.message : copy.othersFailed);
+    } finally {
+      setOthersBusy(false);
+    }
   };
 
   const saveRemote = async () => {
@@ -232,7 +349,11 @@ export function GatewaySetupScreen() {
             ) : null}
           </View>
           {isActive ? <StatusChip label={copy.active} tone="teal" icon="checkmark-outline" /> : null}
-          {!stored.endpoints.lan ? <StatusChip label={copy.onServer} tone="indigo" icon="cloud-outline" /> : null}
+          {stored.source === 'account' ? (
+            <StatusChip label={copy.viaAccount} tone="indigo" icon="person-circle-outline" />
+          ) : !stored.endpoints.lan ? (
+            <StatusChip label={copy.onServer} tone="indigo" icon="cloud-outline" />
+          ) : null}
           <StatusChip label={stored.role === 'owner' ? 'Owner' : 'Member'} tone="slate" />
         </View>
         <View style={styles.row}>
@@ -245,6 +366,7 @@ export function GatewaySetupScreen() {
             title={confirmForget === stored.id ? copy.confirmForget : copy.forget}
             variant="secondary"
             height={SMALL_BUTTON_HEIGHT}
+            loading={forgetting === stored.id}
             onPress={() => forget(stored)}
             accessibilityHint="Removes this gateway's key from this phone"
             style={styles.action}
@@ -288,12 +410,12 @@ export function GatewaySetupScreen() {
   const renderRemote = () => {
     if (!active) return null;
     if (!active.endpoints.lan) {
-      // On CUBE's server the relay is how the gateway is reached; Tailscale and relay settings do not apply.
+      // Reached only through the relay (on CUBE's server, or through the account); Tailscale and relay settings do not apply.
       return (
         <NeonPanel style={styles.panel}>
           <PanelHeading title={copy.remoteTitle} iconSet="ionicons" iconName="globe-outline" divider />
           <AppText variant="bodySmall" color={theme.colors.textSupport}>
-            {copy.serverRemoteIntro}
+            {active.source === 'account' ? copy.accountRemoteIntro : copy.serverRemoteIntro}
           </AppText>
         </NeonPanel>
       );
@@ -392,8 +514,9 @@ export function GatewaySetupScreen() {
     );
   };
 
+  // On an account gateway family join through the apartment (Members); the gateway's own codes are for installers' phones.
   const renderInvite = () =>
-    isOwner && target ? (
+    isOwner && target && active?.source !== 'account' ? (
       <NeonPanel style={styles.panel}>
         <PanelHeading title={copy.inviteTitle} iconSet="ionicons" iconName="person-add-outline" divider />
         <AppText variant="bodySmall" color={theme.colors.textSupport}>
@@ -411,6 +534,470 @@ export function GatewaySetupScreen() {
         </View>
       </NeonPanel>
     ) : null;
+
+  const renderAccount = () => {
+    const link = gateway.account;
+    const linked = link.state === 'connected' ? gateway.gateways.find((entry) => entry.id === link.gatewayId) : undefined;
+    // The context re-issues a refused account token once by itself; a refusal after that stays until asked.
+    const refused = linked?.source === 'account' && linked.id === active?.id && gateway.status === 'unauthorized';
+    const connectAccount = () => void gateway.connectAccount();
+    return (
+      <NeonPanel style={styles.panel}>
+        <PanelHeading title={copy.accountTitle} iconSet="ionicons" iconName="home-outline" divider />
+        {link.state === 'connecting' ? (
+          <LoadingState label={copy.accountConnecting} announce />
+        ) : refused ? (
+          <ErrorNotice title={copy.accountRefusedTitle} retryLabel={copy.accountRetry} onRetry={connectAccount} buttonHeight={SMALL_BUTTON_HEIGHT}>
+            {copy.accountRefused}
+          </ErrorNotice>
+        ) : linked ? (
+          <AppText variant="bodySmall" color={theme.colors.textSupport}>
+            {linked.source === 'account' ? copy.accountConnected(linked.name) : copy.accountPaired(linked.name)}
+          </AppText>
+        ) : link.state === 'no_gateway' && unit.state.status === 'none' ? (
+          <Notice tone="info" title={copy.accountNoUnitTitle}>
+            {copy.accountNoUnit}
+          </Notice>
+        ) : link.state === 'no_gateway' ? (
+          <Notice
+            tone="info"
+            title={copy.accountNoGatewayTitle}
+            actions={<AppButton title={copy.accountCheckAgain} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={connectAccount} />}
+          >
+            {copy.accountNoGateway}
+          </Notice>
+        ) : link.state === 'error' ? (
+          <ErrorNotice
+            title={copy.accountErrorTitle}
+            retryLabel={copy.accountRetry}
+            onRetry={connectAccount}
+            buttonHeight={SMALL_BUTTON_HEIGHT}
+            tone={link.code === 'network' || link.code === 'timeout' ? 'warning' : 'error'}
+          >
+            {copy.accountError(link.code, link.message)}
+          </ErrorNotice>
+        ) : (
+          <>
+            <AppText variant="bodySmall" color={theme.colors.textSupport}>
+              {copy.accountIntro}
+            </AppText>
+            <AppButton title={copy.accountConnect} variant="gradient" height={BUTTON_HEIGHT} onPress={connectAccount} />
+          </>
+        )}
+
+        <View style={styles.divider} />
+        <AppText variant="statValue">{copy.othersTitle}</AppText>
+        <AppText variant="tileCaption" color={theme.colors.textSupport}>
+          {copy.othersIntro}
+        </AppText>
+        {othersResult !== null ? <Notice tone="success">{copy.othersDone(othersResult)}</Notice> : null}
+        {othersError ? <Notice tone="error">{othersError}</Notice> : null}
+        {confirmOthers ? (
+          <Notice
+            tone="warning"
+            title={copy.othersConfirmTitle}
+            actions={
+              <>
+                <AppButton title={copy.othersConfirm} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={othersBusy} onPress={() => void signOutOthers()} />
+                <AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} disabled={othersBusy} onPress={() => setConfirmOthers(false)} />
+              </>
+            }
+          >
+            {copy.othersWarning}
+          </Notice>
+        ) : (
+          <AppButton
+            title={copy.othersAction}
+            variant="secondary"
+            height={SMALL_BUTTON_HEIGHT}
+            onPress={() => {
+              setConfirmOthers(true);
+              setOthersResult(null);
+              setOthersError(null);
+            }}
+          />
+        )}
+      </NeonPanel>
+    );
+  };
+
+  const renderMember = (row: MemberRow) => (
+    <GlassSurface
+      key={row.userId}
+      radius={theme.borderRadius.sm}
+      blurred={false}
+      strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+      fillOpacity={theme.glass.subtleFillOpacity}
+      style={styles.item}
+    >
+      <View style={styles.itemRow}>
+        <View style={styles.text}>
+          <AppText variant="statValue">{row.name}</AppText>
+          {row.email ? (
+            <AppText variant="tileCaption" color={theme.colors.textSupport} selectable>
+              {row.email}
+            </AppText>
+          ) : null}
+        </View>
+        {row.you ? <StatusChip label={copy.you} tone="teal" icon="person-outline" /> : null}
+        <StatusChip label={copy.roleLabel(row.role)} tone="slate" />
+      </View>
+      {row.removable && confirmMember === row.userId ? (
+        <Notice
+          tone="warning"
+          actions={
+            <>
+              <AppButton
+                title={copy.removeMemberConfirm}
+                variant="secondary"
+                height={SMALL_BUTTON_HEIGHT}
+                loading={removingMember === row.userId}
+                onPress={() => void removeUnitMember(row)}
+              />
+              <AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} disabled={removingMember === row.userId} onPress={() => setConfirmMember(null)} />
+            </>
+          }
+        >
+          {copy.removeMemberWarning(row.name)}
+        </Notice>
+      ) : row.removable ? (
+        <View style={styles.row}>
+          <AppButton
+            title={copy.removeMember}
+            variant="secondary"
+            height={SMALL_BUTTON_HEIGHT}
+            onPress={() => {
+              setConfirmMember(row.userId);
+              setMemberError(null);
+            }}
+            accessibilityHint={copy.removeMemberWarning(row.name)}
+            style={styles.action}
+          />
+        </View>
+      ) : null}
+      {memberError?.id === row.userId ? <Notice tone="error">{memberError.message}</Notice> : null}
+    </GlassSurface>
+  );
+
+  const renderFamilyInvite = () => (
+    <>
+      <View style={styles.divider} />
+      <AppText variant="statValue">{copy.familyTitle}</AppText>
+      <AppText variant="tileCaption" color={theme.colors.textSupport}>
+        {copy.familyIntro}
+      </AppText>
+      <View style={styles.chips} accessibilityRole="radiogroup">
+        <FilterChip role="radio" label={copy.familyAsMember} iconSet="ionicons" iconName="person-outline" selected={familyRole === 'member'} onPress={() => setFamilyRole('member')} />
+        <FilterChip role="radio" label={copy.familyAsOwner} iconSet="ionicons" iconName="key-outline" selected={familyRole === 'owner'} onPress={() => setFamilyRole('owner')} />
+      </View>
+      <AppText variant="tileCaption" color={theme.colors.textSupport}>
+        {familyRole === 'owner' ? copy.familyOwnerHint : copy.familyMemberHint}
+      </AppText>
+      {familyInvite ? (
+        <GlassSurface
+          radius={theme.borderRadius.sm}
+          blurred={false}
+          glow
+          strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+          fillOpacity={theme.glass.subtleFillOpacity}
+          style={styles.item}
+        >
+          <AppText variant="figure" align="center" selectable accessibilityLabel={copy.familyCode(familyInvite.code)} accessibilityLiveRegion="polite">
+            {familyInvite.code}
+          </AppText>
+          <AppText variant="tileCaption" color={theme.colors.textSupport} align="center">
+            {copy.familyExpires(familyInvite)}
+          </AppText>
+          <AppButton title={copy.share} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => void shareFamilyInvite(familyInvite)} />
+          {shareNote ? (
+            <AppText variant="tileCaption" color={theme.colors.textSupport} align="center">
+              {shareNote}
+            </AppText>
+          ) : null}
+        </GlassSurface>
+      ) : null}
+      {familyError ? <Notice tone="error">{familyError}</Notice> : null}
+      <AppButton
+        title={familyInvite ? copy.familyAnother : copy.familyCreate}
+        variant={familyInvite ? 'secondary' : 'gradient'}
+        height={BUTTON_HEIGHT}
+        loading={familyBusy}
+        onPress={() => void createFamilyInvite()}
+      />
+    </>
+  );
+
+  const renderMembers = (mine: MyUnit) => (
+    <>
+      <View style={styles.unitName}>
+        <AppText variant="statValue">{mine.unit.name}</AppText>
+        {mine.unit.building ? (
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {mine.unit.building}
+          </AppText>
+        ) : null}
+      </View>
+      {joinedName ? <Notice tone="success">{copy.joined(joinedName)}</Notice> : null}
+      {memberRows(mine).map(renderMember)}
+      {mine.role === 'owner' ? renderFamilyInvite() : null}
+    </>
+  );
+
+  const renderJoin = () => (
+    <>
+      <AppText variant="bodySmall" color={theme.colors.textSupport}>
+        {copy.joinIntro}
+      </AppText>
+      <AppInput
+        variant="field"
+        label={copy.joinCode}
+        value={joinCode}
+        onChangeText={(text) => {
+          setJoinCode(formatCodeInput(text));
+          setJoinError(null);
+        }}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        autoComplete="off"
+        height={FIELD_HEIGHT}
+      />
+      {joinError ? <Notice tone="error">{joinError}</Notice> : null}
+      <AppButton title={copy.join} variant="gradient" height={BUTTON_HEIGHT} loading={joinBusy} disabled={!isCodeComplete(joinCode)} onPress={() => void joinApartment()} />
+    </>
+  );
+
+  // Membership is what opens the apartment's gateway (and its devices) to an account, so it sits
+  // right under the account route: joining here is how a resident with no apartment gets one.
+  const renderUnit = () => {
+    const { state } = unit;
+    if (state.status === 'hidden') return null;
+    return (
+      <NeonPanel style={styles.panel}>
+        <PanelHeading title={state.status === 'none' ? copy.joinTitle : copy.membersTitle} iconSet="ionicons" iconName="people-outline" divider />
+        {state.status === 'loading' ? <LoadingState label={copy.unitLoading} /> : null}
+        {state.status === 'error' ? (
+          <ErrorNotice title={copy.unitError} retryLabel={copy.accountRetry} onRetry={unit.reload} buttonHeight={SMALL_BUTTON_HEIGHT} tone="warning">
+            {state.message}
+          </ErrorNotice>
+        ) : null}
+        {state.status === 'none' ? renderJoin() : null}
+        {state.status === 'ready' ? renderMembers(state.unit) : null}
+      </NeonPanel>
+    );
+  };
+
+  const renderPhone = (row: PhoneRow) => (
+    <GlassSurface
+      key={row.id}
+      radius={theme.borderRadius.sm}
+      blurred={false}
+      strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
+      fillOpacity={theme.glass.subtleFillOpacity}
+      style={styles.item}
+    >
+      <View style={styles.itemRow}>
+        <View style={styles.text}>
+          <AppText variant="statValue">{row.name}</AppText>
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.phoneDetail(row)}
+          </AppText>
+        </View>
+        {row.thisPhone ? <StatusChip label={copy.thisPhone} tone="teal" icon="phone-portrait-outline" /> : null}
+        <StatusChip
+          label={copy.phoneOrigin(row.origin)}
+          tone={row.origin === 'installer' ? 'slate' : 'indigo'}
+          icon={row.origin === 'installer' ? 'construct-outline' : 'person-circle-outline'}
+        />
+      </View>
+      {row.removable && confirmRemove === row.id ? (
+        <Notice
+          tone="warning"
+          actions={
+            <>
+              <AppButton title={copy.removeConfirm} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={removing === row.id} onPress={() => void removePhone(row)} />
+              <AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} disabled={removing === row.id} onPress={() => setConfirmRemove(null)} />
+            </>
+          }
+        >
+          {copy.removeWarning(row)}
+        </Notice>
+      ) : row.removable ? (
+        <View style={styles.row}>
+          <AppButton
+            title={copy.remove}
+            variant="secondary"
+            height={SMALL_BUTTON_HEIGHT}
+            onPress={() => {
+              setConfirmRemove(row.id);
+              setRemoveError(null);
+            }}
+            accessibilityHint={copy.removeWarning(row)}
+            style={styles.action}
+          />
+        </View>
+      ) : null}
+      {removeError?.id === row.id ? <Notice tone="error">{removeError.message}</Notice> : null}
+    </GlassSurface>
+  );
+
+  const renderPhones = () => {
+    const { state } = phones;
+    if (state.status === 'hidden') return null;
+    return (
+      <NeonPanel style={styles.panel}>
+        <PanelHeading title={copy.phonesTitle} iconSet="ionicons" iconName="phone-portrait-outline" divider />
+        <AppText variant="bodySmall" color={theme.colors.textSupport}>
+          {copy.phonesIntro}
+        </AppText>
+        {state.status === 'loading' ? <LoadingState label={copy.phonesLoading} /> : null}
+        {state.status === 'error' ? (
+          <ErrorNotice title={copy.phonesError} retryLabel={copy.accountRetry} onRetry={phones.reload} buttonHeight={SMALL_BUTTON_HEIGHT} tone="warning">
+            {state.message}
+          </ErrorNotice>
+        ) : null}
+        {state.status === 'ready' ? state.rows.map(renderPhone) : null}
+      </NeonPanel>
+    );
+  };
+
+  // The phone's own network can't be scanned on the web.
+  const findContent =
+    Platform.OS !== 'web' ? (
+      <>
+        <AppText variant="bodySmall" color={theme.colors.textSupport}>
+          {copy.findIntro}
+        </AppText>
+        {scanProgress !== null ? (
+          <>
+            <ProgressBar progress={scanProgress} height={PROGRESS_HEIGHT} accessibilityLabel={copy.scanning} />
+            <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              {copy.scanning}
+            </AppText>
+          </>
+        ) : null}
+        {scanError ? <Notice tone="warning">{scanError}</Notice> : null}
+        {found.map(renderFound)}
+        {scanProgress === null && found.length === 0 && !scanError && scanned ? (
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.scanNone}
+          </AppText>
+        ) : null}
+        <AppButton title={copy.scan} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={scanProgress !== null} onPress={() => void scan()} />
+      </>
+    ) : null;
+
+  const connectContent = (
+    <>
+      <AppText variant="bodySmall" color={theme.colors.textSupport}>
+        {copy.connectIntro}
+      </AppText>
+      <View style={styles.chips} accessibilityRole="radiogroup">
+        <FilterChip role="radio" label={copy.modeSetup} iconSet="ionicons" iconName="key-outline" selected={mode === 'setup'} onPress={() => setMode('setup')} />
+        <FilterChip role="radio" label={copy.modeInvite} iconSet="ionicons" iconName="mail-outline" selected={mode === 'invite'} onPress={() => setMode('invite')} />
+      </View>
+      <AppInput
+        variant="field"
+        label={copy.host}
+        value={host}
+        onChangeText={setHost}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="url"
+        height={FIELD_HEIGHT}
+      />
+      <AppText variant="tileCaption" color={theme.colors.textSupport}>
+        {copy.hostHelp}
+      </AppText>
+      <AppInput
+        variant="field"
+        label={copy.code}
+        value={code}
+        onChangeText={setCode}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        autoComplete="off"
+        height={FIELD_HEIGHT}
+      />
+      {qrOpen ? <QrScanner onScan={onQr} onClose={() => setQrOpen(false)} /> : null}
+      {qrError ? <Notice tone="warning">{qrError}</Notice> : null}
+      {qrNeedsAddress && !host.trim() ? <Notice tone="warning">{copy.qrNoAddress}</Notice> : null}
+      {connectError ? <Notice tone="error">{connectError}</Notice> : null}
+      <View style={styles.row}>
+        {Platform.OS !== 'web' ? (
+          <AppButton
+            title={qrOpen ? copy.closeQr : copy.scanQr}
+            variant="secondary"
+            height={BUTTON_HEIGHT}
+            onPress={() => setQrOpen((open) => !open)}
+            style={styles.action}
+          />
+        ) : null}
+        <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} loading={connecting} onPress={() => void connect()} style={styles.action} />
+      </View>
+      {isRemoteGatewayUrl(host) ? (
+        <AppText variant="tileCaption" color={theme.colors.textSupport}>
+          {copy.serverSecurity}
+        </AppText>
+      ) : (
+        <>
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.localNetwork}
+          </AppText>
+          <AppText variant="tileCaption" color={theme.colors.textSupport}>
+            {copy.security}
+          </AppText>
+        </>
+      )}
+    </>
+  );
+
+  // A signed-in resident connects through their account, so the codes fold away into one
+  // secondary panel; without a session they are the way in and stay as their own panels.
+  const renderManual = () =>
+    resident ? (
+      <NeonPanel style={styles.panel}>
+        <PanelHeading
+          title={copy.installerTitle}
+          iconSet="ionicons"
+          iconName="construct-outline"
+          subtitle={installerOpen ? undefined : copy.installerSubtitle}
+          actionLabel={installerOpen ? copy.hide : copy.show}
+          actionExpanded={installerOpen}
+          onActionPress={() => setInstallerOpen((open) => !open)}
+          divider={installerOpen}
+        />
+        {installerOpen ? (
+          <>
+            <AppText variant="bodySmall" color={theme.colors.textSupport}>
+              {copy.installerIntro}
+            </AppText>
+            {findContent ? (
+              <>
+                <View style={styles.divider} />
+                <AppText variant="statValue">{copy.findTitle}</AppText>
+                {findContent}
+              </>
+            ) : null}
+            <View style={styles.divider} />
+            <AppText variant="statValue">{copy.connectTitle}</AppText>
+            {connectContent}
+          </>
+        ) : null}
+      </NeonPanel>
+    ) : (
+      <>
+        {findContent ? (
+          <NeonPanel style={styles.panel}>
+            <PanelHeading title={copy.findTitle} iconSet="ionicons" iconName="search-outline" divider />
+            {findContent}
+          </NeonPanel>
+        ) : null}
+        <NeonPanel style={styles.panel}>
+          <PanelHeading title={copy.connectTitle} iconSet="ionicons" iconName="link-outline" divider />
+          {connectContent}
+        </NeonPanel>
+      </>
+    );
 
   return (
     <InnerScreenFrame contentStyle={styles.content}>
@@ -435,6 +1022,9 @@ export function GatewaySetupScreen() {
         </Notice>
       ) : null}
 
+      {resident ? renderAccount() : ems.configured && ems.status === 'signedOut' ? <EmsAccountPanel intro={copy.signInHint} /> : null}
+      {resident ? renderUnit() : null}
+
       {gateway.gateways.length > 0 ? (
         <NeonPanel style={styles.panel}>
           <PanelHeading title={copy.pairedTitle} iconSet="ionicons" iconName="hardware-chip-outline" divider />
@@ -442,96 +1032,10 @@ export function GatewaySetupScreen() {
         </NeonPanel>
       ) : null}
 
-      {Platform.OS !== 'web' ? (
-        <NeonPanel style={styles.panel}>
-          <PanelHeading title={copy.findTitle} iconSet="ionicons" iconName="search-outline" divider />
-          <AppText variant="bodySmall" color={theme.colors.textSupport}>
-            {copy.findIntro}
-          </AppText>
-          {scanProgress !== null ? (
-            <>
-              <ProgressBar progress={scanProgress} height={PROGRESS_HEIGHT} accessibilityLabel={copy.scanning} />
-              <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                {copy.scanning}
-              </AppText>
-            </>
-          ) : null}
-          {scanError ? <Notice tone="warning">{scanError}</Notice> : null}
-          {found.map(renderFound)}
-          {scanProgress === null && found.length === 0 && !scanError && scanned ? (
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.scanNone}
-            </AppText>
-          ) : null}
-          <AppButton title={copy.scan} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={scanProgress !== null} onPress={() => void scan()} />
-        </NeonPanel>
-      ) : null}
-
-      <NeonPanel style={styles.panel}>
-        <PanelHeading title={copy.connectTitle} iconSet="ionicons" iconName="link-outline" divider />
-        <AppText variant="bodySmall" color={theme.colors.textSupport}>
-          {copy.connectIntro}
-        </AppText>
-        <View style={styles.chips} accessibilityRole="radiogroup">
-          <FilterChip role="radio" label={copy.modeSetup} iconSet="ionicons" iconName="key-outline" selected={mode === 'setup'} onPress={() => setMode('setup')} />
-          <FilterChip role="radio" label={copy.modeInvite} iconSet="ionicons" iconName="mail-outline" selected={mode === 'invite'} onPress={() => setMode('invite')} />
-        </View>
-        <AppInput
-          variant="field"
-          label={copy.host}
-          value={host}
-          onChangeText={setHost}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          height={FIELD_HEIGHT}
-        />
-        <AppText variant="tileCaption" color={theme.colors.textSupport}>
-          {copy.hostHelp}
-        </AppText>
-        <AppInput
-          variant="field"
-          label={copy.code}
-          value={code}
-          onChangeText={setCode}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          autoComplete="off"
-          height={FIELD_HEIGHT}
-        />
-        {qrOpen ? <QrScanner onScan={onQr} onClose={() => setQrOpen(false)} /> : null}
-        {qrError ? <Notice tone="warning">{qrError}</Notice> : null}
-        {qrNeedsAddress && !host.trim() ? <Notice tone="warning">{copy.qrNoAddress}</Notice> : null}
-        {connectError ? <Notice tone="error">{connectError}</Notice> : null}
-        <View style={styles.row}>
-          {Platform.OS !== 'web' ? (
-            <AppButton
-              title={qrOpen ? copy.closeQr : copy.scanQr}
-              variant="secondary"
-              height={BUTTON_HEIGHT}
-              onPress={() => setQrOpen((open) => !open)}
-              style={styles.action}
-            />
-          ) : null}
-          <AppButton title={copy.connect} variant="gradient" height={BUTTON_HEIGHT} loading={connecting} onPress={() => void connect()} style={styles.action} />
-        </View>
-        {isRemoteGatewayUrl(host) ? (
-          <AppText variant="tileCaption" color={theme.colors.textSupport}>
-            {copy.serverSecurity}
-          </AppText>
-        ) : (
-          <>
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.localNetwork}
-            </AppText>
-            <AppText variant="tileCaption" color={theme.colors.textSupport}>
-              {copy.security}
-            </AppText>
-          </>
-        )}
-      </NeonPanel>
+      {renderManual()}
 
       {renderRemote()}
+      {renderPhones()}
       {renderInvite()}
     </InnerScreenFrame>
   );

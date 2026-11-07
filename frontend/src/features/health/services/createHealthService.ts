@@ -1,4 +1,4 @@
-import { getSessionToken } from '../../ems/services/emsApi';
+import { getSessionToken, reportPasswordChangeRequired } from '../../ems/services/emsApi';
 import type { HealthLang } from '../../../types/health.types';
 import type { HealthService } from './healthService';
 import { HttpHealthService } from './httpHealthService';
@@ -21,5 +21,5 @@ export function createHealthService({ getLang, onUnauthorized }: HealthServiceDe
     const { MockHealthService } = require('./mockHealthService') as typeof import('./mockHealthService');
     return new MockHealthService({ getLang });
   }
-  return new HttpHealthService({ getToken: getSessionToken, getLang, onUnauthorized });
+  return new HttpHealthService({ getToken: getSessionToken, getLang, onUnauthorized, onPasswordChangeRequired: reportPasswordChangeRequired });
 }

@@ -35,9 +35,31 @@ Phone (anywhere) ──▶ https://cube-relay.ems-iot.com ───┘
 
 ## Per apartment
 
+**Usually nothing to run here.** With `GATEWAY_RELAY_ENROLL_TOKEN` in the backend's `.env`, creating an apartment
+in the admin dashboard starts its gateway exactly as below (without a tunnel box) and links it
+([production.md](../../../docs/production.md#7-create-your-first-apartment-a-pilot)). Its page shows the container
+name and port.
+- **To add a tunnel box to such a gateway**, run this script with that name, without `cube-gw-`, and that port, plus
+  the tunnel arguments, for example
+  `UNIT_ID=… ADMIN_API_KEY=… ./new-apartment.sh tower-a-1203-7cca 18700 192.168.1.0/24 51821`.
+  It keeps the gateway's data and link.
+- The dashboard's **Update** keeps the tunnel. **Remove** followed by **Start again** brings it back without one, so
+  run the script again after that.
+
+By hand, or for apartments the backend doesn't make gateways for:
+
 ```bash
-./new-apartment.sh tower-a-1203 18701      # name, and a free local port per apartment
+UNIT_ID=<the unit's id in EMS> ADMIN_API_KEY=<the backend's admin key> ./new-apartment.sh tower-a-1203 18701
 ```
+
+The name, then a free local port per apartment. `UNIT_ID` comes from `GET /api/admin/units` on the EMS backend. With
+`UNIT_ID`, the gateway is attached to that unit:
+- **Residents** (the unit's members in EMS) connect by **signing in to the app**, with no code to hand out.
+- **Roles:** owner or member, the same as in EMS.
+- **Moving out:** removing a resident from the unit removes all their phones.
+- **Setup code:** printed for the installer only.
+
+Without `UNIT_ID` it works as before: give the resident the setup code and QR code.
 
 It starts `cube-gw-tower-a-1203`, waits until it has enrolled with the relay, and prints the **setup code** and
 a **pairing QR code** (`cubegw://pair?url=…&code=…`). Give them to the resident: in the app, **Connect gateway →

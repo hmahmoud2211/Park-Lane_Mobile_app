@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState, type 
 import { AppState } from 'react-native';
 
 import * as api from '../services/emsApi';
+import { needsPasswordChange } from '../services/passwordChange';
 import { EmsRealtime } from '../services/realtime';
 import { sessionStore } from '../services/sessionStore';
 import { sortDevices } from '../../home/services/capabilities';
@@ -34,6 +35,15 @@ interface EmsContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   createAccount: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Ends every other session of this account (a lost phone); resolves with how many ended. */
+  signOutOthers: () => Promise<number>;
+  /**
+   * Signed in with a temporary password (or one an admin reset since): the app asks for the
+   * resident's own before anything else, and the backend refuses everything else meanwhile.
+   */
+  passwordChangeRequired: boolean;
+  /** Replaces the temporary password; the same session carries on. Throws EmsError. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   /** Set when the backend ended the session (expired or revoked). */
   sessionNotice: string | null;
 
@@ -84,6 +94,9 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [devicesLoaded, setDevicesLoaded] = useState(false);
   const [realtime, setRealtime] = useState<RealtimeState>('offline');
   const [accountsVersion, setAccountsVersion] = useState(0);
+  /** A call was refused until the password is changed, whatever the account said at sign-in. */
+  const [changeRefused, setChangeRefused] = useState(false);
+  const passwordChangeRequired = status === 'signedIn' && needsPasswordChange(user, changeRefused);
   const channel = useRef<EmsRealtime | null>(null);
   const assistantGrant = useRef<{ token: string; expiresAt: number } | null>(null);
   const assistantGrantPending = useRef<Promise<string | null> | null>(null);
@@ -101,6 +114,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
     setRooms([]);
     setDevices([]);
     setDevicesLoaded(false);
+    setChangeRefused(false);
     setSessionNotice(notice);
     setStatus('signedOut');
   }, []);
@@ -109,6 +123,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
     assistantGrant.current = null;
     api.setSessionToken(next.token);
     await sessionStore.save(next.token);
+    setChangeRefused(false);
     setSessionNotice(null);
     setUser(next.user);
     setToken(next.token);
@@ -151,6 +166,8 @@ export function EmsProvider({ children }: PropsWithChildren) {
 
   useEffect(() => api.onSessionExpired(() => void endSession('Your EMS session ended. Sign in again.')), [endSession]);
 
+  useEffect(() => api.onPasswordChangeRequired(() => setChangeRefused(true)), []);
+
   const upsertDevice = useCallback((device: Device) => {
     setDevices((current) => sortDevices([...current.filter((entry) => entry.id !== device.id), device]));
   }, []);
@@ -192,9 +209,10 @@ export function EmsProvider({ children }: PropsWithChildren) {
     refreshRef.current = refreshHome;
   }, [refreshHome]);
 
-  // One realtime channel per session.
+  // One realtime channel per session, once it can be used: until the resident sets their own
+  // password every call is refused, so the channel and the home wait for that.
   useEffect(() => {
-    if (status !== 'signedIn' || !token) {
+    if (status !== 'signedIn' || !token || passwordChangeRequired) {
       return;
     }
     const onEvent = (event: EmsEvent) => {
@@ -237,7 +255,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
         channel.current = null;
       }
     };
-  }, [status, token, upsertDevice, dropDevice, endSession]);
+  }, [status, token, passwordChangeRequired, upsertDevice, dropDevice, endSession]);
 
   const signIn = useCallback(async (email: string, password: string) => begin(await api.signIn(email, password)), [begin]);
 
@@ -253,9 +271,17 @@ export function EmsProvider({ children }: PropsWithChildren) {
     await endSession(null);
   }, [endSession]);
 
+  const signOutOthers = useCallback(async () => (await api.signOutOthers()).revoked, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const { user: updated } = await api.changePassword({ currentPassword, newPassword });
+    setUser(updated);
+    setChangeRefused(false);
+  }, []);
+
   // Reused until shortly before it lapses; one request at a time.
   const assistantToken = useCallback(async () => {
-    if (status !== 'signedIn') {
+    if (status !== 'signedIn' || passwordChangeRequired) {
       return null;
     }
     const grant = assistantGrant.current;
@@ -278,7 +304,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
         assistantGrantPending.current = null;
       });
     return assistantGrantPending.current;
-  }, [status]);
+  }, [status, passwordChangeRequired]);
 
   const value = useMemo<EmsContextValue>(
     () => ({
@@ -288,6 +314,9 @@ export function EmsProvider({ children }: PropsWithChildren) {
       signIn,
       createAccount,
       signOut,
+      signOutOthers,
+      passwordChangeRequired,
+      changePassword,
       sessionNotice,
       home,
       homeProblem,
@@ -306,6 +335,9 @@ export function EmsProvider({ children }: PropsWithChildren) {
       signIn,
       createAccount,
       signOut,
+      signOutOthers,
+      passwordChangeRequired,
+      changePassword,
       sessionNotice,
       home,
       homeProblem,

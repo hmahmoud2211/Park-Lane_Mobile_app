@@ -197,6 +197,32 @@ async function main() {
     stop();
   });
 
+  check('EMS: a refusal that a 401 is not about the session leaves it signed in', async () => {
+    ems.setSessionToken('tok');
+    let expired = 0;
+    const stop = ems.onSessionExpired(() => expired++);
+    handler = async () => json({ ok: false, error: { code: 'unauthorized', message: 'The current password is wrong.' } }, 401);
+    await rejects(ems.call('/api/auth/change-password', { method: 'POST', body: {}, sessionCheck: false }), { class: 'EmsError', code: 'unauthorized', status: 401 });
+    equal(expired, 0, 'expired listeners after a wrong current password');
+    stop();
+  });
+
+  check('EMS: a call refused until the password is changed tells those listeners, and only for it', async () => {
+    ems.setSessionToken('tok');
+    let asked = 0;
+    let expired = 0;
+    const stopAsked = ems.onPasswordChangeRequired(() => asked++);
+    const stopExpired = ems.onSessionExpired(() => expired++);
+    handler = async () => json({ ok: false, error: { code: 'password_change_required', message: 'Choose your own password first.' } }, 403);
+    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'password_change_required', message: 'Choose your own password first.', status: 403 });
+    equal([asked, expired], [1, 0], 'password-change and expired listeners');
+    handler = async () => json({ ok: false, error: { code: 'forbidden', message: 'Owners only.' } }, 403);
+    await rejects(ems.call('/api/unit/invites', { method: 'POST' }), { class: 'EmsError', code: 'forbidden', status: 403 });
+    equal(asked, 1, 'password-change listeners after another 403');
+    stopAsked();
+    stopExpired();
+  });
+
   check('EMS: a read marked retry tries once more after a network failure, and only then', async () => {
     ems.setSessionToken('tok');
     let attempts = 0;

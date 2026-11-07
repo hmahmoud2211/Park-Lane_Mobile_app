@@ -5,8 +5,8 @@ import { ApiError } from '../errors.ts';
 import { parseJsonOrText } from '../lib/json.ts';
 
 /**
- * The Docker Engine API over its socket (DOCKER_SOCKET), which the provisioner uses to
- * create each unit's Home Assistant container. Whoever can reach the socket controls the
+ * The Docker Engine API over its socket (DOCKER_SOCKET), which the provisioners use to
+ * create each unit's Home Assistant and CUBE gateway containers. Whoever can reach the socket controls the
  * host: it is mounted into the backend's container only (backend/compose.yaml).
  */
 
@@ -46,4 +46,14 @@ export async function dockerOk(method: string, path: string, body?: unknown, all
     throw new Error(`Docker ${method} ${path.split('?')[0]}: ${message}`);
   }
   return response.body;
+}
+
+/** Pulls `image` when Docker doesn't have it yet, or every time with `pull` (a newer build under the same tag). */
+export async function ensureImage(image: string, { pull = false } = {}): Promise<void> {
+  if (!pull && (await docker('GET', `/images/${encodeURIComponent(image)}/json`)).status !== 404) {
+    return;
+  }
+  const colon = image.lastIndexOf(':');
+  const [name, tag] = colon > image.lastIndexOf('/') ? [image.slice(0, colon), image.slice(colon + 1)] : [image, 'latest'];
+  await dockerOk('POST', `/images/create?fromImage=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`);
 }

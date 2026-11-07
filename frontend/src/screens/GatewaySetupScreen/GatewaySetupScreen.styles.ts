@@ -50,6 +50,9 @@ export function createStyles(theme: AppTheme) {
       flex: 1,
       gap: 2,
     },
+    unitName: {
+      gap: 2,
+    },
     row: {
       flexDirection: 'row',
       flexWrap: 'wrap',

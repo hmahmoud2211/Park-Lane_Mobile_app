@@ -18,6 +18,10 @@ export type ApiErrorCode =
   | 'ha_rejected'
   | 'not_configured'
   | 'flow_expired'
+  // CUBE gateway access through the account: the resident's unit has no gateway yet.
+  | 'no_gateway'
+  // An account with a temporary password must choose its own before anything else.
+  | 'password_change_required'
   // Health Passport and the clinic.
   | 'invalid'
   | 'too_large'

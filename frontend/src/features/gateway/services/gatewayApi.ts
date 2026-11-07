@@ -41,7 +41,15 @@ export const claim = (baseUrl: string, setupCode: string, clientName: string) =>
 export const join = (baseUrl: string, inviteCode: string, clientName: string) =>
   gatewayCall<ClaimResult>({ baseUrl }, '/auth/join', { method: 'POST', body: { invite_code: inviteCode, client_name: clientName } });
 
+/** Trades a pass from the EMS backend (accountLogin.ts) for this phone's own token, answered like join. */
+export const accountLogin = (baseUrl: string, pass: string, clientName: string) =>
+  gatewayCall<ClaimResult>({ baseUrl }, '/auth/account', { method: 'POST', body: { pass, client_name: clientName } });
+
 export const getMe = (t: GatewayTarget) => gatewayCall<{ client: GatewayClient; gateway: { id: string; name: string } }>(t, '/auth/me');
+
+/** Ends this phone's own access: its token stops working on the gateway. */
+export const revokeMe = (t: GatewayTarget, timeoutMs?: number) =>
+  gatewayCall<{ revoked: string }>(t, '/auth/me', { method: 'DELETE', timeoutMs });
 
 export const createInvite = (t: GatewayTarget, role: 'member' | 'owner') =>
   gatewayCall<{ code: string; expires_at: number }>(t, '/auth/invites', { method: 'POST', body: { role } });

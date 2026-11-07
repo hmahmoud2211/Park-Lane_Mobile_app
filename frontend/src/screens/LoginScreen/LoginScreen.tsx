@@ -97,7 +97,7 @@ export function LoginScreen() {
   const fieldHeight = isWide ? FIELD_HEIGHT_WIDE : FIELD_HEIGHT;
   const submitHeight = isWide ? SUBMIT_HEIGHT_WIDE : SUBMIT_HEIGHT;
   const { setResidentId } = useAppContext();
-  const { status, signIn, createAccount, sessionNotice } = useEms();
+  const { status, passwordChangeRequired, signIn, createAccount, sessionNotice } = useEms();
 
   const [mode, setMode] = useState<LoginMode>('signIn');
   const [name, setName] = useState('');
@@ -114,13 +114,14 @@ export function LoginScreen() {
   const creating = mode === 'create';
 
   // Signed in, just now or by a stored session. `replace` rather than `navigate`
-  // so the back gesture does not return to the login form.
+  // so the back gesture does not return to the login form. A temporary password
+  // is replaced first (ChangePasswordScreen), which then opens Home itself.
   useEffect(() => {
     if (status === 'signedIn') {
       setResidentId(assistantConfig.defaultResidentId);
-      navigation.replace('Home');
+      navigation.replace(passwordChangeRequired ? 'ChangePassword' : 'Home');
     }
-  }, [status, navigation, setResidentId]);
+  }, [status, passwordChangeRequired, navigation, setResidentId]);
 
   const handleSubmit = useCallback(async () => {
     const nextErrors = creating ? validateNewAccount(name, email, password) : validateLogin(email, password);

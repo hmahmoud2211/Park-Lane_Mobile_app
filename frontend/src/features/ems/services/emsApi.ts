@@ -1,3 +1,4 @@
+import type { ChangePassword, SignedOutOthers } from '../../../../../shared/contracts/auth';
 import type { EmsUser } from '../../../types/ems.types';
 import { call } from './emsHttp';
 
@@ -7,7 +8,9 @@ export {
   EmsError,
   getSessionToken,
   isEmsConfigured,
+  onPasswordChangeRequired,
   onSessionExpired,
+  reportPasswordChangeRequired,
   reportSessionExpired,
   setSessionToken,
   type EmsErrorCode,
@@ -27,6 +30,19 @@ export const createAccount = (name: string, email: string, password: string) =>
   call<SessionResult>('/api/auth/register', { method: 'POST', body: { name, email, password }, auth: false });
 
 export const signOut = () => call<{ signedOut: true }>('/api/auth/logout', { method: 'POST' });
+
+/**
+ * For a lost phone: every other session of this account ends, and the gateway drops those
+ * phones within a few minutes (its member check). This session stays.
+ */
+export const signOutOthers = () => call<SignedOutOthers>('/api/auth/logout-others', { method: 'POST' });
+
+/**
+ * Replaces a temporary password with the resident's own. The session stays signed in (the
+ * account's other sessions end); a 401 here is a wrong current password, not a lost session.
+ */
+export const changePassword = (body: ChangePassword) =>
+  call<{ user: EmsUser }>('/api/auth/change-password', { method: 'POST', body, sessionCheck: false });
 
 export const getMe = () => call<{ user: EmsUser }>('/api/auth/me', { retry: true });
 

@@ -46,7 +46,7 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | Assistant | `POST /api/auth/assistant-token`; ≤ 12 hours, never longer than its session | `GET /api/home`, `GET /api/devices`, `GET /api/devices/:id`, `GET /api/rooms`, `POST /api/devices/:id/commands` only; every command audited, `lock.unlock` refused |
 | Admin key | `ADMIN_API_KEY` | `/api/health` (open while no key is set) and `/api/admin/*` (off until a key is set) |
 
-**Rate limits** (per IP before sign-in, per user after; one-minute windows, `backend/src/http/rateLimits.ts`): register and login 10, assistant token 20, device commands 60, starting a link flow 20, answering a flow step 60, refreshing accounts 6, creating rooms 20.
+**Rate limits** (per IP before sign-in, per user after; one-minute windows, `backend/src/http/rateLimits.ts`): register and login 10, assistant token 20, device commands 60, starting a link flow 20, answering a flow step 60, refreshing accounts 6, creating rooms 20, gateway passes 20, gateway member checks 30 (per gateway), joining a unit 10 (per account and per IP); invites 20 an hour.
 
 ## Accounts — `routes/auth.ts`
 
@@ -57,6 +57,12 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | `POST /api/auth/logout` | — | `{ signedOut: true }`; revokes the session and its assistant tokens |
 | `GET /api/auth/me` | — | `{ user }` (`User`, with `role`: `resident`, `doctor` or `clinic_staff`) |
 | `POST /api/auth/assistant-token` | — | `AssistantToken`: `{ token, expiresAt }` |
+| `POST /api/auth/logout-others` | — | `SignedOutOthers`: `{ revoked }`; every other session of the account ends (a lost phone), and their CUBE gateway access within five minutes |
+| `POST /api/auth/change-password` | `ChangePassword`: `{ currentPassword, newPassword }` | `{ user }`; at least 10 characters, not the current one, not the email; the same session stays valid, the others end. 401 for a wrong current password |
+
+**Temporary passwords.** An account an admin created or reset has `user.mustChangePassword: true`. Until it changes
+its password, every route except `GET /api/auth/me`, `POST /api/auth/logout` and `POST /api/auth/change-password`
+answers 403 `password_change_required`.
 
 ## The home — `routes/home.ts`
 
@@ -107,18 +113,63 @@ All need the session token.
 
 ## Operations — `routes/ops.ts`
 
-All need `Authorization: Bearer <ADMIN_API_KEY>`.
+All need `Authorization: Bearer <ADMIN_API_KEY>`, or the session of an EMS account with the `admin` role that has
+chosen its own password (the admin dashboard at `/admin` signs in this way). A resident's session gets 403. Changes
+are logged with who made them.
 
 | Method & path | Body | Answer |
 |---|---|---|
 | `GET /api/health` | — | `{ status: 'ok' }` |
-| `GET /api/admin/units` | — | units, each with its `hub` |
-| `POST /api/admin/units` | `{ name, building?, provision? }` | the unit and its hub; provisions a Home Assistant container unless `provision: false` |
-| `DELETE /api/admin/units/:id` | — | `{ deleted: true }`; removes the container, keeps its `/config` folder |
+| `GET /api/admin/features` | — | `{ gatewayContainers }`: whether this server makes each unit's CUBE gateway (`GATEWAY_RELAY_ENROLL_TOKEN` set) |
+| `GET /api/admin/units` | — | units, each with its `hub` and `gatewayContainer` |
+| `POST /api/admin/units` | `{ name, building?, provision?, gateway? }` | the unit with its `hub` and `gatewayContainer`. Provisions a Home Assistant container unless `provision: false`, and starts its CUBE gateway when the server makes them, unless `gateway: false` |
+| `DELETE /api/admin/units/:id` | — | `{ deleted: true }`; removes its Home Assistant and gateway containers, keeping their data (`/config` folder, gateway volume) |
 | `POST /api/admin/units/:id/provision` | — | the hub; starts or retries provisioning |
+| `POST /api/admin/units/:id/gateway` | `{ update? }` | the `gatewayContainer`. Starts the unit's gateway, or retries one that failed, or starts a removed one again with the same id and devices. With `update: true`, pulls the image again and recreates it with the same settings. 409 `conflict` when another gateway (a box at home) is linked; 503 `not_configured` when the server makes none |
+| `DELETE /api/admin/units/:id/gateway` | — | `{ removed }`; stops and removes the container and unlinks it. Its volume and id are kept |
 | `POST /api/admin/units/:id/members` | `{ email, role? }` | `{ unitId, user, role }`; puts an existing account in the unit (`owner` or `member`) |
+| `DELETE /api/admin/units/:id/members/:userId` | — | `{ removed }`; takes a resident out of the unit |
+| `GET /api/admin/units/:id` | — | the unit with its `hub`, `gateway`, `gatewayContainer` and `members` (`userId, name, email, role, since`) |
+
+`gatewayContainer` is the gateway the server runs for the unit, or `null`: `{ unitId, gatewayId, containerName, port,
+status, lastError }`. `status` is `provisioning` (starting, until it has checked in and answers through the relay, up
+to three minutes), `running`, `failed` (`lastError` says why) or `removed`.
+| `GET /api/admin/users?q=` | — | accounts matching name or email (newest first, 200 at most), each with `role`, `mustChangePassword` and its `unit` |
+| `POST /api/admin/users` | `{ email, name?, role?, unitId?, unitRole? }` | `{ user, temporaryPassword, unitId }`; `role` is `resident` (default) or `admin`; the temporary password is shown only here |
+| `POST /api/admin/users/:id/reset-password` | — | `{ temporaryPassword }`; signs the account out everywhere; it must choose a new password |
 | `GET /api/admin/hubs` | — | all hubs |
 | `POST /api/admin/hubs` | `{ unitId, baseUrl, token }` | attaches a separately run Home Assistant (address inside `HA_ALLOWED_NETWORKS`) |
+| `GET /api/admin/gateways` | — | the CUBE gateways attached to units, with `lastSync` |
+| `POST /api/admin/gateways` | `{ unitId, gatewayId, secret, url? }` | attaches a CUBE gateway to a unit; `secret` (32+ characters) is the one the gateway was started with (`CUBE_EMS_SECRET`), `url` its https relay address |
+| `DELETE /api/admin/gateways/:id` | — | `{ deleted }` |
+
+## The resident's apartment — `routes/unit.ts`
+
+App sessions only (`backend/src/ems/membership.ts`). Joining a unit gives an account both the unit's brand-account
+devices (Home Assistant) and its CUBE gateway (passes go only to members); removing a member ends both, Home Assistant
+at once and the gateway at its next member check.
+
+| Method & path | Body | Answer |
+|---|---|---|
+| `GET /api/unit` | — | `MyUnit`: `{ unit, role, members }`; members' emails only for owners; 404 `no_home` without a unit |
+| `POST /api/unit/invites` | `{ role? }` | `UnitInvite`: `{ code, role, expiresAt }`; owners only; single use, 24 hours, at most 10 open per unit |
+| `POST /api/unit/join` | `{ code }` | `MyUnit`; 422 `invalid` (wrong, used, expired), 409 `conflict` (already in another unit); a code for your own unit isn't used up |
+| `DELETE /api/unit/members/:userId` | — | `MyUnit`; owners only, not themselves |
+
+## CUBE gateway access — `routes/gateway.ts`
+
+Residents reach their apartment's CUBE gateway with their account instead of a setup code
+(`backend/src/ems/gatewayAccess.ts`, `gateway/cube_gateway/accounts.py`).
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/gateway/key` | anyone | `{ alg: 'Ed25519', key }`: the public key gateways check passes with (they pin it) |
+| `POST /api/gateway/pass` | a session (not an assistant token) | `GatewayPass`: `{ gateway: { id, url }, pass, expiresAt, role }`; 404 `no_gateway` when the resident's unit has none. The pass is signed, single use, valid 5 minutes, for that gateway only; the app hands it to `POST <url>/api/v1/auth/account` |
+| `GET /api/gateway/members` | the gateway, `Bearer <gateway id>.<secret>` | `{ gatewayId, unitId, members: [{ userId, role, sessions }] }`; `sessions` are the ids of the member's signed-in app sessions. The gateway removes phones of anyone not listed, phones whose session ended, and follows roles |
+| `POST /api/gateway/sessions/revoke` | the gateway | `{ sessions: [id] }` → `{ revoked }`: ends the app sessions of phones an owner removed on the gateway (its own residents' only), so a lost phone can't ask for a new pass |
+
+A phone's gateway token lives as long as the app session that asked for its pass: the pass carries the session's id
+(`sid`, a one-way fingerprint, never the token).
 
 ## Realtime — `GET /api/events` (WebSocket)
 

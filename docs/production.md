@@ -80,7 +80,15 @@ HA_CONFIG_HOST_ROOT=/srv/parklane/ha
 HA_CUSTOM_COMPONENTS=/srv/parklane/custom_components
 HA_MEMORY_MB=512
 HA_TIME_ZONE=Africa/Cairo
+
+# Every new apartment gets its CUBE gateway: the relay's enrol token
+GATEWAY_RELAY_ENROLL_TOKEN=<CUBE_RELAY_ENROLL_TOKEN from /home/ems-server/EMS/cube-relay/relay.env>
 ```
+
+`GATEWAY_RELAY_ENROLL_TOKEN` turns on the gateway per apartment. To copy it:
+`grep '^CUBE_RELAY_ENROLL_TOKEN=' /home/ems-server/EMS/cube-relay/relay.env`. Leave it empty and apartments get no
+gateway by themselves (`new-apartment.sh` still works). Other `GATEWAY_*` settings are in `backend/.env.example`.
+Their defaults match `new-apartment.sh`.
 
 > 🔑 **Keep a copy of `EMS_ENCRYPTION_KEY` somewhere safe.** It encrypts every apartment's Home Assistant token. If it's lost, every apartment has to be set up again.
 
@@ -115,6 +123,26 @@ Caddy gets the certificate automatically. Live updates in the app (WebSockets) w
 Check from your PC: open `https://api-iot-2.ems-iot.com/api/home`. It should answer `{"ok":false,"error":{"code":"unauthorized"…}}`. That error means the new backend is live.
 
 ## 7. Create your first apartment (a pilot)
+
+**With the admin dashboard** (easiest): open `https://api-iot-2.ems-iot.com/admin`.
+1. **First sign-in.** On its first start the backend created an admin account. Sign in with username `admin` and
+   the temporary password it printed once: `docker logs parklane-backend 2>&1 | grep -A2 "EMS admin account created"` (or the
+   `EMS_ADMIN_PASSWORD` you set in `backend/.env`). The dashboard then asks you to choose your own password.
+2. **Apartments → New apartment.** Its Home Assistant and its CUBE gateway are made automatically. The apartment's
+   page shows the gateway as **Setting up**, then **Connected** (up to 3 minutes the first time). There is nothing
+   to run on the server. **Setup failed** shows the reason and a **Try again** button.
+3. **Create an account for this apartment.** Enter the owner's email and name. The dashboard shows a temporary
+   password once: give it to the owner with their email. At their first sign-in in the app they choose their own.
+4. **Home-only devices** (Tasmota, ESPHome, TP-Link…) also need a tunnel box at home: see the
+   [server-mode README](../gateway/deploy/server-mode/README.md#apartments-with-home-only-devices-the-tunnel-box).
+   An apartment with its own gateway box at home: **Remove** the server's gateway on its page, then link the box
+   there.
+5. **More admins:** Accounts → New account → Admin. They also get a temporary password to replace.
+
+Lost admin password? Another admin resets it (Accounts → Reset password). If no admin can sign in, the shared key
+still works: `curl -X POST $API/api/admin/users/<id>/reset-password -H "Authorization: Bearer $KEY"`.
+
+**With the API** (scripts, or without the dashboard):
 
 ```bash
 API=https://api-iot-2.ems-iot.com
@@ -153,6 +181,9 @@ npx eas-cli@latest build --profile production --platform all      # store builds
 | **Backend logs** | `docker logs -f parklane-backend` |
 | **One apartment's logs** | `docker ps` (find `parklane-ha-…`), then `docker logs -f parklane-ha-…` |
 | **Retry a failed apartment** | `curl -X POST $API/api/admin/units/<id>/provision -H "Authorization: Bearer $KEY"` |
+| **Update an apartment's gateway** | Its page in the dashboard → **Update**: pulls the newest `GATEWAY_IMAGE` and restarts it with the same settings and devices (a tunnel box's included) |
+| **One apartment's gateway logs** | The container name is on its page: `docker logs -f cube-gw-…` |
+| **A removed gateway's data** | **Remove** keeps its devices in the volume of the same name, so **Start the gateway again** brings it back. To delete them for good: `docker volume rm cube-gw-…` |
 | **Upgrade Home Assistant** | Change `HA_IMAGE`, then per apartment `docker rm -f parklane-ha-…` and call `/provision` for it. Its data and linked accounts are kept |
 | **Set up the clinic** | Doctors and desk accounts come from the CLI: `docker exec parklane-backend npm run clinic -- …`, see [CLINIC.md](CLINIC.md#setting-up-real-doctors). Add the AI and ElevenLabs keys to `backend/.env` before Health Passport can read documents or make summaries, and read its [production checklist](CLINIC.md#production-checklist) first |
 | **Back up** | Copy `/srv/parklane` (database, the clinic's sealed files and every apartment's data) plus your `EMS_ENCRYPTION_KEY`, for example nightly |
@@ -169,6 +200,14 @@ rmdir server            # only if nothing else is left in it
 ```
 
 The database and the apartments live in `PARKLANE_DATA` (`/srv/parklane`), outside the repo, so nothing else moves. The running container keeps serving until the new build replaces it, and the compose project and container names stay `parklane` and `parklane-backend`.
+
+### Accounts building management creates
+
+An admin creates residents' (and other admins') accounts with a temporary password, shown once. Until its owner
+signs in and chooses their own (at least 10 characters), the account can do nothing else: every call answers
+`password_change_required`. A password reset from the dashboard does the same and also signs the person out
+everywhere. Admins sign in with their own accounts, so each change in the log names who made it; the shared
+`ADMIN_API_KEY` stays for scripts and emergencies.
 
 ### The default account
 

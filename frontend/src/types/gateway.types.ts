@@ -427,6 +427,8 @@ export interface GatewayHealth {
   adapters: { loaded: number; failed: number };
   /** Absent or null until the gateway has a certificate; older gateways never send it. */
   tls?: GatewayTls | null;
+  /** True when the gateway is linked to EMS, so residents connect through their account (POST /auth/account). Older gateways never send it. */
+  account_login?: boolean;
 }
 
 /** The gateway's HTTPS base URLs, each a name whose first label is its gateway_id. */
@@ -443,9 +445,13 @@ export interface GatewayClient {
   id: string;
   name: string;
   role: 'owner' | 'member';
+  /** Unix seconds (with a fraction), like every gateway time. */
   created_at?: number;
+  /** Null until the phone has used its token. */
   last_seen?: number | null;
   revoked?: boolean;
+  /** The EMS user a phone connected through their account belongs to; null for a phone paired with a code (installer). */
+  account_id?: string | null;
 }
 
 export interface ClaimResult {

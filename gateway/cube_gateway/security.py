@@ -66,9 +66,16 @@ class Client:
     created_at: float
     last_seen: float | None
     revoked: bool
+    #: The EMS account this phone signed in with (accounts.py), or None for a phone paired with a code.
+    account_id: str | None = None
+    #: The EMS session that asked for its pass: the phone lasts as long as that session (accounts.py).
+    session_id: str | None = None
 
     def public(self) -> dict:
-        return {"id": self.id, "name": self.name, "role": self.role, "created_at": self.created_at, "last_seen": self.last_seen, "revoked": self.revoked}
+        return {
+            "id": self.id, "name": self.name, "role": self.role, "created_at": self.created_at, "last_seen": self.last_seen,
+            "revoked": self.revoked, "account_id": self.account_id,
+        }
 
 
 class AuthError(Exception):
@@ -114,13 +121,17 @@ class Security:
         self._setup_failures = 0
         self._token_cache: dict[str, tuple[Client, float]] = {}
         self.auth_limiter = RateLimiter(limit=10, window=60)
+        #: Set when the gateway is linked to an EMS apartment: residents use their account, setup codes are for installers.
+        self.account_login = False
         self.challenge_limiter = RateLimiter(limit=30, window=60)
 
-    async def load(self, configured_name: str | None) -> None:
+    async def load(self, configured_name: str | None, preset_id: str = "") -> None:
         gateway_id = await self.db.get_meta("gateway_id")
         if not gateway_id:
-            gateway_id = str(uuid.uuid4())
+            gateway_id = preset_id or str(uuid.uuid4())
             await self.db.set_meta("gateway_id", gateway_id)
+        elif preset_id and preset_id != gateway_id:
+            log.warning("CUBE_GATEWAY_ID differs from this gateway's stored id; keeping the stored one", extra={"gateway_id": gateway_id})
         self.gateway_id = gateway_id
         stored_name = await self.db.get_meta("gateway_name")
         self.name = configured_name or stored_name or f"CUBE Gateway {gateway_id[:4].upper()}"
@@ -226,16 +237,16 @@ class Security:
 
     # ---- clients ----
 
-    async def _create_client(self, name: str, role: str) -> tuple[Client, str, str]:
+    async def _create_client(self, name: str, role: str, account_id: str | None = None, session_id: str | None = None) -> tuple[Client, str, str]:
         client_id = "cl_" + secrets.token_hex(8)
         token = new_token("cgw")
         pin_key = secrets.token_bytes(32)
         now = time.time()
         await self.db.execute(
-            "INSERT INTO clients (id, name, role, token_hash, pin_key_sealed, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (client_id, name[:64] or "Phone", role, token_hash(token), self.sealer.seal(encode_key(pin_key), client_id), now),
+            "INSERT INTO clients (id, name, role, token_hash, pin_key_sealed, created_at, account_id, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (client_id, name[:64] or "Phone", role, token_hash(token), self.sealer.seal(encode_key(pin_key), client_id), now, account_id, session_id),
         )
-        return Client(client_id, name[:64] or "Phone", role, now, None, False), token, encode_key(pin_key)
+        return Client(client_id, name[:64] or "Phone", role, now, None, False, account_id, session_id), token, encode_key(pin_key)
 
     async def authenticate(self, token: str | None) -> Client:
         if not token:
@@ -251,13 +262,24 @@ class Security:
         now = time.time()
         if not row["last_seen"] or now - row["last_seen"] > 60:
             await self.db.execute("UPDATE clients SET last_seen = ? WHERE id = ?", (now, row["id"]))
-        client = Client(row["id"], row["name"], row["role"], row["created_at"], now, False)
+        client = Client(row["id"], row["name"], row["role"], row["created_at"], now, False, row["account_id"], row["session_id"])
         self._token_cache[digest] = (client, time.monotonic())
         return client
 
     async def list_clients(self) -> list[Client]:
         rows = await self.db.fetchall("SELECT * FROM clients ORDER BY created_at")
-        return [Client(r["id"], r["name"], r["role"], r["created_at"], r["last_seen"], r["revoked_at"] is not None) for r in rows]
+        return [
+            Client(r["id"], r["name"], r["role"], r["created_at"], r["last_seen"], r["revoked_at"] is not None, r["account_id"], r["session_id"])
+            for r in rows
+        ]
+
+    async def set_role(self, client_id: str, role: str, by: str | None = None) -> bool:
+        """An account phone's role follows the resident's role in the unit (accounts.py)."""
+        changed = await self.db.execute("UPDATE clients SET role = ? WHERE id = ? AND revoked_at IS NULL AND role != ?", (role, client_id, role))
+        self._token_cache.clear()
+        if changed:
+            await self.db.audit("client.role_changed", by, target=client_id, role=role)
+        return changed > 0
 
     async def revoke(self, client_id: str, by: str) -> bool:
         changed = await self.db.execute("UPDATE clients SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL", (time.time(), client_id))
@@ -321,7 +343,7 @@ def announce_setup_code(security: Security) -> None:
     lines = [
         "",
         "=" * 64,
-        "  CUBE Gateway is not paired yet.",
+        "  CUBE Gateway is not paired yet." if not security.account_login else "  Residents connect with their EMS account. Installer setup code:",
         f"  Gateway: {security.name}  ({security.gateway_id})",
         f"  Setup code: {code}",
         "  In CUBE OS: Add Device -> Connect gateway, then enter this code",

@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'node:http';
 
+import { serveAdmin } from './admin/serve.ts';
 import { attachRealtime } from './ems/realtime.ts';
 import { ApiError } from './errors.ts';
 import { oauthCallback } from './ha/accounts.ts';
@@ -13,9 +14,11 @@ import { dispatch, type RouteGroup } from './http/router.ts';
 import { accountRoutes } from './routes/accounts.ts';
 import { authRoutes } from './routes/auth.ts';
 import { clinicRoutes } from './routes/clinic.ts';
+import { gatewayRoutes } from './routes/gateway.ts';
 import { healthRoutes } from './routes/health.ts';
 import { homeRoutes } from './routes/home.ts';
 import { opsRoutes } from './routes/ops.ts';
+import { unitRoutes } from './routes/unit.ts';
 
 /**
  * The Parklane / EMS device backend: one HTTP server for the REST API and the realtime
@@ -28,12 +31,16 @@ import { opsRoutes } from './routes/ops.ts';
  */
 
 /** Tried in order. Their paths do not overlap, so the order only matters for speed. */
-const API_ROUTES: readonly RouteGroup[] = [authRoutes, homeRoutes, accountRoutes, clinicRoutes, opsRoutes];
+const API_ROUTES: readonly RouteGroup[] = [authRoutes, homeRoutes, accountRoutes, clinicRoutes, gatewayRoutes, unitRoutes, opsRoutes];
 
 async function route(ctx: RequestContext) {
   // Brand sign-in pages send the browser here; it carries no EMS token, the hub checks the state.
   if (ctx.path === `${OAUTH_BASE_PATH}/auth/external/callback` && ctx.req.method === 'GET') {
     redirect(ctx.res, await oauthCallback(ctx.url));
+    return;
+  }
+  // Building management's dashboard: static files; everything it does goes through /api/admin/*.
+  if ((ctx.path === '/admin' || ctx.path.startsWith('/admin/')) && serveAdmin(ctx.path, ctx.req.method, ctx.res)) {
     return;
   }
   if (ctx.path.startsWith('/api/') && (await dispatch(ctx, API_ROUTES))) {

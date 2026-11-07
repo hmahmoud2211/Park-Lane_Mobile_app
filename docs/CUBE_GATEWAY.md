@@ -113,6 +113,31 @@ the same `docker run` command again. The volume keeps everything.
 
 ## Connect the app
 
+**Residents of an apartment linked to EMS** (the usual case on CUBE's server) don't pair at all: they sign in to the
+app with their EMS account, and the app connects to their apartment's gateway by itself.
+- **How it works:** the backend knows who lives in which unit and as owner or member, and gives the phone a short
+  signed pass. The gateway checks it with the backend's key and gives that phone its own token.
+- **More phones:** every phone the resident signs in on gets its own token. A lost phone can be removed alone.
+- **Family:** an owner taps **Invite family** in the app and shares the code. The family member signs in with
+  their own EMS account, enters it, and joins the unit, which gives them the brand-account devices and the gateway.
+  Owners can remove members. The gateway's own invite codes are for installers on a gateway linked to EMS.
+- **Moving out:** removing a resident from the unit in EMS removes all their phones within five minutes.
+- **A lost or stolen phone:** sign in on another phone. An owner removes the lost one in Connect gateway → Phones,
+  which cuts its gateway access at once *and* ends its EMS sign-in, so it can't reconnect. If you don't know which
+  phone it was, or you're a member, use **Sign out my other phones**: the others lose access within five minutes.
+  Either way, change the EMS password if the phone may be unlocked.
+- **Offline:** control at home keeps working without internet.
+- **Accounts:** building management makes the apartment and the owner's account in the admin dashboard
+  (`/admin` on the backend). The owner gets a temporary password and chooses their own at the first sign-in.
+- **Setting it up:** with `GATEWAY_RELAY_ENROLL_TOKEN` set on the backend, creating the apartment in the admin
+  dashboard starts and links its gateway on the server ([production.md](production.md#7-create-your-first-apartment-a-pilot)).
+  Otherwise use `UNIT_ID=… ADMIN_API_KEY=… ./new-apartment.sh …` on the server
+  ([server-mode README](../gateway/deploy/server-mode/README.md)). For a gateway box, start it with
+  `-e CUBE_EMS_URL=https://api-iot-2.ems-iot.com -e CUBE_EMS_SECRET=$(openssl rand -hex 32)`, then attach it:
+  `POST /api/admin/gateways { unitId, gatewayId, secret, url }` ([API documentation](API_DOCUMENTATION.md)).
+
+**Installers, and gateways not linked to EMS**, pair with the setup code:
+
 1. In CUBE OS: **My Devices → Add**, or Smart Home's **+**. With no gateway yet, the app opens **Connect
    gateway**.
 2. The app looks for gateways on the phone's Wi-Fi network. It probes the phone's own /24 for port 8686,
@@ -513,6 +538,8 @@ All optional, as `-e NAME=value` on `docker run`.
 | `CUBE_RELAY_URL`                                                                                                               | —                              | Relay to connect to at start (normally set from the app instead)                                                                                                |
 | `CUBE_RELAY_ENROLL_TOKEN` / `CUBE_RELAY_PORT`                                                                                | — / `8687`                   | Relay mode: who may enrol. Gateway mode: with `CUBE_RELAY_URL`, enrol automatically at start                                                                  |
 | `CUBE_TUNNEL_SUBNETS` / `CUBE_TUNNEL_ENDPOINT` / `CUBE_TUNNEL_PORT`                                                            | — / — / `51820`                | Server-hosted apartment with a tunnel box: its home subnet(s), the address boxes connect to, WireGuard's port in the container (needs `--user 0 --cap-add NET_ADMIN`) |
+| `CUBE_EMS_URL` / `CUBE_EMS_SECRET` / `CUBE_EMS_KEY`                                                                            | — / — / (fetched and pinned)   | Links the gateway to an EMS apartment: residents sign in with their account. The secret is the one it is attached with (`POST /api/admin/gateways`) |
+| `CUBE_GATEWAY_ID`                                                                                                              | (random)                      | The id a new gateway takes, so whoever starts it (the backend) knows it beforehand. Only on the first start: a stored id is kept |
 | `CUBE_SERVER_HOSTED`                                                                                                           | `0`                           | Run on the company server for one apartment: only Shelly-over-broker and LG via ReThink; claim allowed through the relay; LG appliances private to this gateway |
 | `CUBE_CLOUD_MQTT_URL`                                                                                                          | (from the relay)                | How this gateway reaches the device broker, e.g. `mqtt://127.0.0.1:1886` on the broker's own server                                                           |
 | `CUBE_ALLOW_REMOTE_CLAIM` / `CUBE_RETHINK_ONLY_PROVISIONED`                                                                  | follow `CUBE_SERVER_HOSTED`   | The two server-hosted behaviours, separately                                                                                                                    |
@@ -525,6 +552,10 @@ All optional, as `-e NAME=value` on `docker run`.
   and claiming is refused through the relay unless the gateway is server-hosted.
 - **Clients:** random 256-bit bearer tokens, stored as SHA-256 hashes, revocable at once (WebSocket closed
   too). Roles are owner and member; members can't pair, remove, rename or manage access.
+- **EMS accounts:** a phone's token can come from a pass the EMS backend signed (Ed25519, single use, five
+  minutes, for this gateway only), checked offline with the backend's pinned key. Such phones carry the account
+  id. Every five minutes the gateway asks the backend which residents are still members (with its own secret),
+  removes phones of anyone who left and follows role changes. While the backend can't be reached, nothing changes.
 - **Gateway identity:** an HMAC challenge before a phone sends its token to a new address.
 - **Credentials at rest:** local keys, TV tokens, device keys and Tapo logins are sealed with AES-256-GCM.
   The key is in `/data/secret.key` (0600), and each blob is bound to its device ID. They are never returned

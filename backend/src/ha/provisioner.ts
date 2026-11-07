@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
-import { docker, dockerOk } from '../integrations/docker.ts';
+import { docker, dockerOk, ensureImage } from '../integrations/docker.ts';
 import { log } from '../log.ts';
 import { HaConnection } from './haClient.ts';
 import { createHubRow, getHubForUnit, hubHasToken, startHub, stopHub, updateHubRow, type Hub } from './hubs.ts';
@@ -35,15 +35,6 @@ async function ensureNetwork(): Promise<void> {
   if (found.status === 404) {
     // Not internal: HA has to reach the brands' clouds.
     await dockerOk('POST', '/networks/create', { Name: config.ha.network, Driver: 'bridge', Labels: { 'parklane.role': 'ha' } });
-  }
-}
-
-async function ensureImage(): Promise<void> {
-  const found = await docker('GET', `/images/${encodeURIComponent(config.ha.image)}/json`);
-  if (found.status === 404) {
-    const colon = config.ha.image.lastIndexOf(':');
-    const [image, tag] = colon > config.ha.image.lastIndexOf('/') ? [config.ha.image.slice(0, colon), config.ha.image.slice(colon + 1)] : [config.ha.image, 'latest'];
-    await dockerOk('POST', `/images/create?fromImage=${encodeURIComponent(image)}&tag=${encodeURIComponent(tag)}`);
   }
 }
 
@@ -248,7 +239,7 @@ export function provisioningDone(unitId: string): Promise<void> {
 async function provision(hub: Hub, unitId: string, unitName: string): Promise<void> {
   const name = hub.containerName ?? containerNameFor(unitId);
   await ensureNetwork();
-  await ensureImage();
+  await ensureImage(config.ha.image);
   const baseUrl = await startContainer(name, writeConfig(unitId, unitName), unitId);
   updateHubRow(hub.id, { baseUrl });
 

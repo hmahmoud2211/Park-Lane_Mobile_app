@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,6 +34,20 @@ def _int(name: str, default: int, low: int, high: int) -> int:
 
 def _list(name: str) -> list[str]:
     return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
+
+
+def _https_url(name: str) -> str:
+    value = os.environ.get(name, "").strip().rstrip("/")
+    if value and not value.startswith(("https://", "http://127.0.0.1", "http://localhost")):
+        raise SystemExit(f"{name} must be an https address such as https://api-iot-2.ems-iot.com, got {value!r}")
+    return value
+
+
+def _uuid(name: str) -> str:
+    value = os.environ.get(name, "").strip().lower()
+    if value and not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", value):
+        raise SystemExit(f"{name} must be a UUID such as 0f8e7c1a-3b2d-4c5e-9f60-718293a4b5c6, got {value!r}")
+    return value
 
 
 def _ws_url(name: str) -> str:
@@ -137,6 +152,16 @@ class Settings:
     tunnel_port: int = 51820
     #: host:port the box reaches this apartment's tunnel at from the internet; written into the box's config.
     tunnel_endpoint: str = ""
+    #: The EMS backend this gateway's apartment belongs to (accounts.py), e.g. https://api-iot-2.ems-iot.com. Set:
+    #: residents get access by signing in to their EMS account; setup codes are for installers.
+    ems_url: str = ""
+    #: The backend's pass-signing key (base64url Ed25519). Empty: fetched from ems_url once and pinned.
+    ems_key: str = ""
+    #: The secret an admin attached this gateway to its unit with (POST /api/admin/gateways); used for member sync.
+    ems_secret: str = ""
+    #: The id a new gateway takes instead of a random one, so whoever starts it (the EMS backend making an apartment's
+    #: gateway) knows it beforehand. Only used on the first start: once stored, the gateway keeps its id.
+    gateway_id: str = ""
     extra: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -204,4 +229,8 @@ def load_settings() -> Settings:
         tunnel_subnets=tunnel_subnets,
         tunnel_port=_int("CUBE_TUNNEL_PORT", 51820, 1, 65535),
         tunnel_endpoint=os.environ.get("CUBE_TUNNEL_ENDPOINT", "").strip(),
+        ems_url=_https_url("CUBE_EMS_URL"),
+        ems_key=os.environ.get("CUBE_EMS_KEY", "").strip(),
+        ems_secret=os.environ.get("CUBE_EMS_SECRET", "").strip(),
+        gateway_id=_uuid("CUBE_GATEWAY_ID"),
     )

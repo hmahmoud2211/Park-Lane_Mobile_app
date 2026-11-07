@@ -75,6 +75,11 @@ class JoinBody(BaseModel):
     client_name: str = Field(default="Phone", max_length=64)
 
 
+class AccountBody(BaseModel):
+    pass_: str = Field(alias="pass", min_length=20, max_length=4096)
+    client_name: str = Field(default="Phone", max_length=64)
+
+
 class InviteBody(BaseModel):
     role: Literal["owner", "member"] = "member"
 
@@ -232,6 +237,8 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
                 "claimed": await g.security.is_claimed(),
                 "uptime": round(time.time() - g.started_at),
                 "adapters": {"loaded": len(g.registry.adapters), "failed": len(g.registry.failed)},
+                # Residents sign in with their EMS account (accounts.py) rather than a setup code.
+                "account_login": g.accounts.enabled,
                 # HTTPS addresses once the relay has issued a certificate (tls.py); the app prefers them.
                 "tls": g.tls.public(),
             }
@@ -264,6 +271,24 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
         client, token, pin_key = await g.security.join(body.invite_code, body.client_name)
         return ok(_session_payload(g, client, token, pin_key), 201)
 
+    @v1.post("/auth/account")
+    async def account(request: Request, body: AccountBody) -> JSONResponse:
+        """A resident's phone signs in with a pass from their EMS account (accounts.py), at home or through the relay."""
+        g = gw(request)
+        if not g.accounts.enabled:
+            raise AuthError("account_login_off", "This gateway isn't linked to EMS accounts. Ask building management.", 404)
+        limit(request, g.security.auth_limiter, client_ip(request))
+        client, token, pin_key = await g.accounts.login(body.pass_, body.client_name)
+        return ok(_session_payload(g, client, token, pin_key), 201)
+
+    @v1.delete("/auth/me")
+    async def sign_out(request: Request, client: AnyClient) -> JSONResponse:
+        """A phone gives up its own token (the app does this when its resident signs out of EMS)."""
+        g = gw(request)
+        await g.security.revoke(client.id, client.id)
+        g.bus.close_client(client.id)
+        return ok({"revoked": client.id})
+
     @v1.get("/auth/me")
     async def me(request: Request, client: AnyClient) -> JSONResponse:
         g = gw(request)
@@ -271,7 +296,12 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
 
     @v1.post("/auth/invites")
     async def invite(request: Request, body: InviteBody, client: Owner) -> JSONResponse:
-        code, expires = await gw(request).security.create_invite(body.role, client.id)
+        g = gw(request)
+        # Linked to EMS, residents invite family into the apartment from the app (they then come in through their
+        # own accounts); a gateway code would let a phone in with no account behind it. Installers keep them.
+        if g.accounts.enabled and client.account_id:
+            raise AuthError("installers_only", "Invite family from the app (Members → Invite family). Gateway codes are for installers.", 403)
+        code, expires = await g.security.create_invite(body.role, client.id)
         return ok({"code": code, "role": body.role, "expires_at": expires}, 201)
 
     @v1.get("/auth/clients")
@@ -283,9 +313,12 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
         g = gw(request)
         if client_id == client.id:
             raise DeviceError("bad_request", "You cannot revoke the phone you are using; use another owner's phone.", 400)
+        removed = next((c for c in await g.security.list_clients() if c.id == client_id), None)
         if not await g.security.revoke(client_id, client.id):
             raise DeviceError("not_found", "No such paired phone.", 404)
         g.bus.close_client(client_id)
+        if removed is not None:
+            await g.accounts.phone_removed(removed)  # a lost phone: its EMS session ends too
         return ok({"revoked": client_id})
 
     @v1.patch("/gateway")

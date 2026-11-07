@@ -35,6 +35,8 @@ export type GatewayErrorCode =
   | 'device_auth_failed'
   | 'device_rejected'
   | 'unverified_gateway'
+  | 'invalid_pass'
+  | 'account_login_off'
   | 'internal'
   | (string & {});
 
@@ -60,7 +62,7 @@ interface GatewayErrorBody {
 
 export interface GatewayTarget {
   baseUrl: string;
-  /** Omitted for the public routes (health, identity challenge, claim, join). */
+  /** Omitted for the public routes (health, identity challenge, claim, join, account). */
   token?: string | null;
 }
 

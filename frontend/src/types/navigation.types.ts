@@ -11,6 +11,8 @@ import type { Lang } from './i18n.types';
 export type RootStackParamList = {
   FirstScreen: undefined;
   Login: undefined;
+  /** Choosing one's own password after signing in with a temporary one; nothing else opens until it is set. */
+  ChangePassword: undefined;
   Home: undefined;
   Profile: undefined;
   MyUnit: undefined;
@@ -101,7 +103,7 @@ export type RootStackParamList = {
 export type RecordTab = RecordSection | 'documents';
 
 /** Paramless routes that only their own flow opens, by name; no tile or tab points at them. */
-type FlowOnlyRoute = 'HealthOnboarding' | 'HealthProfile' | 'HealthSettings';
+type FlowOnlyRoute = 'HealthOnboarding' | 'HealthProfile' | 'HealthSettings' | 'ChangePassword';
 
 /**
  * Routes that can be opened without params, e.g. from data-driven tiles and tabs.

@@ -85,6 +85,15 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX audit_log_at ON audit_log(at);
     """,
+    # 2: phones that got their token through an EMS account (accounts.py), and the passes already used
+    """
+    ALTER TABLE clients ADD COLUMN account_id TEXT;
+    ALTER TABLE clients ADD COLUMN session_id TEXT;
+    CREATE INDEX clients_account ON clients(account_id);
+    CREATE TABLE used_passes (jti TEXT PRIMARY KEY, expires_at REAL NOT NULL);
+    -- EMS sessions whose phone was removed here: their passes are refused, and the backend is told to end them
+    CREATE TABLE ended_sessions (session_id TEXT PRIMARY KEY, at REAL NOT NULL, reported INTEGER NOT NULL DEFAULT 0);
+    """,
 ]
 
 

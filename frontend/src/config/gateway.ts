@@ -21,6 +21,8 @@ export const gatewayConfig = {
   pairingTimeoutMs: 20_000,
   /** A quick reachability check of a known address. */
   healthTimeoutMs: 2_500,
+  /** Ending this phone's own access on sign-out: best effort, so signing out never waits long on it. */
+  revokeTimeoutMs: 3_000,
   /**
    * The gateway's home HTTPS name gets less: some routers refuse DNS answers that point at a
    * private address, and away from home that address is unreachable, so the plain-HTTP home

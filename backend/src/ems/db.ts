@@ -444,6 +444,59 @@ const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (appointment_id, lang)
   );
   `,
+  `
+  -- The CUBE gateway serving a unit (one each), for gateway access through EMS accounts: residents get a pass the
+  -- gateway checks with the backend's public key; the gateway asks which residents are still members, proving
+  -- itself with its sync secret (stored hashed, like tokens).
+  CREATE TABLE gateways (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL UNIQUE REFERENCES units(id) ON DELETE CASCADE,
+    url TEXT,
+    secret_hash TEXT NOT NULL,
+    last_sync TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  -- The Ed25519 key that signs gateway passes: one row, the private key sealed.
+  CREATE TABLE gateway_signing_key (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    private_sealed TEXT NOT NULL,
+    public_key TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  `,
+  `
+  -- Codes an owner makes so another account can join their unit (stored hashed, single use, a day).
+  CREATE TABLE unit_invites (
+    code_hash TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used_by TEXT,
+    used_at INTEGER
+  );
+  CREATE INDEX unit_invites_unit ON unit_invites(unit_id);
+  `,
+  `
+  -- Accounts an admin created or reset with a temporary password must choose their own first.
+  ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;
+  `,
+  `
+  -- The CUBE gateway container this backend runs for a unit (ems/gatewayProvisioner.ts). Its link to the unit is
+  -- the gateways row with the same id; the sync secret lives only in the container's environment and that row's hash.
+  CREATE TABLE gateway_containers (
+    unit_id TEXT PRIMARY KEY REFERENCES units(id) ON DELETE CASCADE,
+    gateway_id TEXT NOT NULL UNIQUE,
+    container_name TEXT NOT NULL UNIQUE,
+    port INTEGER UNIQUE,
+    status TEXT NOT NULL,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  `,
 ];
 
 let instance: DatabaseSync | null = null;
