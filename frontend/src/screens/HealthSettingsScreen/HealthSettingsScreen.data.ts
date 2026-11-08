@@ -1,4 +1,12 @@
+import { num } from '../../features/health/services/i18n';
 import type { HealthLang } from '../../types/health.types';
+
+/** "شخصين", "٣ أشخاص", "١١ شخصًا": Arabic counts take a different word by number. */
+function arabicPeople(n: number) {
+  if (n === 1) return 'شخص واحد';
+  if (n === 2) return 'شخصين';
+  return n <= 10 ? `${num(n, 'ar')} أشخاص` : `${num(n, 'ar')} شخصًا`;
+}
 
 export const settingsCopy = {
   en: {
@@ -7,6 +15,15 @@ export const settingsCopy = {
     family: 'Family profiles',
     familyHint: 'Records you keep for your children, parents or others.',
     addFamily: 'Add family member',
+    share: 'Share with your family',
+    shareHint: 'Let people who live with you see a record, or help keep it up to date.',
+    sharedCount: (n: number) => (n === 1 ? 'Shared with 1 person' : `Shared with ${n} people`),
+    onlyYou: 'Only you',
+    sharedWithYou: 'Shared with you',
+    sharedWithYouHint: 'Records other people in your apartment share with you.',
+    leaveTitle: (name: string) => `Stop seeing ${name}’s record?`,
+    leaveBody: (keeper: string) => `It leaves your Health Passport. ${keeper} can share it with you again.`,
+    leaveConfirm: 'Stop seeing it',
     dataUse: 'How your data is used',
     deleteData: 'Delete health data',
     deleteDataHint: 'Removes everything recorded for one person: items, documents and summaries.',
@@ -34,6 +51,15 @@ export const settingsCopy = {
     family: 'ملفات العائلة',
     familyHint: 'سجلات تحتفظ بها لأطفالك أو والديك أو غيرهم.',
     addFamily: 'إضافة فرد من العائلة',
+    share: 'المشاركة مع عائلتك',
+    shareHint: 'اسمح لمن يسكنون معك برؤية سجل، أو بالمساعدة في تحديثه.',
+    sharedCount: (n: number) => `مُشارَك مع ${arabicPeople(n)}`,
+    onlyYou: 'أنت فقط',
+    sharedWithYou: 'مُشارَك معك',
+    sharedWithYouHint: 'سجلات يشاركها معك آخرون في شقتك.',
+    leaveTitle: (name: string) => `إيقاف عرض سجل ${name}؟`,
+    leaveBody: (keeper: string) => `سيُزال من جوازك الصحي. يمكن لـ${keeper} مشاركته معك مرة أخرى.`,
+    leaveConfirm: 'إيقاف العرض',
     dataUse: 'كيف نستخدم بياناتك',
     deleteData: 'حذف البيانات الصحية',
     deleteDataHint: 'يحذف كل ما سُجل لشخص واحد: العناصر والمستندات والملخصات.',

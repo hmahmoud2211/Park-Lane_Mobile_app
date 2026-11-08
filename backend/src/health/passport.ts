@@ -30,10 +30,12 @@ import {
   type Relation,
 } from '../repositories/healthProfiles.ts';
 import { deleteProfileSummaries } from '../repositories/healthSummaries.ts';
+import { countSharesOfKeeper, deleteSharesOfUser, findShareAccess, listProfilesSharedWith, shareUnit } from '../repositories/healthShares.ts';
 
 /**
  * Health Passport's storage: consent, the resident's profiles (themself and
- * family) and each profile's record. The shapes are the app's own
+ * family), the profiles other residents of their apartment share with them
+ * (sharing.ts), and each profile's record. The shapes are the app's own
  * (src/services/health/health.types.ts), snake_case included, so the HTTP
  * routes pass them through untouched.
  *
@@ -58,13 +60,28 @@ export interface Consent {
   given_at: string | null;
 }
 
+/**
+ * How a resident may use a profile. `owner`: they keep it, and only they may
+ * delete it, share it or empty it. `edit`: shared with them to change the
+ * record too. `view`: shared with them to read it, and to prepare and play a
+ * summary for the doctor.
+ */
+export type Access = 'owner' | 'edit' | 'view';
+const ACCESS_RANK: Record<Access, number> = { view: 0, edit: 1, owner: 2 };
+
 export interface Profile {
   id: string;
   name: string;
   sex: (typeof SEXES)[number] | null;
   date_of_birth: string | null;
   blood_type: (typeof BLOOD_TYPES)[number] | null;
+  /** Who the person is to the profile's keeper. */
   relation: Relation;
+  access: Access;
+  /** The keeper's name, for a profile shared with this resident. */
+  shared_by?: string;
+  /** How many people a profile the resident keeps is shared with, in the profile list. */
+  shared_with?: number;
 }
 
 /** An item as the app sees it: its fields, its id, and where it came from. */
@@ -178,7 +195,7 @@ export function isSection(value: string): value is Section {
   return (SECTIONS as readonly string[]).includes(value);
 }
 
-function cleanProfile(input: Record<string, unknown>): Omit<Profile, 'id' | 'relation'> {
+function cleanProfile(input: Record<string, unknown>): Pick<Profile, 'name' | 'sex' | 'date_of_birth' | 'blood_type'> {
   const name = text(input, 'name', true, 64) as string;
   const dob = date(input, 'date_of_birth', false);
   if (dob && Date.parse(dob) > Date.now()) invalid('date_of_birth', 'Date of birth is in the future.');
@@ -208,7 +225,8 @@ export function requireConsent(userId: string): void {
 /**
  * Giving consent makes sure the resident has their own profile. Withdrawing
  * it deletes the health data: family profiles go, and the resident's own
- * stays, emptied. Clinic appointments keep the patient's name as booked.
+ * stays, emptied. Every share the resident gave or got ends. Clinic
+ * appointments keep the patient's name as booked.
  */
 export function setConsent(userId: string, given: boolean): Consent {
   const at = now();
@@ -220,6 +238,7 @@ export function setConsent(userId: string, given: boolean): Consent {
       insertSelfProfile(randomUUID(), userId, user?.name ?? 'Me', at);
     }
   } else {
+    deleteSharesOfUser(userId);
     deleteFamilyProfiles(userId);
     if (selfId) emptyProfile(selfId, at);
   }
@@ -240,7 +259,7 @@ function emptyProfile(profileId: string, at = now()): void {
 
 // ---- Profiles -----------------------------------------------------------------------------
 
-function present(row: ProfileRow): Profile {
+function present(row: ProfileRow, access: Access, sharedBy?: string): Profile {
   return {
     id: row.id,
     name: row.name,
@@ -248,47 +267,93 @@ function present(row: ProfileRow): Profile {
     date_of_birth: row.date_of_birth,
     blood_type: row.blood_type,
     relation: row.relation,
+    access,
+    ...(sharedBy === undefined ? {} : { shared_by: sharedBy }),
   };
 }
 
+/** The profiles the resident keeps: their own first, then their family. */
+function keptProfiles(userId: string): Profile[] {
+  return listHealthProfiles(userId).map((row) => present(row, 'owner'));
+}
+
+/** The resident's own profiles, each with how many it is shared with, then those shared with them, grouped by keeper. */
 export function listProfiles(userId: string): Profile[] {
-  return listHealthProfiles(userId).map(present);
+  const counts = countSharesOfKeeper(userId);
+  return [
+    ...keptProfiles(userId).map((profile) => ({ ...profile, shared_with: counts.get(profile.id) ?? 0 })),
+    ...listProfilesSharedWith(userId).map((row) => present(row, row.access, row.keeper_name)),
+  ];
 }
 
 /** Any profile, whoever owns it; for the clinic, which checks access itself. */
-export function profileById(profileId: string): (Profile & { owner_id: string; record_updated_at: string }) | null {
+export function profileById(profileId: string): (Omit<Profile, 'access'> & { owner_id: string; record_updated_at: string }) | null {
   const row = findHealthProfile(profileId);
-  return row ? { ...present(row), owner_id: row.owner_id, record_updated_at: row.record_updated_at } : null;
+  if (!row) return null;
+  const { access: _access, ...profile } = present(row, 'owner');
+  return { ...profile, owner_id: row.owner_id, record_updated_at: row.record_updated_at };
 }
 
-/** The resident's own profile, or 404: someone else's is indistinguishable from none. */
-export function ownedProfile(userId: string, profileId: string) {
+/**
+ * How the user may use the profile, or null. A share counts only while the
+ * two live in the same apartment and the keeper's Health Passport is on.
+ */
+export function accessTo(userId: string, profile: { id: string; owner_id: string }): Access | null {
+  if (profile.owner_id === userId) return 'owner';
+  const shared = findShareAccess(profile.id, userId);
+  if (!shared || !shareUnit(userId, profile.owner_id) || !consentGiven(profile.owner_id)) return null;
+  return shared;
+}
+
+/**
+ * The profile, if the user may use it as `need` asks. One they can't see at
+ * all is 404, indistinguishable from none; one they can see but not change
+ * as asked is 403 with the reason.
+ */
+export function profileFor(userId: string, profileId: string, need: Access) {
   const profile = profileById(profileId);
-  if (!profile || profile.owner_id !== userId) {
-    throw new ApiError('not_found', 'Profile not found.');
+  const access = profile ? accessTo(userId, profile) : null;
+  if (!profile || !access) throw new ApiError('not_found', 'Profile not found.');
+  if (ACCESS_RANK[access] < ACCESS_RANK[need]) {
+    throw new ApiError(
+      'forbidden',
+      need === 'owner' ? 'Only the person who keeps this record can do that.' : 'This record was shared with you to view only.',
+    );
   }
-  return profile;
+  return { ...profile, access };
+}
+
+/** A profile the resident keeps themself, or 404/403. */
+export function ownedProfile(userId: string, profileId: string) {
+  return profileFor(userId, profileId, 'owner');
 }
 
 export function addProfile(userId: string, input: Record<string, unknown>): Profile {
   const fields = cleanProfile(input);
   const relation = choice(input, 'relation', RELATIONS, true) as Relation;
-  if (relation === 'self' && listProfiles(userId).some((p) => p.relation === 'self')) {
+  const kept = keptProfiles(userId);
+  if (relation === 'self' && kept.some((p) => p.relation === 'self')) {
     invalid('relation', 'You already have your own profile.');
   }
-  if (listProfiles(userId).length >= 20) invalid('relation', 'A Health Passport holds up to 20 profiles.');
+  if (kept.length >= 20) invalid('relation', 'A Health Passport holds up to 20 profiles.');
   const id = randomUUID();
   const at = now();
   insertHealthProfile(id, userId, relation, fields, at);
-  return { id, relation, ...fields };
+  return { id, relation, ...fields, access: 'owner' };
 }
 
-/** The relation stays as created, as in the app. */
+/** The relation stays as created, as in the app. Someone it is shared with to edit may change the details too. */
 export function updateProfile(userId: string, profileId: string, input: Record<string, unknown>): Profile {
-  const existing = ownedProfile(userId, profileId);
+  const existing = profileFor(userId, profileId, 'edit');
   const fields = cleanProfile(input);
   updateProfileFields(profileId, fields, now());
-  return { id: profileId, relation: existing.relation, ...fields };
+  return {
+    id: profileId,
+    relation: existing.relation,
+    ...fields,
+    access: existing.access,
+    ...(existing.access === 'owner' ? {} : { shared_by: getUser(existing.owner_id)?.name ?? '' }),
+  };
 }
 
 /** A family member's profile goes with its record, documents and summaries; the resident's own is emptied instead. */
@@ -329,14 +394,14 @@ export function insertItem(profileId: string, section: Section, data: Record<str
 }
 
 export function createItem(userId: string, profileId: string, section: Section, input: Record<string, unknown>): Item {
-  ownedProfile(userId, profileId);
+  profileFor(userId, profileId, 'edit');
   const item = insertItem(profileId, section, cleanItem(section, input), null);
   touch(profileId);
   return item;
 }
 
-function ownedItem(userId: string, profileId: string, section: Section, itemId: string): ItemRow {
-  ownedProfile(userId, profileId);
+function editableItem(userId: string, profileId: string, section: Section, itemId: string): ItemRow {
+  profileFor(userId, profileId, 'edit');
   const row = findHealthItem(itemId, profileId, section);
   if (!row) throw new ApiError('not_found', 'Item not found.');
   return row;
@@ -344,7 +409,7 @@ function ownedItem(userId: string, profileId: string, section: Section, itemId: 
 
 /** The item keeps its source: an edit does not make a document's item hand-typed. */
 export function updateItem(userId: string, profileId: string, section: Section, itemId: string, input: Record<string, unknown>): Item {
-  const row = ownedItem(userId, profileId, section, itemId);
+  const row = editableItem(userId, profileId, section, itemId);
   const data = cleanItem(section, input);
   updateHealthItemData(itemId, seal(JSON.stringify(data)), now());
   touch(profileId);
@@ -352,7 +417,7 @@ export function updateItem(userId: string, profileId: string, section: Section, 
 }
 
 export function deleteItem(userId: string, profileId: string, section: Section, itemId: string): void {
-  ownedItem(userId, profileId, section, itemId);
+  editableItem(userId, profileId, section, itemId);
   deleteHealthItem(itemId);
   touch(profileId);
 }
@@ -381,7 +446,7 @@ export interface Gap {
   test?: string;
 }
 
-export function gapsFor(profile: Profile, sections: RecordSections, lang: HealthLang): Gap[] {
+export function gapsFor(profile: Pick<Profile, 'blood_type'>, sections: RecordSections, lang: HealthLang): Gap[] {
   const gaps: Gap[] = [];
   if (!profile.blood_type) gaps.push({ kind: 'missing_blood_type', text: GAP_TEXT.missing_blood_type[lang] });
   if (sections.allergies.length === 0) gaps.push({ kind: 'no_allergies_recorded', text: GAP_TEXT.no_allergies_recorded[lang] });

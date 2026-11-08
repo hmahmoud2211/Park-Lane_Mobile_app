@@ -15,8 +15,18 @@ export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
 export type Severity = 'mild' | 'moderate' | 'severe';
 export type ConditionStatus = 'active' | 'resolved';
 
-/** Who a profile is to the signed-in resident. */
+/** Who a profile is to the resident who keeps it. */
 export type Relation = 'self' | 'child' | 'parent' | 'spouse' | 'other';
+
+/**
+ * How the signed-in resident may use a profile. `owner`: they keep it, and
+ * only they delete, share or empty it. `edit`: shared with them to change
+ * the record too. `view`: shared with them to read it and prepare summaries.
+ */
+export type ProfileAccess = 'owner' | 'edit' | 'view';
+
+/** What a keeper shares a profile for. */
+export type ShareAccess = Exclude<ProfileAccess, 'owner'>;
 
 export interface Patient {
   id: string;
@@ -26,12 +36,29 @@ export interface Patient {
   blood_type: BloodType | null;
 }
 
-/** One person whose record the resident keeps: themself or a family member. */
+/**
+ * One person whose record the resident keeps (themself or a family member),
+ * or one another resident of their apartment shares with them.
+ */
 export interface HealthProfile extends Patient {
   relation: Relation;
+  access: ProfileAccess;
+  /** The keeper's name, on a profile shared with the resident. */
+  shared_by?: string;
+  /** On a profile the resident keeps, in the profile list: how many people it is shared with. */
+  shared_with?: number;
 }
 
-export type ProfileInput = Omit<HealthProfile, 'id'>;
+export type ProfileInput = Omit<HealthProfile, 'id' | 'access' | 'shared_by' | 'shared_with'>;
+
+/** `GET /health/profiles/:id/sharing`, for the profile's keeper only. */
+export interface ProfileSharing {
+  /** False while the keeper belongs to no apartment: records are shared only between residents of one. */
+  apartment: boolean;
+  shares: { user_id: string; name: string; access: ShareAccess; since: IsoTime }[];
+  /** The apartment's other residents it isn't shared with yet. */
+  members: { user_id: string; name: string }[];
+}
 
 /** Every item carries the document it was read from, or null when typed in by hand. */
 interface ItemBase {

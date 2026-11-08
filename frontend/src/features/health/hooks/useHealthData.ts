@@ -43,6 +43,23 @@ export function useHealthProfiles() {
   return useHealthResource(healthKeys.profiles, fetchers.profiles);
 }
 
+/**
+ * Whether the resident may change this profile's record: their own, or one
+ * shared with them to edit. False until the profiles load, so nothing that
+ * changes a view-only record is ever offered.
+ */
+export function useCanEditProfile(profileId: string | null): boolean {
+  const profiles = useHealthProfiles();
+  const profile = profileId ? profiles.data?.find((p) => p.id === profileId) : undefined;
+  return profile !== undefined && profile.access !== 'view';
+}
+
+export function useHealthSharing(profileId: string | null) {
+  const { fetchers } = useHealth();
+  const fetcher = useCallback(() => fetchers.sharing(profileId ?? ''), [fetchers, profileId]);
+  return useHealthResource(profileId ? healthKeys.sharing(profileId) : null, fetcher);
+}
+
 export function useHealthRecord(profileId: string | null) {
   const { fetchers } = useHealth();
   const fetcher = useCallback(() => fetchers.record(profileId ?? ''), [fetchers, profileId]);

@@ -10,7 +10,6 @@ import {
   completeDocumentReading,
   deleteHealthDocument,
   failDocumentReading,
-  findDocumentOwnerId,
   findHealthDocument,
   insertHealthDocument,
   listProcessingDocumentIds,
@@ -21,7 +20,7 @@ import {
 import { clearHealthItemsSource, deleteHealthItemsFromSource, replaceHealthItem } from '../repositories/healthItems.ts';
 import { readStoredFile, removeFiles, signedUrl, storeFile } from './files.ts';
 import { enqueue } from './jobs.ts';
-import { cleanItem, insertItem, isSection, ownedProfile, readSections, touch, type HealthLang, type Section } from './passport.ts';
+import { cleanItem, insertItem, isSection, profileFor, readSections, touch, type Access, type HealthLang, type Section } from './passport.ts';
 
 /**
  * Health Passport documents: the resident photographs or uploads a medical
@@ -282,11 +281,11 @@ const ERROR_TEXT: Record<string, Record<HealthLang, string>> = {
 
 const now = () => new Date().toISOString();
 
-/** The resident's document, or 404. */
-export function ownedDocument(userId: string, docId: string): DocumentRow {
+/** A document of a profile the resident may use as `need` asks, or 404/403. */
+export function documentFor(userId: string, docId: string, need: Access): DocumentRow {
   const row = findHealthDocument(docId);
   if (!row) throw new ApiError('not_found', 'Document not found.');
-  ownedProfile(userId, row.profile_id);
+  profileFor(userId, row.profile_id, need);
   return row;
 }
 
@@ -310,7 +309,7 @@ export function presentDocument(row: DocumentRow, lang: HealthLang, base: string
 }
 
 export function listDocuments(userId: string, profileId: string, lang: HealthLang, base: string) {
-  ownedProfile(userId, profileId);
+  profileFor(userId, profileId, 'view');
   return listProfileDocuments(profileId).map((row) => presentDocument(row, lang, base));
 }
 
@@ -322,7 +321,7 @@ export interface UploadedPage {
 
 /** Stores the pages and queues the reading; the document is `processing` until it is read. */
 export function createDocument(userId: string, profileId: string, input: { type: unknown; document_date: unknown; pages: UploadedPage[] }) {
-  ownedProfile(userId, profileId);
+  profileFor(userId, profileId, 'edit');
   if (!DOCUMENT_TYPES.includes(input.type as (typeof DOCUMENT_TYPES)[number])) {
     throw new ApiError('invalid', 'Choose the type of document.', 'type');
   }
@@ -401,7 +400,7 @@ async function readDocument(docId: string): Promise<void> {
  */
 export function confirmDocument(userId: string, docId: string, body: Record<string, unknown>) {
   return transaction(() => {
-    const row = ownedDocument(userId, docId);
+    const row = documentFor(userId, docId, 'edit');
     if (row.status !== 'needs_review') throw new ApiError('invalid', 'This document is not waiting for review.');
     const pending = row.extracted_items ? (JSON.parse(unseal(row.extracted_items)) as ExtractedItem[]) : [];
     const decisions = Array.isArray(body.items) ? (body.items as Record<string, unknown>[]) : [];
@@ -440,7 +439,7 @@ export function confirmDocument(userId: string, docId: string, body: Record<stri
 /** Removes the document and its pages; its items go too, or stay as typed-in items. */
 export function deleteDocument(userId: string, docId: string, deleteItems: boolean): void {
   const pages = transaction(() => {
-    const row = ownedDocument(userId, docId);
+    const row = documentFor(userId, docId, 'edit');
     if (deleteItems) {
       deleteHealthItemsFromSource(docId, row.profile_id);
       touch(row.profile_id);
@@ -462,8 +461,9 @@ export function documentPage(docId: string, page: number): { mime: string; bytes
   return entry && bytes ? { mime: entry.mime, bytes } : null;
 }
 
-export function documentOwner(docId: string): string | null {
-  return findDocumentOwnerId(docId);
+/** The profile a document belongs to, for its media links. */
+export function documentProfileId(docId: string): string | null {
+  return findHealthDocument(docId)?.profile_id ?? null;
 }
 
 /** After a restart: documents still being read are read again. */

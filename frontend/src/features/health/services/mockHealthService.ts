@@ -9,9 +9,11 @@ import type {
   HealthRecord,
   ItemData,
   ProfileInput,
+  ProfileSharing,
   RecordItem,
   RecordSection,
   SectionItems,
+  ShareAccess,
   Summary,
   SummaryRequest,
   SummaryState,
@@ -22,6 +24,7 @@ import { HealthError, uploadLimits, type HealthService } from './healthService';
 import {
   CHILD_ID,
   GAP_TEXT,
+  MOCK_MEMBERS,
   SUMMARY_FAILED_TEXT,
   SUMMARY_SCRIPTS,
   extractionFor,
@@ -129,6 +132,8 @@ export class MockHealthService implements HealthService {
   /** Profiles whose first summary has already failed: it fails once, then works. */
   private failedOnce = new Set<string>();
   private counter = 100;
+  /** Who each profile the resident keeps is shared with. */
+  private shares: Record<string, ProfileSharing['shares']> = {};
 
   constructor(options: MockOptions = {}) {
     this.clock = options.clock ?? realClock;
@@ -152,6 +157,7 @@ export class MockHealthService implements HealthService {
       ready,
     }));
     this.failedOnce = new Set();
+    this.shares = { [CHILD_ID]: [{ user_id: 'usr-mona', name: 'Mona', access: 'edit', since: '2026-10-01T18:00:00Z' }] };
   }
 
   mediaHeaders(): Record<string, string> {
@@ -171,9 +177,11 @@ export class MockHealthService implements HealthService {
       this.consent = { given: true, given_at: this.iso() };
     } else {
       // Withdrawing deletes the health data; the resident's own profile stays, empty.
-      const self = this.profiles.find((p) => p.relation === 'self') ?? this.profiles[0];
+      // Every share given or received ends too.
+      const self = this.profiles.find((p) => p.relation === 'self' && p.access === 'owner') ?? this.profiles[0];
       this.consent = { given: false, given_at: null };
       this.profiles = [{ ...self, blood_type: null }];
+      this.shares = {};
       this.records = { [self.id]: this.emptyRecord() };
       this.documents = [];
       this.summaries = [];
@@ -186,14 +194,16 @@ export class MockHealthService implements HealthService {
   async listProfiles(): Promise<HealthProfile[]> {
     await this.wait();
     this.requireConsent();
-    return clone(this.profiles);
+    return clone(
+      this.profiles.map((p) => (p.access === 'owner' ? { ...p, shared_with: this.shares[p.id]?.length ?? 0 } : p)),
+    );
   }
 
   async addProfile(input: ProfileInput): Promise<HealthProfile> {
     await this.wait();
     this.requireConsent();
     this.validateProfile(input);
-    const profile: HealthProfile = { ...input, id: this.id('fam') };
+    const profile: HealthProfile = { ...input, id: this.id('fam'), access: 'owner' };
     this.profiles.push(profile);
     this.records[profile.id] = this.emptyRecord();
     return clone(profile);
@@ -203,9 +213,9 @@ export class MockHealthService implements HealthService {
     await this.wait();
     this.requireConsent();
     this.validateProfile(input);
+    const { access, shared_by, relation } = this.editable(id);
     const index = this.profiles.findIndex((p) => p.id === id);
-    if (index < 0) throw new HealthError('not_found', 'Profile not found.', { status: 404 });
-    this.profiles[index] = { ...input, id, relation: this.profiles[index].relation };
+    this.profiles[index] = { ...input, id, relation, access, ...(shared_by ? { shared_by } : {}) };
     this.touch(id);
     return clone(this.profiles[index]);
   }
@@ -213,8 +223,7 @@ export class MockHealthService implements HealthService {
   async deleteProfile(id: string): Promise<void> {
     await this.wait();
     this.requireConsent();
-    const profile = this.profiles.find((p) => p.id === id);
-    if (!profile) throw new HealthError('not_found', 'Profile not found.', { status: 404 });
+    const profile = this.kept(id);
     if (profile.relation === 'self') {
       // The resident's own profile can't go; its data is wiped instead.
       this.records[id] = this.emptyRecord();
@@ -222,9 +231,62 @@ export class MockHealthService implements HealthService {
     } else {
       this.profiles = this.profiles.filter((p) => p.id !== id);
       delete this.records[id];
+      delete this.shares[id];
     }
     this.documents = this.documents.filter((d) => d.profile_id !== id);
     this.summaries = this.summaries.filter((s) => s.profileId !== id);
+  }
+
+  /* ----------------------------------------------------- Sharing */
+
+  async getSharing(profileId: string): Promise<ProfileSharing> {
+    await this.wait();
+    this.requireConsent();
+    this.kept(profileId);
+    return clone(this.sharingOf(profileId));
+  }
+
+  async shareProfile(profileId: string, userId: string, access: ShareAccess): Promise<ProfileSharing> {
+    await this.wait();
+    this.requireConsent();
+    this.kept(profileId);
+    const member = MOCK_MEMBERS.find((m) => m.user_id === userId);
+    if (!member) throw new HealthError('not_found', 'That person is not a resident of your apartment.', { status: 404 });
+    const list = (this.shares[profileId] ??= []);
+    const existing = list.find((share) => share.user_id === userId);
+    if (existing) existing.access = access;
+    else list.push({ ...member, access, since: this.iso() });
+    return clone(this.sharingOf(profileId));
+  }
+
+  async unshareProfile(profileId: string, userId: string): Promise<void> {
+    await this.wait();
+    this.requireConsent();
+    this.kept(profileId);
+    const list = this.shares[profileId] ?? [];
+    if (!list.some((share) => share.user_id === userId)) {
+      throw new HealthError('not_found', 'This record is not shared with that person.', { status: 404 });
+    }
+    this.shares[profileId] = list.filter((share) => share.user_id !== userId);
+  }
+
+  async leaveSharedProfile(profileId: string): Promise<void> {
+    await this.wait();
+    this.requireConsent();
+    const profile = this.profile(profileId);
+    if (profile.access === 'owner') throw new HealthError('not_found', 'This record is not shared with you.', { status: 404 });
+    this.profiles = this.profiles.filter((p) => p.id !== profileId);
+    this.documents = this.documents.filter((d) => d.profile_id !== profileId);
+    this.summaries = this.summaries.filter((entry) => entry.profileId !== profileId);
+  }
+
+  private sharingOf(profileId: string): ProfileSharing {
+    const shares = this.shares[profileId] ?? [];
+    return {
+      apartment: true,
+      shares,
+      members: MOCK_MEMBERS.filter((member) => !shares.some((share) => share.user_id === member.user_id)),
+    };
   }
 
   /* ------------------------------------------------------ Record */
@@ -235,13 +297,14 @@ export class MockHealthService implements HealthService {
     this.requireConsent();
     const profile = this.profile(profileId);
     const record = this.record(profileId);
-    const { relation: _relation, ...patient } = profile;
+    const { relation: _relation, access: _access, shared_by: _sharedBy, ...patient } = profile;
     return clone({ patient, ...record, gaps: this.gapsFor(profile, record) });
   }
 
   async createItem<S extends RecordSection>(profileId: string, section: S, data: ItemData<S>): Promise<SectionItems[S]> {
     await this.wait();
     this.requireConsent();
+    this.editable(profileId);
     this.validateItem(section, data);
     const item = { ...data, id: this.id(section.charAt(0)), source: null } as unknown as SectionItems[S];
     this.list(profileId, section).push(item);
@@ -257,6 +320,7 @@ export class MockHealthService implements HealthService {
   ): Promise<SectionItems[S]> {
     await this.wait();
     this.requireConsent();
+    this.editable(profileId);
     this.validateItem(section, data);
     const list = this.list(profileId, section);
     const index = list.findIndex((item) => item.id === itemId);
@@ -270,6 +334,7 @@ export class MockHealthService implements HealthService {
   async deleteItem(profileId: string, section: RecordSection, itemId: string): Promise<void> {
     await this.wait();
     this.requireConsent();
+    this.editable(profileId);
     const list = this.list(profileId, section);
     const index = list.findIndex((item) => item.id === itemId);
     if (index < 0) throw new HealthError('not_found', 'Item not found.', { status: 404 });
@@ -296,7 +361,7 @@ export class MockHealthService implements HealthService {
     options: { onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
   ): Promise<UploadResult> {
     this.requireConsent();
-    this.profile(profileId);
+    this.editable(profileId);
     if (input.files.length === 0 || input.files.length > uploadLimits.maxPages) {
       throw new HealthError('invalid', 'A document has 1 to 10 pages.', { status: 422 });
     }
@@ -345,6 +410,7 @@ export class MockHealthService implements HealthService {
     await this.wait();
     this.requireConsent();
     const doc = this.document(docId);
+    this.editable(doc.profile_id);
     this.advance(doc);
     if (doc.status !== 'needs_review') {
       throw new HealthError('invalid', 'This document is not waiting for review.', { status: 422 });
@@ -382,6 +448,7 @@ export class MockHealthService implements HealthService {
     await this.wait();
     this.requireConsent();
     const doc = this.document(docId);
+    this.editable(doc.profile_id);
     const record = this.records[doc.profile_id];
     if (record) {
       for (const section of Object.keys(record) as (keyof MockRecord)[]) {
@@ -566,6 +633,24 @@ export class MockHealthService implements HealthService {
   private profile(id: string): HealthProfile {
     const profile = this.profiles.find((p) => p.id === id);
     if (!profile) throw new HealthError('not_found', 'Profile not found.', { status: 404 });
+    return profile;
+  }
+
+  /** A profile the resident may change: their own, or one shared with them to edit. */
+  private editable(id: string): HealthProfile {
+    const profile = this.profile(id);
+    if (profile.access === 'view') {
+      throw new HealthError('forbidden', 'This record was shared with you to view only.', { status: 403 });
+    }
+    return profile;
+  }
+
+  /** A profile the resident keeps: only they delete it or share it. */
+  private kept(id: string): HealthProfile {
+    const profile = this.profile(id);
+    if (profile.access !== 'owner') {
+      throw new HealthError('forbidden', 'Only the person who keeps this record can do that.', { status: 403 });
+    }
     return profile;
   }
 

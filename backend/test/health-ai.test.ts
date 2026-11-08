@@ -36,6 +36,7 @@ Object.assign(process.env, {
   ELEVENLABS_BASE_URL: `http://127.0.0.1:${voicePort}`,
   ANTHROPIC_API_KEY: '',
   AI_PROVIDER: '',
+  ADMIN_API_KEY: 'admin-key-for-health-ai-tests',
 });
 
 const { createApp } = await import('../src/app.ts');
@@ -137,11 +138,21 @@ async function resident() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: `reader${residents}@example.com`, password: 'correct horse battery', name: `Mona Adel ${residents}` }),
   });
-  const { data } = (await registered.json()) as { data: { token: string } };
+  const { data } = (await registered.json()) as { data: { token: string; user: { id: string } } };
   await call('POST', '/health/consent', data.token, { given: true });
   const [self] = (await call<{ id: string }[]>('GET', '/health/profiles', data.token)).data;
   await call('PUT', `/health/profiles/${self.id}`, data.token, { name: `Mona Adel ${residents}`, sex: 'female', date_of_birth: '1971-01-20', blood_type: 'A+' });
-  return { token: data.token, profileId: self.id };
+  return { token: data.token, profileId: self.id, userId: data.user.id, email: `reader${residents}@example.com` };
+}
+
+/** Puts the residents in one new apartment, through the admin API. */
+async function sameApartment(...people: { email: string }[]) {
+  const admin = { Authorization: 'Bearer admin-key-for-health-ai-tests', 'Content-Type': 'application/json' };
+  const created = await fetch(`${BASE}/api/admin/units`, { method: 'POST', headers: admin, body: JSON.stringify({ name: `Unit ${residents}`, provision: false, gateway: false }) });
+  const unitId = ((await created.json()) as { data: { id: string } }).data.id;
+  for (const person of people) {
+    await fetch(`${BASE}/api/admin/units/${unitId}/members`, { method: 'POST', headers: admin, body: JSON.stringify({ email: person.email, role: 'owner' }) });
+  }
 }
 
 function upload(token: string, profileId: string, pages: { bytes: Buffer; type: string; name: string }[], fields: Record<string, string> = { type: 'prescription' }) {
@@ -236,6 +247,35 @@ describe('reading uploaded documents with Gemini', () => {
     assert.deepEqual(Buffer.from(await page.arrayBuffer()), JPEG);
     assert.equal((await fetch(doc.file_url.replace(/sig=[^&]+/, 'sig=forged'))).status, 404);
     assert.equal((await fetch(`${BASE}/health/media/document/${docId}/1`)).status, 404);
+  });
+
+  test('someone the record is shared with sees the document and its pages, and reviews it only with edit access', async () => {
+    const family = await resident();
+    const stranger = await resident();
+    await sameApartment(patient, family);
+    const page = `${BASE}/health/media/document/${docId}/1`;
+    const bySession = (token: string) => fetch(page, { headers: { Authorization: `Bearer ${token}` } });
+    assert.equal((await bySession(family.token)).status, 404);
+
+    assert.equal((await call('PUT', `/health/profiles/${patient.profileId}/sharing/${family.userId}`, patient.token, { access: 'view' })).status, 200);
+    assert.equal((await bySession(patient.token)).status, 200);
+    const shown = await bySession(family.token);
+    assert.equal(shown.status, 200);
+    assert.deepEqual(Buffer.from(await shown.arrayBuffer()), JPEG);
+    assert.equal((await bySession(stranger.token)).status, 404);
+    const listed = (await call<{ id: string }[]>('GET', `/health/profiles/${patient.profileId}/documents`, family.token)).data;
+    assert.deepEqual(listed.map((doc) => doc.id), [docId]);
+    assert.equal((await call('GET', `/health/documents/${docId}`, family.token)).status, 200);
+    assert.equal((await call('GET', `/health/documents/${docId}`, stranger.token)).status, 404);
+
+    // Viewing only: no review, no deleting, no new uploads.
+    assert.equal((await call('POST', `/health/documents/${docId}/confirm`, family.token, { decisions: [] })).status, 403);
+    assert.equal((await call('DELETE', `/health/documents/${docId}`, family.token)).status, 403);
+    assert.equal((await upload(family.token, patient.profileId, [{ bytes: JPEG, type: 'image/jpeg', name: 'p.jpg' }])).status, 403);
+
+    // The share ends, and with it the pages.
+    assert.equal((await call('DELETE', `/health/profiles/${patient.profileId}/sharing/${family.userId}`, patient.token)).status, 204);
+    assert.equal((await bySession(family.token)).status, 404);
   });
 
   test('confirming saves exactly what the resident approved, with the document as source', async () => {

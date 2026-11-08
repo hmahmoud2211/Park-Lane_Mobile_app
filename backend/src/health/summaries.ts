@@ -12,7 +12,6 @@ import {
   findNewestSummary,
   findReadySummaryAudio,
   findSummaryForSpecialty,
-  findSummaryOwnerId,
   listGeneratingSummaryIds,
   setSummaryPhase,
   upsertGeneratingSummary,
@@ -20,7 +19,7 @@ import {
 } from '../repositories/healthSummaries.ts';
 import { readStoredFile, removeFiles, signedUrl, storeFile } from './files.ts';
 import { enqueue, isWaiting } from './jobs.ts';
-import { gapsFor, ownedProfile, profileById, readSections, type HealthLang } from './passport.ts';
+import { gapsFor, profileById, profileFor, readSections, type HealthLang } from './passport.ts';
 import { buildFacts, specialtyName, writeSpokenSummary } from './spoken.ts';
 
 /**
@@ -80,7 +79,7 @@ function present(row: SummaryRow, lang: HealthLang, base: string, cached = false
 
 /** GET .../summary: one specialty's, or without one the newest in the language. Null: none yet (404). */
 export function getSummary(userId: string, profileId: string, lang: HealthLang, specialty: string | null, uiLang: HealthLang, base: string) {
-  ownedProfile(userId, profileId);
+  profileFor(userId, profileId, 'view');
   const row = specialty ? findSummaryForSpecialty(profileId, lang, specialty) : findNewestSummary(profileId, lang);
   return row ? present(row, uiLang, base) : null;
 }
@@ -90,8 +89,9 @@ export function getSummary(userId: string, profileId: string, lang: HealthLang, 
  * comes back at once (`cached`); one being made is returned as it is;
  * otherwise a new one starts in the background.
  */
+/** Anyone who may see the record may prepare one: it reads the record without changing it. */
 export function requestSummary(userId: string, profileId: string, body: Record<string, unknown>, uiLang: HealthLang, base: string) {
-  const profile = ownedProfile(userId, profileId);
+  const profile = profileFor(userId, profileId, 'view');
   if (body.consent !== true) throw new ApiError('invalid', 'Consent is required to generate a summary.', 'consent');
   if (body.lang !== 'en' && body.lang !== 'ar') throw new ApiError('invalid', 'lang must be en or ar.', 'lang');
   const lang: HealthLang = body.lang;
@@ -149,8 +149,9 @@ export function summaryAudio(id: string): Buffer | null {
   return audioFile ? readStoredFile(audioFile) : null;
 }
 
-export function summaryOwner(id: string): string | null {
-  return findSummaryOwnerId(id);
+/** The profile a summary belongs to, for its media link. */
+export function summaryProfileId(id: string): string | null {
+  return findHealthSummary(id)?.profile_id ?? null;
 }
 
 /** After a restart: summaries still being made are made again. */

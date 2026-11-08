@@ -6,7 +6,7 @@ import { AppText } from '../../components/common/AppText';
 import { ConfirmSheet } from '../../features/health/components/ConfirmSheet';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
 import { ResourceView } from '../../features/health/components/LoadState';
-import { profileLine } from '../../features/health/components/presenters';
+import { profileLine, sharedLabel } from '../../features/health/components/presenters';
 import { InfoRow } from '../../components/ui/Controls';
 import { Panel } from '../../components/ui/Panel';
 import { ParkingButton } from '../../components/ui/ParkingButton';
@@ -20,19 +20,19 @@ import { dataUsePoints } from '../../features/health/services/dataUse';
 import { settingsCopy } from './HealthSettingsScreen.data';
 import { createStyles } from './HealthSettingsScreen.styles';
 
-type Pending = { kind: 'wipe' | 'remove'; profile: HealthProfile } | { kind: 'withdraw' };
+type Pending = { kind: 'wipe' | 'remove' | 'leave'; profile: HealthProfile } | { kind: 'withdraw' };
 
 /**
- * Family profiles, the same plain-language account of data use as
- * onboarding, and the two destructive actions, each behind a typed
- * confirmation: deleting one person's data, and withdrawing consent, which
- * deletes everyone's.
+ * Family profiles, sharing them with the apartment and the records others
+ * share, the same plain-language account of data use as onboarding, and the
+ * two destructive actions, each behind a typed confirmation: deleting one
+ * person's data, and withdrawing consent, which deletes everyone's.
  */
 export function HealthSettingsScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'HealthSettings'>['navigation']>();
-  const { lang, t, deleteProfile, setConsent } = useHealth();
+  const { lang, t, deleteProfile, leaveSharedProfile, setConsent } = useHealth();
   const copy = settingsCopy[lang];
   const profiles = useHealthProfiles();
   const [pending, setPending] = useState<Pending | null>(null);
@@ -48,6 +48,9 @@ export function HealthSettingsScreen() {
       };
     }
     const name = pending.profile.name;
+    if (pending.kind === 'leave') {
+      return { title: copy.leaveTitle(name), body: copy.leaveBody(pending.profile.shared_by ?? ''), label: copy.leaveConfirm, typeToConfirm: undefined };
+    }
     return pending.kind === 'remove'
       ? { title: copy.deleteProfileTitle(name), body: copy.deleteProfileBody, label: copy.deleteConfirm, typeToConfirm: { expected: name, label: copy.typeName(name) } }
       : { title: copy.deleteTitle(name), body: copy.deleteBody, label: copy.deleteConfirm, typeToConfirm: { expected: name, label: copy.typeName(name) } };
@@ -61,7 +64,8 @@ export function HealthSettingsScreen() {
       navigation.dispatch(StackActions.popTo('Home'));
       return;
     }
-    await deleteProfile(pending.profile.id);
+    if (pending.kind === 'leave') await leaveSharedProfile(pending.profile.id);
+    else await deleteProfile(pending.profile.id);
     setPending(null);
   };
 
@@ -80,36 +84,68 @@ export function HealthSettingsScreen() {
       }
     >
       <ResourceView resource={profiles}>
-        {(all) => (
-          <>
-            <Panel icon="people-outline" title={copy.family} subtitle={copy.familyHint}>
-              {all.map((profile, index) => (
-                <ListRow
-                  key={profile.id}
-                  divided={index > 0}
-                  icon={profile.relation === 'self' ? 'person-outline' : 'person-add-outline'}
-                  title={`${profile.name} · ${t.relation[profile.relation]}`}
-                  lines={[profileLine(profile, lang)]}
-                  accessibilityHint={copy.edit}
-                  onPress={() => navigation.navigate('HealthProfile', { profileId: profile.id })}
-                />
-              ))}
-              <ParkingButton compact icon="add" label={copy.addFamily} onPress={() => navigation.navigate('HealthProfile')} />
-            </Panel>
-            <Panel icon="trash-outline" title={copy.deleteData} subtitle={copy.deleteDataHint}>
-              {all.map((profile) => (
-                <ParkingButton
-                  key={profile.id}
-                  compact
-                  tone="danger"
-                  icon={profile.relation === 'self' ? 'trash-outline' : 'person-remove-outline'}
-                  label={profile.relation === 'self' ? copy.deleteFor(profile.name) : copy.remove(profile.name)}
-                  onPress={() => setPending({ kind: profile.relation === 'self' ? 'wipe' : 'remove', profile })}
-                />
-              ))}
-            </Panel>
-          </>
-        )}
+        {(all) => {
+          const kept = all.filter((profile) => profile.access === 'owner');
+          const shared = all.filter((profile) => profile.access !== 'owner');
+          return (
+            <>
+              <Panel icon="people-outline" title={copy.family} subtitle={copy.familyHint}>
+                {kept.map((profile, index) => (
+                  <ListRow
+                    key={profile.id}
+                    divided={index > 0}
+                    icon={profile.relation === 'self' ? 'person-outline' : 'person-add-outline'}
+                    title={`${profile.name} · ${t.relation[profile.relation]}`}
+                    lines={[profileLine(profile, lang)]}
+                    accessibilityHint={copy.edit}
+                    onPress={() => navigation.navigate('HealthProfile', { profileId: profile.id })}
+                  />
+                ))}
+                <ParkingButton compact icon="add" label={copy.addFamily} onPress={() => navigation.navigate('HealthProfile')} />
+              </Panel>
+              <Panel icon="share-social-outline" title={copy.share} subtitle={copy.shareHint}>
+                {kept.map((profile, index) => (
+                  <ListRow
+                    key={profile.id}
+                    divided={index > 0}
+                    icon={profile.shared_with ? 'people-outline' : 'lock-closed-outline'}
+                    title={profile.name}
+                    lines={[profile.shared_with ? copy.sharedCount(profile.shared_with) : copy.onlyYou]}
+                    onPress={() => navigation.navigate('HealthShare', { profileId: profile.id })}
+                  />
+                ))}
+              </Panel>
+              {shared.length > 0 ? (
+                <Panel icon="eye-outline" title={copy.sharedWithYou} subtitle={copy.sharedWithYouHint}>
+                  {shared.map((profile, index) => (
+                    <ListRow
+                      key={profile.id}
+                      divided={index > 0}
+                      icon={profile.access === 'edit' ? 'create-outline' : 'eye-outline'}
+                      title={profile.name}
+                      lines={[sharedLabel(profile, t) ?? '']}
+                      statusLabel={t.shared.access[profile.access === 'edit' ? 'edit' : 'view']}
+                      statusTone={profile.access === 'edit' ? 'teal' : 'slate'}
+                      onPress={() => setPending({ kind: 'leave', profile })}
+                    />
+                  ))}
+                </Panel>
+              ) : null}
+              <Panel icon="trash-outline" title={copy.deleteData} subtitle={copy.deleteDataHint}>
+                {kept.map((profile) => (
+                  <ParkingButton
+                    key={profile.id}
+                    compact
+                    tone="danger"
+                    icon={profile.relation === 'self' ? 'trash-outline' : 'person-remove-outline'}
+                    label={profile.relation === 'self' ? copy.deleteFor(profile.name) : copy.remove(profile.name)}
+                    onPress={() => setPending({ kind: profile.relation === 'self' ? 'wipe' : 'remove', profile })}
+                  />
+                ))}
+              </Panel>
+            </>
+          );
+        }}
       </ResourceView>
       <Panel icon="hand-left-outline" title={copy.withdraw}>
         <AppText variant="caption" style={styles.muted}>
@@ -124,7 +160,7 @@ export function HealthSettingsScreen() {
         title={sheet?.title ?? ''}
         body={sheet?.body}
         typeToConfirm={sheet?.typeToConfirm}
-        options={[{ id: 'confirm', label: sheet?.label ?? '', tone: 'danger', icon: 'trash-outline' }]}
+        options={[{ id: 'confirm', label: sheet?.label ?? '', tone: 'danger', icon: pending?.kind === 'leave' ? 'eye-off-outline' : 'trash-outline' }]}
         onSelect={run}
         onClose={() => setPending(null)}
       />

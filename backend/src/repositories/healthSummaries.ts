@@ -49,13 +49,6 @@ export function findReadySummaryAudio(id: string): string | null {
   return row?.audio_file ?? null;
 }
 
-export function findSummaryOwnerId(id: string): string | null {
-  const row = db()
-    .prepare('SELECT p.owner_id FROM health_summaries s JOIN health_profiles p ON p.id = s.profile_id WHERE s.id = ?')
-    .get(id) as { owner_id: string } | undefined;
-  return row?.owner_id ?? null;
-}
-
 export function listGeneratingSummaryIds(): string[] {
   return (db().prepare("SELECT id FROM health_summaries WHERE status = 'generating'").all() as { id: string }[]).map((row) => row.id);
 }

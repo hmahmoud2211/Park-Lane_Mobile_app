@@ -96,8 +96,10 @@ Health Passport record and every finalized clinic consultation) needs all of:
 
 1. the doctor's own appointment with the patient, not cancelled;
 2. the resident's "Share my Health Passport" choice **for that appointment**;
-3. the resident's Health Passport consent still on;
-4. no more than 7 days after the visit.
+3. the Health Passport consent of the profile's keeper still on;
+4. if someone else booked it (a profile shared with them, see
+   [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md#sharing-records)), that person still sharing it with edit access;
+5. no more than 7 days after the visit.
 
 Otherwise access is **limited**: name, age, sex, the booking reason, and the
 consultations this doctor wrote. The doctor is told why.

@@ -16,6 +16,7 @@ import { patientConsultation, patientConsultations } from '../health/consultatio
 import * as documents from '../health/documents.ts';
 import { linkValid, publicBase, sweepOrphanFiles } from '../health/files.ts';
 import * as passport from '../health/passport.ts';
+import * as sharing from '../health/sharing.ts';
 import * as summaries from '../health/summaries.ts';
 
 /**
@@ -92,16 +93,19 @@ async function uploadedPages(form: FormData): Promise<documents.UploadedPage[]> 
 /**
  * GET /health/media/document/:id/:page and /health/media/summary/:id: a
  * document's page or a summary's recording, for a signed link the app was
- * given, or for the owner's own session.
+ * given, or for the session of anyone who may see the profile.
  */
 function mediaRoute(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
   const page = /^\/health\/media\/document\/([^/]+)\/(\d+)$/.exec(url.pathname);
   const recording = /^\/health\/media\/summary\/([^/]+)$/.exec(url.pathname);
   if ((!page && !recording) || req.method !== 'GET') return false;
-  const owner = page ? documents.documentOwner(segment(page[1])) : summaries.summaryOwner(segment((recording as RegExpExecArray)[1]));
+  const profileId = page ? documents.documentProfileId(segment(page[1])) : summaries.summaryProfileId(segment((recording as RegExpExecArray)[1]));
+  const profile = profileId ? passport.profileById(profileId) : null;
   const session = lookupToken(bearerOf(req), ['session']);
-  const allowed = linkValid(url.pathname, url) || (session !== null && session.user.id === owner && passport.consentGiven(session.user.id));
-  if (!owner || !allowed) throw new ApiError('not_found', 'Not found.');
+  const allowed =
+    linkValid(url.pathname, url) ||
+    (session !== null && profile !== null && passport.consentGiven(session.user.id) && passport.accessTo(session.user.id, profile) !== null);
+  if (!profile || !allowed) throw new ApiError('not_found', 'Not found.');
   if (page) {
     const found = documents.documentPage(segment(page[1]), Number(page[2]));
     if (!found) throw new ApiError('not_found', 'Not found.');
@@ -139,6 +143,22 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL, user:
     if (method === 'POST') return reply(res, passport.addProfile(user.id, await readJson(req)));
   }
 
+  // Sharing a profile with another resident of the apartment (health/sharing.ts).
+  const shares = /^\/health\/profiles\/([^/]+)\/sharing(?:\/([^/]+))?$/.exec(path);
+  if (shares) {
+    // `me`: the signed-in resident, who stops seeing a profile shared with them.
+    const [profileId, targetId] = [segment(shares[1]), shares[2] ? (segment(shares[2]) === 'me' ? user.id : segment(shares[2])) : null];
+    if (!targetId && method === 'GET') return reply(res, sharing.sharingOf(user.id, profileId));
+    if (targetId && method === 'PUT') {
+      const body = await readJson(req);
+      return reply(res, transaction(() => sharing.shareProfile(user, profileId, targetId, body)));
+    }
+    if (targetId && method === 'DELETE') {
+      transaction(() => sharing.endShare(user, profileId, targetId));
+      return noContent(res);
+    }
+  }
+
   const profile = /^\/health\/profiles\/([^/]+)$/.exec(path);
   if (profile) {
     const id = segment(profile[1]);
@@ -153,7 +173,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL, user:
   const record = /^\/health\/profiles\/([^/]+)\/record$/.exec(path);
   if (record && method === 'GET') {
     const id = segment(record[1]);
-    passport.ownedProfile(user.id, id);
+    passport.profileFor(user.id, id, 'view');
     return reply(res, { ...passport.readRecord(id, lang), consultations: patientConsultations(id) });
   }
 
@@ -179,7 +199,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL, user:
     const profileId = segment(profileDocuments[1]);
     if (method === 'GET') return reply(res, documents.listDocuments(user.id, profileId, lang, base));
     if (method === 'POST') {
-      passport.ownedProfile(user.id, profileId);
+      passport.profileFor(user.id, profileId, 'edit');
       if (!aiConfigured()) throw new ApiError('not_configured', 'Reading documents is not set up on this server yet.');
       throttle('health-upload', user.id);
       const form = await readUpload(req);
@@ -194,7 +214,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL, user:
   const document = /^\/health\/documents\/([^/]+)(\/confirm)?$/.exec(path);
   if (document) {
     const docId = segment(document[1]);
-    if (!document[2] && method === 'GET') return reply(res, documents.presentDocument(documents.ownedDocument(user.id, docId), lang, base));
+    if (!document[2] && method === 'GET') return reply(res, documents.presentDocument(documents.documentFor(user.id, docId, 'view'), lang, base));
     if (document[2] && method === 'POST') {
       return reply(res, documents.presentDocument(documents.confirmDocument(user.id, docId, await readJson(req, 256 * 1024)), lang, base));
     }
@@ -215,7 +235,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL, user:
       return true;
     }
     if (method === 'POST') {
-      passport.ownedProfile(user.id, profileId);
+      passport.profileFor(user.id, profileId, 'view');
       if (!aiConfigured() || !speechConfigured()) throw new ApiError('not_configured', 'Spoken summaries are not set up on this server yet.');
       throttle('health-summary', user.id);
       const result = summaries.requestSummary(user.id, profileId, await readJson(req), lang, base);

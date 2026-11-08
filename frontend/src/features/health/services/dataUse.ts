@@ -27,7 +27,12 @@ export const dataUsePoints: Record<HealthLang, readonly DataUsePoint[]> = {
     {
       icon: 'mic-outline',
       title: 'Summaries for your doctor',
-      body: 'Only you can create a spoken summary of your record, each time you ask for one. It is made on our servers from what you have saved.',
+      body: 'Only you, and anyone you share a record with, can create a spoken summary of it, each time one is asked for. It is made on our servers from what has been saved.',
+    },
+    {
+      icon: 'people-outline',
+      title: 'Sharing with your family',
+      body: 'Nobody else sees your records unless you share one with someone who lives in your apartment, to view or to edit. You can stop at any time, and it stops by itself if either of you moves out.',
     },
     {
       icon: 'trash-outline',
@@ -54,7 +59,12 @@ export const dataUsePoints: Record<HealthLang, readonly DataUsePoint[]> = {
     {
       icon: 'mic-outline',
       title: 'ملخصات لطبيبك',
-      body: 'أنت وحدك من يمكنه إنشاء ملخص صوتي لسجلك، في كل مرة تطلبه. يُعد الملخص على خوادمنا مما حفظته.',
+      body: 'أنت ومن تشاركه سجلًا فقط يمكنكم إنشاء ملخص صوتي له، في كل مرة يُطلب. يُعد الملخص على خوادمنا مما حُفظ.',
+    },
+    {
+      icon: 'people-outline',
+      title: 'المشاركة مع عائلتك',
+      body: 'لا يرى أحد سجلاتك إلا إذا شاركت سجلًا مع شخص يسكن معك في الشقة، للعرض أو للتعديل. يمكنك إيقاف المشاركة في أي وقت، وتتوقف تلقائيًا إذا غادر أحدكما الشقة.',
     },
     {
       icon: 'trash-outline',

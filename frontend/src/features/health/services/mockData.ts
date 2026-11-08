@@ -29,6 +29,14 @@ export const MOCK_MEDIA = {
 
 export const RESIDENT_ID = 'res-0001';
 export const CHILD_ID = 'fam-0002';
+/** Mona's own record, which she shares with the resident to view. */
+export const SHARED_ID = 'shr-0003';
+
+/** The other residents of the mock apartment, whom the resident can share a record with. */
+export const MOCK_MEMBERS: readonly { user_id: string; name: string }[] = [
+  { user_id: 'usr-mona', name: 'Mona' },
+  { user_id: 'usr-samia', name: 'Samia' },
+];
 
 export type MockRecord = Omit<HealthRecord, 'gaps' | 'patient'>;
 
@@ -44,8 +52,9 @@ export interface MockDocument extends Omit<HealthDocument, 'error'> {
 
 export function seedProfiles(): HealthProfile[] {
   return [
-    { id: RESIDENT_ID, name: 'Ahmed', sex: 'male', date_of_birth: '1968-03-14', blood_type: null, relation: 'self' },
-    { id: CHILD_ID, name: 'Laila', sex: 'female', date_of_birth: '2016-05-02', blood_type: 'O+', relation: 'child' },
+    { id: RESIDENT_ID, name: 'Ahmed', sex: 'male', date_of_birth: '1968-03-14', blood_type: null, relation: 'self', access: 'owner' },
+    { id: CHILD_ID, name: 'Laila', sex: 'female', date_of_birth: '2016-05-02', blood_type: 'O+', relation: 'child', access: 'owner' },
+    { id: SHARED_ID, name: 'Mona', sex: 'female', date_of_birth: '1972-09-30', blood_type: 'A+', relation: 'self', access: 'view', shared_by: 'Mona' },
   ];
 }
 
@@ -77,6 +86,15 @@ export function seedRecords(): Record<string, MockRecord> {
       procedures: [],
       labs: [],
       visits: [{ id: 'v2', date: '2026-04-11', specialty: 'Pediatrics', reason: 'Vaccination', source: null }],
+    },
+    [SHARED_ID]: {
+      record_updated_at: '2026-10-02T08:30:00Z',
+      allergies: [{ id: 'a9', substance: 'Ibuprofen', reaction: 'stomach pain', severity: 'mild', source: null }],
+      medications: [{ id: 'm9', name: 'Levothyroxine', dose: '50 mcg', frequency: 'once daily', start: '2021-01-15', end: null, source: null }],
+      conditions: [{ id: 'c9', name: 'Hypothyroidism', diagnosed: '2021-01-10', status: 'active', source: null }],
+      procedures: [],
+      labs: [{ id: 'l9', test: 'TSH', value: 2.1, unit: 'mIU/L', date: '2026-09-28', ref_low: 0.4, ref_high: 4.0, source: null }],
+      visits: [],
     },
   };
 }

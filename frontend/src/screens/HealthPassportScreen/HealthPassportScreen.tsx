@@ -6,7 +6,7 @@ import { AppText } from '../../components/common/AppText';
 import { BidiText } from '../../features/health/components/BidiText';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
 import { HealthErrorNotice, LoadingPanel, ResourceView } from '../../features/health/components/LoadState';
-import { documentIcon, documentLines, profileLine, statusTone } from '../../features/health/components/presenters';
+import { documentIcon, documentLines, profileLine, sharedLabel, statusTone } from '../../features/health/components/presenters';
 import { TextLink } from '../../features/health/components/TextLink';
 import { ChipGroup } from '../../components/ui/Controls';
 import { Notice } from '../../components/feedback/Notice';
@@ -94,6 +94,11 @@ function PassportHome() {
   const documents = useHealthDocuments(activeId);
   const { slowJobs } = useHealthState();
   const profile = list?.find((p) => p.id === activeId);
+  // A record shared to view only: read, summaries and documents, but no changes.
+  const canEdit = profile?.access !== 'view';
+  /** A document waiting for review opens the review only for someone who may change the record. */
+  const openDocument = (doc: HealthDocument) =>
+    navigation.navigate(doc.status === 'needs_review' && canEdit ? 'HealthReview' : 'HealthDocument', { docId: doc.id });
 
   const openTab = (tab: RecordTab) => activeId && navigation.navigate('HealthRecords', { profileId: activeId, tab });
 
@@ -140,7 +145,7 @@ function PassportHome() {
             lines={documentLines(doc, lang)}
             statusLabel={t.documentStatus.needs_review}
             statusTone="amber"
-            onPress={() => navigation.navigate('HealthReview', { docId: doc.id })}
+            onPress={() => openDocument(doc)}
           />
         ))}
       </Panel>
@@ -216,7 +221,7 @@ function PassportHome() {
     <Panel icon="folder-open-outline" title={copy.latestDocuments} trailing={docs.length > 0 ? seeAll('documents') : undefined}>
       {docs.length === 0 ? (
         <AppText variant="caption" color={theme.colors.textSecondary}>
-          {copy.noDocuments}
+          {canEdit ? copy.noDocuments : copy.noDocumentsShared}
         </AppText>
       ) : (
         docs.slice(0, CARD_LIMIT).map((doc, index) => (
@@ -228,9 +233,7 @@ function PassportHome() {
             lines={documentLines(doc, lang)}
             statusLabel={t.documentStatus[doc.status]}
             statusTone={statusTone[doc.status]}
-            onPress={() =>
-              navigation.navigate(doc.status === 'needs_review' ? 'HealthReview' : 'HealthDocument', { docId: doc.id })
-            }
+            onPress={() => openDocument(doc)}
           />
         ))
       )}
@@ -270,7 +273,7 @@ function PassportHome() {
   );
 
   const gaps = (rec: HealthRecord) =>
-    rec.gaps.length === 0 || !activeId ? null : (
+    rec.gaps.length === 0 || !activeId || !canEdit ? null : (
       <Panel icon="checkmark-done-outline" title={copy.gapsTitle} subtitle={copy.gapsSubtitle}>
         {rec.gaps.map((gap, index) => {
           const fix = gapFix(gap);
@@ -330,18 +333,28 @@ function PassportHome() {
                 <ChipGroup
                   scroll
                   label={copy.profiles}
-                  options={all.map((p) => ({ value: p.id, label: p.name, detail: t.relation[p.relation] }))}
+                  options={all.map((p) => ({ value: p.id, label: p.name, detail: sharedLabel(p, t) ?? t.relation[p.relation] }))}
                   value={activeId}
                   onChange={setActiveProfileId}
                 />
               ) : null}
-              <Panel icon="person-circle-outline" title={profile.name} subtitle={profileLine(profile, lang)}>
-                <ParkingButton
-                  compact
-                  icon="create-outline"
-                  label={copy.editProfile}
-                  onPress={() => navigation.navigate('HealthProfile', { profileId: activeId })}
-                />
+              <Panel
+                icon="person-circle-outline"
+                title={profile.name}
+                subtitle={[profileLine(profile, lang), sharedLabel(profile, t)].filter(Boolean).join(' · ')}
+              >
+                {canEdit ? (
+                  <ParkingButton
+                    compact
+                    icon="create-outline"
+                    label={copy.editProfile}
+                    onPress={() => navigation.navigate('HealthProfile', { profileId: activeId })}
+                  />
+                ) : (
+                  <AppText variant="caption" color={theme.colors.textSecondary}>
+                    {t.shared.viewOnly(profile.shared_by ?? '')}
+                  </AppText>
+                )}
               </Panel>
               {documents.data ? progress(documents.data) : null}
               <View style={styles.actions}>
@@ -362,20 +375,22 @@ function PassportHome() {
                 <AppText variant="label" color={theme.colors.textMuted} style={styles.hint}>
                   {readySummary ? copy.summaryReadyHint : copy.prepareHint}
                 </AppText>
-                <View style={styles.row}>
-                  <ParkingButton
-                    icon="cloud-upload-outline"
-                    label={copy.upload}
-                    style={styles.grow}
-                    onPress={() => navigation.navigate('HealthUpload', { profileId: activeId })}
-                  />
-                  <ParkingButton
-                    icon="add-circle-outline"
-                    label={copy.addManually}
-                    style={styles.grow}
-                    onPress={() => navigation.navigate('HealthItemForm', { profileId: activeId })}
-                  />
-                </View>
+                {canEdit ? (
+                  <View style={styles.row}>
+                    <ParkingButton
+                      icon="cloud-upload-outline"
+                      label={copy.upload}
+                      style={styles.grow}
+                      onPress={() => navigation.navigate('HealthUpload', { profileId: activeId })}
+                    />
+                    <ParkingButton
+                      icon="add-circle-outline"
+                      label={copy.addManually}
+                      style={styles.grow}
+                      onPress={() => navigation.navigate('HealthItemForm', { profileId: activeId })}
+                    />
+                  </View>
+                ) : null}
               </View>
               {record.data ? gaps(record.data) : null}
             </>

@@ -87,6 +87,8 @@ export type RootStackParamList = {
   /** With `lang` (and `specialty`), opens straight on that summary: its player, progress or failure. */
   HealthSummary: { profileId: string; lang?: HealthLang; specialty?: string | null };
   HealthSettings: undefined;
+  /** Who can see a record the resident keeps: the apartment's other residents. */
+  HealthShare: { profileId: string };
   /** A clinic visit its doctor finalized, as it appears in Health Passport. */
   HealthConsultation: { consultationId: string };
 

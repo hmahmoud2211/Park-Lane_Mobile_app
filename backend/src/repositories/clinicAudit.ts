@@ -21,7 +21,9 @@ export type AuditAction =
   | 'consultation.viewed'
   | 'consultation.addendum'
   | 'consultation.purged'
-  | 'passport.consultation_viewed';
+  | 'passport.consultation_viewed'
+  | 'passport.shared'
+  | 'passport.share_ended';
 
 export interface ClinicAuditRow {
   at: string;

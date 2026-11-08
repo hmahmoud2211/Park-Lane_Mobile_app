@@ -11,7 +11,7 @@ import type { ExtractedItem, HealthDocument, HealthLang, SummaryState, UploadFil
 import { HealthError, isHealthError } from './healthService';
 import { textDirection } from './i18n';
 import { dataFrom, emptyDraft, validateDraft } from './itemForm';
-import { CHILD_ID, RESIDENT_ID } from './mockData';
+import { CHILD_ID, RESIDENT_ID, SHARED_ID } from './mockData';
 import { MOCK_TIMINGS, MockHealthService, type MockClock } from './mockHealthService';
 import { canConfirm, canConfirmAll, confirmRemaining, savedCount, startReview, toConfirmInput, update } from './review';
 import { checkDate, dateFromIso, gapFix, groupLabs, isoFromDate, labFlag, parseNumber, summaryIsStale } from './selectors';
@@ -370,6 +370,38 @@ const checks: Check[] = [
       const docs = await service.listDocuments(profiles[0].id);
       assert(profiles.length === 1 && record.allergies.length === 0 && docs.length === 0, 'data survived withdrawal');
       return `${profiles.length} profile, empty record`;
+    },
+  },
+  {
+    name: 'Sharing: a view-only record reads but refuses changes; the keeper shares and stops',
+    run: async () => {
+      const { service } = await consented();
+      const profiles = await service.listProfiles();
+      const shared = profiles.find((p) => p.id === SHARED_ID);
+      assert(shared?.access === 'view' && shared.shared_by === 'Mona', 'Mona’s record should be shared to view');
+      assert(profiles.find((p) => p.id === CHILD_ID)?.shared_with === 1, 'Laila is shared with one person');
+      assert((await service.getRecord(SHARED_ID)).conditions.length === 1, 'shared record readable');
+      const refusals = await Promise.all([
+        errorKind(() => service.createItem(SHARED_ID, 'allergies', { substance: 'Latex', reaction: null, severity: 'mild' })),
+        errorKind(() => service.updateProfile(SHARED_ID, { name: 'X', relation: 'self', sex: null, date_of_birth: null, blood_type: null })),
+        errorKind(() => service.deleteProfile(SHARED_ID)),
+        errorKind(() => service.getSharing(SHARED_ID)),
+      ]);
+      assert(refusals.every((kind) => kind === 'forbidden'), `got ${refusals.join(', ')}`);
+
+      const before = await service.getSharing(RESIDENT_ID);
+      assert(before.shares.length === 0 && before.members.length === 2, 'nobody yet, two to choose from');
+      const after = await service.shareProfile(RESIDENT_ID, 'usr-samia', 'view');
+      assert(after.shares.length === 1 && after.members.length === 1, 'Samia now sees it');
+      await service.shareProfile(RESIDENT_ID, 'usr-samia', 'edit');
+      assert((await service.getSharing(RESIDENT_ID)).shares[0].access === 'edit', 'access changed');
+      await service.unshareProfile(RESIDENT_ID, 'usr-samia');
+      assert((await service.getSharing(RESIDENT_ID)).shares.length === 0, 'stopped');
+      assert((await errorKind(() => service.shareProfile(RESIDENT_ID, 'usr-stranger', 'view'))) === 'not_found', 'only the apartment');
+
+      await service.leaveSharedProfile(SHARED_ID);
+      assert(!(await service.listProfiles()).some((p) => p.id === SHARED_ID), 'left');
+      return 'view refused ×4, share → edit → stop, left';
     },
   },
   {

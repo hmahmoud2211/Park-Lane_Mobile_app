@@ -11,7 +11,9 @@ import type {
   HealthRecord,
   ItemData,
   ProfileInput,
+  ProfileSharing,
   RecordSection,
+  ShareAccess,
   SectionItems,
   SummaryRequest,
   SummaryState,
@@ -135,6 +137,16 @@ export class HttpHealthService implements HealthService {
     this.call<HealthProfile>('PUT', `/health/profiles/${enc(id)}`, { body: input });
   deleteProfile = async (id: string) => {
     await this.call<void>('DELETE', `/health/profiles/${enc(id)}`);
+  };
+
+  getSharing = (profileId: string) => this.call<ProfileSharing>('GET', `/health/profiles/${enc(profileId)}/sharing`);
+  shareProfile = (profileId: string, userId: string, access: ShareAccess) =>
+    this.call<ProfileSharing>('PUT', `/health/profiles/${enc(profileId)}/sharing/${enc(userId)}`, { body: { access } });
+  unshareProfile = async (profileId: string, userId: string) => {
+    await this.call<void>('DELETE', `/health/profiles/${enc(profileId)}/sharing/${enc(userId)}`);
+  };
+  leaveSharedProfile = async (profileId: string) => {
+    await this.call<void>('DELETE', `/health/profiles/${enc(profileId)}/sharing/me`);
   };
 
   getRecord = (profileId: string) => this.call<HealthRecord>('GET', `/health/profiles/${enc(profileId)}/record`);

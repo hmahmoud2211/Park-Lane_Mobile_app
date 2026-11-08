@@ -6,7 +6,7 @@ import type { Role, User } from '../ems/auth.ts';
 import { transaction } from '../ems/db.ts';
 import { normalize } from '../lib/text.ts';
 import { seal, unseal } from '../ems/secrets.ts';
-import { consentGiven, ownedProfile } from '../health/passport.ts';
+import { consentGiven, profileFor } from '../health/passport.ts';
 import {
   claimNextNotification,
   countOverlappingAppointments,
@@ -219,7 +219,7 @@ function isUniqueViolation(error: unknown) {
 }
 
 /**
- * Books a slot for one of the resident's Health Passport profiles, or moves
+ * Books a slot for a Health Passport profile the resident keeps or may edit, or moves
  * an existing booking there (`reschedule_of`). The slot is checked against
  * the doctor's grid and current bookings inside the transaction, and the
  * database's unique indexes refuse a second live booking of the same slot
@@ -234,7 +234,8 @@ export function book(user: User, body: Record<string, unknown>, nowMs = Date.now
   if (!consentGiven(user.id)) {
     throw new ApiError('consent_required', 'Set up Health Passport first: clinic visits are saved to it.');
   }
-  const profile = ownedProfile(user.id, body.patient_profile_id);
+  // Their own profiles, or one shared with them to edit: the visit is written into it.
+  const profile = profileFor(user.id, body.patient_profile_id, 'edit');
   const reason = reasonText(body.reason);
   const shareHistory = flag(body.share_history, 'share_history');
   const aiConsent = flag(body.ai_consent, 'ai_consent');

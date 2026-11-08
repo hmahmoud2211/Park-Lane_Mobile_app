@@ -105,10 +105,10 @@ async function residentRoute(req: IncomingMessage, res: ServerResponse, path: st
     return true;
   }
 
-  // Who the resident can book for: their Health Passport profiles.
+  // Who the resident can book for: the Health Passport profiles they keep, and those shared with them to edit.
   if (path === '/patients' && method === 'GET') {
     const consent = consentGiven(user.id);
-    ok(res, { health_passport: consent, profiles: consent ? listProfiles(user.id) : [] });
+    ok(res, { health_passport: consent, profiles: consent ? listProfiles(user.id).filter((profile) => profile.access !== 'view') : [] });
     return true;
   }
 

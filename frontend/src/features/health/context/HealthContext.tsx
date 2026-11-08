@@ -11,7 +11,9 @@ import type {
   HealthProfile,
   ItemData,
   ProfileInput,
+  ProfileSharing,
   RecordSection,
+  ShareAccess,
   SummaryRequest,
   SummaryState,
   UploadInput,
@@ -43,11 +45,17 @@ export interface HealthContextValue {
     documents: (profileId: string) => Promise<HealthDocument[]>;
     document: (docId: string) => Promise<HealthDocument>;
     summary: (profileId: string, lang: HealthLang, specialty?: string | null) => Promise<SummaryState | null>;
+    sharing: (profileId: string) => Promise<ProfileSharing>;
   };
 
   setConsent: (given: boolean) => Promise<void>;
   saveProfile: (id: string | null, input: ProfileInput) => Promise<HealthProfile>;
   deleteProfile: (id: string) => Promise<void>;
+  /** Shares a profile the resident keeps with someone in the apartment, or changes what they may do. */
+  shareProfile: (profileId: string, userId: string, access: ShareAccess) => Promise<void>;
+  unshareProfile: (profileId: string, userId: string) => Promise<void>;
+  /** Stops seeing a profile someone shared with the resident. */
+  leaveSharedProfile: (profileId: string) => Promise<void>;
   saveItem: <S extends RecordSection>(profileId: string, section: S, itemId: string | null, data: ItemData<S>) => Promise<void>;
   deleteItem: (profileId: string, section: RecordSection, itemId: string) => Promise<void>;
   upload: (
@@ -122,6 +130,10 @@ export function HealthProvider({ children }: PropsWithChildren) {
           );
         },
         onSettled: (doc) => {
+          store.invalidate(healthKeys.documents(doc.profile_id), healthKeys.record(doc.profile_id));
+          // A document on a record shared to view only is its keeper's to review: no banner here.
+          const profile = store.resource<HealthProfile[]>(healthKeys.profiles).data?.find((p) => p.id === doc.profile_id);
+          if (profile?.access === 'view') return;
           store.pushNotice({
             kind: doc.status === 'failed' ? 'failed' : 'ready',
             key: doc.id,
@@ -129,7 +141,6 @@ export function HealthProvider({ children }: PropsWithChildren) {
             profileId: doc.profile_id,
             at: Date.now(),
           });
-          store.invalidate(healthKeys.documents(doc.profile_id), healthKeys.record(doc.profile_id));
         },
         onGiveUp: (docId) => store.setSlow(docId, true),
       }),
@@ -227,6 +238,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
       },
       summary: async (profileId, summaryLang, specialty) =>
         follow(profileId, await service.getSummary(profileId, summaryLang, specialty)),
+      sharing: (profileId) => service.getSharing(profileId),
     }),
     [service, poller, follow],
   );
@@ -267,6 +279,30 @@ export function HealthProvider({ children }: PropsWithChildren) {
       await service.deleteProfile(id);
       store.invalidate(healthKeys.profiles, healthKeys.record(id), healthKeys.documents(id), healthKeys.summaries(id));
       setActiveProfileId((current) => (current === id ? null : current));
+    },
+    [service, store],
+  );
+
+  const shareProfile = useCallback(
+    async (profileId: string, userId: string, access: ShareAccess) => {
+      store.set(healthKeys.sharing(profileId), await service.shareProfile(profileId, userId, access));
+    },
+    [service, store],
+  );
+
+  const unshareProfile = useCallback(
+    async (profileId: string, userId: string) => {
+      await service.unshareProfile(profileId, userId);
+      store.invalidate(healthKeys.sharing(profileId));
+    },
+    [service, store],
+  );
+
+  const leaveSharedProfile = useCallback(
+    async (profileId: string) => {
+      await service.leaveSharedProfile(profileId);
+      store.invalidate(healthKeys.profiles, healthKeys.record(profileId), healthKeys.documents(profileId), healthKeys.summaries(profileId));
+      setActiveProfileId((current) => (current === profileId ? null : current));
     },
     [service, store],
   );
@@ -379,6 +415,9 @@ export function HealthProvider({ children }: PropsWithChildren) {
       setConsent,
       saveProfile,
       deleteProfile,
+      shareProfile,
+      unshareProfile,
+      leaveSharedProfile,
       saveItem,
       deleteItem,
       upload,
@@ -401,6 +440,9 @@ export function HealthProvider({ children }: PropsWithChildren) {
       setConsent,
       saveProfile,
       deleteProfile,
+      shareProfile,
+      unshareProfile,
+      leaveSharedProfile,
       saveItem,
       deleteItem,
       upload,

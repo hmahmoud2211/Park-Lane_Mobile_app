@@ -16,6 +16,7 @@ import type {
   Relation,
   Severity,
   Sex,
+  ShareAccess,
 } from '../../../types/health.types';
 import type { HealthErrorKind } from './healthService';
 
@@ -148,6 +149,15 @@ export interface HealthStrings {
     back: string;
     continue: string;
   };
+  /** A profile another resident of the apartment shares with this one. */
+  shared: {
+    by: (name: string) => string;
+    /** On someone's own record, shared with this resident by that person. */
+    own: string;
+    access: Record<ShareAccess, string>;
+    /** Shown on a record shared to view only, where the edit buttons would be. */
+    viewOnly: (name: string) => string;
+  };
   loading: string;
   errors: Record<HealthErrorKind, { title: string; body: string }>;
   /** Date picker: the empty field, clearing an optional date, and closing the iOS sheet. */
@@ -247,6 +257,12 @@ const en: HealthStrings = {
     back: 'Back',
     continue: 'Continue',
   },
+  shared: {
+    by: (name) => `Shared by ${name}`,
+    own: 'Shared with you',
+    access: { view: 'View only', edit: 'View and edit' },
+    viewOnly: (name) => `${name} shared this record with you to view. Only they can change it.`,
+  },
   loading: 'Loading…',
   errors: {
     network: { title: 'No connection', body: 'Check your internet connection and try again.' },
@@ -254,6 +270,7 @@ const en: HealthStrings = {
     aborted: { title: 'Cancelled', body: 'Nothing was changed.' },
     unauthorized: { title: 'Your session has ended', body: 'Please sign in again.' },
     not_found: { title: 'Not found', body: 'This may have been deleted.' },
+    forbidden: { title: 'Not allowed', body: 'This record was shared with you to view only, or only the person who keeps it can do this.' },
     too_large: { title: 'File too large', body: 'Each file must be 10 MB or smaller. Try a smaller photo or PDF.' },
     invalid: { title: 'Some details aren’t valid', body: 'Check the details and try again.' },
     busy: {
@@ -358,6 +375,12 @@ const ar: HealthStrings = {
     back: 'رجوع',
     continue: 'متابعة',
   },
+  shared: {
+    by: (name) => `مُشارَك معك من ${name}`,
+    own: 'مُشارَك معك',
+    access: { view: 'عرض فقط', edit: 'عرض وتعديل' },
+    viewOnly: (name) => `هذا السجل مُشارَك معك من ${name} للعرض فقط، ولا يعدّله إلا صاحبه.`,
+  },
   loading: 'جارٍ التحميل…',
   errors: {
     network: { title: 'لا يوجد اتصال', body: 'تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.' },
@@ -365,6 +388,7 @@ const ar: HealthStrings = {
     aborted: { title: 'تم الإلغاء', body: 'لم يتغير شيء.' },
     unauthorized: { title: 'انتهت جلستك', body: 'يرجى تسجيل الدخول مرة أخرى.' },
     not_found: { title: 'غير موجود', body: 'ربما تم حذفه.' },
+    forbidden: { title: 'غير مسموح', body: 'شُورك هذا السجل معك للعرض فقط، أو أن هذا الإجراء متاح لصاحب السجل وحده.' },
     too_large: { title: 'الملف كبير جدًا', body: 'يجب ألا يزيد حجم كل ملف عن ١٠ ميجابايت. جرّب صورة أو ملف PDF أصغر.' },
     invalid: { title: 'بعض البيانات غير صحيحة', body: 'راجع البيانات ثم حاول مرة أخرى.' },
     busy: { title: 'المساعد الصحي مشغول', body: 'الخادم مشغول أو غير متاح الآن. حاول مرة أخرى بعد دقيقة.' },

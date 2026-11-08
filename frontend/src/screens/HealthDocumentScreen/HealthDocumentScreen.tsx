@@ -17,7 +17,7 @@ import { ParkingButton } from '../../components/ui/ParkingButton';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHealth } from '../../features/health/hooks/useHealth';
-import { useHealthDocument, useHealthRecord, useHealthState } from '../../features/health/hooks/useHealthData';
+import { useCanEditProfile, useHealthDocument, useHealthRecord, useHealthState } from '../../features/health/hooks/useHealthData';
 import type { HealthDocument } from '../../types/health.types';
 import { formatDate, num } from '../../features/health/services/i18n';
 import { describeItem, itemsFromDocument } from '../../features/health/services/selectors';
@@ -53,6 +53,8 @@ function DocumentDetail({ doc }: { doc: HealthDocument }) {
   const copy = documentCopy[lang];
   const record = useHealthRecord(doc.profile_id);
   const { slowJobs } = useHealthState();
+  // On a record shared to view only, the document is read, never reviewed, retried, edited or deleted.
+  const canEdit = useCanEditProfile(doc.profile_id);
   const [confirming, setConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -80,13 +82,15 @@ function DocumentDetail({ doc }: { doc: HealthDocument }) {
             tone="warning"
             title={copy.reviewTitle}
             actions={
-              <ParkingButton
-                compact
-                tone="primary"
-                icon="checkmark-done-outline"
-                label={copy.review}
-                onPress={() => navigation.replace('HealthReview', { docId: doc.id })}
-              />
+              canEdit ? (
+                <ParkingButton
+                  compact
+                  tone="primary"
+                  icon="checkmark-done-outline"
+                  label={copy.review}
+                  onPress={() => navigation.replace('HealthReview', { docId: doc.id })}
+                />
+              ) : undefined
             }
           >
             {copy.reviewBody}
@@ -98,21 +102,23 @@ function DocumentDetail({ doc }: { doc: HealthDocument }) {
             tone="error"
             title={copy.failedTitle}
             actions={
-              <>
-                <ParkingButton
-                  compact
-                  tone="primary"
-                  icon="camera-outline"
-                  label={copy.tryAgain}
-                  onPress={() => navigation.navigate('HealthUpload', { profileId: doc.profile_id, type: doc.type, retryOf: doc.id })}
-                />
-                <ParkingButton
-                  compact
-                  icon="create-outline"
-                  label={copy.addManually}
-                  onPress={() => navigation.navigate('HealthItemForm', { profileId: doc.profile_id })}
-                />
-              </>
+              canEdit ? (
+                <>
+                  <ParkingButton
+                    compact
+                    tone="primary"
+                    icon="camera-outline"
+                    label={copy.tryAgain}
+                    onPress={() => navigation.navigate('HealthUpload', { profileId: doc.profile_id, type: doc.type, retryOf: doc.id })}
+                  />
+                  <ParkingButton
+                    compact
+                    icon="create-outline"
+                    label={copy.addManually}
+                    onPress={() => navigation.navigate('HealthItemForm', { profileId: doc.profile_id })}
+                  />
+                </>
+              ) : undefined
             }
           >
             {doc.error ?? t.errors.server.body}
@@ -160,8 +166,10 @@ function DocumentDetail({ doc }: { doc: HealthDocument }) {
                       divided={index > 0}
                       icon={sectionIcon[section]}
                       summary={describeItem(section, item as never, lang)}
-                      onEdit={() =>
-                        navigation.navigate('HealthItemForm', { profileId: doc.profile_id, section, itemId: item.id })
+                      onEdit={
+                        canEdit
+                          ? () => navigation.navigate('HealthItemForm', { profileId: doc.profile_id, section, itemId: item.id })
+                          : undefined
                       }
                     />
                   ))}
@@ -169,7 +177,7 @@ function DocumentDetail({ doc }: { doc: HealthDocument }) {
               )}
             </Panel>
           ) : null}
-          <ParkingButton tone="danger" icon="trash-outline" label={copy.delete} onPress={() => setConfirming(true)} />
+          {canEdit ? <ParkingButton tone="danger" icon="trash-outline" label={copy.delete} onPress={() => setConfirming(true)} /> : null}
         </>
       }
     >

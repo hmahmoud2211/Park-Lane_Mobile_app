@@ -1,5 +1,5 @@
 import { unseal } from '../ems/secrets.ts';
-import { consentGiven, gapsFor, profileById, readSections, type Gap, type RecordSections } from '../health/passport.ts';
+import { accessTo, consentGiven, gapsFor, profileById, readSections, type Gap, type RecordSections } from '../health/passport.ts';
 import { listPastVisits } from '../repositories/clinicAppointments.ts';
 import { listAddendaForHistory, listFinalConsultations, type FinalConsultationRow } from '../repositories/clinicConsultations.ts';
 import type { AppointmentRow } from './appointments.ts';
@@ -12,8 +12,9 @@ import { ageAt, clinicDate } from './time.ts';
  *
  * Full access needs all of: the doctor's own appointment with the patient,
  * not cancelled; the resident's "share my Health Passport" choice for that
- * appointment; the resident's Health Passport consent still in force; and
- * the visit no more than ACCESS_AFTER_DAYS ago. It opens the Health
+ * appointment; the Health Passport consent of the profile's keeper still in
+ * force; a booker who is not the keeper still sharing the profile with edit
+ * access; and the visit no more than ACCESS_AFTER_DAYS ago. It opens the Health
  * Passport record and every finalized clinic consultation.
  *
  * Otherwise access is limited: the patient's basic details, the reason for
@@ -39,6 +40,11 @@ export function accessFor(appointment: AppointmentRow, nowMs = Date.now()): Hist
   const profile = appointment.patient_profile_id ? profileById(appointment.patient_profile_id) : null;
   if (!profile) return limited('The patient’s Health Passport profile no longer exists.');
   if (!consentGiven(profile.owner_id)) return limited('The patient’s Health Passport is switched off.');
+  // Booked by someone the record is shared with: it was theirs to share only while it still is, to edit.
+  const booker = accessTo(appointment.booked_by, profile);
+  if (booker !== 'owner' && booker !== 'edit') {
+    return limited('The family member who booked this visit can no longer change this Health Passport.');
+  }
   if (nowMs > Date.parse(appointment.ends_at) + ACCESS_AFTER_DAYS * 24 * 3600_000) {
     return limited(`Access to the shared record ended ${ACCESS_AFTER_DAYS} days after the visit.`);
   }

@@ -46,6 +46,7 @@ import { HealthProfileScreen } from '../screens/HealthProfileScreen';
 import { HealthRecordsScreen } from '../screens/HealthRecordsScreen';
 import { HealthReviewScreen } from '../screens/HealthReviewScreen';
 import { HealthSettingsScreen } from '../screens/HealthSettingsScreen';
+import { HealthShareScreen } from '../screens/HealthShareScreen';
 import { HealthSummaryScreen } from '../screens/HealthSummaryScreen';
 import { HealthUploadScreen } from '../screens/HealthUploadScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -82,7 +83,7 @@ const ROUTE_NAMES = [
   'UnderDevelopment', 'ReserveParking', 'ReservationDetails', 'ReservationHistory', 'GuestPass',
   'ParkingMap', 'ChargingSession', 'SecurityConsole', 'DemoControls', 'HealthPassport',
   'HealthOnboarding', 'HealthProfile', 'HealthRecords', 'HealthDocument', 'HealthUpload',
-  'HealthReview', 'HealthItemForm', 'HealthSummary', 'HealthSettings', 'HealthConsultation',
+  'HealthReview', 'HealthItemForm', 'HealthSummary', 'HealthSettings', 'HealthShare', 'HealthConsultation',
   'Clinic', 'ClinicDoctor', 'ClinicBooking', 'ClinicAppointment',
 ] as const satisfies readonly (keyof RootStackParamList)[];
 
@@ -286,6 +287,7 @@ export function AppNavigator() {
           <Stack.Screen name="HealthItemForm" component={HealthItemFormScreen} />
           <Stack.Screen name="HealthSummary" component={HealthSummaryScreen} />
           <Stack.Screen name="HealthSettings" component={HealthSettingsScreen} />
+          <Stack.Screen name="HealthShare" component={HealthShareScreen} />
           <Stack.Screen name="HealthConsultation" component={HealthConsultationScreen} />
           <Stack.Screen name="Clinic" component={ClinicScreen} />
           <Stack.Screen name="ClinicDoctor" component={ClinicDoctorScreen} />

@@ -1,7 +1,7 @@
 import { entryOf, finalConsultations, type ConsultationEntry } from '../clinic/history.ts';
 import { ApiError } from '../errors.ts';
 import { findPatientConsultation } from '../repositories/clinicConsultations.ts';
-import { profileById } from './passport.ts';
+import { accessTo, profileById } from './passport.ts';
 
 /**
  * Clinic visits as the resident reads them in Health Passport: only
@@ -37,11 +37,12 @@ export interface PatientConsultation extends ConsultationEntry {
   approved_by: string;
 }
 
-/** One finalized visit, for the resident who booked it or who owns the patient's profile; 404 for anyone else. */
+/** One finalized visit, for the resident who booked it or anyone who may see the patient's profile; 404 for anyone else. */
 export function patientConsultation(userId: string, consultationId: string): PatientConsultation {
   const row = findPatientConsultation(consultationId);
-  const ownsProfile = row?.patient_profile_id ? profileById(row.patient_profile_id)?.owner_id === userId : false;
-  if (!row || !(row.booked_by === userId || ownsProfile)) {
+  const profile = row?.patient_profile_id ? profileById(row.patient_profile_id) : null;
+  const seesProfile = profile ? accessTo(userId, profile) !== null : false;
+  if (!row || !(row.booked_by === userId || seesProfile)) {
     throw new ApiError('not_found', 'Consultation not found.');
   }
   return {

@@ -84,10 +84,18 @@ export interface Appointment {
   rescheduled_to: string | null;
 }
 
-/** Who the resident can book for: their Health Passport profiles. */
+/** Who the resident can book for: the Health Passport profiles they keep, and those shared with them to edit. */
 export interface Patients {
   health_passport: boolean;
-  profiles: { id: string; name: string; relation: 'self' | 'child' | 'parent' | 'spouse' | 'other' }[];
+  profiles: {
+    id: string;
+    name: string;
+    /** Who the person is to the profile's keeper. */
+    relation: 'self' | 'child' | 'parent' | 'spouse' | 'other';
+    access: 'owner' | 'edit';
+    /** The keeper's name, on a profile shared with the resident. */
+    shared_by?: string;
+  }[];
 }
 
 export interface BookingInput {

@@ -15,7 +15,7 @@ import { ParkingButton } from '../../components/ui/ParkingButton';
 import { ListRow } from '../../components/ui/ListRow';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHealth } from '../../features/health/hooks/useHealth';
-import { useHealthDocuments, useHealthRecord } from '../../features/health/hooks/useHealthData';
+import { useCanEditProfile, useHealthDocuments, useHealthRecord } from '../../features/health/hooks/useHealthData';
 import type { HealthDocument, HealthRecord, LabResult, RecordItem, RecordSection } from '../../types/health.types';
 import { formatDate, num } from '../../features/health/services/i18n';
 import { describeItem, groupLabs, labFlag, rangeText, splitMedications } from '../../features/health/services/selectors';
@@ -44,6 +44,7 @@ export function HealthRecordsScreen() {
   const [pending, setPending] = useState<PendingDelete | null>(null);
   const record = useHealthRecord(profileId);
   const documents = useHealthDocuments(profileId);
+  const canEdit = useCanEditProfile(profileId);
 
   const docsById = useMemo(
     () => new Map((documents.data ?? []).map((doc) => [doc.id, doc] as const)),
@@ -67,10 +68,14 @@ export function HealthRecordsScreen() {
     };
   };
 
-  const editProps = (section: RecordSection, item: RecordItem, title: string) => ({
-    onEdit: () => navigation.navigate('HealthItemForm', { profileId, section, itemId: item.id }),
-    onDelete: () => setPending({ section, id: item.id, title }),
-  });
+  // Nothing to change on a record shared to view only.
+  const editProps = (section: RecordSection, item: RecordItem, title: string) =>
+    canEdit
+      ? {
+          onEdit: () => navigation.navigate('HealthItemForm', { profileId, section, itemId: item.id }),
+          onDelete: () => setPending({ section, id: item.id, title }),
+        }
+      : {};
 
   const row = (section: Exclude<RecordSection, 'labs'>, item: RecordItem, index: number) => {
     const summary = describeItem(section, item as never, lang);
@@ -88,14 +93,15 @@ export function HealthRecordsScreen() {
     );
   };
 
-  const addButton = (section: RecordSection) => (
-    <ParkingButton
-      compact
-      icon="add"
-      label={t.sections[section].add}
-      onPress={() => navigation.navigate('HealthItemForm', { profileId, section })}
-    />
-  );
+  const addButton = (section: RecordSection) =>
+    !canEdit ? null : (
+      <ParkingButton
+        compact
+        icon="add"
+        label={t.sections[section].add}
+        onPress={() => navigation.navigate('HealthItemForm', { profileId, section })}
+      />
+    );
 
   const emptyLine = (text: string) => (
     <AppText variant="caption" style={styles.empty}>
@@ -197,17 +203,19 @@ export function HealthRecordsScreen() {
                 statusLabel={t.documentStatus[doc.status]}
                 statusTone={statusTone[doc.status]}
                 onPress={() =>
-                  navigation.navigate(doc.status === 'needs_review' ? 'HealthReview' : 'HealthDocument', { docId: doc.id })
+                  navigation.navigate(doc.status === 'needs_review' && canEdit ? 'HealthReview' : 'HealthDocument', { docId: doc.id })
                 }
               />
             ))}
       </Panel>
-      <ParkingButton
-        tone="primary"
-        icon="cloud-upload-outline"
-        label={copy.upload}
-        onPress={() => navigation.navigate('HealthUpload', { profileId })}
-      />
+      {canEdit ? (
+        <ParkingButton
+          tone="primary"
+          icon="cloud-upload-outline"
+          label={copy.upload}
+          onPress={() => navigation.navigate('HealthUpload', { profileId })}
+        />
+      ) : null}
     </>
   );
 

@@ -8,6 +8,7 @@ A resident keeps their family's medical records in the app and, at a doctor's vi
 
 - **Consent first.** Nothing opens until the resident agrees to how the data is used. Withdrawing consent deletes everything.
 - **Family profiles.** One record per person: the resident, and the children, parents or others they add.
+- **Sharing in the apartment.** The person who keeps a record can share it with another resident of the same apartment, to view or to edit. See [Sharing records](#sharing-records).
 - **Records.** Allergies, medications, conditions, lab results with trends, procedures and visits, added by hand or read from documents.
 - **Documents.** Photograph or pick a prescription, lab report or discharge summary. Photos are converted and scaled on the phone (HEIC to JPEG, 2500 px, 10 pages, 10 MB each). The server reads the document in the background, and the resident checks every item before anything is saved.
 - **Spoken summary.** Generated in the background in Arabic or English, for a chosen specialty. It keeps playing with the screen locked, for a phone handed across the desk.
@@ -28,7 +29,8 @@ Entered from the Health Passport row on the Services screen, or at `/health` on 
 | `HealthReview` | Check, correct or reject what was read, item by item |
 | `HealthItemForm` | Add or edit one item by hand |
 | `HealthSummary` | Prepare, follow and play a summary |
-| `HealthSettings` | Family profiles, data use, deleting data, withdrawing consent |
+| `HealthSettings` | Family profiles, sharing them, records shared with you, data use, deleting data, withdrawing consent |
+| `HealthShare` | Who can see one record the resident keeps, and what each person may do |
 
 ## Where the code is
 
@@ -62,6 +64,34 @@ Entered from the Health Passport row on the Services screen, or at `/health` on 
 | `EXPO_PUBLIC_HEALTH_API=mock` | included | 7 files |
 | Default, with the check read through `env.ts` | included | 7 files |
 
+## Sharing records
+
+A family uses one record per person, but each adult has their own account. Sharing connects them: Mona keeps
+Laila's record and shares it with Karim, so both parents see it and both can book Laila's clinic visits.
+
+- **Who shares.** Only the record's keeper (the account that created it). So an adult's own record is shared only by
+  that adult.
+- **With whom.** Only residents of the keeper's apartment (`unit_members`). They join with the owner's invite code
+  (Smart Home → My Devices → Gateway settings → Invite family). Each person uses their own account.
+- **View only.** Read the record, its documents and clinic visits, and prepare and play a summary for a doctor.
+- **View and edit.** Also add, change or delete items, upload and review documents, change the person's details, and
+  book clinic visits for them.
+- **Only the keeper** deletes the record, empties it, or changes who sees it.
+- **It ends** when the keeper stops it, when the other person removes it from their list, when either of them
+  withdraws Health Passport consent, or when either leaves or moves out of the apartment. Leaving is enforced by
+  database triggers on `unit_members` (`health_shares_end_on_leave`, `_on_move`), so it holds for every way a
+  membership ends, and each request also checks that both still live in the same unit.
+
+The rules are in one place, `profileFor` and `accessTo` in `backend/src/health/passport.ts`. A profile the
+resident can't see answers 404, as if it didn't exist; one they can see but not change as asked answers 403
+`forbidden` with the reason. Sharing changes go into the clinic's audit trail (`passport.shared`,
+`passport.share_ended`) with ids only.
+
+In the app, Settings & privacy has **Share with your family** (one row per record the resident keeps, opening
+`HealthShare`) and **Shared with you** (records others share; tapping one offers "Stop seeing it"). A record
+shared to view only shows no edit buttons, and its documents open read-only instead of the review. The mock has a
+view-only record (Mona's) and a child shared with Mona to edit, so all of this works without a backend.
+
 ## The API it expects
 
 The server side is `backend/src/routes/health.ts` over `backend/src/health/`. Bodies are plain JSON in snake_case, without the `{ ok, data }` envelope (`shared/contracts/health.ts`). Requests carry `Authorization: Bearer <EMS session>` and `Accept-Language: en|ar`, and texts come back in that language. Paths are `/health/...`, not `/api/...`.
@@ -69,8 +99,11 @@ The server side is `backend/src/routes/health.ts` over `backend/src/health/`. Bo
 | Method and path | Purpose |
 | --- | --- |
 | `GET`, `POST /health/consent` | Read or set consent. `{ given: false }` deletes all health data |
-| `GET`, `POST /health/profiles` | List or add profiles |
-| `PUT`, `DELETE /health/profiles/:id` | Update a profile, or delete it with its data |
+| `GET`, `POST /health/profiles` | List or add profiles. The list is the resident's own profiles (`access: 'owner'`, with `shared_with`), then those shared with them (`access: 'view'` or `'edit'`, with `shared_by`) |
+| `PUT`, `DELETE /health/profiles/:id` | Update a profile, or delete it with its data (`DELETE`: the keeper only) |
+| `GET /health/profiles/:id/sharing` | The keeper only: who it is shared with, and the apartment's other residents (`ProfileSharing`) |
+| `PUT /health/profiles/:id/sharing/:userId` | The keeper shares it, or changes the access: `{ access: 'view' \| 'edit' }` |
+| `DELETE /health/profiles/:id/sharing/:userId` | The keeper stops sharing; `me` instead of an id: the resident stops seeing a record shared with them |
 | `GET /health/profiles/:id/record` | The whole record, with its gaps |
 | `POST /health/profiles/:id/:section` | Add an item (`allergies`, `medications`, `conditions`, `procedures`, `labs`, `visits`) |
 | `PUT`, `DELETE /health/profiles/:id/:section/:itemId` | Change or delete an item |
@@ -83,7 +116,7 @@ The server side is `backend/src/routes/health.ts` over `backend/src/health/`. Bo
 | `GET /health/consultations/:id` | A clinic visit its doctor finalized, as the resident reads it |
 | `GET /health/media/document/:id/:page`, `/health/media/summary/:id` | A page or recording, by session or signed link |
 
-Failures map to `HealthError` kinds that the screens explain: 401 ends the session, 404 `not_found`, 413 `too_large`, 422 `invalid`, 503 `busy`. A message in `detail`, `message` or `error.message` is used.
+Failures map to `HealthError` kinds that the screens explain: 401 ends the session, 403 `forbidden`, 404 `not_found`, 413 `too_large`, 422 `invalid`, 503 `busy`. A message in `detail`, `message` or `error.message` is used.
 
 ## What is still open
 

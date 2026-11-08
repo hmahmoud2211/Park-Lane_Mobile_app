@@ -1,7 +1,7 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { DocumentStatus, DocumentType, HealthDocument, HealthLang, HealthProfile, RecordSection } from '../../../types/health.types';
-import { formatDate, healthStrings, num } from '../services/i18n';
+import { formatDate, healthStrings, num, type HealthStrings } from '../services/i18n';
 import type { StatusTone } from '../../../components/ui/StatusChip';
 
 /**
@@ -62,4 +62,14 @@ export function documentLines(doc: HealthDocument, lang: HealthLang): string[] {
     lines.push(lang === 'ar' ? `بتاريخ ${formatDate(doc.document_date, lang)}` : `Dated ${formatDate(doc.document_date, lang)}`);
   }
   return lines;
+}
+
+/**
+ * How a profile shared with the resident is labelled: "Shared by Mona" for a
+ * record Mona keeps for someone else, "Shared with you" for Mona's own. Null
+ * for a profile the resident keeps.
+ */
+export function sharedLabel(profile: { relation: HealthProfile['relation']; shared_by?: string }, t: HealthStrings): string | null {
+  if (profile.shared_by === undefined) return null;
+  return profile.relation === 'self' ? t.shared.own : t.shared.by(profile.shared_by);
 }

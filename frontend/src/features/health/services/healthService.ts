@@ -8,7 +8,9 @@ import type {
   HealthRecord,
   ItemData,
   ProfileInput,
+  ProfileSharing,
   RecordSection,
+  ShareAccess,
   SectionItems,
   SummaryRequest,
   SummaryState,
@@ -34,6 +36,15 @@ export interface HealthService {
   updateProfile(id: string, input: ProfileInput): Promise<HealthProfile>;
   /** Removes the profile and all of its health data. */
   deleteProfile(id: string): Promise<void>;
+
+  /** Who the resident shares a profile they keep with, and the apartment's residents they could share it with. */
+  getSharing(profileId: string): Promise<ProfileSharing>;
+  /** Shares a profile the resident keeps with another resident of the apartment, or changes what that person may do. */
+  shareProfile(profileId: string, userId: string, access: ShareAccess): Promise<ProfileSharing>;
+  /** The keeper stops sharing a profile with someone. */
+  unshareProfile(profileId: string, userId: string): Promise<void>;
+  /** The resident stops seeing a profile someone shared with them. */
+  leaveSharedProfile(profileId: string): Promise<void>;
 
   getRecord(profileId: string): Promise<HealthRecord>;
   createItem<S extends RecordSection>(profileId: string, section: S, data: ItemData<S>): Promise<SectionItems[S]>;
@@ -77,14 +88,17 @@ export interface HealthService {
 }
 
 /**
- * `unauthorized` is a 401 (the app signs out), `too_large` a 413, `invalid`
- * a 422, `busy` a 503 (the AI server is busy or down), `not_found` a 404.
+ * `unauthorized` is a 401 (the app signs out), `forbidden` a 403 (a record
+ * shared to view only, or something only its keeper may do), `too_large` a
+ * 413, `invalid` a 422, `busy` a 503 (the AI server is busy or down),
+ * `not_found` a 404.
  */
 export type HealthErrorKind =
   | 'network'
   | 'timeout'
   | 'aborted'
   | 'unauthorized'
+  | 'forbidden'
   | 'not_found'
   | 'too_large'
   | 'invalid'
@@ -112,6 +126,8 @@ export function errorKindForStatus(status: number): HealthErrorKind {
   switch (status) {
     case 401:
       return 'unauthorized';
+    case 403:
+      return 'forbidden';
     case 404:
       return 'not_found';
     case 413:

@@ -497,6 +497,30 @@ const MIGRATIONS: readonly string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  `
+  -- A Health Passport profile its keeper (health_profiles.owner_id) shares with another resident of the same
+  -- apartment (health/sharing.ts). access: view, edit. A share means nothing once the two no longer live in the
+  -- same unit, so leaving or moving out ends every share the resident gave or got.
+  CREATE TABLE health_shares (
+    profile_id TEXT NOT NULL REFERENCES health_profiles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    access TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (profile_id, user_id)
+  );
+  CREATE INDEX health_shares_user ON health_shares(user_id);
+  CREATE TRIGGER health_shares_end_on_leave AFTER DELETE ON unit_members
+  BEGIN
+    DELETE FROM health_shares
+    WHERE user_id = OLD.user_id OR profile_id IN (SELECT id FROM health_profiles WHERE owner_id = OLD.user_id);
+  END;
+  CREATE TRIGGER health_shares_end_on_move AFTER UPDATE OF unit_id ON unit_members WHEN OLD.unit_id IS NOT NEW.unit_id
+  BEGIN
+    DELETE FROM health_shares
+    WHERE user_id = OLD.user_id OR profile_id IN (SELECT id FROM health_profiles WHERE owner_id = OLD.user_id);
+  END;
+  `,
 ];
 
 let instance: DatabaseSync | null = null;

@@ -106,6 +106,35 @@ Removing the phone also ends its sign-in, so it can't connect again.
 Home → "Smart Home" → "My Devices" → tap a device → control it
 ```
 
+## 7. Medical records for the family (Health Passport)
+
+Each person has one record. A parent keeps the children's records, and can share them with the other parent.
+
+```
+Home → "Services" → "Health Passport"
+  ↓  first time: read "How your data is used" → tick the box → "Agree and continue"
+     (this makes your own record, empty, with your name)
+"Health Passport"
+  ↓  "Settings & privacy"
+  ├─ "Family profiles" → "Add family member"      – name, Relationship → "Save details"
+  ├─ "Share with your family" → tap a person's record
+  │     "Share Laila's record"
+  │       ├─ "Share with" → tap someone from your apartment → "View only" or "View and edit"
+  │       └─ "Shared with" → tap them → change, or "Stop sharing"
+  └─ "Shared with you"                              – records others share with you ("Stop seeing it")
+```
+
+| Access | Can do |
+|---|---|
+| **View only** | See the record and documents, play a summary for the doctor |
+| **View and edit** | Also add or change items, upload documents, and book clinic visits for this person |
+| **The keeper** (who made the record) | Everything, and the only one who can delete it or choose who sees it |
+
+- You can only share with people **in your apartment**. They must join first with an invite code (section 4).
+- On the Health Passport home, **"Whose record"** shows your records and the shared ones ("Shared by Mona", or
+  "Shared with you" for Mona's own record).
+- Sharing stops by itself if either of you leaves the apartment.
+
 ---
 
 ## What happens behind the screens
@@ -116,3 +145,4 @@ Home → "Smart Home" → "My Devices" → tap a device → control it
 | Connecting to the gateway | The app gets a 5-minute pass, signed by the backend. It shows the pass to the apartment's gateway through the relay, and the gateway gives this phone its own key. |
 | Every 5 minutes | The gateway asks the backend who still lives in the apartment. It removes the phones of people who left and of sign-ins that ended. |
 | A brand account | The apartment's Home Assistant links it, and its devices show up in "My Devices". |
+| Sharing a record | The backend checks that both people live in the same apartment. A doctor sees a record booked by the other parent only while it is still shared with them to edit. |

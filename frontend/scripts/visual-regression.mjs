@@ -163,7 +163,31 @@ const HEALTH_ROUTES = [
   { name: 'HealthUpload', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Upload document', shot: 'pick' }, { click: 'Take photo', shot: 'tips' }] },
   { name: 'HealthItemForm', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Add item manually', shot: 'section' }, { click: 'Allergy', shot: 'fields' }] },
   { name: 'HealthSummary', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Your summary is ready', shot: 'player' }, { scroll: true, shot: 'playerBottom' }] },
-  { name: 'HealthSettings', path: '/health', steps: [...HEALTH_SIGN_UP, { scroll: true }, { click: 'Settings & privacy', shot: 'settings' }, { click: 'Withdraw consent', shot: 'withdraw' }] },
+  {
+    name: 'HealthSettings',
+    path: '/health',
+    steps: [...HEALTH_SIGN_UP, { scroll: true }, { click: 'Settings & privacy', shot: 'settings' }, { scroll: true, shot: 'settingsBottom' }, { click: 'Withdraw consent', shot: 'withdraw' }],
+  },
+  // Sharing: the mock's Laila is shared with Mona to edit, and Mona shares her own record to view.
+  {
+    name: 'HealthShare',
+    path: '/health',
+    steps: [...HEALTH_SIGN_UP, { scroll: true }, { click: 'Settings & privacy' }, { click: 'Laila, Shared with 1 person', shot: 'share' }, { click: 'Samia', shot: 'choose' }],
+  },
+  {
+    name: 'HealthShareArabic',
+    path: '/health',
+    steps: [
+      { click: 'اعرض باللغة العربية' },
+      { scroll: true },
+      { click: 'أوافق على حفظ بياناتي الصحية ومعالجتها لهذه الخدمة.' },
+      { click: 'موافق ومتابعة' },
+      { scroll: true },
+      { click: 'الإعدادات والخصوصية', shot: 'settings' },
+      { click: 'Laila, مُشارَك مع شخص واحد', shot: 'share' },
+    ],
+  },
+  { name: 'HealthShared', path: '/health', steps: [...HEALTH_SIGN_UP, { click: 'Mona', shot: 'viewOnly' }, { scroll: true, shot: 'viewOnlyBottom' }] },
 ];
 
 /** Signed-in device screens; ids come from the backend before the run. */

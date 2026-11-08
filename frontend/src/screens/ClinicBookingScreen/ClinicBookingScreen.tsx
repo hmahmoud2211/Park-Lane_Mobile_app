@@ -14,6 +14,7 @@ import { useHealth } from '../../features/health/hooks/useHealth';
 import { clinicApi } from '../../features/clinic/services/clinicApi';
 import { clock, pick } from '../../features/clinic/components/presenters';
 import { EmsError } from '../../features/ems/services/emsApi';
+import { sharedLabel } from '../../features/health/components/presenters';
 import { formatDate } from '../../features/health/services/i18n';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { bookingCopy } from './ClinicBookingScreen.data';
@@ -49,7 +50,7 @@ export function ClinicBookingScreen() {
   const [error, setError] = useState<EmsError | null>(null);
   const profiles = patients.data?.profiles ?? [];
   const patientId =
-    chosenPatient ?? previous.data?.patient.profile_id ?? (rescheduleOf ? null : (profiles.find((entry) => entry.relation === 'self') ?? profiles[0])?.id ?? null);
+    chosenPatient ?? previous.data?.patient.profile_id ?? (rescheduleOf ? null : (profiles.find((entry) => entry.relation === 'self' && entry.access === 'owner') ?? profiles[0])?.id ?? null);
   const reason = typedReason ?? previous.data?.reason ?? '';
   const share = shareChoice ?? previous.data?.share_history ?? false;
   const ai = aiChoice ?? previous.data?.ai_consent ?? false;
@@ -133,7 +134,11 @@ export function ClinicBookingScreen() {
         <>
           <Panel icon="person-outline" title={copy.patient}>
             <ChipGroup
-              options={patients.data.profiles.map((entry) => ({ value: entry.id, label: entry.name, detail: t.relation[entry.relation] }))}
+              options={patients.data.profiles.map((entry) => ({
+                value: entry.id,
+                label: entry.name,
+                detail: sharedLabel(entry, t) ?? t.relation[entry.relation],
+              }))}
               value={patientId}
               onChange={params.rescheduleOf ? () => undefined : setPatientId}
             />

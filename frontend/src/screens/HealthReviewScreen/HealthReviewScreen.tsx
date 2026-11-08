@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
@@ -17,7 +17,7 @@ import { ParkingButton } from '../../components/ui/ParkingButton';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHealth } from '../../features/health/hooks/useHealth';
-import { useHealthDocument, useHealthRecord } from '../../features/health/hooks/useHealthData';
+import { useHealthDocument, useHealthProfiles, useHealthRecord } from '../../features/health/hooks/useHealthData';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { HealthDocument, HealthRecord, ItemData, RecordSection } from '../../types/health.types';
 import { isHealthError, type HealthError } from '../../features/health/services/healthService';
@@ -55,6 +55,12 @@ export function HealthReviewScreen() {
   const doc = useHealthDocument(params.docId);
   // Held here, not in the review: saving moves the document out of review, which would unmount it.
   const [saved, setSaved] = useState<Saved | null>(null);
+  // A record shared to view only is never reviewed here: its keeper decides what is saved.
+  const profiles = useHealthProfiles();
+  const viewOnly = profiles.data?.find((p) => p.id === doc.data?.profile_id)?.access === 'view';
+  useEffect(() => {
+    if (viewOnly) navigation.replace('HealthDocument', { docId: params.docId });
+  }, [viewOnly, navigation, params.docId]);
 
   if (saved) {
     return (

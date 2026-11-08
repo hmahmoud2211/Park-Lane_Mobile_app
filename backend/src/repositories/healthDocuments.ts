@@ -36,13 +36,6 @@ export function listDocumentPages(): string[] {
   return (db().prepare('SELECT pages FROM health_documents').all() as { pages: string }[]).map((row) => row.pages);
 }
 
-export function findDocumentOwnerId(id: string): string | null {
-  const row = db()
-    .prepare('SELECT p.owner_id FROM health_documents d JOIN health_profiles p ON p.id = d.profile_id WHERE d.id = ?')
-    .get(id) as { owner_id: string } | undefined;
-  return row?.owner_id ?? null;
-}
-
 /** A new document, `processing` until it has been read. */
 export function insertHealthDocument(document: {
   id: string;
