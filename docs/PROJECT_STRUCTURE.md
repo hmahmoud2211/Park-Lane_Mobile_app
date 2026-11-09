@@ -100,6 +100,7 @@ screen ──► feature hook ──► feature service ──► lib/http (fetc
 |---|---|---|
 | Home, profile, my unit, services, settings | `HomeScreen`, `ProfileScreen`, `MyUnitScreen`, `ServicesScreen`, `SettingsScreen` | `data/demoResident.ts`, `features/documents` (PDFs) |
 | Visitor access, maintenance, community, amenities | `VisitorAccessScreen`, `MaintenanceScreen`, `CommunityScreen`, `AmenitiesBookingScreen` | mock content in each screen's `.data.ts`; shared forms in `components/forms` |
+| Building Management System (BMS) | `BmsScreen` | sample readings in `BmsScreen.data.ts`, until a building systems feed exists |
 | Parking demo | `ParkingScreen`, `ReserveParkingScreen`, `ReservationDetailsScreen`, `ReservationHistoryScreen`, `ParkingMapScreen`, `ChargingSessionScreen`, `GuestPassScreen`, `SecurityConsoleScreen`, `DemoControlsScreen` | `features/parking` (see [PARKING_DEMO.md](PARKING_DEMO.md)) |
 | Smart home (EMS backend) | `SmartHomeScreen`, `EmsDevicesScreen`, `DeviceDetailScreen`, `ConnectAccountScreen` | `features/ems`, `features/home`; backend `routes/home.ts`, `routes/accounts.ts`, `ha/` |
 | Smart home (CUBE gateway) | `GatewaySetupScreen`, `AddDeviceScreen`, `AddDeviceMethodScreen`, `DeviceDiscoveryScreen`, `DeviceProvisioningScreen`, `DeviceSetupScreen`, `AcControlScreen` | `features/gateway`, `features/provisioning`; `gateway/` |
