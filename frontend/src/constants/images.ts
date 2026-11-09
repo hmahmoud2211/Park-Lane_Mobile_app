@@ -118,6 +118,20 @@ export const images = {
   amenityHall: require('../assets/images/illustrations/amenity-hall.jpg') as number,
 
   /**
+   * PLACEHOLDERS, from the BMS reference (assets/Screens/screen15.png, continued
+   * in screen16.png and screen17.png) at about 2x, so they are soft on
+   * high-density screens. The banner photo had its baked-in text painted out;
+   * faint smudges remain under the screen's own text. The CCTV still keeps the
+   * camera's burned-in "CAM 02" label and timestamp, as a real snapshot would.
+   * The elevator and the fan (with its two rings) were keyed out onto
+   * transparent. Replace each at its path; no code change needed.
+   */
+  bmsHero: require('../assets/images/illustrations/bms-hero.jpg') as number,
+  bmsCctvEntrance: require('../assets/images/illustrations/bms-cctv-entrance.jpg') as number,
+  bmsElevator: require('../assets/images/illustrations/bms-elevator.png') as number,
+  bmsFan: require('../assets/images/illustrations/bms-fan.png') as number,
+
+  /**
    * PLACEHOLDERS, keyed out of the Services reference
    * (assets/Screens/screen12.png) at about 2x: each service's illustration on
    * transparent, without the tile drawn around it (the screen draws its own).
@@ -149,6 +163,10 @@ export const imageAspects = {
   youtubeLogo: 46 / 38,
   disneyLogo: 51 / 34,
   amenitiesHero: 381 / 203,
+  bmsHero: 663 / 250,
+  bmsCctvEntrance: 283 / 164,
+  bmsElevator: 157 / 185,
+  bmsFan: 222 / 212,
 } as const;
 
 export type ImageKey = keyof typeof images;

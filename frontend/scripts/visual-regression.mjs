@@ -66,6 +66,7 @@ const BASIC_ROUTES = [
   { name: 'Maintenance', path: '/visual/Maintenance' },
   { name: 'Community', path: '/visual/Community' },
   { name: 'SmartHome', path: '/visual/SmartHome' },
+  { name: 'Bms', path: '/visual/Bms' },
   { name: 'AmenitiesBooking', path: '/visual/AmenitiesBooking' },
   { name: 'Services', path: '/visual/Services' },
   { name: 'Clinic', path: '/clinic' },

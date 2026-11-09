@@ -52,7 +52,7 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     subtitle: 'Manage & grow',
     iconSet: 'material',
     iconName: 'file-cog-outline',
-    underDevelopment: true,
+    route: 'Bms',
   },
   {
     id: 'visitor-access',

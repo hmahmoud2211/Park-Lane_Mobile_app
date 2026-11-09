@@ -19,6 +19,7 @@ import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
 import { AddDeviceScreen } from '../screens/AddDeviceScreen';
 import { AcControlScreen } from '../screens/AcControlScreen';
 import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
+import { BmsScreen } from '../screens/BmsScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
@@ -77,7 +78,7 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 /** Every registered route; the visual-regression addresses below are made from it. */
 const ROUTE_NAMES = [
   'FirstScreen', 'Login', 'ChangePassword', 'Home', 'Profile', 'MyUnit', 'VisitorAccess', 'Maintenance', 'Parking',
-  'Community', 'SmartHome', 'EmsDevices', 'DeviceDetail', 'ConnectAccount', 'GatewaySetup',
+  'Community', 'SmartHome', 'Bms', 'EmsDevices', 'DeviceDetail', 'ConnectAccount', 'GatewaySetup',
   'AddDevice', 'AddDeviceMethod', 'DeviceDiscovery', 'DeviceProvisioning', 'DeviceSetup',
   'LgPairing', 'AcControl', 'AmenitiesBooking', 'Services', 'Settings', 'Assistant',
   'UnderDevelopment', 'ReserveParking', 'ReservationDetails', 'ReservationHistory', 'GuestPass',
@@ -253,6 +254,7 @@ export function AppNavigator() {
           <Stack.Screen name="Parking" component={ParkingScreen} />
           <Stack.Screen name="Community" component={CommunityScreen} />
           <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
+          <Stack.Screen name="Bms" component={BmsScreen} />
           <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
           <Stack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
           <Stack.Screen name="ConnectAccount" component={ConnectAccountScreen} />

@@ -11,6 +11,10 @@ export interface ProgressBarProps {
   height?: number;
   /** Fill stops, left to right; defaults to the neon cyan-to-magenta sweep. */
   colors?: readonly [string, string, ...string[]];
+  /** The groove behind the fill; defaults to `midnightBlue`. */
+  trackColor?: string;
+  /** The halo around the fill; defaults to `violet`, which suits the default sweep. */
+  glowColor?: string;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
@@ -24,11 +28,16 @@ export function ProgressBar({
   progress,
   height = 11,
   colors,
+  trackColor,
+  glowColor,
   accessibilityLabel,
   style,
 }: ProgressBarProps) {
   const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme, height), [theme, height]);
+  const styles = useMemo(
+    () => createStyles(theme, height, trackColor ?? theme.colors.midnightBlue, glowColor ?? theme.colors.violet),
+    [theme, height, trackColor, glowColor],
+  );
 
   const clamped = Math.min(Math.max(progress, 0), 1);
   const stops = colors ?? [
@@ -61,12 +70,12 @@ export function ProgressBar({
   );
 }
 
-function createStyles(theme: AppTheme, height: number) {
+function createStyles(theme: AppTheme, height: number, trackColor: string, glowColor: string) {
   return StyleSheet.create({
     track: {
       height,
       borderRadius: height / 2,
-      backgroundColor: theme.colors.midnightBlue,
+      backgroundColor: trackColor,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.dividerSubtle,
     },
@@ -74,8 +83,8 @@ function createStyles(theme: AppTheme, height: number) {
       height: '100%',
       borderRadius: height / 2,
       // Gives the shadow an opaque shape to cast from; hidden by the gradient.
-      backgroundColor: theme.colors.violet,
-      shadowColor: theme.colors.violet,
+      backgroundColor: glowColor,
+      shadowColor: glowColor,
       shadowOpacity: 0.8,
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 0 },

@@ -21,6 +21,8 @@ export type RootStackParamList = {
   Parking: undefined;
   Community: undefined;
   SmartHome: undefined;
+  /** Building Management System: the building's shared systems at a glance, from Home's "BMS" tile. */
+  Bms: undefined;
   /** The resident's devices, controlled through the EMS backend. */
   EmsDevices: undefined;
   /** One device's controls, name and room. */
@@ -104,8 +106,11 @@ export type RootStackParamList = {
 /** The Records screen's tabs: each record section, then the documents. */
 export type RecordTab = RecordSection | 'documents';
 
-/** Paramless routes that only their own flow opens, by name; no tile or tab points at them. */
-type FlowOnlyRoute = 'HealthOnboarding' | 'HealthProfile' | 'HealthSettings' | 'ChangePassword';
+/**
+ * Paramless routes that only their own flow opens, by name; no tile or tab points at them.
+ * The way in (FirstScreen, Login) counts: sign-in and sign-out reach it by name.
+ */
+type FlowOnlyRoute = 'FirstScreen' | 'Login' | 'HealthOnboarding' | 'HealthProfile' | 'HealthSettings' | 'ChangePassword';
 
 /**
  * Routes that can be opened without params, e.g. from data-driven tiles and tabs.

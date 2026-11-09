@@ -211,6 +211,34 @@ export const colors = {
   online: '#01FBC2',
 
   /**
+   * BMS screen (assets/Screens/screen15.png, continued in screen16.png and
+   * screen17.png), sampled from the screenshots. Every healthy reading
+   * ("Normal", "Running", "Ready") is set in one aqua; the banner's "All
+   * Systems Normal" is a brighter one. "Excellent" and the download arrow
+   * are greens.
+   */
+  bmsStatus: '#2EFBDF',
+  bmsStatusBright: '#61FFE4',
+  bmsExcellent: '#34E397',
+  bmsDownload: '#48C559',
+  /** The System Health ring runs `electricCyan` at the top into this lavender. */
+  bmsRingTo: '#826EFA',
+  /** Tank and solar levels: flat blues in a near-black groove. */
+  bmsTankFill: '#2396CB',
+  bmsSolarFill: '#6BB5D7',
+  bmsTrack: '#041130',
+  /**
+   * The Internet speed gauge's segments, left to right: royal blue, the
+   * palette's cyan, a brighter cyan at the top, near-white past it, then slate.
+   */
+  bmsGaugeLow: '#045CF9',
+  bmsGaugeTop: '#02F2FA',
+  bmsGaugePeak: '#E6F4FA',
+  bmsGaugeEnd: '#2C68A6',
+  bmsGaugeRim: 'rgba(43, 140, 255, 0.35)',
+  bmsGaugeGlow: 'rgba(25, 215, 255, 0.18)',
+
+  /**
    * Assistant screen. No design exists for it yet, so everything here is
    * derived from the palette above rather than sampled.
    *
