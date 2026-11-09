@@ -3,10 +3,14 @@
 Moving the server to the version with the admin dashboard, account access to gateways, and a gateway for every new
 apartment. Run these on the server, in order.
 
+On this server the backend is built from `/home/ems-server/EMS/repo/Park-Lane_Mobile_app` on the `Master` branch,
+with its settings in `backend/.env` there. `Park-Lane_Mobile_app_2` is no longer used: don't start the backend from it.
+
 ## 1. Get the new code
 
 ```bash
-cd /opt/parklane
+cd /home/ems-server/EMS/repo/Park-Lane_Mobile_app
+git switch Master
 git pull
 git log -1 --oneline        # must show 148848c, or a newer commit
 ```
@@ -26,7 +30,7 @@ apartment start faster, and the scripts in "Gateways you made earlier" below use
 ## 3. Turn on "a gateway for every new apartment"
 
 ```bash
-cd /opt/parklane
+cd /home/ems-server/EMS/repo/Park-Lane_Mobile_app
 TOKEN=$(grep '^CUBE_RELAY_ENROLL_TOKEN=' /home/ems-server/EMS/cube-relay/relay.env | cut -d= -f2-)
 echo "GATEWAY_RELAY_ENROLL_TOKEN=$TOKEN" >> backend/.env
 grep -c '^GATEWAY_RELAY_ENROLL_TOKEN=.' backend/.env    # must print 1
@@ -79,7 +83,7 @@ For each one:
 2. On the server, run the script again with the **same name and port** you used before:
 
    ```bash
-   cd /opt/parklane/gateway/deploy/server-mode
+   cd /home/ems-server/EMS/repo/Park-Lane_Mobile_app/gateway/deploy/server-mode
    UNIT_ID=<unit id> ADMIN_API_KEY=<your ADMIN_API_KEY> ./new-apartment.sh <same name> <same port>
    ```
 
