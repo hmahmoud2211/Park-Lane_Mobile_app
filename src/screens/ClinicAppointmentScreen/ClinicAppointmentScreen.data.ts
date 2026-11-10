@@ -71,3 +71,27 @@ export const appointmentCopy = {
     } satisfies Record<AppointmentStatus, string>,
   },
 } satisfies Record<HealthLang, unknown>;
+
+/** ReminderNotice: what this device will do about the appointment. */
+export const reminderCopy = {
+  en: {
+    set: (time: string) => `Reminder set for ${time} on this phone`,
+    approximate: 'This phone may deliver it a few minutes late.',
+    too_soon: 'No reminder: this appointment is less than 30 minutes away.',
+    denied: 'Notifications are off. Allow them for this app in your phone’s Settings to get a reminder.',
+    failed: 'The reminder could not be set on this phone.',
+    phone_only: 'Reminders appear on your phone, not in the browser. Open the app in Expo Go.',
+    test: 'Send a test notification',
+    testSent: 'Sent: it should appear in 5 seconds.',
+  },
+  ar: {
+    set: (time: string) => `تم ضبط التذكير الساعة ${time} على هذا الهاتف`,
+    approximate: 'قد يصل التذكير متأخرًا بضع دقائق على هذا الهاتف.',
+    too_soon: 'لا يوجد تذكير: الموعد بعد أقل من ٣٠ دقيقة.',
+    denied: 'الإشعارات متوقفة. اسمح بها لهذا التطبيق من إعدادات الهاتف لتصلك التذكيرات.',
+    failed: 'تعذر ضبط التذكير على هذا الهاتف.',
+    phone_only: 'تظهر التذكيرات على هاتفك وليس في المتصفح. افتح التطبيق في Expo Go.',
+    test: 'إرسال إشعار تجريبي',
+    testSent: 'تم الإرسال: سيظهر خلال ٥ ثوانٍ.',
+  },
+} satisfies Record<HealthLang, unknown>;

@@ -11,6 +11,7 @@ import { ParkingButton } from '../../components/parking/ParkingButton';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useClinicQuery } from '../../hooks/useClinicQuery';
 import { useHealth } from '../../hooks/useHealth';
+import { syncReminders } from '../../services/clinic/appointmentReminders';
 import { clinicApi } from '../../services/clinic/clinicApi';
 import { clock, pick } from '../../services/clinic/presenters';
 import { EmsError } from '../../services/ems/emsApi';
@@ -79,6 +80,8 @@ export function ClinicBookingScreen() {
         ai_consent: ai,
         reschedule_of: params.rescheduleOf,
       });
+      // Before moving on, so the next screen shows the reminder. The booking is made: a failure here must not look like it wasn't.
+      await clinicApi.myAppointments().then((list) => syncReminders(list, lang)).catch(() => undefined);
       navigation.reset({
         index: 1,
         routes: [{ name: 'Clinic' }, { name: 'ClinicAppointment', params: { appointmentId: booked.id, justBooked: true } }],

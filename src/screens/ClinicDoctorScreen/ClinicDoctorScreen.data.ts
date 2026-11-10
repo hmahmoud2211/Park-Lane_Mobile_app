@@ -24,6 +24,9 @@ export const doctorCopy = {
     continue: 'Continue',
     pick: 'Choose a time to continue',
     timezone: 'Times are Cairo time.',
+    time: 'Time',
+    anyTime: 'Testing: any time, starting from this device’s clock.',
+    pastTime: 'Pick a time later than now.',
   },
   ar: {
     title: 'الطبيب',
@@ -47,6 +50,9 @@ export const doctorCopy = {
     continue: 'متابعة',
     pick: 'اختر موعدًا للمتابعة',
     timezone: 'المواعيد بتوقيت القاهرة.',
+    time: 'الوقت',
+    anyTime: 'للاختبار: أي وقت، ابتداءً من ساعة هذا الجهاز.',
+    pastTime: 'اختر وقتًا بعد الآن.',
   },
 } satisfies Record<HealthLang, unknown>;
 

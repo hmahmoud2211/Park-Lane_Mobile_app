@@ -4,6 +4,7 @@ import { Image, View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { BidiText } from '../../components/health/BidiText';
+import { deviceTime, TimeField } from '../../components/health/TimeField';
 import { HealthFrame } from '../../components/health/HealthFrame';
 import { LoadingPanel } from '../../components/health/LoadState';
 import { ChipGroup, FactGrid, type Fact } from '../../components/parking/Controls';
@@ -26,6 +27,10 @@ type Props = RootStackScreenProps<'ClinicDoctor'>;
  * A doctor's profile and their free slots: pick a date (only days with
  * free time are offered), then a time. Booked times stay visible but
  * cannot be chosen; the server checks the slot again when booking.
+ *
+ * When the backend allows it for testing (CLINIC_ANY_TIME_BOOKING), every
+ * day is open and a time picker, set from the device's clock, replaces the
+ * slots.
  */
 export function ClinicDoctorScreen() {
   const theme = useAppTheme();
@@ -36,17 +41,25 @@ export function ClinicDoctorScreen() {
   const copy = doctorCopy[lang];
   const [chosenDate, setDate] = useState<string | null>(null);
   const [chosenStart, setStartsAt] = useState<string | null>(null);
+  const [anyTimeChoice, setAnyTimeChoice] = useState(deviceTime);
+  const [openedAt] = useState(() => Date.now());
   const { doctorId } = params;
 
   const doctor = useClinicQuery(useCallback(() => clinicApi.doctor(doctorId), [doctorId]));
   const availability = useClinicQuery(useCallback(() => clinicApi.availability(doctorId, DAYS_SHOWN), [doctorId]));
   const days = useMemo(() => availability.data?.days ?? [], [availability.data]);
+  const clinicConfig = useClinicQuery(useCallback(() => clinicApi.config(), []));
+  const anyTime = clinicConfig.data?.any_time_booking === true;
   // Until the resident picks one, the first day with a free slot.
-  const date = chosenDate ?? days.find((day) => day.available > 0)?.date ?? null;
+  const date = chosenDate ?? (anyTime ? days[0]?.date : days.find((day) => day.available > 0)?.date) ?? null;
   const slots = useClinicQuery(useCallback(() => (date ? clinicApi.slots(doctorId, date) : Promise.resolve(null)), [doctorId, date]));
   const slotList = useMemo(() => slots.data?.slots ?? [], [slots.data]);
   // A slot taken meanwhile (the list refreshes on focus) does not stay chosen.
   const startsAt = chosenStart && slotList.some((slot) => slot.starts_at === chosenStart && slot.state === 'available') ? chosenStart : null;
+  // The device's own clock decides what "4:30 PM" means here.
+  const anyTimeInstant = date ? new Date(`${date}T${anyTimeChoice}:00`) : null;
+  // A hint as the resident picks; the server checks against the real time when booking.
+  const anyTimeLater = anyTimeInstant !== null && anyTimeInstant.getTime() > openedAt;
 
   const profile = doctor.data;
   if (!profile) {
@@ -76,9 +89,19 @@ export function ClinicDoctorScreen() {
         <ParkingButton
           tone="primary"
           icon="arrow-forward"
-          label={startsAt ? copy.continue : copy.pick}
-          disabled={!startsAt}
+          label={startsAt || anyTime ? copy.continue : copy.pick}
+          disabled={anyTime ? !anyTimeLater : !startsAt}
           onPress={() => {
+            if (anyTime && anyTimeInstant && date) {
+              navigation.navigate('ClinicBooking', {
+                doctorId: profile.id,
+                startsAt: anyTimeInstant.toISOString(),
+                date,
+                time: anyTimeChoice,
+                rescheduleOf: params.rescheduleOf,
+              });
+              return;
+            }
             const slot = slotList.find((entry) => entry.starts_at === startsAt);
             if (slot && date) {
               navigation.navigate('ClinicBooking', { doctorId: profile.id, startsAt: slot.starts_at, date, time: slot.time, rescheduleOf: params.rescheduleOf });
@@ -121,13 +144,13 @@ export function ClinicDoctorScreen() {
       </Panel>
 
       <Panel icon="calendar-number-outline" title={copy.date} subtitle={copy.timezone}>
-        {availability.data && !days.some((day) => day.available > 0) ? <Notice tone="info" title={copy.noDays} /> : null}
+        {availability.data && !anyTime && !days.some((day) => day.available > 0) ? <Notice tone="info" title={copy.noDays} /> : null}
         {days.length > 0 ? (
           <ChipGroup
             scroll
             options={days.map((day) => {
               const chip = dayChip(day.date, lang);
-              return { value: day.date, label: chip.label, detail: day.available > 0 ? copy.open(day.available) : copy.full, disabled: day.available === 0 };
+              return { value: day.date, label: chip.label, detail: day.available > 0 ? copy.open(day.available) : copy.full, disabled: !anyTime && day.available === 0 };
             })}
             value={date}
             onChange={(value) => {
@@ -140,7 +163,11 @@ export function ClinicDoctorScreen() {
         ) : null}
       </Panel>
 
-      {date ? (
+      {date && anyTime ? (
+        <Panel icon="time-outline" title={copy.time} subtitle={copy.anyTime}>
+          <TimeField label={copy.time} value={anyTimeChoice} onChange={setAnyTimeChoice} error={anyTimeLater ? undefined : copy.pastTime} />
+        </Panel>
+      ) : date ? (
         <Panel icon="time-outline" title={copy.times}>
           {slots.loading && !slots.data ? <LoadingPanel /> : null}
           {slots.data && !slotList.some((slot) => slot.state === 'available') ? <Notice tone="info" title={copy.noTimes} /> : null}

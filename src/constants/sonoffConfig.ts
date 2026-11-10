@@ -9,8 +9,26 @@
  * BACKEND_API_KEY, if it sets one. Like every EXPO_PUBLIC_ value it ships
  * inside the app, so it only keeps out other devices on the LAN.
  * TODO(auth): replace it with the signed-in resident's token once login is real.
+ *
+ * In development the URL can be `auto`: the backend on the machine serving
+ * this app. A laptop's Wi-Fi address keeps changing, and Expo (on a phone) or
+ * the page's own address (in a browser) always knows the current one.
  */
-const backendUrl = (process.env.EXPO_PUBLIC_DEVICE_BACKEND_URL ?? '').replace(/\/+$/, '');
+const DEV_BACKEND_PORT = 8787;
+
+function devBackendUrl(): string {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return '';
+  const webHost = (globalThis as { location?: { hostname?: string } }).location?.hostname;
+  if (webHost) return `http://${webHost}:${DEV_BACKEND_PORT}`;
+  // A require, not an import: only a phone in development gets here, and the repo's Node checks load this file.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Constants = (require('expo-constants') as typeof import('expo-constants')).default;
+  const host = Constants.expoConfig?.hostUri?.split(':')[0];
+  return host ? `http://${host}:${DEV_BACKEND_PORT}` : '';
+}
+
+const configuredUrl = (process.env.EXPO_PUBLIC_DEVICE_BACKEND_URL ?? '').replace(/\/+$/, '');
+const backendUrl = configuredUrl === 'auto' ? devBackendUrl() : configuredUrl;
 
 export const sonoffConfig = {
   /** The plug's address on its own hotspot. */

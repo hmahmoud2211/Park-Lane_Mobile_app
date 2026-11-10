@@ -16,15 +16,22 @@ It has no dependencies. Node ≥ 22.18 runs the TypeScript directly.
 
 ```bash
 cd server
-cp .env.example .env      # then fill in PUBLIC_URL and CUBE_PASSWORD (or CUBE_TOKEN)
-npm start                 # node src/index.ts
-npm test                  # LAN crypto, mDNS, CUBE directives, EMS registry, OAuth, Alexa linking, realtime, clinic
-npm run typecheck         # uses the app's TypeScript (../node_modules)
+cp .env.example .env
 ```
+
+Fill in `PUBLIC_URL` and `CUBE_PASSWORD` (or `CUBE_TOKEN`) in `.env`, then:
+
+```bash
+npm start
+```
+
+`npm test` covers LAN crypto, mDNS, CUBE directives, the EMS registry, OAuth,
+Alexa linking, realtime and the clinic. `npm run typecheck` uses the app's
+TypeScript (`../node_modules`).
 
 Run it on a machine on the **same network segment as the plugs**. mDNS does not cross routers, so a backend on another subnet will never see a plug announce itself. CUBE must also be able to reach `PUBLIC_URL`.
 
-In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787`, plus `EXPO_PUBLIC_DEVICE_BACKEND_KEY` if you set `BACKEND_API_KEY`.
+In the app's `.env.local`, set `EXPO_PUBLIC_DEVICE_BACKEND_URL=auto` in development (the machine running Expo, port 8787) or `http://<this machine>:8787`, plus `EXPO_PUBLIC_DEVICE_BACKEND_KEY` if you set `BACKEND_API_KEY`.
 
 ## EMS accounts, device registry and Alexa
 

@@ -15,6 +15,7 @@ import { useClinicQuery, type ClinicQuery } from '../../hooks/useClinicQuery';
 import { useEms } from '../../hooks/useEms';
 import { useHealth } from '../../hooks/useHealth';
 import type { Appointment } from '../../services/clinic/clinic.types';
+import { syncReminders } from '../../services/clinic/appointmentReminders';
 import { clinicApi } from '../../services/clinic/clinicApi';
 import { clock, pick, STATUS_LABEL, STATUS_TONE } from '../../services/clinic/presenters';
 import { formatDate } from '../../services/health/i18n';
@@ -73,6 +74,10 @@ function Directory() {
     useCallback(() => clinicApi.doctors({ specialty: specialty === ALL ? null : specialty, q: query }), [specialty, query]),
   );
   const appointments = useClinicQuery(clinicApi.myAppointments);
+  // Picks up what changed elsewhere: a visit the clinic cancelled loses its reminder here.
+  useEffect(() => {
+    if (appointments.data) void syncReminders(appointments.data, lang);
+  }, [appointments.data, lang]);
 
   // Still to come: active, and not more than an hour past its end when the list was loaded.
   const upcoming = (appointments.data ?? [])

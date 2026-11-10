@@ -1,5 +1,4 @@
 {
-  // Node runs these files as they are (type stripping), so only erasable syntax is allowed.
   "compilerOptions": {
     "target": "ES2023",
     "module": "nodenext",
@@ -10,7 +9,13 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src", "test"]
+  "include": [
+    "src",
+    "test"
+  ],
+  "extends": "expo/tsconfig.base"
 }

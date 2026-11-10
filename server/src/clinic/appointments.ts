@@ -405,9 +405,11 @@ export function transition(actor: Actor, id: string, action: Action, options: { 
       throw new ApiError('invalid_transition', 'Only upcoming appointments can be cancelled from the app. Call the clinic.');
     }
     if (action === 'start') {
+      // One at a time within a clinic day. A visit left open on an earlier day must not stop this one: it is listed as unfinished.
+      const day = clinicDayBounds(clinicDate(start));
       const busy = db()
-        .prepare("SELECT id FROM clinic_appointments WHERE doctor_id = ? AND status = 'in_consultation' AND id != ?")
-        .get(row.doctor_id, row.id) as { id: string } | undefined;
+        .prepare("SELECT id FROM clinic_appointments WHERE doctor_id = ? AND status = 'in_consultation' AND id != ? AND starts_at >= ? AND starts_at < ?")
+        .get(row.doctor_id, row.id, day.from, day.to) as { id: string } | undefined;
       if (busy) {
         throw new ApiError('invalid_transition', 'Finish the current consultation, or return that patient to the queue, first.');
       }
@@ -546,6 +548,8 @@ export interface Dashboard {
   appointments: StaffAppointment[];
   /** The next appointments after today, for the "Upcoming" panel. */
   upcoming: StaffAppointment[];
+  /** Consultations left open on earlier days: a draft nobody approved, so the doctor must see them. */
+  unfinished: StaffAppointment[];
 }
 
 function dayRows(doctorId: string | null, date: string): AppointmentRow[] {
@@ -571,6 +575,11 @@ export function dashboard(doctorId: string, date: string | null, nowMs = Date.no
       )
       .all(doctorId, after) as unknown as AppointmentRow[]
   ).map((row) => staffView(row, nowMs));
+  const unfinished = (
+    db()
+      .prepare("SELECT * FROM clinic_appointments WHERE doctor_id = ? AND starts_at < ? AND status = 'in_consultation' ORDER BY starts_at")
+      .all(doctorId, clinicDayBounds(day).from) as unknown as AppointmentRow[]
+  ).map((row) => staffView(row, nowMs));
   return {
     date: day,
     timezone: config.clinic.timezone,
@@ -588,6 +597,7 @@ export function dashboard(doctorId: string, date: string | null, nowMs = Date.no
     queue,
     appointments: views,
     upcoming,
+    unfinished,
   };
 }
 

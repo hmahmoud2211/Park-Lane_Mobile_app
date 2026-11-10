@@ -16,12 +16,14 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useClinicQuery } from '../../hooks/useClinicQuery';
 import { useHealth } from '../../hooks/useHealth';
 import type { Appointment } from '../../services/clinic/clinic.types';
+import { syncReminders } from '../../services/clinic/appointmentReminders';
 import { clinicApi } from '../../services/clinic/clinicApi';
 import { clock, pick, STATUS_LABEL, STATUS_TONE } from '../../services/clinic/presenters';
 import { EmsError } from '../../services/ems/emsApi';
 import { formatDate } from '../../services/health/i18n';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { appointmentCopy } from './ClinicAppointmentScreen.data';
+import { ReminderNotice } from './ReminderNotice';
 import { createStyles } from './ClinicAppointmentScreen.styles';
 
 type Props = RootStackScreenProps<'ClinicAppointment'>;
@@ -77,6 +79,8 @@ export function ClinicAppointmentScreen() {
           {copy.bookedBody}
         </Notice>
       ) : null}
+
+      <ReminderNotice appointment={appointment} />
 
       <Panel
         icon="calendar-outline"
@@ -161,6 +165,7 @@ export function ClinicAppointmentScreen() {
         onSelect={async () => {
           setShown(await clinicApi.cancel(appointment.id));
           setCancelling(false);
+          void clinicApi.myAppointments().then((list) => syncReminders(list, lang)).catch(() => undefined);
         }}
         onClose={() => setCancelling(false)}
       />

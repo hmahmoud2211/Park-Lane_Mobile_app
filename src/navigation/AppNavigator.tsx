@@ -6,7 +6,7 @@ import {
   type Theme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { HealthNotifier } from '../components/health/HealthNotifier';
@@ -53,6 +53,7 @@ import { SmartHomeScreen } from '../screens/SmartHomeScreen';
 import { SonoffPairingScreen } from '../screens/SonoffPairingScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
 import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
+import { onReminderOpened } from '../services/clinic/appointmentReminders';
 import type { HealthNotice } from '../services/health/healthStore';
 import type { RootStackParamList } from '../types/navigation.types';
 import type { CurrentRoute, NavTab } from './navTabs';
@@ -141,6 +142,15 @@ export function AppNavigator() {
       });
     }
   }, []);
+
+  // A tapped appointment reminder opens that appointment.
+  useEffect(
+    () =>
+      onReminderOpened((appointmentId) => {
+        if (navigationRef.isReady()) navigationRef.navigate('ClinicAppointment', { appointmentId });
+      }),
+    [],
+  );
 
   // The health backend refused the session: back to sign-in, as "Log out" does.
   const endHealthSession = useCallback(() => {

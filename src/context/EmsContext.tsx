@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { AppState } from 'react-native';
 
+import { clearReminders } from '../services/clinic/appointmentReminders';
 import * as api from '../services/ems/emsApi';
 import { EmsRealtime } from '../services/ems/realtime';
 import { sessionStore } from '../services/ems/sessionStore';
@@ -196,6 +197,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     await api.signOut().catch(() => undefined);
+    await clearReminders();
     await endSession(null);
   }, [endSession]);
 

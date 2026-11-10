@@ -5,7 +5,7 @@ import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
 import { db } from '../ems/db.ts';
 import { normalize } from '../ems/voice.ts';
-import { addDays, clinicDate, clinicDayBounds, clinicInstant, ISO_DATE, minutesOf, timeOf, weekdayOf } from './time.ts';
+import { addDays, clinicDate, clinicDayBounds, clinicInstant, clinicTime, ISO_DATE, minutesOf, timeOf, weekdayOf } from './time.ts';
 
 /**
  * The clinic's doctors, their specialties and weekly hours, and the slots
@@ -236,10 +236,22 @@ export function availability(doctor: DoctorRow, days: number, nowMs = Date.now()
   return result;
 }
 
+/** Testing (CLINIC_ANY_TIME_BOOKING): any future minute in the booking window that the doctor has free. */
+function anyTimeSlot(doctor: DoctorRow, instant: number, nowMs: number): Slot {
+  const date = clinicDate(instant);
+  if (instant <= nowMs || date > bookingWindow(nowMs).last) throw new ApiError('invalid', 'Pick a time later than now.', 'starts_at');
+  const bounds = clinicDayBounds(date);
+  const startsAt = new Date(instant).toISOString();
+  if (bookedStarts(doctor.id, bounds.from, bounds.to).has(startsAt)) throw new ApiError('slot_taken', 'That slot was just booked. Pick another time.');
+  const end = instant + doctor.consultation_minutes * 60_000;
+  return { starts_at: startsAt, ends_at: new Date(end).toISOString(), time: clinicTime(instant), state: 'available' };
+}
+
 /** The slot a booking asks for, if it is on the doctor's grid and free right now. */
 export function bookableSlot(doctor: DoctorRow, startsAt: string, nowMs = Date.now()): Slot {
   const instant = Date.parse(startsAt);
   if (Number.isNaN(instant)) throw new ApiError('bad_request', 'starts_at must be an ISO time.');
+  if (config.clinic.anyTimeBooking) return anyTimeSlot(doctor, instant, nowMs);
   const iso = new Date(instant).toISOString();
   const slot = slotsFor(doctor, clinicDate(instant), nowMs).find((entry) => entry.starts_at === iso);
   if (!slot) throw new ApiError('invalid', 'That time is not one of the doctor’s appointment slots.', 'starts_at');

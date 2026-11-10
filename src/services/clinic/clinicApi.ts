@@ -11,6 +11,7 @@ import type { Appointment, BookingInput, Doctor, Patients, Slot, Specialty } fro
 const enc = encodeURIComponent;
 
 export const clinicApi = {
+  config: () => call<{ any_time_booking: boolean }>('/api/clinic/config'),
   specialties: () => call<Specialty[]>('/api/clinic/specialties'),
   doctors: (filters: { specialty?: string | null; q?: string }) => {
     const query = [filters.specialty ? `specialty=${enc(filters.specialty)}` : '', filters.q ? `q=${enc(filters.q)}` : '']

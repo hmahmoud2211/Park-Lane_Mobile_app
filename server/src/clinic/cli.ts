@@ -226,8 +226,10 @@ function list(): void {
 
 /**
  * Sample data for running the clinic locally: specialties, three doctors
- * working every day, and a resident with a filled-in Health Passport. Every
- * name says it is a demo. Refused in production.
+ * working every day, and a resident with a filled-in Health Passport. The
+ * sign-ins say they are demos (demo.* addresses, Demo… passwords); the
+ * names people see do not. Running it again on an existing database keeps
+ * the accounts and brings their names up to date. Refused in production.
  */
 async function demoSeed(): Promise<void> {
   if (process.env.NODE_ENV === 'production') fail('demo-seed is for development only.');
@@ -245,13 +247,19 @@ async function demoSeed(): Promise<void> {
     { weekday, start: '16:00', end: '22:00' },
   ]).flat();
   const doctors = [
-    { email: 'demo.cardiology@parklane.test', name: 'Dr. Demo Karim Hassan', nameAr: 'د. كريم حسن (تجريبي)', specialty: 'cardiology', title: 'Consultant Cardiologist', years: 15, fee: 900, minutes: 20, bio: 'Demo doctor for local testing. Heart rhythm, blood pressure and cholesterol.' },
-    { email: 'demo.gp@parklane.test', name: 'Dr. Demo Nour Adel', nameAr: 'د. نور عادل (تجريبي)', specialty: 'general-medicine', title: 'General Practitioner', years: 8, fee: 500, minutes: 15, bio: 'Demo doctor for local testing. Everyday illnesses, check-ups and referrals.' },
-    { email: 'demo.pediatrics@parklane.test', name: 'Dr. Demo Salma Fathy', nameAr: 'د. سلمى فتحي (تجريبي)', specialty: 'pediatrics', title: 'Pediatrics Specialist', years: 11, fee: 700, minutes: 20, bio: 'Demo doctor for local testing. Children from birth to sixteen.' },
+    { email: 'demo.cardiology@parklane.test', name: 'Dr. Karim Hassan', nameAr: 'د. كريم حسن', specialty: 'cardiology', title: 'Consultant Cardiologist', years: 15, fee: 900, minutes: 20, bio: 'Heart rhythm, blood pressure and cholesterol.' },
+    { email: 'demo.gp@parklane.test', name: 'Dr. Nour Adel', nameAr: 'د. نور عادل', specialty: 'general-medicine', title: 'General Practitioner', years: 8, fee: 500, minutes: 15, bio: 'Everyday illnesses, check-ups and referrals.' },
+    { email: 'demo.pediatrics@parklane.test', name: 'Dr. Salma Fathy', nameAr: 'د. سلمى فتحي', specialty: 'pediatrics', title: 'Pediatrics Specialist', years: 11, fee: 700, minutes: 20, bio: 'Children from birth to sixteen.' },
   ];
   const credentials: string[] = [];
+  const rename = (userId: string, name: string) => db().prepare('UPDATE users SET name = ? WHERE id = ?').run(name, userId);
   for (const entry of doctors) {
-    if (findUserByEmail(entry.email)) continue;
+    const existing = findUserByEmail(entry.email);
+    if (existing) {
+      rename(existing.id, entry.name);
+      db().prepare('UPDATE clinic_doctors SET display_name = ?, display_name_ar = ?, bio = ? WHERE user_id = ?').run(entry.name, entry.nameAr, entry.bio, existing.id);
+      continue;
+    }
     const password = 'DemoDoctor#2026';
     const user = await createUser(entry.email, password, entry.name, 'doctor');
     const id = randomUUID();
@@ -266,12 +274,23 @@ async function demoSeed(): Promise<void> {
     setSchedule(id, allWeek);
     credentials.push(`  doctor  ${entry.email}  ${password}`);
   }
-  if (!findUserByEmail('demo.desk@parklane.test')) {
-    await createUser('demo.desk@parklane.test', 'DemoDesk#2026', 'Demo Front Desk', 'clinic_staff');
+  const desk = findUserByEmail('demo.desk@parklane.test');
+  if (desk) {
+    rename(desk.id, 'Front Desk');
+  } else {
+    await createUser('demo.desk@parklane.test', 'DemoDesk#2026', 'Front Desk', 'clinic_staff');
     credentials.push('  desk    demo.desk@parklane.test  DemoDesk#2026');
   }
-  if (!findUserByEmail('demo.resident@parklane.test')) {
-    const resident = await createUser('demo.resident@parklane.test', 'DemoResident#2026', 'Demo Ahmed Mohamed');
+  const seeded = findUserByEmail('demo.resident@parklane.test');
+  if (seeded) {
+    rename(seeded.id, 'Ahmed Mohamed');
+    for (const profile of listProfiles(seeded.id)) {
+      if (profile.name.startsWith('Demo ')) {
+        db().prepare('UPDATE health_profiles SET name = ? WHERE id = ?').run(profile.name.slice('Demo '.length), profile.id);
+      }
+    }
+  } else {
+    const resident = await createUser('demo.resident@parklane.test', 'DemoResident#2026', 'Ahmed Mohamed');
     transaction(() => {
       setConsent(resident.id, true);
       const self = listProfiles(resident.id)[0];
@@ -284,12 +303,12 @@ async function demoSeed(): Promise<void> {
       add('labs', { test: 'HbA1c', value: 7.6, unit: '%', date: '2026-08-19', ref_high: 5.7 });
       add('labs', { test: 'LDL cholesterol', value: 3.6, unit: 'mmol/L', date: '2024-03-01', ref_high: 3.0 });
       add('procedures', { name: 'Gallbladder removal', date: '2022-11-03' });
-      addProfile(resident.id, { name: 'Demo Laila', relation: 'child', sex: 'female', date_of_birth: '2016-05-02', blood_type: 'O+' });
+      addProfile(resident.id, { name: 'Laila', relation: 'child', sex: 'female', date_of_birth: '2016-05-02', blood_type: 'O+' });
     });
     credentials.push('  resident demo.resident@parklane.test  DemoResident#2026');
   }
   console.log('Demo clinic ready (development only). Sign-ins created this run:');
-  console.log(credentials.length ? credentials.join('\n') : '  (none: the demo accounts already existed)');
+  console.log(credentials.length ? credentials.join('\n') : '  (none: the demo accounts already existed; their names were refreshed)');
 }
 
 const [group, command, subject] = positionals;

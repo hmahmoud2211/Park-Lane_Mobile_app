@@ -6,7 +6,7 @@ import type { User } from '../ems/auth.ts';
 import { db, transaction } from '../ems/db.ts';
 import { seal, unseal } from '../ems/secrets.ts';
 import { cleanItem, consentGiven, insertItem, profileById, readSections, touch } from '../health/passport.ts';
-import { draftNote, type NoteDraft } from './ai/noteDraft.ts';
+import { draftFromDictation, type NoteDraft } from './ai/dictation.ts';
 import { audit } from './audit.ts';
 import {
   afterChange,
@@ -23,7 +23,7 @@ import type { DoctorRow } from './doctors.ts';
 import { broadcast } from './events.ts';
 import { accessFor, entryOf } from './history.ts';
 import { assertFinalizable, cleanNote, emptyNote, type ClinicalNote } from './note.ts';
-import { keytermsFrom, transcribe, type SpeechLang, type Utterance } from './speech.ts';
+import { keytermsFrom, transcribe, type SpeechLang } from './speech.ts';
 import { addDays, ageAt, clinicDate } from './time.ts';
 
 /**
@@ -33,8 +33,10 @@ import { addDays, ageAt, clinicDate } from './time.ts';
  *
  * The draft is the doctor's working copy, saved with an optimistic
  * `version`, so two tabs or a retried save can never overwrite newer work.
- * The AI's proposal is kept beside it, never in it, until the doctor puts it
- * in the editor. Finalizing is one transaction: the approved note, the
+ * The doctor can dictate the note: the clip is transcribed, the AI sorts it
+ * into the diagnosis, medications and investigations, and that proposal is
+ * kept beside the draft, never in it, until the doctor puts it in the
+ * editor. Finalizing is one transaction: the approved note, the
  * appointment's completion and the Health Passport entries are written
  * together or not at all, and finalizing again changes nothing.
  */
@@ -62,25 +64,12 @@ interface ConsultationRow {
   updated_at: string;
 }
 
-export interface Segment {
-  id: string;
-  seq: number;
-  duration_ms: number | null;
-  language: string | null;
-  text: string;
-  utterances: Utterance[];
-  created_at: string;
-}
-
 export interface ConsultationView {
   id: string;
   status: 'draft' | 'final';
   version: number;
   appointment: StaffAppointment;
-  recording_consent_at: string | null;
-  notes: string;
   draft: ClinicalNote;
-  transcript: { segments: Segment[]; edited: string | null };
   ai_draft: NoteDraft | null;
   final: ClinicalNote | null;
   finalized_at: string | null;
@@ -99,13 +88,6 @@ function row(id: string): ConsultationRow | null {
 }
 
 const open = <T>(value: string | null, fallback: T): T => (value ? (JSON.parse(unseal(value)) as T) : fallback);
-
-function segmentsOf(consultationId: string): Segment[] {
-  const rows = db()
-    .prepare('SELECT id, seq, duration_ms, language, content, created_at FROM clinic_transcript_segments WHERE consultation_id = ? ORDER BY seq')
-    .all(consultationId) as { id: string; seq: number; duration_ms: number | null; language: string | null; content: string; created_at: string }[];
-  return rows.map(({ content, ...rest }) => ({ ...rest, ...(JSON.parse(unseal(content)) as { text: string; utterances: Utterance[] }) }));
-}
 
 function addenda(consultationId: string): ConsultationView['addenda'] {
   const rows = db()
@@ -127,13 +109,7 @@ function view(consultation: ConsultationRow): ConsultationView {
     status: consultation.status,
     version: consultation.version,
     appointment: staffView(appointment),
-    recording_consent_at: consultation.recording_consent_at,
-    notes: consultation.notes ? unseal(consultation.notes) : '',
     draft: open(consultation.draft, emptyNote()),
-    transcript: {
-      segments: segmentsOf(consultation.id),
-      edited: consultation.transcript_edited ? unseal(consultation.transcript_edited) : null,
-    },
     ai_draft: open<NoteDraft | null>(consultation.ai_draft, null),
     final: open<ClinicalNote | null>(consultation.final, null),
     finalized_at: consultation.finalized_at,
@@ -202,17 +178,7 @@ export function saveDraft(user: User, doctor: DoctorRow, id: string, body: Recor
   editable(consultation);
   if (typeof body.version !== 'number') throw new ApiError('invalid', 'version is required.', 'version');
   const sets: Record<string, string | number | null> = {};
-  if (body.notes !== undefined) {
-    if (typeof body.notes !== 'string') throw new ApiError('invalid', 'notes must be text.', 'notes');
-    sets.notes = body.notes ? seal(body.notes.slice(0, 50_000)) : null;
-  }
   if (body.draft !== undefined) sets.draft = seal(JSON.stringify(cleanNote(body.draft)));
-  if (body.transcript_edited !== undefined) {
-    if (body.transcript_edited !== null && typeof body.transcript_edited !== 'string') {
-      throw new ApiError('invalid', 'transcript_edited must be text.', 'transcript_edited');
-    }
-    sets.transcript_edited = body.transcript_edited ? seal(body.transcript_edited.slice(0, 200_000)) : null;
-  }
   if (body.ai_applied === true) sets.ai_used = 1;
   const columns = Object.keys(sets);
   const result = db()
@@ -225,25 +191,6 @@ export function saveDraft(user: User, doctor: DoctorRow, id: string, body: Recor
     throw new ApiError('version_conflict', 'This draft was changed elsewhere. Reload it before saving again.');
   }
   audit({ actor: user, action: 'consultation.draft_saved', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
-  return view(row(id) as ConsultationRow);
-}
-
-/**
- * The doctor confirms the patient agreed, in the room, to being recorded.
- * Recording also needs AI consent for the visit (the resident's, or one the
- * doctor records in person), since the audio goes to a transcription service.
- */
-export function recordRecordingConsent(user: User, doctor: DoctorRow, id: string): ConsultationView {
-  const consultation = ownConsultation(doctor, id);
-  editable(consultation);
-  const appointment = appointmentRow(consultation.appointment_id) as AppointmentRow;
-  if (appointment.ai_consent !== 1) {
-    throw new ApiError('consent_required', 'Record the patient’s consent to AI assistance for this visit first.');
-  }
-  if (!consultation.recording_consent_at) {
-    db().prepare('UPDATE clinic_consultations SET recording_consent_at = ?, updated_at = ? WHERE id = ?').run(now(), now(), id);
-    audit({ actor: user, action: 'consultation.recording_consent', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
-  }
   return view(row(id) as ConsultationRow);
 }
 
@@ -263,90 +210,32 @@ function keyterms(appointment: AppointmentRow): string[] {
 const AUDIO_TYPES = /^audio\/(webm|ogg|mp4|mpeg|wav|x-wav|aac)(;.*)?$/;
 
 /**
- * One recorded segment: transcribed and stored as text, the audio dropped.
- * Uploading a segment number again returns what was already transcribed,
- * so a retry after a lost connection is never transcribed (or billed) twice.
+ * The doctor dictates the note: one clip, transcribed and then sorted by
+ * the AI into the diagnosis, the medications and the investigations. The
+ * audio is dropped once transcribed; the text heard is kept with the AI's
+ * proposal so the doctor can check the fields against it, and both go
+ * with the retention purge. Each dictation replaces the previous proposal;
+ * the draft the doctor is editing is untouched until they apply it.
  */
-export async function addSegment(
+export async function dictate(
   user: User,
   doctor: DoctorRow,
   id: string,
   audio: Buffer,
-  meta: { seq: number; mimeType: string; lang: SpeechLang; durationMs: number | null },
-): Promise<{ segment: Segment; duplicate: boolean }> {
+  meta: { mimeType: string; lang: SpeechLang; noteLang: 'en' | 'ar' },
+): Promise<ConsultationView> {
   const consultation = ownConsultation(doctor, id);
   editable(consultation);
-  if (!Number.isInteger(meta.seq) || meta.seq < 0 || meta.seq > 10_000) throw new ApiError('invalid', 'seq must be a segment number.', 'seq');
-  if (!AUDIO_TYPES.test(meta.mimeType)) throw new ApiError('invalid', 'Upload the segment as audio.', 'content-type');
-  if (audio.length < 1_000) throw new ApiError('invalid', 'The segment is too short to transcribe.', 'audio');
+  if (!AUDIO_TYPES.test(meta.mimeType)) throw new ApiError('invalid', 'Upload the dictation as audio.', 'content-type');
+  if (audio.length < 1_000) throw new ApiError('invalid', 'The dictation is too short to transcribe.', 'audio');
   const appointment = appointmentRow(consultation.appointment_id) as AppointmentRow;
   requireAiConsent(appointment);
-  if (!consultation.recording_consent_at) {
-    throw new ApiError('consent_required', 'Confirm the patient agreed to being recorded before recording.');
-  }
-  const existing = segmentsOf(id).find((segment) => segment.seq === meta.seq);
-  if (existing) return { segment: existing, duplicate: true };
 
-  const result = await transcribe(audio, meta.mimeType, { lang: meta.lang, keyterms: keyterms(appointment) });
-  const segmentId = randomUUID();
-  const content = seal(JSON.stringify({ text: result.text, utterances: result.utterances }));
-  db()
-    .prepare(
-      `INSERT OR IGNORE INTO clinic_transcript_segments (id, consultation_id, seq, duration_ms, language, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(segmentId, id, meta.seq, meta.durationMs, result.language, content, now());
-  audit({
-    actor: user,
-    action: 'consultation.segment_transcribed',
-    appointmentId: consultation.appointment_id,
-    consultationId: id,
-    patientProfileId: consultation.patient_profile_id,
-    detail: { seq: meta.seq, empty: result.text === '' },
-  });
-  const stored = segmentsOf(id).find((segment) => segment.seq === meta.seq) as Segment;
-  return { segment: stored, duplicate: stored.id !== segmentId };
-}
-
-export function removeSegment(user: User, doctor: DoctorRow, id: string, segmentId: string): ConsultationView {
-  const consultation = ownConsultation(doctor, id);
-  editable(consultation);
-  const result = db().prepare('DELETE FROM clinic_transcript_segments WHERE id = ? AND consultation_id = ?').run(segmentId, id);
-  if (Number(result.changes) !== 1) throw new ApiError('not_found', 'Segment not found.');
-  audit({ actor: user, action: 'consultation.segment_removed', appointmentId: consultation.appointment_id, consultationId: id, patientProfileId: consultation.patient_profile_id });
-  return view(row(id) as ConsultationRow);
-}
-
-const SPEAKER = /^speaker_(\d+)$/;
-
-/** The transcript the AI reads: the doctor's corrected copy if there is one, else the segments with speaker labels. */
-export function transcriptText(consultation: ConsultationRow): string {
-  if (consultation.transcript_edited) return unseal(consultation.transcript_edited);
-  return segmentsOf(consultation.id)
-    .map((segment) =>
-      [
-        `[Segment ${segment.seq + 1}]`,
-        ...segment.utterances.map((u) => `Speaker ${Number(SPEAKER.exec(u.speaker)?.[1] ?? 0) + 1}: ${u.text}`),
-      ].join('\n'),
-    )
-    .join('\n\n');
-}
-
-/** Asks the AI for a draft note. Stored beside the doctor's draft; the editor decides what to use. */
-export async function draftWithAi(user: User, doctor: DoctorRow, id: string, lang: 'en' | 'ar'): Promise<ConsultationView> {
-  const consultation = ownConsultation(doctor, id);
-  editable(consultation);
-  const appointment = appointmentRow(consultation.appointment_id) as AppointmentRow;
-  requireAiConsent(appointment);
-  const transcript = transcriptText(consultation);
-  const notes = consultation.notes ? unseal(consultation.notes) : '';
-  if (!transcript.trim() && !notes.trim()) {
-    throw new ApiError('invalid', 'There is nothing to summarize yet. Record the consultation or type notes first.');
-  }
-  const draft = await draftNote(
+  const heard = await transcribe(audio, meta.mimeType, { lang: meta.lang, keyterms: keyterms(appointment) });
+  if (!heard.text.trim()) throw new ApiError('invalid', 'No speech was heard in the dictation. Try again, closer to the microphone.', 'audio');
+  const draft = await draftFromDictation(
     {
-      transcript,
-      notes,
+      text: heard.text,
       context: {
         specialty: doctor.specialty_en,
         age: ageAt(appointment.patient_dob, Date.parse(appointment.starts_at)),
@@ -354,7 +243,8 @@ export async function draftWithAi(user: User, doctor: DoctorRow, id: string, lan
         reason_given_when_booking: reasonOf(appointment),
       },
     },
-    lang,
+    { text: heard.text, language: heard.language },
+    meta.noteLang,
   );
   const at = now();
   // The draft the doctor is editing is untouched; a version bump tells other tabs something changed.
@@ -363,11 +253,11 @@ export async function draftWithAi(user: User, doctor: DoctorRow, id: string, lan
     .run(seal(JSON.stringify(draft)), at, at, id, 'draft');
   audit({
     actor: user,
-    action: 'consultation.drafted_by_ai',
+    action: 'consultation.dictated',
     appointmentId: consultation.appointment_id,
     consultationId: id,
     patientProfileId: consultation.patient_profile_id,
-    detail: { lang, flags: draft.flags.length },
+    detail: { lang: meta.noteLang, heard: heard.language, flags: draft.flags.length, empty: heard.text === '' },
   });
   return view(row(id) as ConsultationRow);
 }
@@ -381,13 +271,14 @@ function syncPassport(consultation: ConsultationRow, appointment: AppointmentRow
   if (already.count > 0) return true;
   const date = clinicDate(Date.parse(appointment.starts_at));
   const diagnosis = note.diagnoses.map((entry) => entry.name).join(', ');
+  const reason = note.chief_complaint || reasonOf(appointment) || '';
   insertItem(
     profile.id,
     'visits',
     cleanItem('visits', {
       date,
       specialty: doctor.specialty_en,
-      reason: diagnosis ? `${note.chief_complaint} — ${diagnosis}` : note.chief_complaint,
+      reason: [reason, diagnosis].filter(Boolean).join(' — ') || diagnosis,
     }),
     source,
   );
@@ -511,8 +402,9 @@ export function doctorHistory(doctor: DoctorRow, filters: { q?: string | null; l
 }
 
 /**
- * Retention: some time after finalizing, the transcript and the AI's draft
- * are deleted. The approved record, the doctor's notes and the audit trail stay.
+ * Retention: some time after finalizing, the dictation text and the AI's
+ * proposal are deleted (and any transcript segments from before dictation
+ * replaced recording). The approved record and the audit trail stay.
  */
 export function purgeExpiredContent(nowMs = Date.now()): number {
   const cutoff = new Date(nowMs - config.clinic.transcriptRetentionDays * 24 * 3600_000).toISOString();

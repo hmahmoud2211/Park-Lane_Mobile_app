@@ -15,9 +15,9 @@ EMS backend (server/) ── one database (ems.db), one set of accounts, one rea
    │ /api/clinic/...  appointments, status machine, queue, consultations, audit
    │ /health/...      Health Passport (the app's existing HttpHealthService contract),
    │                  documents, spoken summaries, media
-   ├──▶ Gemini, or Claude (history summaries, SOAP drafts,       server-side key only
+   ├──▶ Gemini, or Claude (history summaries, dictated notes,       server-side key only
    │    reading documents, spoken handovers)
-   └──▶ ElevenLabs (summary speech, Scribe transcription)       server-side key only
+   └──▶ ElevenLabs (summary speech, Scribe dictation)       server-side key only
    │
    ▼
 Health Passport: visit + prescribed medicines (source consultation:<id>) and the readable visit record
@@ -40,9 +40,9 @@ Added, all on that same backend:
 | Doctors, specialties, weekly hours, time off, slots | `server/src/clinic/doctors.ts` |
 | Booking, status machine, queue, next-patient notices | `server/src/clinic/appointments.ts` |
 | History access rules | `server/src/clinic/history.ts` |
-| Consultations: drafts, transcript segments, finalize, addenda, retention | `server/src/clinic/consultations.ts` |
+| Consultations: drafts, dictation, finalize, addenda, retention | `server/src/clinic/consultations.ts` |
 | AI provider layer: Gemini or Claude (raw HTTP, JSON schemas) | `server/src/ai/` |
-| History summaries, SOAP drafts | `server/src/clinic/ai/` |
+| History summaries, dictated notes | `server/src/clinic/ai/` |
 | Health Passport documents: upload, reading, review | `server/src/health/documents.ts` |
 | The spoken handover, and Health Passport's "Summary for doctor" | `server/src/health/spoken.ts`, `summaries.ts` |
 | Sealed files and signed media links; background jobs | `server/src/health/files.ts`, `jobs.ts` |
@@ -80,7 +80,7 @@ provider.
   makes residents; doctor and desk accounts come from the CLI.
 - Doctors and desk staff sign in to the clinic web app with the same
   `/api/auth/login`. Their sessions last 12 hours (`CLINIC_STAFF_SESSION_HOURS`),
-  the web app also signs out after 30 idle minutes (not while recording), and
+  the web app also signs out after 30 idle minutes (not while dictating), and
   the token lives in `sessionStorage`.
 - Every route checks the role on the server. A doctor sees only their own
   appointments (anyone else's id answers 404). The desk sees every doctor's
@@ -104,9 +104,11 @@ consultations this doctor wrote. The doctor is told why.
 | Feature | Needs |
 | --- | --- |
 | AI history summary, "Listen to summary" (the spoken handover) | full access **and** AI consent for the visit |
-| Recording / transcription | AI consent **and** recording consent the doctor records in the room |
-| AI consultation draft | AI consent |
+| Dictating the note (transcription + AI sorting into the fields) | AI consent |
 | Documenting by hand | nothing; always available |
+
+The consultation itself is not recorded: only the doctor's own dictation,
+after the visit, goes to the speech and AI services.
 
 AI consent is the resident's opt-in at booking (changeable until the visit,
 withdrawing deletes any stored summary), or the patient's agreement in
@@ -125,7 +127,9 @@ scheduled ─check_in─▶ checked_in ─mark_ready─▶ waiting ─start─�
 
 - `transition()` checks the move, the role and the timing in one
   transaction: check-in only on the appointment's day, no-show only after
-  the slot plus the grace period, one consultation per doctor at a time,
+  the slot plus the grace period, one consultation per doctor at a time
+  within a clinic day (one left open on an earlier day does not block today;
+  the queue and dashboard list it as unfinished),
   residents cancel only upcoming visits. `completed` comes only from
   finalizing.
 - **No double booking**: a slot must be on the doctor's grid and free inside
@@ -142,19 +146,40 @@ scheduled ─check_in─▶ checked_in ─mark_ready─▶ waiting ─start─�
   for the browser session, and announces the current next patient once after
   sign-in. Realtime events carry ids only; clients refetch the state.
 
+## Appointment reminders
+
+The app reminds the resident 30 minutes before a visit
+(`src/services/clinic/appointmentReminders.ts`). Reminders are scheduled on
+the phone, not sent by the backend, so they arrive with the app closed and
+need no push service. Each sync replaces them all from the resident's list of
+appointments: after booking, rescheduling or cancelling, and when the clinic
+screen opens. The phone asks for permission the first time there is a reminder
+to set. Signing out clears them.
+
+A change made elsewhere reaches a phone only when that screen next opens, so a
+visit the clinic cancels can still remind until then. A visit booked less than
+30 minutes ahead gets no reminder. Tapping one opens the appointment. Reminders
+are phone-only: the app's web version shows none.
+
 ## Consultations and the record
 
 - One consultation per appointment (`UNIQUE`). The draft is saved with an
   optimistic `version`; a stale save gets `409 version_conflict` and the tab
   reloads.
-- **Transcription** is per segment (~30 s of browser audio). A segment
-  number is transcribed once: a retried upload returns the stored text. Audio
-  is never stored. The patient's documented medicines and conditions go to
-  Scribe as key terms.
-- **AI draft** is stored *beside* the doctor's draft (`ai_draft`), never in
-  it. The model must quote the transcript or notes for every vital,
-  diagnosis, prescription, test, examination, assessment and plan; the
-  server checks each quote and flags anything unbacked or not found.
+- The note has three parts the clinic fills: **diagnosis**, **medications**
+  and **assessment** (`investigations`: the lab tests and other
+  investigations the patient should have). The other SOAP fields of
+  `ClinicalNote` stay in the shape for older records and the app's visit
+  screen; new notes leave them empty. The visit's reason comes from the
+  booking.
+- **Dictation** (`POST /consultations/:id/dictation`, one audio clip): the
+  clip is transcribed by Scribe (the patient's documented medicines and
+  conditions go along as key terms), the text goes to the AI, which sorts it
+  into the three parts, and the proposal is stored *beside* the doctor's
+  draft (`ai_draft`, with the text heard), never in it. The model must quote
+  the dictation for every diagnosis, prescription and test; the server
+  checks each quote and flags anything unbacked or not found. Audio is never
+  stored. Each dictation replaces the previous proposal.
 - **Finalize** (`attest: true` required) is one transaction: the note becomes
   final and read-only, the appointment completed, and the Health Passport
   gets a `visits` item and each prescribed medicine not already current,
@@ -162,10 +187,10 @@ scheduled ─check_in─▶ checked_in ─mark_ready─▶ waiting ─start─�
   finalized record and writes nothing. If the resident's Health Passport is
   off, the clinic keeps the record and says it was not added.
 - Corrections after approval are **addenda**: signed, dated, appended.
-- **Retention**: transcripts and AI drafts are deleted
+- **Retention**: dictation text and AI proposals are deleted
   `CLINIC_TRANSCRIPT_RETENTION_DAYS` after finalizing (hourly job); history
   summaries and spoken-handover scripts a day after the visit. The approved
-  note, the doctor's notes and the audit trail stay.
+  note and the audit trail stay.
 
 ## Health Passport documents and spoken summaries
 
@@ -255,7 +280,7 @@ deletes that profile's documents and summaries and removes their files.
   truncation is reported as an error, never parsed.
 - Spoken handovers are checked against the record before they are read
   aloud (see above).
-- Prompts, replies, transcripts and audio are never logged.
+- Prompts, replies, dictations and audio are never logged.
 
 ## Data model (migrations 2–4 in `server/src/ems/db.ts`)
 
@@ -267,8 +292,8 @@ Additive only: one `ALTER TABLE users ADD COLUMN role`, then new tables.
 | `health_items` | record items by section, with `source` | `data` |
 | `clinic_specialties`, `clinic_doctors`, `clinic_schedules`, `clinic_time_off` | the directory and hours | |
 | `clinic_appointments` | bookings, status times, per-visit consents | `reason` |
-| `clinic_consultations` | draft, AI draft, final note, approver | notes, draft, transcript edits, AI draft, final |
-| `clinic_transcript_segments` | one per recorded segment | content |
+| `clinic_consultations` | draft, AI proposal (with the dictation text), final note, approver | draft, AI proposal, final (`notes`, `transcript_edited` and `recording_consent_at` are unused since dictation replaced recording) |
+| `clinic_transcript_segments` | unused since dictation replaced recording; purged with the rest | content |
 | `clinic_addenda` | corrections | text |
 | `clinic_history_summaries` | AI summaries with expiry | content |
 | `clinic_spoken_summaries` | the clinic's spoken-handover script per visit and language, with expiry | script |
@@ -300,10 +325,10 @@ Error codes include `slot_taken`, `invalid_transition`, `version_conflict`,
 `/appointments/:id/history-summary/speech {lang}` (the spoken handover: `{ version, parts }`),
 `GET /appointments/:id/history-summary/speech/:part?lang=&v=` (one part, audio/mpeg),
 `/appointments/:id/consultation`; `GET /consultations?q=`, `/consultations/:id`;
-`PUT /consultations/:id/draft`; `POST /consultations/:id/recording-consent`,
-`/consultations/:id/segments?seq=&lang=&duration_ms=` (raw audio body),
-`/consultations/:id/ai-draft {lang}`, `/consultations/:id/finalize`,
-`/consultations/:id/addenda`; `DELETE /consultations/:id/segments/:segmentId`;
+`PUT /consultations/:id/draft {version, draft, ai_applied}`;
+`POST /consultations/:id/dictation?lang=&note_lang=` (raw audio body; returns the
+consultation with `ai_draft`), `/consultations/:id/finalize`,
+`/consultations/:id/addenda`;
 `GET /patients?q=`, `/patients/:profileId`.
 
 **Front desk** (`/api/clinic/desk/...`): `GET /day?date=`, `POST /appointments/:id/status {action}`.
@@ -325,29 +350,37 @@ Error codes include `slot_taken`, `invalid_transition`, `version_conflict`,
 
 Each of these keeps running, so give each its own terminal.
 
-```bash
-# Terminal 1: the backend (Node >= 22.18, no install needed)
-cd server
-# optional: a server/.env with only GEMINI_API_KEY and ELEVENLABS_API_KEY (see .env.example)
-npm run clinic -- demo-seed       # development only, once: demo doctors, desk and resident
-npm start                         # http://localhost:8787; stays running
-```
+Terminal 1, the backend at http://localhost:8787 (Node >= 22.18, no install
+needed). For AI and speech, first add a `server/.env` with only
+`GEMINI_API_KEY` and `ELEVENLABS_API_KEY` (see `.env.example`). `demo-seed`
+adds demo doctors, a desk and a resident (development only, once):
 
 ```bash
-# Terminal 2: the clinic web app (from Park-Lane_Mobile_app's parent folder)
+cd server
+npm run clinic -- demo-seed
+npm start
+```
+
+Terminal 2, the clinic web app at http://localhost:5174, which proxies `/api`
+to :8787 (from Park-Lane_Mobile_app's parent folder):
+
+```bash
 cd Parklane-clinical-system
 npm install
-npm run dev                       # http://localhost:5174, proxies /api to :8787
+npm run dev
 ```
 
+Terminal 3, optional, the resident app against the same backend:
+
 ```bash
-# Terminal 3, optional: the resident app against the same backend
 cd Park-Lane_Mobile_app
-EXPO_PUBLIC_DEVICE_BACKEND_URL=http://<this machine>:8787 EXPO_PUBLIC_HEALTH_API=http npx expo start
+EXPO_PUBLIC_DEVICE_BACKEND_URL=auto EXPO_PUBLIC_HEALTH_API=http npx expo start
 ```
 
 If `npm start` reports `EADDRINUSE ... 8787`, a backend is already running
 (`lsof -iTCP:8787 -sTCP:LISTEN` shows it): use that one, or stop it first.
+Don't paste `#` comments after these commands: zsh passes them on as
+arguments, and Vite then stops with `Unused args`.
 The backend reads `server/.env` only when it starts, so restart it after
 changing a key. With keys set, its startup log shows
 `ai: "gemini (gemini-3.8-flash)"` and `clinicSpeech: true`.
@@ -360,6 +393,12 @@ serves a blank page and rewrites `server/tsconfig.json`.
 
 `EXPO_PUBLIC_HEALTH_API=http` matters: in development Health Passport
 otherwise runs on its mock, which has no clinic visits.
+
+For testing anything tied to the clock, `CLINIC_ANY_TIME_BOOKING=1` in
+`server/.env` lets residents book any future minute on any day: the app shows
+a time picker set from the device's clock instead of the doctor's slots. Other
+checks still apply (the same patient can't overlap two visits), and
+`NODE_ENV=production` ignores it.
 
 Demo sign-ins (`demo-seed`): doctor `demo.cardiology@parklane.test` /
 `DemoDoctor#2026` (also `demo.gp@…`, `demo.pediatrics@…`), desk
@@ -386,7 +425,7 @@ npm run clinic -- list
   (`test/clinic.test.ts`) over real HTTP and WebSocket, with Claude and
   ElevenLabs stand-ins and a mocked clock: racing bookings, roles, every
   refused transition, queue order with late arrivals, one notice per patient,
-  history access, citation filtering, consent gates, idempotent segments and
+  history access, citation filtering, consent gates, dictation and
   finalize, version conflicts, what the patient can and cannot see, retention.
   11 for documents and spoken summaries (`test/health-ai.test.ts`) with Gemini
   and ElevenLabs stand-ins: sealed pages read one by one, the review step,
