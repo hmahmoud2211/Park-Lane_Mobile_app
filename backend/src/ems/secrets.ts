@@ -71,6 +71,15 @@ export function unsealBytes(sealed: Buffer): Buffer {
   return Buffer.concat([decipher.update(sealed.subarray(32)), decipher.final()]);
 }
 
+/**
+ * A token the backend can re-create from a record's id but never stores, keyed from the sealing key (e.g. a parking
+ * pass's QR). Only its hash is kept for lookup, so the database alone opens no gate.
+ */
+export function derivedToken(purpose: string, value: string): string {
+  const derivedKey = createHash('sha256').update(sealingKey()).update('derived-tokens').digest();
+  return createHmac('sha256', derivedKey).update(`${purpose}|${value}`).digest('base64url').slice(0, 32);
+}
+
 /** A signature for short-lived links, keyed from the sealing key so it needs no setting of its own. */
 export function sign(value: string): string {
   const key = createHash('sha256').update(sealingKey()).update('signed-links').digest();

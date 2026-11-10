@@ -84,6 +84,13 @@ HA_TIME_ZONE=Africa/Cairo
 # Every new apartment gets its CUBE gateway: the relay's enrol token
 GATEWAY_RELAY_ENROLL_TOKEN=<CUBE_RELAY_ENROLL_TOKEN from /home/ems-server/EMS/cube-relay/relay.env>
 
+# The CUBE relay starts with the backend (see "The relay" below)
+COMPOSE_PROFILES=relay
+RELAY_ENV_FILE=/home/ems-server/EMS/cube-relay/relay.env
+RELAY_IMAGE=<the gateway image, pinned: a version tag or …@sha256:…>
+# Only when the relay manages the device broker (gateway/deploy/server-mode, setup-broker.sh)
+RELAY_CA_FILE=/home/ems-server/EMS/cube-mqtt/certs/ca.crt
+
 # Shown on the public privacy policy (/privacy) and account deletion page (/account/delete),
 # which the App Store and Google Play listings link to. Both must be set before you submit.
 LEGAL_OPERATOR_NAME=<the company responsible for the app, as registered>
@@ -101,13 +108,63 @@ every time). Existing gateways move to it with **Update** on their apartment's p
 
 `HA_IMAGE` is pinned to one release, not `stable`, so every apartment runs the same tested version. Change it only on purpose (see "Upgrade Home Assistant" below).
 
+### The relay
+
+The CUBE relay lets phones reach the apartments' gateways from anywhere ([CUBE_GATEWAY.md](CUBE_GATEWAY.md)). It is
+its own image, the gateway's, in `relay` mode, so it stays a separate container: it never gets the Docker socket or
+the backend's data. `COMPOSE_PROFILES=relay` only makes `backend/compose.yaml` start it together with the backend.
+Without `COMPOSE_PROFILES=relay`, compose and `dev.sh server` leave the relay alone.
+
+- **`RELAY_IMAGE`**: pin it. With `:latest`, a gateway update that pulls the same image also moves the relay at its
+  next start.
+- **`RELAY_CA_FILE`**: needed once the relay manages the device broker (`relay.env` then has `CUBE_MQTT_CA_FILE`).
+  `dev.sh server` stops and says so if it's missing.
+- **Data**: the Docker volume `cube-relay-data`, the same one the relay used before compose. `dev.sh server` creates
+  it on a new server. `docker compose down -v` never deletes it.
+
+**Moving a relay started with `docker run` (once).** Add the lines above to `backend/.env` and run
+`./scripts/dev.sh server`. If `RELAY_IMAGE` is empty, it stops and prints the exact build `cube-relay` runs now:
+copy that line into `.env` and run it again. It builds the backend first, then replaces `cube-relay` with the same
+image, settings and volume. Remote access pauses for a few seconds and the enrolled gateways stay enrolled. Check with
+`docker ps --filter name=cube-relay` (`(healthy)`) and the health URL in the table below.
+
 ## 5. Start the backend
 
 ```bash
 cd /opt/parklane
-./scripts/dev.sh server
+./scripts/dev.sh server --pull <commit>   # the image from Docker Hub (see "Images on Docker Hub" below)
+./scripts/dev.sh server                   # or: build it here from this checkout
 ```
-This creates the private Docker network, builds the backend image (Node and the code in `backend/`, tagged with the git commit, e.g. `parklane-backend:117a038`) and starts it with `server/compose.yaml`. The container restarts by itself after a reboot, and `docker ps` shows it as `(healthy)` once it answers.
+This creates the private Docker network, gets the backend image (`hmahmoud2211/parklane-backend`, tagged with the git commit, e.g. `:117a038`) and starts it with `backend/compose.yaml`. With `COMPOSE_PROFILES=relay` it starts the CUBE relay (`cube-relay`) next to it. Both restart by themselves after a reboot, and `docker ps` shows them as `(healthy)` once they answer.
+
+### Images on Docker Hub
+
+The backend image is built and pushed from a developer machine, so the server only downloads it. No GitHub
+Actions are involved.
+
+1. **On the Mac** (signed in with `docker login` as `hmahmoud2211`), with everything in `backend/` and `shared/`
+   committed:
+   ```bash
+   ./scripts/dev.sh push
+   ```
+   It runs the backend's typecheck and tests, builds the image for `linux/amd64` (the server) and `linux/arm64`, and
+   pushes `hmahmoud2211/parklane-backend:<commit>` and `:latest`. It refuses to push uncommitted code, because the tag
+   must name exactly the code inside. At the end it prints the command for the server.
+2. **On the server:**
+   ```bash
+   cd /opt/parklane && git pull && ./scripts/dev.sh server --pull <commit>
+   ```
+   `git pull` still brings `compose.yaml` and `dev.sh`; only the build moves off the server. `--pull` alone takes
+   `:latest`. If the pull fails, nothing is stopped.
+
+- **Private repository:** run `docker login` once on the server with a Docker Hub access token (read-only is
+  enough). A public one needs nothing.
+- **Which code is running:** `docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' parklane-backend`
+- **Builds from before Docker Hub** are named `parklane-backend:<commit>`. To start one again:
+  `docker tag parklane-backend:<commit> hmahmoud2211/parklane-backend:<commit>`, then
+  `./scripts/dev.sh server --pull <commit>`.
+- **Another registry or name:** set `BACKEND_IMAGE` (without a tag) in `backend/.env`, and in the shell on the Mac
+  for `push`.
 
 Check that it's up:
 ```bash
@@ -179,13 +236,42 @@ npx eas-cli@latest build --profile production --platform all      # store builds
 
 ---
 
+## The building services release (real backend, November 2026)
+
+What this release changes on a server, and what to do before it goes live:
+
+1. **Back up `DATA_DIR` first.** Migrations 14 to 20 run by themselves at start: compounds and their rules,
+   the inbox, My Unit's records and bills, visitor passes and parcels, service requests, community, amenities,
+   parking, the quarter-hour series, and shared reference counters. They add tables and columns; they don't
+   delete data.
+2. **Fill in the compound's rules** in the dashboard (Compound rules): the emergency number (the app's emergency
+   button stays hidden until it is set), the management phone and email, visiting hours, visit windows.
+3. **Gate staff** get accounts with the `security` role in the dashboard (Accounts); they use the Gate and
+   Parking pages.
+4. **Parking:** the bays, gates and roads are the design's sample layout, and the gates' map points are not
+   surveyed. Building management must confirm or replace the layout before residents rely on it; the store
+   build leaves Parking out until the app is built with `EXPO_PUBLIC_PARKING=1`.
+5. **Weather** stays off until you set `WEATHER_CONTACT` (an email or web address MET Norway can reach you at)
+   in `backend/.env`; optionally `WEATHER_LAT` and `WEATHER_LON` for the compound's own point.
+6. **Never run the generator or the development seed on this server.** `scripts/generate-series.ts` and
+   `scripts/seed-dev.ts` write only to demo compounds and refuse a database with real residents unless told
+   otherwise; they are for development and demos. If you ever run a script on a server, run it with the same
+   environment as the backend (the same `EMS_ENCRYPTION_KEY`), or what it writes can't be read back.
+7. **The store build** now includes My Unit and Bills, Visitor Access and Deliveries, Maintenance (with
+   Housekeeping and Moving), Community, Amenities and the inbox. The privacy policy (`/privacy`) and the
+   deletion page list the new data; update the store's privacy answers to match
+   (`docs/store-release/PRIVACY_AND_DATA_DECLARATIONS.md`).
+
 ## Day-to-day operations
 
 | Task | How |
 |---|---|
-| **Update the backend** | `cd /opt/parklane && git pull && ./scripts/dev.sh server` |
-| **Go back to an earlier build** | `docker images parklane-backend` lists them; then `cd /opt/parklane/backend && PARKLANE_VERSION=<commit> docker compose up -d --no-build` |
+| **Update the backend** | On the Mac: `./scripts/dev.sh push`. On the server: `cd /opt/parklane && git pull && ./scripts/dev.sh server --pull <commit>` (or without `--pull` to build there) |
+| **Go back to an earlier version** | `./scripts/dev.sh server --pull <commit>`. It uses the copy already on the server when there is one (`docker images hmahmoud2211/parklane-backend` lists them), else downloads it |
 | **Backend logs** | `docker logs -f parklane-backend` |
+| **Relay logs and health** | `docker logs -f cube-relay`; `curl https://cube-relay.ems-iot.com/relay/v1/health` |
+| **Upgrade the relay** | Set `RELAY_IMAGE` in `backend/.env` to the new version, then `cd /opt/parklane/backend && docker compose pull relay && docker compose up -d relay`. Its data (the enrolled gateways) is kept |
+| **Restart the relay** (after editing `relay.env`) | `cd /opt/parklane/backend && docker compose up -d --force-recreate relay` |
 | **One apartment's logs** | `docker ps` (find `parklane-ha-…`), then `docker logs -f parklane-ha-…` |
 | **Retry a failed apartment** | `curl -X POST $API/api/admin/units/<id>/provision -H "Authorization: Bearer $KEY"` |
 | **Update an apartment's gateway** | Its page in the dashboard → **Update**: pulls the newest `GATEWAY_IMAGE` and restarts it with the same settings and devices (a tunnel box's included) |

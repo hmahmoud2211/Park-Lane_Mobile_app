@@ -49,7 +49,9 @@ export function GuestPassScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'GuestPass'>['navigation']>();
   const { params } = useRoute<RootStackScreenProps<'GuestPass'>['route']>();
-  const { db, now, service } = useParking();
+  const { db, now, service, securityPhone, storageKind } = useParking();
+  // The offline demo says its gates are fictional and its links are demo links; the backend's passes don't.
+  const demo = storageKind !== 'server';
   const [plate, setPlate] = useState('');
   const [message, setMessage] = useState<{ tone: NoticeTone; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -273,16 +275,19 @@ export function GuestPassScreen() {
         </View>
         {showSecurity ? (
           <View style={styles.security}>
-            {/* Isolated left to right, so the number's groups keep their order inside Arabic. */}
-            <InfoRow icon="shield-checkmark-outline" label={t.securityDesk} value={`⁦${siteInfo.securityPhone}⁩`} />
+            {/* Isolated left to right, so the number's groups keep their order inside Arabic. Hidden until
+                building management has set the compound's number (Compound rules). */}
+            {securityPhone ? <InfoRow icon="shield-checkmark-outline" label={t.securityDesk} value={`⁦${securityPhone}⁩`} /> : null}
             <View style={styles.buttonRow}>
-              <ParkingButton
-                compact
-                label={t.call}
-                icon="call-outline"
-                onPress={() => void openExternal(`tel:${siteInfo.securityPhone.replace(/\s/g, '')}`)}
-                style={styles.flex}
-              />
+              {securityPhone ? (
+                <ParkingButton
+                  compact
+                  label={t.call}
+                  icon="call-outline"
+                  onPress={() => void openExternal(`tel:${securityPhone.replace(/\s/g, '')}`)}
+                  style={styles.flex}
+                />
+              ) : null}
               {!fromLink ? (
                 <ParkingButton
                   compact
@@ -299,7 +304,7 @@ export function GuestPassScreen() {
       </Panel>
 
       <AppText variant="label" color={theme.colors.textMuted} style={styles.footer}>
-        {`${fromLink ? `${t.linkNote} ` : ''}${siteInfo.compoundName} · ${t.footer(r.reference, lang === 'ar' ? `${dateIn(now, 'ar', false)}، ${timeIn(now, 'ar')}` : formatDateTime(now))}. ${t.fictionalGates}`}
+        {`${fromLink && demo ? `${t.linkNote} ` : ''}${siteInfo.compoundName} · ${t.footer(r.reference, lang === 'ar' ? `${dateIn(now, 'ar', false)}، ${timeIn(now, 'ar')}` : formatDateTime(now))}.${demo ? ` ${t.fictionalGates}` : ''}`}
       </AppText>
     </>
   );

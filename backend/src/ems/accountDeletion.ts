@@ -12,6 +12,7 @@ import {
 } from '../repositories/accountDeletion.ts';
 import { listResidentAppointments } from '../repositories/clinicAppointments.ts';
 import { loginOf, revokeTokens, verifyCredentials, type User } from './auth.ts';
+import { forgetParkingResident } from '../parking/accounts.ts';
 import { transaction } from './db.ts';
 import { closeUserConnections } from './realtime.ts';
 
@@ -62,6 +63,10 @@ export async function deleteOwnAccount(user: User, passwordInput: unknown, nowMs
       }
     }
   }
+
+  // Parking bookings they made that haven't started are cancelled through the parking rules (passes and visitor
+  // links stop working); past ones stay as the gate's log without naming them.
+  forgetParkingResident(user.id, nowMs);
 
   const clinicRecordsKept = transaction(() => {
     deleteAccountData(user.id);

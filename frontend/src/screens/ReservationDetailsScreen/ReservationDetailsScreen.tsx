@@ -80,7 +80,8 @@ export function ReservationDetailsScreen() {
   const r = reservation;
   const live = r.status === 'confirmed' || r.status === 'checked-in';
   const isGuest = r.bookedFor === 'guest';
-  const link = view.invitation ? passLink(inviteUrl(inviteOrigin, view.invitation), lang, encodePassSnapshot(view)) : undefined;
+  // The backend's pass page (a visitor needs no app); the offline demo keeps its self-contained link.
+  const link = view.invitation ? passLink(inviteUrl(inviteOrigin, view.invitation), lang, storageKind === 'server' ? undefined : encodePassSnapshot(view)) : undefined;
   const phoneDigits = internationalDigits(r.guest?.phone, siteInfo.countryCallingCode);
   const firstName = r.guest?.name.trim().split(/\s+/)[0] ?? 'your guest';
   const [gateShort, gateRest] = view.gate.name.split(' · ');
@@ -209,7 +210,7 @@ export function ReservationDetailsScreen() {
           />
         </View>
         <AppText variant="label" color={theme.colors.textMuted}>
-          {storageKind !== 'memory' ? `${copy.sendNote} ${copy.localOnlyShort}` : copy.sendNote}
+          {storageKind === 'browser' || storageKind === 'device' ? `${copy.sendNote} ${copy.localOnlyShort}` : copy.sendNote}
         </AppText>
       </Panel>
     ) : null;

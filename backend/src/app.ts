@@ -17,6 +17,15 @@ import { authRoutes } from './routes/auth.ts';
 import { clinicRoutes } from './routes/clinic.ts';
 import { gatewayRoutes } from './routes/gateway.ts';
 import { healthRoutes } from './routes/health.ts';
+import { notificationRoutes } from './routes/notifications.ts';
+import { siteRoutes } from './routes/sites.ts';
+import { unitFinanceRoutes } from './routes/unitFinance.ts';
+import { visitorRoutes } from './routes/visitors.ts';
+import { requestRoutes } from './routes/requests.ts';
+import { communityRoutes } from './routes/community.ts';
+import { amenityRoutes } from './routes/amenities.ts';
+import { parkingRoutes } from './routes/parking.ts';
+import { seriesRoutes } from './routes/series.ts';
 import { homeRoutes } from './routes/home.ts';
 import { opsRoutes } from './routes/ops.ts';
 import { unitRoutes } from './routes/unit.ts';
@@ -31,8 +40,28 @@ import { unitRoutes } from './routes/unit.ts';
  * take is a 404, like an unknown path (test/routing.test.ts pins this).
  */
 
-/** Tried in order. Their paths do not overlap, so the order only matters for speed. */
-const API_ROUTES: readonly RouteGroup[] = [authRoutes, homeRoutes, accountRoutes, clinicRoutes, gatewayRoutes, unitRoutes, opsRoutes];
+/**
+ * Tried in order. Their paths do not overlap, so the order only matters for speed, except that groups with their
+ * own /api/admin/... routes come before opsRoutes, which logs every admin change it sees.
+ */
+const API_ROUTES: readonly RouteGroup[] = [
+  authRoutes,
+  homeRoutes,
+  accountRoutes,
+  clinicRoutes,
+  gatewayRoutes,
+  unitRoutes,
+  notificationRoutes,
+  siteRoutes,
+  unitFinanceRoutes,
+  visitorRoutes,
+  requestRoutes,
+  communityRoutes,
+  amenityRoutes,
+  parkingRoutes,
+  seriesRoutes,
+  opsRoutes,
+];
 
 async function route(ctx: RequestContext) {
   // Brand sign-in pages send the browser here; it carries no EMS token, the hub checks the state.

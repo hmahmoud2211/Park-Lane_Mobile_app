@@ -67,6 +67,7 @@ export function HelpSupportScreen() {
         onPress={() => navigation.navigate('AccountSecurity')}
       />
       {panel(copy.healthHeading, copy.healthBody)}
+      {panel(copy.creditsHeading, copy.creditsBody)}
     </InnerScreenFrame>
   );
 }

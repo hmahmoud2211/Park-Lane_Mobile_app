@@ -13,6 +13,8 @@ export const env = {
   assistantUrl: process.env.EXPO_PUBLIC_ASSISTANT_URL,
   /** `0`, `false` or `off` hides the parking demo's tools (config/flags.ts). */
   demoTools: process.env.EXPO_PUBLIC_DEMO_TOOLS,
+  /** `1` puts Parking in the store build, once building management has confirmed the real parking layout. */
+  parking: process.env.EXPO_PUBLIC_PARKING,
   /**
    * DNS zones whose `<gateway id>.<zone>` HTTPS names the app trusts, comma-separated (config/gateway.ts). Unset:
    * the EMS relay's zones. A gateway reports its names in plain-HTTP health, so this list is what keeps a

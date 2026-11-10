@@ -89,6 +89,7 @@ Four device classes (`frontend/src/theme/breakpoints.ts`): mobile (< 768), table
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System, app and backend architecture, auth, realtime |
 | [docs/COMPONENTS.md](docs/COMPONENTS.md) | The component system and design conventions |
 | [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | The EMS backend's API and realtime events |
+| [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | The backend's one database: every table, how they connect, the clinic's place in it |
 | [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) | Setup, running, testing, building, troubleshooting |
 | [docs/REFACTOR_REPORT.md](docs/REFACTOR_REPORT.md) | The November 2026 restructuring: what changed and why |
 | [docs/SMART_HOME.md](docs/SMART_HOME.md) | The smart home through the EMS backend and Home Assistant |

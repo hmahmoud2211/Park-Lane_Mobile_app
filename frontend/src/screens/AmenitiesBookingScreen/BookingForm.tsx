@@ -11,25 +11,30 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import type { AppTheme } from '../../types/theme.types';
 // Visitor Access's form sizes, so the app's forms read as one.
 import { FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
+import type { AmenitySlot } from '../../../../shared/contracts/amenities';
+import { getAmenitySlots } from '../../features/amenities/services/amenitiesApi';
 import {
   amenitiesCopy as copy,
-  bookingDates,
-  guestOptions,
-  slotOptions,
+  labelFor,
+  peopleChoices,
+  slotChoices,
   validateBooking,
   type Amenity,
-  type Booking,
   type BookingErrors,
   type BookingForm as BookingValues,
+  type Choice,
 } from './AmenitiesBookingScreen.data';
 import { FormSubmitButton } from '../../components/forms/FormSubmitButton';
 
 export interface BookingFormProps {
   amenity: Amenity;
-  /** The resident's bookings, so the same slot cannot be booked twice. */
-  bookings: readonly Booking[];
-  /** Receives a booking that passed validation. */
-  onSubmit: (form: BookingValues) => void;
+  /** The days that can be booked. */
+  dates: readonly Choice[];
+  /**
+   * Books a form that passed the app's checks. Resolves with what went wrong, if anything: a refused field (shown
+   * beside it; the day's times are reloaded) or a message.
+   */
+  onSubmit: (form: BookingValues) => Promise<BookingErrors | string | null>;
   onClose: () => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -71,8 +76,8 @@ const FIELD_ROWS: readonly (readonly SelectField[])[] = [
   ],
   [
     {
-      key: 'guests',
-      label: copy.guestsLabel,
+      key: 'people',
+      label: copy.peopleLabel,
       placeholder: '',
       iconName: 'people-outline',
       iconSize: 17,
@@ -89,31 +94,46 @@ const FIELD_GAP = 10;
 const CTA_TOP = 16;
 const CLOSE_ICON_SIZE = 16;
 
-/** Books one amenity: a day, a one-hour slot within its hours, and the party size. */
-export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: BookingFormProps) {
+/** Books one amenity: a day, one of its free times that day, and how many are coming. */
+export function BookingForm({ amenity, dates, onSubmit, onClose, style }: BookingFormProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [form, setForm] = useState<BookingValues>({ date: '', slot: '', guests: '1 Guest' });
+  const [form, setForm] = useState<BookingValues>({ date: '', slot: '', people: '1' });
   const [errors, setErrors] = useState<BookingErrors>({});
   const [open, setOpen] = useState<OpenSelect | null>(null);
+  const [slots, setSlots] = useState<readonly AmenitySlot[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const refs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
+  /** Only the answer for the day last chosen counts. */
+  const slotsFor = useRef('');
 
-  const options: Record<SelectKey, readonly string[]> = {
-    date: bookingDates(),
-    // Until a day is chosen, the slots are the amenity's full hours.
-    slot: slotOptions(amenity, form.date),
-    guests: guestOptions(amenity),
+  const options: Record<SelectKey, readonly Choice[]> = {
+    date: dates,
+    slot: slots ? slotChoices(slots, amenity, Number(form.people)) : [],
+    people: peopleChoices(amenity),
+  };
+
+  const loadSlots = (date: string) => {
+    slotsFor.current = date;
+    setSlots(null);
+    getAmenitySlots(amenity.id, date)
+      .then((loaded) => {
+        if (slotsFor.current === date) setSlots(loaded);
+      })
+      .catch(() => {
+        if (slotsFor.current === date) setSlots([]);
+      });
   };
 
   const update = (key: SelectKey, value: string) => {
     setForm((current) => {
       const next = { ...current, [key]: value };
-      // A new day can rule out the chosen time (e.g. one already past today).
-      if (key === 'date' && next.slot && !slotOptions(amenity, value).includes(next.slot)) {
-        next.slot = '';
-      }
+      // A new day (or a bigger party) can rule out the chosen time.
+      if (key !== 'slot') next.slot = key === 'people' && slots && slotChoices(slots, amenity, Number(value)).some((choice) => choice.value === current.slot) ? current.slot : '';
       return next;
     });
+    if (key === 'date') loadSlots(value);
     setErrors((current) => (current[key] ? { ...current, [key]: undefined } : current));
   };
 
@@ -125,25 +145,41 @@ export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: Boo
   };
 
   const submit = () => {
-    const found = validateBooking(form, amenity, bookings);
+    if (busy) return;
+    const found = validateBooking(form);
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return;
     }
-    onSubmit(form);
+    setBusy(true);
+    setFailure(null);
+    onSubmit(form)
+      .then((problem) => {
+        if (typeof problem === 'string') setFailure(problem);
+        else if (problem) {
+          setErrors(problem);
+          // Someone may have just taken the time: show what is left.
+          if (problem.slot) {
+            setForm((current) => ({ ...current, slot: '' }));
+            loadSlots(form.date);
+          }
+        }
+      })
+      .finally(() => setBusy(false));
   };
 
+  const emptyLabel = open?.key === 'slot' ? (!form.date ? copy.chooseDayFirst : slots === null ? copy.loadingSlots : copy.noSlots) : copy.noSlots;
   const menuItems: readonly AppMenuItem[] = open
     ? options[open.key].length > 0
-      ? options[open.key].map((label) => ({
-          id: label,
-          label,
+      ? options[open.key].map((choice) => ({
+          id: choice.value,
+          label: choice.label,
           onPress: () => {
-            update(open.key, label);
+            update(open.key, choice.value);
             setOpen(null);
           },
         }))
-      : [{ id: 'none', label: copy.noSlots, onPress: () => setOpen(null) }]
+      : [{ id: 'none', label: emptyLabel, onPress: () => setOpen(null) }]
     : [];
 
   return (
@@ -180,7 +216,7 @@ export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: Boo
                 }}
                 onPress={() => openSelect(field.key, column)}
                 accessibilityRole="button"
-                accessibilityLabel={`${field.label}: ${form[field.key] || field.placeholder}`}
+                accessibilityLabel={`${field.label}: ${labelFor(options[field.key], form[field.key]) || field.placeholder}`}
                 accessibilityHint="Opens a list of choices"
                 style={({ pressed }) => [styles.field, pressed && styles.pressed]}
               >
@@ -190,7 +226,7 @@ export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: Boo
                     variant="field"
                     height={FIELD_HEIGHT}
                     label={field.label}
-                    value={form[field.key]}
+                    value={labelFor(options[field.key], form[field.key]) || (field.key === 'slot' && form.slot ? form.slot : '')}
                     onChangeText={() => undefined}
                     placeholder={field.placeholder}
                     editable={false}
@@ -217,7 +253,12 @@ export function BookingForm({ amenity, bookings, onSubmit, onClose, style }: Boo
         ))}
       </View>
 
-      <FormSubmitButton title={copy.confirm} onPress={submit} style={styles.cta} />
+      <FormSubmitButton title={busy ? copy.confirming : copy.confirm} onPress={submit} style={styles.cta} />
+      {failure ? (
+        <AppText variant="statLabel" color={theme.colors.error} accessibilityRole="alert" style={styles.failure}>
+          {failure}
+        </AppText>
+      ) : null}
 
       <AppMenu
         visible={open !== null}
@@ -269,6 +310,10 @@ function createStyles(theme: AppTheme) {
       borderWidth: theme.glass.strokeWidth,
       borderColor: theme.colors.frameStroke,
       ...theme.shadows.glow,
+    },
+    failure: {
+      marginTop: theme.spacing.sm,
+      textAlign: 'center',
     },
     pressed: {
       opacity: 0.7,

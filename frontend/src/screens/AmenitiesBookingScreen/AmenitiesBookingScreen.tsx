@@ -1,10 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
 import { AppText } from '../../components/common/AppText';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { Notice } from '../../components/feedback/Notice';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -16,22 +19,27 @@ import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
+import { bookAmenity, cancelAmenityBooking, getAmenities, listMyBookings } from '../../features/amenities/services/amenitiesApi';
+import { useEms } from '../../features/ems/hooks/useEms';
+import { EmsError, emsErrorText } from '../../features/ems/services/emsHttp';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { guestsLabel } from '../../utils/format';
 import { AmenityCard } from './AmenityCard';
 import {
-  amenities,
   amenitiesCopy as copy,
   amenitiesFor,
-  createBooking,
-  initialBookings,
   capacityLabel,
   categoryChips,
+  dateChoices,
+  formFieldOf,
   hoursLabel,
   initialVisibleCount,
+  peopleLabel,
+  toAmenity,
+  upcomingBookings,
   type Amenity,
-  type Booking,
+  type BookingErrors,
   type BookingForm as BookingValues,
   type CategoryFilter,
 } from './AmenitiesBookingScreen.data';
@@ -55,14 +63,28 @@ export function AmenitiesBookingScreen() {
   const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [expanded, setExpanded] = useState(false);
-  const matching = amenitiesFor(filter);
+
+  // Building management's catalogue and the apartment's bookings; reloaded when the screen is shown, and the
+  // bookings again when one changes anywhere on the compound.
+  const catalogue = useFocusQuery(getAmenities);
+  const mine = useFocusQuery(listMyBookings);
+  const { onRealtimeEvent } = useEms();
+  const reloadMine = mine.reload;
+  useEffect(
+    () =>
+      onRealtimeEvent((event) => {
+        if (event.type === 'amenity.updated' || event.type === 'ready') reloadMine();
+      }),
+    [onRealtimeEvent, reloadMine],
+  );
+  const amenities = useMemo(() => (catalogue.data?.amenities ?? []).map(toAmenity), [catalogue.data]);
+  const dates = useMemo(() => (catalogue.data ? dateChoices(catalogue.data) : []), [catalogue.data]);
+  const bookings = useMemo(() => (catalogue.data && mine.data ? upcomingBookings(mine.data, catalogue.data.firstDate) : []), [catalogue.data, mine.data]);
+  const matching = amenitiesFor(amenities, filter);
   const visible = expanded ? matching : matching.slice(0, initialVisibleCount);
   // Hidden when the filter already fits in the first screenful.
   const canExpand = matching.length > initialVisibleCount;
 
-  // Screen-local until there is a booking service to send them to.
-  // TODO(api): book, list and cancel through the amenities service once it exists.
-  const [bookings, setBookings] = useState<readonly Booking[]>(initialBookings);
   /** The amenity whose booking form is open under its card, if any. */
   const [bookingFor, setBookingFor] = useState<Amenity['id'] | null>(null);
 
@@ -92,18 +114,30 @@ export function AmenitiesBookingScreen() {
     setBookingFor(id);
   };
 
-  const confirmBooking = (amenity: Amenity, form: BookingValues) => {
-    const booking = createBooking(form, amenity, bookings);
-    setBookings((current) => [...current, booking]);
-    setBookingFor(null);
-    AccessibilityInfo.announceForAccessibility(copy.booked(amenity.title, booking.date, booking.slot));
-    // The form folds away and the new booking shows in My Bookings, which is
-    // scrolled to once it has moved up into place (see its onLayout).
-    scrollToBookingsOnLayout.current = true;
+  // The backend checks the rules and counts the places inside one transaction.
+  const confirmBooking = async (amenity: Amenity, form: BookingValues): Promise<BookingErrors | string | null> => {
+    try {
+      const booking = await bookAmenity(amenity.id, { date: form.date, start: form.slot, people: Number(form.people) });
+      setBookingFor(null);
+      reloadMine();
+      AccessibilityInfo.announceForAccessibility(copy.booked(amenity.title, booking.date, `${booking.start} - ${booking.end}`));
+      // The form folds away and the new booking shows in My Bookings, which is
+      // scrolled to once it has moved up into place (see its onLayout).
+      scrollToBookingsOnLayout.current = true;
+      return null;
+    } catch (error: unknown) {
+      const field = error instanceof EmsError ? formFieldOf(error.field, error.code) : null;
+      return field ? { [field]: emsErrorText(error) } : emsErrorText(error);
+    }
   };
 
-  const cancelBooking = (id: string) =>
-    setBookings((current) => current.filter((booking) => booking.id !== id));
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const cancelBooking = (id: string) => {
+    setCancelError(null);
+    cancelAmenityBooking(id)
+      .then(reloadMine)
+      .catch((error: unknown) => setCancelError(emsErrorText(error)));
+  };
 
   const listSection = (
     <>
@@ -139,7 +173,7 @@ export function AmenitiesBookingScreen() {
               >
                 <BookingForm
                   amenity={amenity}
-                  bookings={bookings}
+                  dates={dates}
                   onSubmit={(form) => confirmBooking(amenity, form)}
                   onClose={() => setBookingFor(null)}
                 />
@@ -149,7 +183,7 @@ export function AmenitiesBookingScreen() {
         ))}
         {visible.length === 0 ? (
           <AppText variant="statValue" color={theme.colors.textSupport} align="center" style={styles.empty}>
-            {copy.empty}
+            {amenities.length === 0 ? copy.noCatalogue : copy.empty}
           </AppText>
         ) : null}
       </View>
@@ -203,11 +237,13 @@ export function AmenitiesBookingScreen() {
             {copy.bookingsEmpty}
           </AppText>
         ) : null}
+        {cancelError ? (
+          <AppText variant="tileCaption" color={theme.colors.error} accessibilityRole="alert" style={styles.bookingsEmpty}>
+            {cancelError}
+          </AppText>
+        ) : null}
         {bookings.map((booking, index) => {
           const amenity = amenities.find((entry) => entry.id === booking.amenityId);
-          if (!amenity) {
-            return null;
-          }
           return (
             <View
               key={booking.id}
@@ -215,36 +251,38 @@ export function AmenitiesBookingScreen() {
             >
               <View style={styles.bookingRing}>
                 <AppIcon
-                  set={amenity.iconSet}
-                  name={amenity.iconName}
+                  set={amenity?.iconSet ?? 'ionicons'}
+                  name={amenity?.iconName ?? 'sparkles-outline'}
                   size={BOOKING_ICON_SIZE}
                 />
               </View>
               <View style={styles.bookingText}>
                 <AppText variant="statValue" numberOfLines={1}>
-                  {amenity.title}
+                  {booking.amenityTitle}
                 </AppText>
                 <AppText
                   variant="tileCaption"
                   color={theme.colors.textSupport}
                   style={styles.bookingMeta}
                 >
-                  {`${booking.date} • ${booking.slot} • ${guestsLabel(booking.guests)}`}
+                  {`${booking.date} • ${booking.slot} • ${peopleLabel(booking.people)}`}
                 </AppText>
               </View>
-              <Pressable
-                onPress={() => cancelBooking(booking.id)}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={copy.cancelBooking(amenity.title, booking.date)}
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={CANCEL_ICON_SIZE}
-                  color={theme.colors.textSecondary}
-                />
-              </Pressable>
+              {booking.cancellable ? (
+                <Pressable
+                  onPress={() => cancelBooking(booking.id)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.cancelBooking(booking.amenityTitle, booking.date)}
+                  style={({ pressed }) => pressed && styles.pressed}
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={CANCEL_ICON_SIZE}
+                    color={theme.colors.textSecondary}
+                  />
+                </Pressable>
+              ) : null}
             </View>
           );
         })}
@@ -297,7 +335,21 @@ export function AmenitiesBookingScreen() {
             ))}
           </View>
 
-          {sideBySide ? (
+          {catalogue.error ? (
+            catalogue.error.code === 'no_home' ? (
+              <Notice tone="info" title={copy.noHomeTitle} style={styles.banner}>
+                {copy.noHomeBody}
+              </Notice>
+            ) : (
+              <View style={styles.banner}>
+                <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={catalogue.reload}>
+                  {catalogue.error.message}
+                </ErrorNotice>
+              </View>
+            )
+          ) : !catalogue.data ? (
+            <LoadingState />
+          ) : sideBySide ? (
             <View
               onLayout={(event) => {
                 sectionsY.current = event.nativeEvent.layout.y;

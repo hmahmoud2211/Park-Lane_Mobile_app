@@ -24,6 +24,22 @@ export function deleteAccountData(userId: string): void {
   database.prepare('DELETE FROM pairing_sessions WHERE user_id = ?').run(userId);
   // Device actions (e.g. a door unlocked) stay in the building's audit log, no longer linked to anyone.
   database.prepare('UPDATE audit_log SET user_id = NULL WHERE user_id = ?').run(userId);
+  // Visitor passes the person made: upcoming ones are cancelled by deleting them; past ones stay (the gate's log,
+  // removed later by the visitor retention) without a link to the person.
+  database.prepare("DELETE FROM visitor_passes WHERE created_by = ? AND status = 'scheduled'").run(userId);
+  database.prepare('UPDATE visitor_passes SET created_by = NULL WHERE created_by = ?').run(userId);
+  // Maintenance, housekeeping and moving requests stay with the unit (its history); their foreign keys clear the
+  // link to the person (created_by, and the author of each step or message).
+  // Amenity bookings the person made that haven't started are cancelled; past ones stay with the apartment and
+  // lose the link to the person (foreign key). RSVPs and poll votes go with the account (foreign keys); feedback
+  // stays with building management, no longer linked to anyone.
+  const now = new Date().toISOString();
+  database
+    .prepare("UPDATE amenity_bookings SET status = 'cancelled', cancelled_at = ?, updated_at = ? WHERE user_id = ? AND status = 'booked' AND starts_at > ?")
+    .run(now, now, userId, now);
+  // The inbox and its settings are only that person's.
+  database.prepare('DELETE FROM notifications WHERE user_id = ?').run(userId);
+  database.prepare('DELETE FROM notification_prefs WHERE user_id = ?').run(userId);
   // Every sign-in, including the assistant's tokens.
   database.prepare('DELETE FROM tokens WHERE user_id = ?').run(userId);
 }

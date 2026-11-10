@@ -60,6 +60,16 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   /** How to get help, the privacy policy and the app version; the Contact Us tab and Settings. */
   HelpSupport: undefined;
+  /** The resident's inbox and which kinds of update they want, from Settings. */
+  Notifications: undefined;
+  /** The apartment's bills and payments (owners), from Services. */
+  Bills: undefined;
+  /** Parcels the gate is holding, from Services. */
+  Deliveries: undefined;
+  /** Cleaning visits, from Services; the Maintenance screen in its housekeeping form. */
+  Housekeeping: undefined;
+  /** Moving in or out, from Services; the Maintenance screen in its moving form. */
+  MovingRequest: undefined;
   /** Opens in chat unless `mode` asks for voice, e.g. from Home's mic button. */
   Assistant: { mode?: 'chat' | 'voice' } | undefined;
   /** Placeholder for a feature still being built, named and drawn by its tile. */
@@ -127,7 +137,12 @@ type FlowOnlyRoute =
   | 'HealthSettings'
   | 'ChangePassword'
   | 'AccountSecurity'
-  | 'DeleteAccount';
+  | 'DeleteAccount'
+  | 'Notifications'
+  | 'Bills'
+  | 'Deliveries'
+  | 'Housekeeping'
+  | 'MovingRequest';
 
 /**
  * Routes that can be opened without params, e.g. from data-driven tiles and tabs.

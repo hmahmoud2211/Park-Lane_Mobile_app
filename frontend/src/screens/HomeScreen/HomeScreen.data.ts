@@ -30,6 +30,42 @@ export const weather: WeatherSummary = {
   condition: 'Clear Night',
 };
 
+/** MET Norway's symbol codes (e.g. "partlycloudy_night") in the pill's words. */
+const CONDITIONS: readonly [RegExp, string][] = [
+  [/^clearsky_night/, 'Clear Night'],
+  [/^clearsky/, 'Clear'],
+  [/^fair/, 'Fair'],
+  [/^partlycloudy/, 'Partly Cloudy'],
+  [/^cloudy/, 'Cloudy'],
+  [/^fog/, 'Fog'],
+  [/thunder/, 'Thunder'],
+  [/^(heavyrain|heavyrainshowers)/, 'Heavy Rain'],
+  [/^(lightrain|lightrainshowers)/, 'Light Rain'],
+  [/rain/, 'Rain'],
+  [/sleet/, 'Sleet'],
+  [/snow/, 'Snow'],
+];
+
+/** The compound's weather from the backend (MET Norway), in the pill's shape, with an icon that fits it. */
+export function weatherFrom(now: { temperatureC: number; symbol: string | null }): WeatherSummary & { icon: 'moon' | 'sunny' | 'partly-sunny' | 'cloudy' | 'rainy' | 'thunderstorm' | 'snow' } {
+  const symbol = now.symbol ?? '';
+  const condition = symbol ? (CONDITIONS.find(([pattern]) => pattern.test(symbol))?.[1] ?? 'Now') : 'Now';
+  const icon = /thunder/.test(symbol)
+    ? 'thunderstorm'
+    : /snow|sleet/.test(symbol)
+      ? 'snow'
+      : /rain/.test(symbol)
+        ? 'rainy'
+        : /^cloudy|fog/.test(symbol)
+          ? 'cloudy'
+          : /_night$/.test(symbol)
+            ? 'moon'
+            : /^(fair|partlycloudy)/.test(symbol)
+              ? 'partly-sunny'
+              : 'sunny';
+  return { temperature: `${Math.round(now.temperatureC)} C`, condition, icon };
+}
+
 export const serviceTiles: readonly ServiceTileItem[] = [
   {
     id: 'my-unit',
@@ -98,11 +134,12 @@ export const serviceTiles: readonly ServiceTileItem[] = [
 ];
 
 /**
- * The store build's tiles: the parts backed by a real service. The other Home tiles still
- * show sample data, so that build leaves them out (flags.sampleContent).
+ * The store build's tiles: the parts backed by a real service. BMS stays out while its readings are simulated, and
+ * Parking until its real layout is confirmed (flags.parking).
  */
+const STORE_ROUTES: readonly ParamlessRoute[] = ['MyUnit', 'SmartHome', 'VisitorAccess', 'Maintenance', 'Community', 'AmenitiesBooking', ...(flags.parking ? (['Parking'] as const) : [])];
 const storeTiles: readonly ServiceTileItem[] = [
-  ...serviceTiles.filter((tile) => tile.route === 'SmartHome'),
+  ...serviceTiles.filter((tile) => tile.route !== undefined && STORE_ROUTES.includes(tile.route)),
   { id: 'health-passport', title: 'Health Passport', subtitle: 'Family records', iconSet: 'ionicons', iconName: 'medkit-outline', route: 'HealthPassport' },
   { id: 'clinic', title: 'Clinic', subtitle: 'Book a doctor', iconSet: 'ionicons', iconName: 'calendar-number-outline', route: 'Clinic' },
   { id: 'assistant', title: 'EMS AI', subtitle: 'Ask the assistant', iconSet: 'material', iconName: 'robot-outline', route: 'Assistant' },

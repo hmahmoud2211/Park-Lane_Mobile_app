@@ -10,11 +10,15 @@ import { GlassSurface } from '../common/GlassSurface';
 export interface WeatherPillProps {
   temperature: string;
   condition: string;
+  /** Where the data comes from, read out by screen readers (e.g. "Weather data from MET Norway"). */
+  credit?: string;
+  /** The design's moon by default. */
+  icon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Current conditions beside the greeting. */
-export function WeatherPill({ temperature, condition, style }: WeatherPillProps) {
+export function WeatherPill({ temperature, condition, credit, icon = 'moon', style }: WeatherPillProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -27,8 +31,8 @@ export function WeatherPill({ temperature, condition, style }: WeatherPillProps)
       strokeFade
       style={[styles.surface, style]}
     >
-      <Ionicons name="moon" size={22} color={theme.colors.textPrimary} />
-      <View style={styles.text}>
+      <Ionicons name={icon} size={22} color={theme.colors.textPrimary} />
+      <View style={styles.text} accessible accessibilityLabel={`${temperature}, ${condition}${credit ? `. ${credit}` : ''}`}>
         <AppText variant="sectionTitle">{temperature}</AppText>
         <AppText variant="tileCaption" color={theme.colors.textSecondary}>
           {condition}

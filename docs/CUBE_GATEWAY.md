@@ -424,8 +424,11 @@ on the gateway (`DELETE /api/v1/auth/clients/{id}`) cuts it off through the rela
 | nginx                        | `/etc/nginx/conf.d/cube-relay.conf`: only `/relay/` is proxied; rate limits use Cloudflare's `CF-Connecting-IP`              |
 | Logs and health              | `docker logs -f cube-relay`; `curl https://cube-relay.ems-iot.com/relay/v1/health`                                             |
 
-To restart or upgrade it: `docker rm -f cube-relay`, then
-`docker run -d --name cube-relay --network host --restart unless-stopped --env-file /home/ems-server/EMS/cube-relay/relay.env -v cube-relay-data:/data <image> relay`.
+It now starts with the backend from `backend/compose.yaml` (service `relay`, turned on by `COMPOSE_PROFILES=relay` in
+`backend/.env`; same container name, settings file and volume). Restart it with
+`cd backend && docker compose up -d --force-recreate relay`; upgrade it by setting `RELAY_IMAGE`, then
+`docker compose pull relay && docker compose up -d relay`. Moving the earlier `docker run` container over is in
+[production.md](production.md#the-relay).
 
 **Limitation of the relay's HTTP route:** TLS ends at the relay, so whoever operates the relay could read
 traffic in transit. The HTTPS route below doesn't have this problem; older app versions use this one.

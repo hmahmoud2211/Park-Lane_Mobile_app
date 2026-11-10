@@ -54,9 +54,10 @@ See docs/PROJECT_STRUCTURE.md. In short:
   `SelectableCard` and `useScreenMenu` rather than re-implementing them.
 - Settings go in `src/config/`. A new `EXPO_PUBLIC_*` variable is read only in
   `src/config/env.ts`, written out in full (`process.env.EXPO_PUBLIC_X`) so Expo inlines it.
-  The exceptions are `EXPO_PUBLIC_HEALTH_API` at the mock's `require()` calls and
+  The exceptions are `EXPO_PUBLIC_HEALTH_API` at the mock's `require()` calls,
   `EXPO_PUBLIC_STORE_MODE` at the sample screens' (`App.tsx`, `navigation/AppNavigator.tsx`,
-  `ProfileScreen.data.ts`): read
+  `ProfileScreen.data.ts`), and `EXPO_PUBLIC_PARKING` beside it at the parking screens' require in
+  `navigation/AppNavigator.tsx`: read
   through `env.ts`, the bundler keeps the sample records and made-up residents in the build.
 - API types the backend shares live in `../shared/contracts`, imported with `import type`
   only (CI checks it); `src/types/home.types.ts` and `ems.types.ts` build on them.

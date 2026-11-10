@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 
 /**
@@ -7,10 +7,25 @@ import type { ServerResponse } from 'node:http';
  * made to load anything from elsewhere.
  */
 
+/**
+ * Each feature's page (admin/pages/<name>.js) registers itself with app.js; the page loads every one of them,
+ * in name order, after app.js.
+ */
+const PAGES_DIR = new URL('./pages/', import.meta.url);
+const pageNames = existsSync(PAGES_DIR) ? readdirSync(PAGES_DIR).filter((name) => /^[a-z][a-z0-9-]*\.js$/.test(name)).sort() : [];
+
+const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8').replace(
+  '<script src="/admin/app.js" defer></script>',
+  ['<script src="/admin/app.js" defer></script>', ...pageNames.map((name) => `<script src="/admin/pages/${name}" defer></script>`)].join('\n    '),
+);
+
 const FILES: Record<string, { type: string; body: Buffer }> = {
-  '/admin': { type: 'text/html; charset=utf-8', body: readFileSync(new URL('./index.html', import.meta.url)) },
+  '/admin': { type: 'text/html; charset=utf-8', body: Buffer.from(indexHtml) },
   '/admin/app.js': { type: 'text/javascript; charset=utf-8', body: readFileSync(new URL('./app.js', import.meta.url)) },
   '/admin/app.css': { type: 'text/css; charset=utf-8', body: readFileSync(new URL('./app.css', import.meta.url)) },
+  ...Object.fromEntries(
+    pageNames.map((name) => [`/admin/pages/${name}`, { type: 'text/javascript; charset=utf-8', body: readFileSync(new URL(name, PAGES_DIR)) }]),
+  ),
 };
 
 const HEADERS = {

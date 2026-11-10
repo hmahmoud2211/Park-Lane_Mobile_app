@@ -14,6 +14,6 @@ export function sendError(res: ServerResponse, error: unknown, path: string): vo
     log.error('Unhandled error', { path, reason: (error as Error).message });
   }
   if (!res.headersSent) {
-    send(res, known.status, { ok: false, error: { code: known.code, message: known.message } });
+    send(res, known.status, { ok: false, error: { code: known.code, message: known.message, ...(known.field ? { field: known.field } : {}) } });
   }
 }

@@ -69,6 +69,11 @@ interface EmsContextValue {
    * without an EMS session (the assistant then asks the resident to sign in).
    */
   assistantToken: () => Promise<string | null>;
+  /**
+   * Every realtime event, for features with events of their own (the inbox, requests, visitors…). Returns the
+   * function that stops listening. A `ready` event means the channel (re)connected: refetch anything missed.
+   */
+  onRealtimeEvent: (listener: (event: EmsEvent) => void) => () => void;
 }
 
 /** An assistant token this close to lapsing is replaced rather than handed out. */
@@ -103,6 +108,13 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [changeRefused, setChangeRefused] = useState(false);
   const passwordChangeRequired = status === 'signedIn' && needsPasswordChange(user, changeRefused);
   const channel = useRef<EmsRealtime | null>(null);
+  const realtimeListeners = useRef(new Set<(event: EmsEvent) => void>());
+  const onRealtimeEvent = useCallback((listener: (event: EmsEvent) => void) => {
+    realtimeListeners.current.add(listener);
+    return () => {
+      realtimeListeners.current.delete(listener);
+    };
+  }, []);
   const assistantGrant = useRef<{ token: string; expiresAt: number } | null>(null);
   const assistantGrantPending = useRef<Promise<string | null> | null>(null);
 
@@ -238,6 +250,9 @@ export function EmsProvider({ children }: PropsWithChildren) {
           void refreshRef.current();
         }
       }
+      for (const listener of realtimeListeners.current) {
+        listener(event);
+      }
     };
     const next = new EmsRealtime(token, {
       onEvent,
@@ -343,6 +358,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       upsertDevice,
       accountsVersion,
       assistantToken,
+      onRealtimeEvent,
     }),
     [
       status,
@@ -365,6 +381,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       upsertDevice,
       accountsVersion,
       assistantToken,
+      onRealtimeEvent,
     ],
   );
 

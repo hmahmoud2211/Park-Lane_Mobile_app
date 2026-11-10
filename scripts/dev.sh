@@ -6,7 +6,11 @@
 #   ./scripts/dev.sh check     App typecheck and lint, backend typecheck and tests
 #   ./scripts/dev.sh attach --email you@example.com --token <long-lived token> [--url http://127.0.0.1:8123]
 #                              Puts your EMS account in a test unit and attaches Home Assistant (once)
-#   ./scripts/dev.sh server    Mode 3, on the Linux server: builds the backend image and starts it (backend/compose.yaml)
+#   ./scripts/dev.sh server    Mode 3, on the Linux server: builds the backend image and starts it (backend/compose.yaml),
+#                              with the CUBE relay when backend/.env has COMPOSE_PROFILES=relay
+#   ./scripts/dev.sh server --pull [<commit>]
+#                              The same with the image from Docker Hub instead of a build (default: latest)
+#   ./scripts/dev.sh push      Checks the backend, builds its image (amd64 + arm64) and pushes it to Docker Hub
 #
 # Options for fake and local:
 #   --web       open the app in the web browser straight away
@@ -252,6 +256,12 @@ mode_check() {
   (cd "$APP" && npx tsc --noEmit) && ok "types"
   bold "App: lint"
   (cd "$APP" && npx expo lint) && ok "lint"
+  check_backend
+}
+
+# The backend's typecheck and tests (check mode, and push before anything leaves this machine).
+check_backend() {
+  require_node
   bold "Backend: typecheck"
   # TypeScript is the backend's only package, and only for this check: it runs on plain Node.
   [ -d "$BACKEND/node_modules" ] || { info "Installing the backend's typecheck tools (first run)…"; (cd "$BACKEND" && npm ci); }
@@ -299,12 +309,66 @@ mode_attach() {
   fi
 }
 
-# A value from backend/.env, or nothing.
-env_value() { grep -E "^$1=" "$BACKEND/.env" | tail -n 1 | cut -d= -f2-; }
+# A value from a settings file (backend/.env by default), or nothing. Never fails: under
+# `set -e -o pipefail` a missing setting would otherwise end the script without a word.
+env_value() { { grep -E "^$1=" "${2:-$BACKEND/.env}" 2>/dev/null || true; } | tail -n 1 | cut -d= -f2-; }
 
-# Mode 3 runs on the Linux server: see docs/production.md. Builds the backend image from backend/
-# (tagged with the git commit) and starts it with backend/compose.yaml, settings from backend/.env.
+# The CUBE relay runs with the backend when COMPOSE_PROFILES (backend/.env, or the shell) names it.
+relay_on() {
+  case ",${COMPOSE_PROFILES:-$(env_value COMPOSE_PROFILES)}," in *,relay,*) return 0 ;; esac
+  return 1
+}
+
+# Before the build, so a missing relay setting stops here and not halfway. Sets RELAY_ENV, and
+# RELAY_BY_HAND=1 when a cube-relay started with `docker run` is there for compose to take over.
+check_relay() {
+  local ca image pin
+  RELAY_ENV="$(env_value RELAY_ENV_FILE)"
+  RELAY_ENV="${RELAY_ENV:-/home/ems-server/EMS/cube-relay/relay.env}"
+  RELAY_BY_HAND=0
+  [ -r "$RELAY_ENV" ] || fail "COMPOSE_PROFILES=relay needs the relay's settings file: $RELAY_ENV is missing or unreadable (RELAY_ENV_FILE in backend/.env)."
+  [ -n "$(env_value CUBE_RELAY_ENROLL_TOKEN "$RELAY_ENV")" ] || fail "$RELAY_ENV has no CUBE_RELAY_ENROLL_TOKEN: without it any gateway could enrol."
+  ca="$(env_value RELAY_CA_FILE)"
+  if [ -n "$(env_value CUBE_MQTT_CA_FILE "$RELAY_ENV")" ] && [ -z "$ca" ]; then
+    fail "The relay manages the device broker: set RELAY_CA_FILE in backend/.env to its CA certificate (/home/ems-server/EMS/cube-mqtt/certs/ca.crt)."
+  fi
+  [ -z "$ca" ] || [ -f "$ca" ] || fail "RELAY_CA_FILE in backend/.env: $ca does not exist."
+  if docker ps -a --format '{{.Names}}' | grep -qx cube-relay &&
+    [ -z "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' cube-relay)" ]; then
+    # Compose would otherwise start whatever RELAY_IMAGE defaults to, a version nobody chose. The
+    # exact build it runs, by digest when it came from a registry, since a tag such as :latest moves.
+    image="$(docker inspect -f '{{.Image}}' cube-relay)"
+    pin="$(docker image inspect -f '{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' "$image" 2>/dev/null || true)"
+    pin="${pin:-$(docker inspect -f '{{.Config.Image}}' cube-relay)}"
+    [ -n "$(env_value RELAY_IMAGE)" ] || fail "cube-relay was started by hand. To keep the build it runs, set RELAY_IMAGE=$pin in backend/.env, then run this again."
+    RELAY_BY_HAND=1
+  fi
+  docker volume inspect cube-relay-data >/dev/null 2>&1 || { docker volume create cube-relay-data >/dev/null && ok "Created volume cube-relay-data"; }
+}
+
+# The backend image's name, without a tag: BACKEND_IMAGE (shell or backend/.env), else the Docker Hub one.
+backend_image() {
+  local name="${BACKEND_IMAGE:-$(env_value BACKEND_IMAGE)}"
+  echo "${name:-hmahmoud2211/parklane-backend}"
+}
+
+# Mode 3 runs on the Linux server: see docs/production.md. Gets the backend image, built here from
+# backend/ or with --pull from Docker Hub, tagged with the git commit, and starts it with
+# backend/compose.yaml, settings from backend/.env, with the CUBE relay when backend/.env has
+# COMPOSE_PROFILES=relay.
 mode_server() {
+  local pull=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      # --pull alone means latest; --pull <tag> a pushed commit (./scripts/dev.sh push prints it).
+      --pull)
+        pull=latest
+        if [ -n "${2:-}" ] && [ "${2#-}" = "$2" ]; then pull="$2"; shift; fi
+        ;;
+      *) fail "Unknown option: $1 (see the top of scripts/dev.sh)" ;;
+    esac
+    shift
+  done
   command -v docker >/dev/null 2>&1 || fail "Docker is not installed on this machine."
   check_leftovers strict
   [ -f "$BACKEND/.env" ] || fail "Create backend/.env first (copy backend/.env.example and fill it in)."
@@ -312,14 +376,20 @@ mode_server() {
   grep -qE '^PARKLANE_DATA=/' "$BACKEND/.env" || fail "Set PARKLANE_DATA in backend/.env: the folder for the database and the units."
   grep -qE '^PUBLIC_URL=https://' "$BACKEND/.env" || info "PUBLIC_URL is not an https:// address; brands that sign in on their own page will stay off."
 
-  local network data port version
+  local network data port version gid image revision relay=0 relay_image relay_port
+  relay_on && relay=1
+  image="$(backend_image)"
   network="$(env_value HA_NETWORK)"
   network="${network:-parklane-ha}"
   data="$(env_value PARKLANE_DATA)"
   port="$(env_value PORT)"
   port="${port:-8787}"
-  version="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo latest)"
-  [ -z "$(git -C "$ROOT" status --porcelain -- backend 2>/dev/null)" ] || version="$version-dirty"
+  if [ -n "$pull" ]; then
+    version="$pull"
+  else
+    version="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo latest)"
+    [ -z "$(git -C "$ROOT" status --porcelain -- backend 2>/dev/null)" ] || version="$version-dirty"
+  fi
 
   bold "Mode 3: production backend on Docker"
   docker network inspect "$network" >/dev/null 2>&1 || { docker network create "$network" >/dev/null && ok "Created network $network"; }
@@ -331,11 +401,70 @@ mode_server() {
     info "Replacing the parklane-backend container started without compose…"
     docker rm -f parklane-backend >/dev/null
   fi
-  info "Building parklane-backend:$version…"
-  (cd "$BACKEND" && PARKLANE_VERSION="$version" DOCKER_GID="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock)}" docker compose up -d --build)
+  if [ "$relay" = 1 ]; then
+    check_relay
+  elif docker ps --format '{{.Names}}' | grep -qx cube-relay; then
+    info "cube-relay runs on its own, untouched. To start it with the backend: COMPOSE_PROFILES=relay in backend/.env (docs/production.md)."
+  fi
+  gid="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock)}"
+  # Pulled or built before anything stops, so a failure leaves the running backend and relay as they are.
+  if [ -n "$pull" ]; then
+    # A commit's tag never changes, so a copy already here is that same image; this also starts an
+    # earlier version again. latest moves, so it is always downloaded.
+    if [ "$version" != latest ] && docker image inspect "$image:$version" >/dev/null 2>&1; then
+      info "Using ${image}:${version}, already on this machine"
+    else
+      info "Pulling ${image}:${version}…"
+      docker pull -q "$image:$version" >/dev/null ||
+        fail "Could not pull $image:$version. Is that tag on Docker Hub (./scripts/dev.sh push prints it)? A private repository needs \`docker login\` on this server first."
+    fi
+  else
+    info "Building ${image}:${version}…"
+    (cd "$BACKEND" && BACKEND_IMAGE="$image" PARKLANE_VERSION="$version" DOCKER_GID="$gid" docker compose build backend)
+  fi
+  revision="$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image:$version" 2>/dev/null || true)"
+  if [ "$relay" = 1 ] && [ "$RELAY_BY_HAND" = 1 ]; then
+    relay_image="$(env_value RELAY_IMAGE)"
+    # Fetched first, so the old relay stops only when the new one can start at once.
+    docker image inspect "$relay_image" >/dev/null 2>&1 || docker pull "$relay_image" >/dev/null
+    info "Moving cube-relay into compose, same data and version ($relay_image); remote access pauses for a few seconds…"
+    docker rm -f cube-relay >/dev/null
+  fi
+  # --no-build: the image is here now, and a pulled one must not be replaced by a build of this checkout.
+  (cd "$BACKEND" && BACKEND_IMAGE="$image" PARKLANE_VERSION="$version" DOCKER_GID="$gid" docker compose up -d --no-build)
   wait_for "http://127.0.0.1:$port/api/home" 60 "the backend"
-  ok "Backend $version running on 127.0.0.1:$port (logs: docker logs -f parklane-backend)"
-  info "Back to an earlier build: cd backend && PARKLANE_VERSION=<commit> docker compose up -d --no-build"
+  ok "Backend $image:$version${revision:+ (commit $revision)} running on 127.0.0.1:$port (logs: docker logs -f parklane-backend)"
+  if [ "$relay" = 1 ]; then
+    relay_port="$(env_value CUBE_RELAY_PORT "$RELAY_ENV")"
+    relay_port="${relay_port:-8687}"
+    wait_for "http://127.0.0.1:$relay_port/relay/v1/health" 60 "the relay"
+    ok "Relay running on 127.0.0.1:$relay_port (logs: docker logs -f cube-relay)"
+  fi
+  info "Back to an earlier version: ./scripts/dev.sh server --pull <commit> (uses the copy on this machine when there is one)"
+}
+
+# Builds the backend image from the committed code, for the server (linux/amd64) and ARM machines
+# (linux/arm64), and pushes it to Docker Hub as <image>:<commit> and <image>:latest. Runs where you
+# are signed in to Docker Hub (`docker login`), such as a developer's Mac; no CI needed. The server
+# then takes it with ./scripts/dev.sh server --pull <commit>.
+mode_push() {
+  command -v docker >/dev/null 2>&1 || fail "Docker is not installed on this machine."
+  docker buildx version >/dev/null 2>&1 || fail "docker buildx is missing (Docker Desktop includes it)."
+  local image commit platforms
+  image="$(backend_image)"
+  commit="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)" || fail "This is not a git checkout: the image is tagged with its commit."
+  # The tag names a commit, so the image (backend/) and the types it was checked with (shared/) must
+  # be exactly that commit, untracked files included.
+  [ -z "$(git -C "$ROOT" status --porcelain -- backend shared)" ] ||
+    fail "backend/ or shared/ has changes that are not committed. Commit them first: the image is tagged $commit and must be exactly that code."
+  check_backend
+  bold "Pushing $image:$commit and :latest (linux/amd64, linux/arm64)"
+  (cd "$BACKEND" && docker buildx build --platform linux/amd64,linux/arm64 --build-arg REVISION="$commit" \
+    -t "$image:$commit" -t "$image:latest" --push .) ||
+    fail "The push failed. Signed in to Docker Hub as ${image%%/*}? Run docker login, then this again."
+  platforms="$(docker buildx imagetools inspect "$image:$commit" | awk '/Platform:/ && !/unknown/ {print $2}' | paste -sd ' ' -)"
+  ok "Pushed $image:$commit ($platforms)"
+  info "On the server: cd /opt/parklane && git pull && ./scripts/dev.sh server --pull $commit"
 }
 
 # ---- Main --------------------------------------------------------------------------------
@@ -347,9 +476,11 @@ case "$command" in
   local) mode_local "$@" ;;
   check) mode_check ;;
   attach) mode_attach "$@" ;;
-  server) mode_server ;;
+  server) mode_server "$@" ;;
+  push) mode_push ;;
   *)
-    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+    # The comment block at the top, however long it grows.
+    awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
     exit 1
     ;;
 esac

@@ -126,6 +126,12 @@ export function createStyles(theme: AppTheme, scale: number) {
       marginHorizontal: HEADER_GUTTER - GUTTER,
       marginBottom: HEADER_TO_BANNER,
     },
+    // Not in the design: says the readings are simulated (a demo compound) or the design's sample.
+    dataChip: {
+      alignSelf: 'flex-start',
+      marginTop: -HEADER_TO_BANNER / 2,
+      marginBottom: HEADER_TO_BANNER / 2,
+    },
     banner: {
       marginBottom: CARD_GAP,
     },

@@ -213,5 +213,18 @@ export function createStyles(theme: AppTheme) {
       justifyContent: 'center',
       gap: theme.spacing.xs,
     },
+    // Not in the design: a list with nothing in it yet, and the open poll's question.
+    emptyText: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+    },
+    pollQuestion: {
+      marginTop: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+    },
+    pollMeta: {
+      paddingHorizontal: theme.spacing.md,
+      marginBottom: theme.spacing.sm,
+    },
   });
 }

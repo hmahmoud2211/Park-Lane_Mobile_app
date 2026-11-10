@@ -9,7 +9,8 @@ import type { AppTheme } from '../../types/theme.types';
 
 export interface PollOptionRowProps {
   label: string;
-  photo: ImageSourcePropType;
+  /** Without one, the thumbnail's frame stays empty. */
+  photo?: ImageSourcePropType;
   /** Share of the vote, 0-1. */
   share: number;
   selected: boolean;
@@ -56,13 +57,15 @@ export function PollOptionRow({ label, photo, share, selected, onSelect }: PollO
       </View>
 
       <View style={styles.photo}>
-        <Image
-          source={photo}
-          style={styles.photoImage}
-          resizeMode="cover"
-          fadeDuration={0}
-          accessibilityIgnoresInvertColors
-        />
+        {photo ? (
+          <Image
+            source={photo}
+            style={styles.photoImage}
+            resizeMode="cover"
+            fadeDuration={0}
+            accessibilityIgnoresInvertColors
+          />
+        ) : null}
       </View>
 
       <AppText variant="statValue" numberOfLines={2} style={styles.label}>

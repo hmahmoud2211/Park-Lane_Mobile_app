@@ -12,7 +12,7 @@ export const settingsCopy = {
 } as const;
 
 /** The screens a row can open; kept to these few so navigate() checks each one. */
-export type SettingsRoute = 'Profile' | 'EmsDevices' | 'AccountSecurity' | 'HelpSupport';
+export type SettingsRoute = 'Profile' | 'EmsDevices' | 'AccountSecurity' | 'HelpSupport' | 'Notifications';
 
 export interface SettingsItem {
   id: string;
@@ -48,9 +48,10 @@ const allSettingsItems: readonly SettingsItem[] = [
   {
     id: 'notifications',
     title: 'Notifications',
-    description: 'Manage your notification preferences.',
+    description: 'Your updates, and what to be told about.',
     iconSet: 'ionicons',
     iconName: 'notifications-outline',
+    route: 'Notifications',
   },
   {
     id: 'security',

@@ -94,13 +94,20 @@ parts with real services behind them, and shows the signed-in person. Developmen
 To bring a part back, give it a backend and move its screen from `navigation/sampleScreens.tsx` back into the
 navigator.
 
+**Update (branch `feature/real-backend`, 10 November 2026):** My Unit and Bills, Visitor Access and Deliveries,
+Maintenance with Housekeeping and Moving, Community, Amenities and the inbox now have a real backend and are back
+in the store build, with their Home tiles. BMS stays out (simulated readings only). Parking runs on the backend but
+stays out of the store build until building management confirms the real parking layout
+(`EXPO_PUBLIC_PARKING=1`). The store bundle was scanned again for the old sample names, numbers and links: 0
+matches. See docs/plans/REAL_BACKEND_PLAN.md for the evidence of each part.
+
 ## 5. Builds
 
 | Build | Result | Evidence |
 |---|---|---|
 | iOS Release (simulator), store mode | **Builds and launches** (Xcode 27.2, iOS 27.2 SDK, minimum iOS 16.4) | BUILD_VALIDATION.md, run 3 |
 | iOS signed archive / TestFlight | **Not done**: needs the team's Apple account | — |
-| Android production `.aab` on EAS (personal project) | **Queued on EAS** at the time of writing; result not yet verified | BUILD_VALIDATION.md |
+| Android production `.aab` on EAS (personal project) | **Built** (78.2 MB). Target API 36; all 92 native libraries 16 KB-aligned; three template permissions found and now blocked | BUILD_VALIDATION.md |
 | Android on a phone | Not tested | — |
 
 ## 6. Policy compliance (summary)
@@ -126,7 +133,8 @@ Text is ready in APP_STORE_METADATA.md. Missing, and only you can supply them:
 3. **Deploy the backend** to the production server (`/opt/parklane`, see `docs/on_server.md`). Before restarting, add to `backend/.env`: `LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_EMAIL`, `PRIVACY_POLICY_DATE`. Then check:
    - `https://api-iot-2.ems-iot.com/privacy` shows no "Draft" notice;
    - `https://api-iot-2.ems-iot.com/account/delete` opens.
-4. **Have the privacy policy text reviewed** (`backend/src/public/privacy.html`). Add how long backups keep data, if you keep backups.
+4. **Have the privacy policy text reviewed** (`backend/src/public/privacy.html`). Add how long backups keep data, if you keep backups. It now also lists the building services' data (visitors' and guests' details, requests and photos, feedback, bookings, vehicles, the inbox); the store answers in PRIVACY_AND_DATA_DECLARATIONS.md were updated to match.
+4a. **With the building services release:** fill in Compound rules in the dashboard (the emergency number above all), create gate-staff accounts, and decide on parking (confirm the layout, then build with `EXPO_PUBLIC_PARKING=1`). Optional: `WEATHER_CONTACT` turns the weather on. See docs/production.md, "The building services release".
 5. **Fix the assistant service** (outside this repository): require the EMS sign-in for `/api/v1/residents` and chat, and remove its public "Chat Console" page. Tell me its AI company, or set `EXPO_PUBLIC_ASSISTANT_AI_PROVIDERS` in `frontend/eas.json` (`production` and `store-preview`).
 6. **Create the reviewer account:**
    - In the app, use **Create account**, with a strong password (not `ems`/`5002`).

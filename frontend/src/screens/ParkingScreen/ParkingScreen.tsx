@@ -76,7 +76,7 @@ export function ParkingScreen() {
   const layout = useScreenLayout();
   const scale = contentScaleFor(layout.columnFrameWidth);
   const navigation = useNavigation<RootStackScreenProps<'Parking'>['navigation']>();
-  const { db, now, residentId } = useParking();
+  const { db, now, residentId, storageKind } = useParking();
   const { menuOpen, setMenuOpen, logoutItem } = useScreenMenu();
 
   const menuItems = useMemo<readonly AppMenuItem[]>(
@@ -328,7 +328,8 @@ export function ParkingScreen() {
                 )}
               </Panel>
 
-              {/* Demo tooling, kept apart from the resident's own actions (config/flags.ts). */}
+              {/* Demo tooling, kept apart from the resident's own actions (config/flags.ts). With the backend's
+                  parking it opens the offline demo, which has its own sample data and clock. */}
               {flags.demoTools ? (
                 <Pressable
                   onPress={() => navigation.navigate('DemoControls')}
@@ -338,7 +339,7 @@ export function ParkingScreen() {
                 >
                   <AppIcon set="ionicons" name="construct-outline" size={16} color={theme.colors.textSupport} />
                   <AppText variant="label" color={theme.colors.textSupport} style={styles.flex}>
-                    {`Demo · simulated time ${formatDateTime(now)} · open demo controls`}
+                    {storageKind === 'server' ? 'Developer tools · the offline parking demo (its own sample data)' : `Demo · simulated time ${formatDateTime(now)} · open demo controls`}
                   </AppText>
                 </Pressable>
               ) : null}

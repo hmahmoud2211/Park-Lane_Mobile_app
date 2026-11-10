@@ -1,7 +1,6 @@
 import { flags } from '../../config/flags';
 import type { IconSet } from '../../types/icons.types';
 import type { ImageKey } from '../../constants/images';
-import type { ParamlessRoute } from '../../types/navigation.types';
 
 /**
  * Content for the Services screen. Wording matches the Figma reference
@@ -28,8 +27,11 @@ export interface ServiceItem {
   iconSet: IconSet;
   iconName: string;
   /** Screen the row opens; rows without one open the placeholder. */
-  route?: ParamlessRoute;
+  route?: ServiceRoute;
 }
+
+/** The screens a row can open; kept to these few so navigate() checks each one. */
+export type ServiceRoute = 'Clinic' | 'HealthPassport' | 'HelpSupport' | 'Bills' | 'Deliveries' | 'Housekeeping' | 'MovingRequest';
 
 const allServices: readonly ServiceItem[] = [
   {
@@ -39,6 +41,7 @@ const allServices: readonly ServiceItem[] = [
     icon: 'serviceHousekeeping',
     iconSet: 'material',
     iconName: 'spray-bottle',
+    route: 'Housekeeping',
   },
   {
     id: 'bills',
@@ -47,6 +50,7 @@ const allServices: readonly ServiceItem[] = [
     icon: 'serviceBills',
     iconSet: 'material',
     iconName: 'file-document-outline',
+    route: 'Bills',
   },
   {
     id: 'deliveries',
@@ -55,6 +59,7 @@ const allServices: readonly ServiceItem[] = [
     icon: 'serviceDeliveries',
     iconSet: 'material',
     iconName: 'package-variant-closed',
+    route: 'Deliveries',
   },
   {
     id: 'moving',
@@ -63,6 +68,7 @@ const allServices: readonly ServiceItem[] = [
     icon: 'serviceMoving',
     iconSet: 'material',
     iconName: 'dolly',
+    route: 'MovingRequest',
   },
   {
     // Not in the Figma reference; added with the same row. No illustration

@@ -1,10 +1,8 @@
-import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import type { IncomingMessage } from 'node:http';
-import { join } from 'node:path';
 
 import { config } from '../config.ts';
-import { sealBytes, sign, signatureMatches, unsealBytes } from '../ems/secrets.ts';
+import { sign, signatureMatches } from '../ems/secrets.ts';
+import { sealedFolder } from '../lib/sealedFiles.ts';
 import { listDocumentPages } from '../repositories/healthDocuments.ts';
 import { listSummaryAudioFiles } from '../repositories/healthSummaries.ts';
 
@@ -19,30 +17,17 @@ import { listSummaryAudioFiles } from '../repositories/healthSummaries.ts';
 
 const LINK_TTL_MS = 2 * 3600_000;
 
-const directory = () => join(config.dataDir, 'health', 'files');
+/** DATA_DIR/health/files, as before the folder logic moved to lib/sealedFiles.ts. */
+const folder = sealedFolder('health', 'files');
 
-export function storeFile(bytes: Buffer): string {
-  mkdirSync(directory(), { recursive: true, mode: 0o700 });
-  const name = randomUUID();
-  writeFileSync(join(directory(), name), sealBytes(bytes), { mode: 0o600 });
-  return name;
-}
+export const storeFile = (bytes: Buffer): string => folder.store(bytes);
 
-export function readStoredFile(name: string): Buffer | null {
-  const file = join(directory(), name);
-  if (!/^[0-9a-f-]{36}$/.test(name) || !existsSync(file)) return null;
-  return unsealBytes(readFileSync(file));
-}
+export const readStoredFile = (name: string): Buffer | null => folder.read(name);
 
-export function removeFiles(names: readonly string[]): void {
-  for (const name of names) {
-    if (/^[0-9a-f-]{36}$/.test(name)) rmSync(join(directory(), name), { force: true });
-  }
-}
+export const removeFiles = (names: readonly string[]): void => folder.remove(names);
 
 /** Files no document or summary refers to any more, e.g. after a profile or consent was removed. Deleted at once. */
 export function sweepOrphanFiles(): number {
-  if (!existsSync(directory())) return 0;
   const used = new Set<string>();
   for (const pages of listDocumentPages()) {
     for (const page of JSON.parse(pages) as { file: string }[]) used.add(page.file);
@@ -50,7 +35,7 @@ export function sweepOrphanFiles(): number {
   for (const file of listSummaryAudioFiles()) {
     used.add(file);
   }
-  const orphans = readdirSync(directory()).filter((name) => !used.has(name));
+  const orphans = folder.list().filter((name) => !used.has(name));
   removeFiles(orphans);
   return orphans.length;
 }

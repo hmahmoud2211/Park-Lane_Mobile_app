@@ -63,11 +63,13 @@ EAS_NO_VCS=1 npx eas-cli@latest build -p android --profile production --non-inte
 
 | Item | Result |
 |---|---|
-| EAS build | `f4bc8a96-6604-4c53-abe2-a8e430d42523`, started 18:01 UTC, still **IN_QUEUE** on the free tier at 18:14 UTC |
-| Upload | 36.8 MB (no `node_modules`); version code 2 on the personal project; distribution STORE |
-| Gradle / AAB result | **NOT VERIFIED yet** (pending the queued build) |
-| Target SDK in the built manifest | **NOT VERIFIED yet**. React Native 0.88's default is 36 |
-| 16 KB page alignment of the `.so` files | **NOT VERIFIED yet**. A checker that reads each library's ELF headers is ready |
+| EAS build | `f4bc8a96-6604-4c53-abe2-a8e430d42523`: **FINISHED** (queued about two hours on the free tier). Built from the store-readiness code (`f7b302d`) |
+| Artifact | `parklane.aab`, 78.2 MB; version code 2, version 1.0.0, package `com.parklane.app` |
+| Target SDK (read from the bundle's own manifest) | **36** (Android 16), min 24. **Meets Google's API 36 requirement** |
+| 16 KB page alignment | **All 92 native libraries pass** (every 64-bit `.so` has PT_LOAD alignment ≥ 16 KB; checked from the ELF headers). Ready for the 1 Feb 2027 rule |
+| Foreground service | `expo.modules.audio.service.AudioControlsService`, type `mediaPlayback` (the summary player) |
+| Backup | `allowBackup` true, with expo-secure-store's rules excluding the Keychain/Keystore items |
+| Permissions in the bundle | Those in app.json, plus ones added by Expo's template and libraries: `SYSTEM_ALERT_WINDOW`, `USE_BIOMETRIC`, `USE_FINGERPRINT`, `VIBRATE`, `WAKE_LOCK`, network/Wi-Fi state. **Fixed afterwards**: `android.blockedPermissions` in app.json now removes `SYSTEM_ALERT_WINDOW` (draw over other apps; Play scrutinises it), `USE_BIOMETRIC` and `USE_FINGERPRINT` (no biometrics in the app). The next build should be checked for them |
 
 **What to run for the real release (team account):**
 

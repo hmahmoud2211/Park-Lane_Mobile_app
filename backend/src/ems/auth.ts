@@ -113,7 +113,7 @@ export const temporaryPassword = () => Array.from({ length: 14 }, () => TEMPORAR
  */
 export async function createAccountWithTemporaryPassword(emailInput: unknown, nameInput: unknown, roleInput: unknown) {
   const email = normalizeEmail(emailInput);
-  const role: Role = roleInput === 'admin' ? 'admin' : 'resident';
+  const role: Role = roleInput === 'admin' ? 'admin' : roleInput === 'security' ? 'security' : 'resident';
   const password = temporaryPassword();
   const user: User = { id: randomUUID(), email, name: trimmedText(nameInput) || email.split('@')[0], role };
   try {

@@ -1,5 +1,9 @@
 # Visitor Parking, Gate Access and EV Charging: Demo Handover
 
+> **November 2026:** parking now runs on the backend (`backend/src/parking/`, see docs/API_DOCUMENTATION.md, Parking).
+> The app's screens use it through `features/parking/context/ParkingContext.tsx`; what this page describes is the
+> offline demo that Demo controls and the Security console still use, with its own sample data.
+
 An interactive demo of visitor parking reservations, QR entry and exit, directions to the exact bay, and EV charging reservations, built into the existing Parking section of the app. All data is fictional and stored on the device. Gates, sensors and chargers are simulated.
 
 ## What was built

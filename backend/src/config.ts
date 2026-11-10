@@ -75,6 +75,17 @@ export const config = {
     policyDate: (env.PRIVACY_POLICY_DATE ?? '').trim(),
   },
 
+  /**
+   * Weather from MET Norway (api.met.no, CC BY 4.0). Off until WEATHER_CONTACT is set: their terms ask every client
+   * to name itself with a way to reach its operator (an email or a web address). The point defaults to the New
+   * Administrative Capital; set the compound's own with WEATHER_LAT and WEATHER_LON.
+   */
+  weather: {
+    contact: (env.WEATHER_CONTACT ?? '').trim(),
+    lat: Number(env.WEATHER_LAT || 30.02),
+    lon: Number(env.WEATHER_LON || 31.76),
+  },
+
   /** EMS accounts. */
   ems: {
     /** 32 bytes, base64. Seals stored secrets. Generated into DATA_DIR when unset. */

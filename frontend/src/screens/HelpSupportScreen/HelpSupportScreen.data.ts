@@ -13,6 +13,9 @@ export const helpSupportCopy = {
   healthHeading: 'About the health features',
   healthBody:
     'Health Passport and Clinical Appointment help you keep your family’s records and book visits at the compound’s clinic. Parklane does not give medical advice, and does not diagnose or treat any condition. Suggestions made with AI are checked by you or your doctor. Always ask a doctor or pharmacist before making a medical decision; in an emergency, call your local emergency number.',
+  creditsHeading: 'Data sources',
+  creditsBody:
+    'Weather: data from MET Norway (the Norwegian Meteorological Institute), under the Creative Commons BY 4.0 licence. Figures marked “Simulated data” are made up for a demo compound and are not real readings.',
   privacyTitle: 'Privacy policy',
   privacyDescription: 'What we collect, who receives it and how to delete it.',
   accountTitle: 'Account & security',

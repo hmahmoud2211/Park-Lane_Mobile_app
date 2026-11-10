@@ -16,7 +16,7 @@ export function createUnit(nameInput: unknown, buildingInput: unknown): Unit {
     throw new ApiError('bad_request', 'name is required, e.g. "Tower A · 1203".');
   }
   const building = trimmedText(buildingInput) || null;
-  const unit: Unit = { id: randomUUID(), name, building, createdAt: new Date().toISOString() };
+  const unit: Unit = { id: randomUUID(), name, building, createdAt: new Date().toISOString(), siteId: units.DEFAULT_SITE_ID };
   units.insertUnit(unit);
   return unit;
 }

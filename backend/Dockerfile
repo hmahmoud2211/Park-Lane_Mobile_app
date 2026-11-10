@@ -20,4 +20,11 @@ RUN mkdir data && chown node:node data
 # uid 1000, the host user that owns the data folder, so its files stay readable there.
 USER node
 
+# The commit it was built from, which dev.sh passes (push and server modes). Read it back with
+# docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' <image>
+ARG REVISION=unknown
+LABEL org.opencontainers.image.title="Parklane backend" \
+      org.opencontainers.image.source="https://github.com/hmahmoud2211/Park-Lane_Mobile_app" \
+      org.opencontainers.image.revision="${REVISION}"
+
 CMD ["node", "src/index.ts"]

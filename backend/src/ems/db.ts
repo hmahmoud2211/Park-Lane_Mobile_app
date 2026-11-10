@@ -520,6 +520,661 @@ const MIGRATIONS: readonly string[] = [
     DELETE FROM health_shares
     WHERE user_id = OLD.user_id OR profile_id IN (SELECT id FROM health_profiles WHERE owner_id = OLD.user_id);
   END;
+  `,  `
+  -- Sites: a compound, and everything building-wide belongs to one (announcements, amenities, parking, BMS
+  -- readings). kind 'demo' sites are the only ones the data generator writes to (scripts/generate-series.ts).
+  -- series_key is the compact integer the time-series tables use instead of the text id.
+  CREATE TABLE sites (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    timezone TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('real', 'demo')),
+    series_key INTEGER NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+  );
+  INSERT INTO sites (id, name, timezone, kind, series_key, created_at)
+    VALUES ('park-lane', 'Park Lane', 'Africa/Cairo', 'real', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+  -- A unit's site and details, set by building management (they were invented in the app before).
+  -- SQLite only adds a REFERENCES column with a NULL default, so units.ts always writes site_id.
+  ALTER TABLE units ADD COLUMN site_id TEXT REFERENCES sites(id);
+  UPDATE units SET site_id = 'park-lane';
+  ALTER TABLE units ADD COLUMN tower TEXT;
+  ALTER TABLE units ADD COLUMN floor INTEGER;
+  ALTER TABLE units ADD COLUMN number TEXT;
+  ALTER TABLE units ADD COLUMN unit_type TEXT;
+  ALTER TABLE units ADD COLUMN bedrooms INTEGER;
+  ALTER TABLE units ADD COLUMN bathrooms INTEGER;
+  ALTER TABLE units ADD COLUMN area_m2 REAL;
+  ALTER TABLE units ADD COLUMN parking_bay TEXT;
+  ALTER TABLE units ADD COLUMN handover_status TEXT;
+  ALTER TABLE units ADD COLUMN series_key INTEGER;
+  CREATE UNIQUE INDEX units_series_key ON units(series_key);
+  CREATE INDEX units_site ON units(site_id);
+
+  -- Per-site rules management can change (emergency number, visiting hours, booking windows…), as JSON
+  -- validated by ems/siteSettings.ts; missing keys take the defaults there.
+  CREATE TABLE site_settings (
+    site_id TEXT PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+    settings TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  -- Server-issued references people read and quote (REQ-2026-00124, BK-01001, receipts), one counter per kind.
+  CREATE TABLE reference_counters (
+    site_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    next INTEGER NOT NULL,
+    PRIMARY KEY (site_id, kind, year)
+  );
+
+  -- The in-app inbox every feature reports to (ems/notifications.ts). Only that person's, so it goes with them.
+  CREATE TABLE notifications (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    ref_type TEXT,
+    ref_id TEXT,
+    created_at TEXT NOT NULL,
+    read_at TEXT
+  );
+  CREATE INDEX notifications_user ON notifications(user_id, created_at);
+  CREATE TABLE notification_prefs (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    enabled INTEGER NOT NULL,
+    PRIMARY KEY (user_id, kind)
+  );
+
+  -- What building management changed, and who (actor_id: the admin, or NULL for the API key).
+  CREATE TABLE admin_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id TEXT,
+    action TEXT NOT NULL,
+    target_type TEXT,
+    target_id TEXT,
+    detail TEXT,
+    at TEXT NOT NULL
+  );
+  CREATE INDEX admin_audit_target ON admin_audit(target_type, target_id);
+  `,  `
+  -- My Unit and Bills (unit/finance.ts). Money is integer piastres (EGP × 100); dates are YYYY-MM-DD in the
+  -- site's time zone. Finance belongs to the unit, not to a person, so it outlives any account (legal records).
+  CREATE TABLE unit_contracts (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('sale', 'lease')),
+    price INTEGER NOT NULL CHECK (price > 0),
+    signed_on TEXT,
+    handover_on TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX unit_contracts_unit ON unit_contracts(unit_id);
+
+  -- What the unit owes: the contract's down payment and installments, service charges, utility bills.
+  -- status is due or void; paid and partial follow from the payments against it.
+  CREATE TABLE unit_charges (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    contract_id TEXT REFERENCES unit_contracts(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('down_payment', 'installment', 'service_charge', 'electricity', 'water', 'gas', 'other')),
+    title TEXT NOT NULL,
+    period TEXT,
+    due_on TEXT NOT NULL,
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    status TEXT NOT NULL CHECK (status IN ('due', 'void')),
+    reference TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX unit_charges_unit ON unit_charges(unit_id, due_on);
+
+  -- Payments building management records (cash, transfer, cheque, card at the office): never in the app.
+  CREATE TABLE unit_payments (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    charge_id TEXT REFERENCES unit_charges(id) ON DELETE SET NULL,
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    paid_on TEXT NOT NULL,
+    method TEXT NOT NULL CHECK (method IN ('cash', 'bank_transfer', 'cheque', 'card_at_office')),
+    receipt_no TEXT NOT NULL UNIQUE,
+    note TEXT,
+    recorded_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX unit_payments_unit ON unit_payments(unit_id, paid_on);
+  CREATE INDEX unit_payments_charge ON unit_payments(charge_id);
+
+  -- Monthly meter readings: entered by management, or later by a live meter.
+  CREATE TABLE meter_readings (
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    meter TEXT NOT NULL CHECK (meter IN ('electricity', 'water', 'gas')),
+    period TEXT NOT NULL,
+    value REAL NOT NULL CHECK (value >= 0),
+    read_on TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN ('manual', 'live')),
+    PRIMARY KEY (unit_id, meter, period)
+  );
+
+  -- Floor plans and other papers management uploads; the file is sealed (lib/sealedFiles.ts, DATA_DIR/units/files).
+  CREATE TABLE unit_documents (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('floor_plan', 'contract_scan', 'other')),
+    title TEXT NOT NULL,
+    file TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    uploaded_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX unit_documents_unit ON unit_documents(unit_id);
+
+  -- Visitor passes (visitors/passes.ts). The visitor's name and phone are sealed. The QR holds the pass id and a
+  -- random token: token_hash finds the pass at the gate, token_sealed lets the resident show it again.
+  CREATE TABLE visitor_passes (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    visitor_name TEXT NOT NULL,
+    visitor_phone TEXT,
+    plate TEXT,
+    guests INTEGER NOT NULL CHECK (guests BETWEEN 1 AND 50),
+    arrives_at TEXT NOT NULL,
+    valid_from TEXT NOT NULL,
+    valid_to TEXT NOT NULL,
+    uses TEXT NOT NULL CHECK (uses IN ('single', 'multi')),
+    status TEXT NOT NULL CHECK (status IN ('scheduled', 'arrived', 'left', 'revoked')),
+    token_hash TEXT NOT NULL UNIQUE,
+    token_sealed TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    revoked_at TEXT
+  );
+  CREATE INDEX visitor_passes_unit ON visitor_passes(unit_id, arrives_at);
+  CREATE INDEX visitor_passes_valid_to ON visitor_passes(valid_to);
+  CREATE TABLE visitor_entries (
+    id TEXT PRIMARY KEY,
+    pass_id TEXT NOT NULL REFERENCES visitor_passes(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('entry', 'exit')),
+    gate TEXT,
+    at TEXT NOT NULL,
+    by_user TEXT REFERENCES users(id) ON DELETE SET NULL
+  );
+  CREATE INDEX visitor_entries_pass ON visitor_entries(pass_id, at);
+
+  -- Parcels the gate or lobby logs for a unit (parcels/parcels.ts).
+  CREATE TABLE parcels (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    reference TEXT NOT NULL UNIQUE,
+    carrier TEXT,
+    description TEXT,
+    status TEXT NOT NULL CHECK (status IN ('waiting', 'collected', 'returned')),
+    received_at TEXT NOT NULL,
+    received_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    closed_at TEXT,
+    closed_by TEXT REFERENCES users(id) ON DELETE SET NULL
+  );
+  CREATE INDEX parcels_unit ON parcels(unit_id, received_at);
+  CREATE INDEX parcels_waiting ON parcels(status, received_at);
+  `,  `
+  -- Maintenance, housekeeping and moving requests (requests/serviceRequests.ts). A request belongs to the unit and
+  -- stays as the building's history; the person who made it can go (created_by SET NULL). Details and comments are
+  -- sealed. Technicians are records building management keeps, not app accounts.
+  CREATE TABLE technicians (
+    id TEXT PRIMARY KEY,
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    phone TEXT,
+    trades TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE service_categories (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('maintenance', 'housekeeping', 'moving')),
+    id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    sort INTEGER NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (site_id, kind, id)
+  );
+  INSERT INTO service_categories (site_id, kind, id, title, sort, active) VALUES
+    ('park-lane', 'maintenance', 'hvac', 'AC / HVAC', 1, 1),
+    ('park-lane', 'maintenance', 'electrical', 'Electrical', 2, 1),
+    ('park-lane', 'maintenance', 'plumbing', 'Plumbing', 3, 1),
+    ('park-lane', 'maintenance', 'appliances', 'Appliances', 4, 1),
+    ('park-lane', 'maintenance', 'doors', 'Doors & Locks', 5, 1),
+    ('park-lane', 'maintenance', 'other', 'Other', 6, 1),
+    ('park-lane', 'maintenance', 'painting', 'Painting', 7, 1),
+    ('park-lane', 'maintenance', 'pest', 'Pest Control', 8, 1),
+    ('park-lane', 'maintenance', 'carpentry', 'Carpentry', 9, 1),
+    ('park-lane', 'housekeeping', 'standard', 'Standard cleaning', 1, 1),
+    ('park-lane', 'housekeeping', 'deep', 'Deep cleaning', 2, 1),
+    ('park-lane', 'housekeeping', 'windows', 'Windows & glass', 3, 1),
+    ('park-lane', 'moving', 'move_in', 'Moving in', 1, 1),
+    ('park-lane', 'moving', 'move_out', 'Moving out', 2, 1);
+  CREATE TABLE service_requests (
+    id TEXT PRIMARY KEY,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('maintenance', 'housekeeping', 'moving')),
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    details TEXT,
+    priority TEXT NOT NULL CHECK (priority IN ('normal', 'urgent')),
+    preferred_date TEXT NOT NULL,
+    preferred_window TEXT NOT NULL,
+    scheduled_date TEXT,
+    scheduled_window TEXT,
+    technician_id TEXT REFERENCES technicians(id) ON DELETE SET NULL,
+    status TEXT NOT NULL CHECK (status IN ('submitted', 'assigned', 'in_progress', 'completed', 'cancelled')),
+    reference TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX service_requests_unit ON service_requests(unit_id, created_at);
+  CREATE INDEX service_requests_status ON service_requests(status, created_at);
+  CREATE TABLE service_request_events (
+    id TEXT PRIMARY KEY,
+    request_id TEXT NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('status', 'comment')),
+    status TEXT,
+    note TEXT,
+    by_user TEXT REFERENCES users(id) ON DELETE SET NULL,
+    by_staff INTEGER NOT NULL,
+    at TEXT NOT NULL
+  );
+  CREATE INDEX service_request_events_request ON service_request_events(request_id, at);
+  CREATE TABLE service_request_photos (
+    id TEXT PRIMARY KEY,
+    request_id TEXT NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
+    file TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX service_request_photos_request ON service_request_photos(request_id);
+  `,  `
+  -- Community (community/community.ts): management's notices and alerts, events with RSVPs, polls with one vote
+  -- per resident (changeable until the poll closes), and residents' feedback with management's reply (both
+  -- sealed). Amenities (amenities/amenities.ts): the catalogue and bookings; the database itself refuses a second
+  -- booking of an exclusive amenity's slot, and a second booking of the same slot by one apartment.
+  CREATE TABLE announcements (
+    id TEXT PRIMARY KEY,
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('news', 'alert')),
+    level TEXT NOT NULL CHECK (level IN ('info', 'warning')),
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    full_text TEXT,
+    picture TEXT,
+    published_at TEXT NOT NULL,
+    expires_at TEXT,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX announcements_site ON announcements(site_id, published_at);
+  CREATE TABLE community_events (
+    id TEXT PRIMARY KEY,
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    venue TEXT NOT NULL,
+    picture TEXT,
+    capacity INTEGER,
+    rsvp_opens_at TEXT,
+    rsvp_until TEXT,
+    cancelled_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX community_events_site ON community_events(site_id, starts_at);
+  CREATE TABLE event_rsvps (
+    event_id TEXT NOT NULL REFERENCES community_events(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (event_id, user_id)
+  );
+  CREATE TABLE polls (
+    id TEXT PRIMARY KEY,
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    opens_at TEXT NOT NULL,
+    closes_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX polls_site ON polls(site_id, closes_at);
+  CREATE TABLE poll_options (
+    id TEXT PRIMARY KEY,
+    poll_id TEXT NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    picture TEXT,
+    sort INTEGER NOT NULL
+  );
+  CREATE INDEX poll_options_poll ON poll_options(poll_id, sort);
+  CREATE TABLE poll_votes (
+    poll_id TEXT NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    option_id TEXT NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE,
+    voted_at TEXT NOT NULL,
+    PRIMARY KEY (poll_id, user_id)
+  );
+  CREATE TABLE feedback (
+    id TEXT PRIMARY KEY,
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    unit_id TEXT REFERENCES units(id) ON DELETE SET NULL,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    topic TEXT NOT NULL CHECK (topic IN ('suggestion', 'concern', 'compliment', 'other')),
+    message TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('new', 'answered', 'closed')),
+    reply TEXT,
+    replied_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    replied_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX feedback_site ON feedback(site_id, status, created_at);
+  CREATE INDEX feedback_user ON feedback(user_id, created_at);
+  CREATE TABLE amenities (
+    id TEXT PRIMARY KEY,
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    location TEXT NOT NULL,
+    opens TEXT NOT NULL,
+    closes TEXT NOT NULL,
+    slot_minutes INTEGER NOT NULL,
+    capacity INTEGER NOT NULL CHECK (capacity >= 1),
+    max_people INTEGER NOT NULL CHECK (max_people >= 1),
+    exclusive INTEGER NOT NULL,
+    categories TEXT NOT NULL,
+    picture TEXT,
+    cancel_cutoff_hours INTEGER NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    sort INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX amenities_site ON amenities(site_id, active, sort);
+  CREATE TABLE amenity_bookings (
+    id TEXT PRIMARY KEY,
+    amenity_id TEXT NOT NULL REFERENCES amenities(id) ON DELETE CASCADE,
+    unit_id TEXT NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    people INTEGER NOT NULL CHECK (people >= 1),
+    exclusive INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('booked', 'cancelled')),
+    reference TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    cancelled_at TEXT
+  );
+  CREATE UNIQUE INDEX amenity_bookings_one_per_unit ON amenity_bookings(amenity_id, unit_id, starts_at) WHERE status = 'booked';
+  CREATE UNIQUE INDEX amenity_bookings_exclusive ON amenity_bookings(amenity_id, starts_at) WHERE status = 'booked' AND exclusive = 1;
+  CREATE INDEX amenity_bookings_slot ON amenity_bookings(amenity_id, starts_at, status);
+  CREATE INDEX amenity_bookings_unit ON amenity_bookings(unit_id, starts_at);
+  `,  `
+  -- Parking (parking/): the rules engine the app ran on the phone, now on the server. Each table holds one of its
+  -- collections as JSON in \`data\` (sealed where it can name a person or a plate), with the columns needed to load
+  -- only what a rule can touch. Pass and invitation tokens are never stored: only their hashes (crypto.ts derives
+  -- the token again from the server key when an allowed person asks). \`parking_sites\` keeps the policy and the
+  -- booking-reference counter. Residents and properties are the backend's own users and units.
+  CREATE TABLE parking_sites (
+    site_id TEXT PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+    policy TEXT NOT NULL,
+    reference_serial INTEGER NOT NULL,
+    revision INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE parking_buildings (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_zones (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_spaces (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_gates (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_chargers (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_connectors (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_residents (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_properties (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_associations (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    resident_id TEXT NOT NULL,
+    property_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_vehicles (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    resident_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_reservations (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    property_id TEXT NOT NULL,
+    resident_id TEXT,
+    status TEXT NOT NULL,
+    scheduled_end TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_invitations (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    reservation_id TEXT NOT NULL,
+    invite_hash TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_credentials (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    reservation_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_sessions (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    reservation_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_allocations (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    reservation_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_charging_sessions (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    reservation_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_scan_events (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    reservation_id TEXT,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_occupancy_events (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    space_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_notifications (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    audience TEXT NOT NULL,
+    resident_id TEXT,
+    reservation_id TEXT,
+    open INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE TABLE parking_audit (
+    site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (site_id, id)
+  );
+  CREATE INDEX parking_reservations_site ON parking_reservations(site_id, status, scheduled_end);
+  CREATE INDEX parking_reservations_property ON parking_reservations(property_id);
+  CREATE INDEX parking_reservations_resident ON parking_reservations(resident_id);
+  CREATE UNIQUE INDEX parking_invitations_hash ON parking_invitations(invite_hash);
+  CREATE UNIQUE INDEX parking_credentials_hash ON parking_credentials(token_hash);
+  CREATE INDEX parking_invitations_reservation ON parking_invitations(reservation_id);
+  CREATE INDEX parking_credentials_reservation ON parking_credentials(reservation_id);
+  CREATE INDEX parking_sessions_reservation ON parking_sessions(reservation_id);
+  CREATE INDEX parking_allocations_reservation ON parking_allocations(reservation_id);
+  CREATE INDEX parking_charging_sessions_reservation ON parking_charging_sessions(reservation_id);
+  CREATE INDEX parking_scan_events_reservation ON parking_scan_events(reservation_id, at);
+  CREATE INDEX parking_occupancy_events_space ON parking_occupancy_events(space_id, at);
+  CREATE INDEX parking_notifications_site ON parking_notifications(site_id, open, at);
+  CREATE INDEX parking_audit_entity ON parking_audit(entity_id, at);
+  CREATE INDEX parking_vehicles_resident ON parking_vehicles(resident_id);
+  CREATE INDEX parking_associations_resident ON parking_associations(resident_id);
+  `,  `
+  -- Time series (series/): one row per quarter hour, keyed by the compound's or the unit's series_key and
+  -- slot = floor(epoch ms / 900 000). Values are scaled integers (x10 = one decimal). source 0 = simulated (the
+  -- generator, demo sites only), 1 = live. Rows may exist ahead of time; the API never serves a slot after now.
+  CREATE TABLE bms_readings (
+    site_key INTEGER NOT NULL,
+    slot INTEGER NOT NULL,
+    source INTEGER NOT NULL,
+    kw_x10 INTEGER NOT NULL,
+    kwh_x10 INTEGER NOT NULL,
+    solar_kw_x10 INTEGER NOT NULL,
+    solar_kwh_x10 INTEGER NOT NULL,
+    grid_cost INTEGER NOT NULL,
+    solar_saving INTEGER NOT NULL,
+    mdb_volts INTEGER NOT NULL,
+    mdb_amps_x10 INTEGER NOT NULL,
+    generator INTEGER NOT NULL,
+    fuel_pct INTEGER NOT NULL,
+    water_tank_pct INTEGER NOT NULL,
+    water_flow_x10 INTEGER NOT NULL,
+    pumps INTEGER NOT NULL,
+    co2_ppm INTEGER NOT NULL,
+    temp_x10 INTEGER NOT NULL,
+    humidity_pct INTEGER NOT NULL,
+    fans INTEGER NOT NULL,
+    net_down_kbps INTEGER NOT NULL,
+    net_up_kbps INTEGER NOT NULL,
+    ping_ms INTEGER NOT NULL,
+    uptime_x100 INTEGER NOT NULL,
+    cameras_online INTEGER NOT NULL,
+    cameras_total INTEGER NOT NULL,
+    elevator_state INTEGER NOT NULL,
+    elevator_floor INTEGER NOT NULL,
+    fire_panel INTEGER NOT NULL,
+    gates INTEGER NOT NULL,
+    fault_code INTEGER NOT NULL,
+    PRIMARY KEY (site_key, slot)
+  ) WITHOUT ROWID;
+  CREATE TABLE unit_energy (
+    unit_key INTEGER NOT NULL,
+    slot INTEGER NOT NULL,
+    source INTEGER NOT NULL,
+    total_wh INTEGER NOT NULL,
+    lighting_wh INTEGER NOT NULL,
+    ac_wh INTEGER NOT NULL,
+    media_wh INTEGER NOT NULL,
+    other_wh INTEGER NOT NULL,
+    PRIMARY KEY (unit_key, slot)
+  ) WITHOUT ROWID;
+  `,  `
+  -- References (REQ-2026-00001, INV-…, RCP-…, PCL-…, BK-…) are unique across every compound, so their numbers come
+  -- from one counter per kind and year (scope '*'), carried on from the highest each compound had reached.
+  INSERT INTO reference_counters (site_id, kind, year, next)
+    SELECT '*', kind, year, MAX(next) FROM reference_counters WHERE site_id != '*' GROUP BY kind, year
+    ON CONFLICT(site_id, kind, year) DO UPDATE SET next = MAX(next, excluded.next);
   `,
 ];
 

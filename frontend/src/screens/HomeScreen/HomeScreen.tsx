@@ -21,7 +21,9 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { unit } from '../../data/demoResident';
-import { homeTiles, promo, weather } from './HomeScreen.data';
+import { getWeather } from '../../features/home/services/homeApi';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
+import { homeTiles, promo, weather, weatherFrom } from './HomeScreen.data';
 import { GREETING_TO_UNIT, MIN_TILE_WIDTH, TILE_GAP, TILE_ROW_GAP, createStyles } from './HomeScreen.styles';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
 
@@ -32,8 +34,12 @@ export function HomeScreen() {
   const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
   const layout = useScreenLayout();
   const identity = useResidentIdentity();
-  // The unit card and weather are sample content: the store build leaves them out.
+  // The unit card is sample content: the store build leaves it out.
   const sample = flags.sampleContent;
+  // The compound's weather from the backend (MET Norway), shown once the server has it switched on; until then,
+  // builds with sample content show the design's sample and the store build shows nothing.
+  const liveWeather = useFocusQuery(getWeather);
+  const pill = liveWeather.data ? weatherFrom(liveWeather.data) : sample ? { ...weather, icon: 'moon' as const } : null;
 
   const greeting = (
     <View style={styles.greetingRow}>
@@ -47,7 +53,7 @@ export function HomeScreen() {
         </AppText>
       </View>
 
-      {sample ? <WeatherPill temperature={weather.temperature} condition={weather.condition} /> : null}
+      {pill ? <WeatherPill temperature={pill.temperature} condition={pill.condition} icon={pill.icon} credit={liveWeather.data ? liveWeather.data.credit : undefined} /> : null}
     </View>
   );
 

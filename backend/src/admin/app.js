@@ -200,6 +200,32 @@
     return h('div', {}, h('label', { text: labelText }), input, hint ? h('div', { class: 'hint', text: hint }) : null);
   }
 
+  // ---- pages other files add -----------------------------------------------------------------------------
+
+  /**
+   * Each feature's page lives in its own file (admin/pages/*.js, loaded after this one) and registers itself:
+   *   ParklaneAdmin.register({ id, label, roles: ['admin'], render(content, ui) })
+   * `ui` holds these helpers. A page shows only to the roles it lists, so gate staff (`security`) see their pages
+   * and nothing else. The three built-in tabs below are for admins.
+   */
+  const pages = [];
+  const ui = { h, api, notice, busy, field, confirmAction, showOnce, timeAgo, copy, ApiError, me: () => state.me };
+  window.ParklaneAdmin = Object.freeze({
+    register(page) {
+      if (!page || typeof page.id !== 'string' || typeof page.render !== 'function') return;
+      pages.push({ roles: ['admin'], ...page });
+      if (state.me && !state.me.mustChangePassword) renderDashboard();
+    },
+  });
+
+  const BUILT_IN_TABS = [
+    ['apartments', 'Apartments'],
+    ['accounts', 'Accounts'],
+    ['gateways', 'Gateways'],
+  ];
+  const pagesFor = (role) => pages.filter((page) => page.roles.includes(role));
+  const mayUseDashboard = (user) => user.role === 'admin' || pagesFor(user.role).length > 0;
+
   function hubBadge(hub) {
     if (!hub) return h('span', { class: 'badge', text: 'None' });
     const kind = { online: 'ok', provisioning: 'warn' }[hub.status] || 'bad';
@@ -283,7 +309,7 @@
     state.me = user;
     renderHeader();
     if (user.mustChangePassword) renderChangePassword();
-    else if (user.role !== 'admin') renderNotAdmin();
+    else if (!mayUseDashboard(user)) renderNotAdmin();
     else renderDashboard();
   }
 
@@ -347,11 +373,10 @@
   async function renderDashboard() {
     renderHeader();
     const content = h('div');
-    const tabs = [
-      ['apartments', 'Apartments'],
-      ['accounts', 'Accounts'],
-      ['gateways', 'Gateways'],
-    ];
+    const isAdmin = state.me?.role === 'admin';
+    const extra = pagesFor(state.me?.role).map((page) => [page.id, page.label]);
+    const tabs = [...(isAdmin ? BUILT_IN_TABS : []), ...extra];
+    if (!tabs.some(([id]) => id === state.tab)) state.tab = tabs[0]?.[0] ?? 'apartments';
     const tabBar = h(
       'div',
       { class: 'tabs', role: 'tablist' },
@@ -370,6 +395,17 @@
     );
     show(tabBar, content);
     content.replaceChildren(h('div', { class: 'empty', text: 'Loading…' }));
+    const page = pages.find((entry) => entry.id === state.tab);
+    if (page) {
+      try {
+        await page.render(content, ui);
+      } catch (error) {
+        if (!(error instanceof ApiError) || (error.status !== 401 && error.code !== 'password_change_required')) {
+          content.replaceChildren(notice('error', error instanceof ApiError ? error.message : 'This page could not be shown.'));
+        }
+      }
+      return;
+    }
     try {
       await loadAll();
     } catch (error) {
@@ -825,7 +861,7 @@
         if (result) showOnce('Temporary password', `Give this to ${user.name} (${user.email}). It is shown only now.`, result.temporaryPassword, 'They will choose their own at the next sign-in.');
       },
     });
-    const roleLabel = { admin: 'Admin', resident: 'Resident', doctor: 'Doctor', clinic_staff: 'Clinic desk' }[user.role] || user.role;
+    const roleLabel = { admin: 'Admin', resident: 'Resident', doctor: 'Doctor', clinic_staff: 'Clinic desk', security: 'Gate staff' }[user.role] || user.role;
     return h(
       'tr',
       {},
@@ -840,7 +876,13 @@
   function newAccountForm(slotElement, reload) {
     const email = h('input', { type: 'email', required: true, autofocus: true, placeholder: 'name@example.com' });
     const name = h('input', { placeholder: 'Full name' });
-    const role = h('select', {}, h('option', { value: 'resident', text: 'Resident' }), h('option', { value: 'admin', text: 'Admin (building management)' }));
+    const role = h(
+      'select',
+      {},
+      h('option', { value: 'resident', text: 'Resident' }),
+      h('option', { value: 'security', text: 'Gate staff (security)' }),
+      h('option', { value: 'admin', text: 'Admin (building management)' }),
+    );
     const unit = h(
       'select',
       {},

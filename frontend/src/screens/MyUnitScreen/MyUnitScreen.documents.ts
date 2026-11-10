@@ -1,3 +1,4 @@
+import type { Payment, UnitOverview } from '../../../../shared/contracts/unitFinance';
 import {
   detailsTable,
   documentPage,
@@ -6,165 +7,104 @@ import {
   section,
 } from '../../features/documents/services/documentPage';
 import type { PdfDocument } from '../../features/documents/services/pdf.types';
-import { resident } from '../../data/demoResident';
-import {
-  financial,
-  maintenanceFees,
-  overviewColumns,
-  paymentHistory,
-  unitHero,
-  type DocumentId,
-} from './MyUnitScreen.data';
+import { day, egp } from '../../features/unitFinance/format';
+import { financialFrom, heroFrom, maintenanceFeesFrom, overviewColumnsFrom } from './MyUnitScreen.data';
 
 /*
- * The three unit documents, rendered from the same data the screen shows, so
- * a PDF never disagrees with the card it came from. The page itself is the
- * shared one in services/documents/documentPage.ts.
+ * The documents the app makes for a unit's owner: a contract summary and the receipts, from building management's
+ * records (GET /api/unit/overview, /api/unit/payments), so a PDF never disagrees with the card it came from and
+ * never shows a number nobody recorded. The page is the shared one in services/documents/documentPage.ts.
  */
 
-/** "EGP 5,525,000". */
-function egp(amount: number): string {
-  return `EGP ${String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
-
-const overview = Object.fromEntries(overviewColumns.flat().map((item) => [item.id, item.value]));
-const heroStat = Object.fromEntries(unitHero.stats.map((item) => [item.id, item.value]));
-const summary = Object.fromEntries(financial.summary.map((item) => [item.id, item.value]));
-const schedule = Object.fromEntries(financial.schedule.map((item) => [item.id, item.value]));
-
-const unitCode = unitHero.title.replace(/^Unit\s+/, '');
-const residentName = `${resident.firstName} ${resident.lastName}`;
-
-/** A unit document's page: titled, and dated for the resident. */
-function page(title: string, body: string, note: string): string {
+function page(overview: UnitOverview, holder: string, title: string, body: string, note: string): string {
+  const hero = heroFrom(overview.details);
   return documentPage({
     title,
-    pageTitle: `${title} - ${unitHero.title}`,
-    meta: [
-      `${unitHero.title} · ${unitHero.meta}`,
-      `Prepared for ${residentName} · Generated ${formatDocumentDate(new Date())}`,
-    ],
+    pageTitle: `${title} - ${hero.title}`,
+    meta: [`${hero.title} · ${hero.meta}`, `Prepared for ${holder} · Generated ${formatDocumentDate(new Date())}`],
     body,
     note,
   });
 }
 
-const unitDetails = section(
-  'Unit',
-  detailsTable([
-    ['Building', overview.building],
-    ['Floor', overview.floor],
-    ['Unit Type', overview['unit-type']],
-    ['Area', heroStat.area],
-    ['Bedrooms', overview.bedrooms],
-    ['Bathrooms', overview.bathrooms],
-    ['Parking', overview.parking],
-    ['Ownership', heroStat.ownership],
-  ]),
-);
+function unitDetails(overview: UnitOverview): string {
+  const values = Object.fromEntries(overviewColumnsFrom(overview.details).flat().map((item) => [item.id, item.value]));
+  const hero = Object.fromEntries(heroFrom(overview.details).stats.map((item) => [item.id, item.value]));
+  return section(
+    'Unit',
+    detailsTable([
+      ['Building', values.building],
+      ['Floor', values.floor],
+      ['Unit Type', values['unit-type']],
+      ['Area', hero.area],
+      ['Bedrooms', values.bedrooms],
+      ['Bathrooms', values.bathrooms],
+      ['Parking', values.parking],
+    ]),
+  );
+}
 
-function contractSummary(): PdfDocument {
+const fileCode = (overview: UnitOverview) => overview.details.name.replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-|-$/g, '');
+
+export function contractSummary(overview: UnitOverview, holder: string): PdfDocument {
+  if (!overview.finance) throw new Error('Only owners have a contract summary.');
+  const figures = financialFrom(overview.finance);
+  const summary = Object.fromEntries(figures.summary.map((item) => [item.id, item.value]));
+  const schedule = Object.fromEntries(figures.schedule.map((item) => [item.id, item.value]));
+  const contract = overview.finance.contract;
   const body = [
     section(
       'Parties',
       detailsTable([
-        ['Resident', residentName],
-        ['Unit', unitHero.title],
-        ['Handover Status', overview.handover],
+        ['Owner', holder],
+        ['Unit', overview.details.name],
+        ['Signed', contract?.signedOn ? day(contract.signedOn) : '—'],
+        ['Handover Status', overview.details.handoverStatus ?? '—'],
       ]),
     ),
-    unitDetails,
+    unitDetails(overview),
     section(
       'Payment Terms',
       detailsTable([
         ['Unit Price', summary.price],
-        ['Amount Paid', `${summary.paid} (${financial.paidLabel})`],
+        ['Amount Paid', `${summary.paid} (${figures.paidLabel})`],
         ['Remaining Balance', summary.remaining],
         ['Next Installment', schedule['next-installment']],
         ['Due Date', schedule['due-date']],
         ['Remaining Installments', schedule['remaining-installments']],
       ]),
     ),
-    section(
-      'Maintenance Fees',
-      detailsTable(maintenanceFees.map((item) => [item.label, item.value] as const)),
-    ),
+    section('Maintenance Fees', detailsTable(maintenanceFeesFrom(overview.finance).map((item) => [item.label, item.value] as const))),
   ].join('');
-
   return {
     title: 'Contract Summary',
-    fileName: `Contract-Summary-${unitCode}`,
-    html: page(
-      'Contract Summary',
-      body,
-      'Generated in the Park Lane app from your account details. It summarises your contract and does not replace the signed contract.',
-    ),
+    fileName: `Contract-Summary-${fileCode(overview)}`,
+    html: page(overview, holder, 'Contract Summary', body, 'Made in the Park Lane app from building management’s records. It summarises your contract and does not replace the signed contract.'),
   };
 }
 
-function paymentReceipts(): PdfDocument {
-  const total = paymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
-  const rows = paymentHistory
+export function paymentReceipts(overview: UnitOverview, payments: readonly Payment[], holder: string): PdfDocument {
+  const total = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const rows = payments
     .map(
       (payment) =>
-        `<tr><td>${escapeHtml(payment.date)}</td><td>${escapeHtml(payment.description)}</td>` +
-        `<td>${escapeHtml(payment.id)}</td><td class="amount">${egp(payment.amount)}</td></tr>`,
+        `<tr><td>${escapeHtml(day(payment.paidOn))}</td><td>${escapeHtml(payment.chargeTitle ?? 'Payment')}</td>` +
+        `<td>${escapeHtml(payment.receiptNo)}</td><td class="amount">${escapeHtml(egp(payment.amount))}</td></tr>`,
     )
     .join('');
   const ledger =
-    '<table class="ledger"><thead><tr><th>Date</th><th>Description</th><th>Receipt No.</th>' +
-    '<th class="amount">Amount</th></tr></thead>' +
-    `<tbody>${rows}<tr class="total"><td colspan="3">Total paid (${paymentHistory.length} payments)</td>` +
-    `<td class="amount">${egp(total)}</td></tr></tbody></table>`;
-
+    '<table class="ledger"><thead><tr><th>Date</th><th>Description</th><th>Receipt No.</th><th class="amount">Amount</th></tr></thead>' +
+    `<tbody>${rows}<tr class="total"><td colspan="3">Total paid (${payments.length} payments)</td><td class="amount">${escapeHtml(egp(total))}</td></tr></tbody></table>`;
+  const contract = overview.finance?.contract;
   const body = [
-    section(
-      'Summary',
-      detailsTable([
-        ['Unit Price', summary.price],
-        ['Amount Paid', summary.paid],
-        ['Remaining Balance', summary.remaining],
-        ['Next Installment', `${schedule['next-installment']} on ${schedule['due-date']}`],
-      ]),
-    ),
-    section('Payments Received', ledger),
+    contract
+      ? section('Summary', detailsTable([['Unit Price', egp(contract.price)], ['Amount Paid', egp(contract.paid)], ['Remaining Balance', egp(contract.remaining)]]))
+      : '',
+    section('Payments Received', payments.length ? ledger : '<div class="placeholder">No payments have been recorded yet.</div>'),
   ].join('');
-
   return {
     title: 'Payment Receipts',
-    fileName: `Payment-Receipts-${unitCode}`,
-    html: page(
-      'Payment Receipts',
-      body,
-      'Generated in the Park Lane app from your payment history. Each line stands for the receipt issued with that payment.',
-    ),
+    fileName: `Payment-Receipts-${fileCode(overview)}`,
+    html: page(overview, holder, 'Payment Receipts', body, 'Made in the Park Lane app from building management’s records. Each line is a payment they recorded, with its receipt number.'),
   };
-}
-
-function floorPlan(): PdfDocument {
-  const body = [
-    unitDetails,
-    section(
-      'Plan',
-      `<div class="placeholder">The architectural floor plan for ${escapeHtml(unitHero.title)} ` +
-        'has not been added to the app yet.</div>',
-    ),
-  ].join('');
-
-  return {
-    title: 'Floor Plan',
-    fileName: `Floor-Plan-${unitCode}`,
-    html: page('Floor Plan', body, 'Generated in the Park Lane app from your unit details.'),
-  };
-}
-
-const builders: Record<DocumentId, () => PdfDocument> = {
-  contract: contractSummary,
-  receipts: paymentReceipts,
-  'floor-plan': floorPlan,
-};
-
-/** Renders the document behind a My Unit tile, dated today. */
-export function buildUnitDocument(id: DocumentId): PdfDocument {
-  return builders[id]();
 }

@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -19,6 +19,10 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useHomeDevices } from '../../features/home/hooks/useHomeDevices';
+import { activateScene, listAutomations, listScenes, setAutomation } from '../../features/home/services/homeApi';
+import { getEnergyLatest, getEnergySeries } from '../../features/series/services/seriesApi';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
+import { useQuarterHourly } from '../../lib/realtime/useQuarterHourly';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { capabilityOf, isOn, kindGlyph, kindLabel, roomGlyph, toggleCommand } from '../../features/home/services/capabilities';
 import type { Command, Device, DeviceKind } from '../../types/home.types';
@@ -56,6 +60,9 @@ import {
   smartHomeCopy as copy,
   type CurtainAction,
   type Scene,
+  automationRowsFrom,
+  energyFrom,
+  sceneTilesFrom,
 } from './SmartHomeScreen.data';
 import {
   ADD_BUTTON_SIZE,
@@ -180,6 +187,50 @@ function SmartHomeDashboard() {
   const [sceneId, setSceneId] = useState(activeSceneId);
   const [devicesOn, setDevicesOn] = useState(() => enabledMap(devices));
   const [automationsOn, setAutomationsOn] = useState(() => enabledMap(automations));
+
+  // The apartment's own scenes, automations and energy, when its hub and the quarter-hour data have them. Without
+  // them, builds with sample content show the design's sample; the store build leaves the panel out.
+  const homeScenes = useFocusQuery(listScenes);
+  const homeAutomations = useFocusQuery(listAutomations);
+  const loadEnergy = useCallback(async () => {
+    const latest = await getEnergyLatest();
+    if (!latest) return null;
+    const days = await getEnergySeries(['total'], new Date(Date.parse(latest.at) - 2 * 86_400_000).toISOString(), latest.at, '1d').catch(() => null);
+    const yesterday = days && days.points.length >= 2 ? days.points[days.points.length - 2] : null;
+    return { latest, yesterdayKwh: yesterday ? Math.round(yesterday.avg.total * 96 * 10) / 10 : null };
+  }, []);
+  const homeEnergy = useQuarterHourly(loadEnergy, 'energy.reading');
+  const liveScenes = homeScenes.data && homeScenes.data.length > 0 ? sceneTilesFrom(homeScenes.data) : null;
+  const liveAutomations = homeAutomations.data && homeAutomations.data.length > 0 ? automationRowsFrom(homeAutomations.data) : null;
+  // Simulated energy (a demo apartment) is labelled in development builds and never shown in the store build.
+  const energyReading = homeEnergy.data && (flags.sampleContent || homeEnergy.data.latest.source === 'live') ? homeEnergy.data : null;
+  const liveEnergy = energyReading ? energyFrom(energyReading.latest, energyReading.yesterdayKwh) : null;
+  const sceneList = liveScenes?.tiles ?? scenes;
+  const automationList = liveAutomations ?? automations;
+  const energyView = liveEnergy ?? energy;
+  const [pendingScene, setPendingScene] = useState<string | null>(null);
+  const activeScene = liveScenes ? (pendingScene ?? liveScenes.activeId) : sceneId;
+  const reloadScenes = homeScenes.reload;
+  const reloadAutomations = homeAutomations.reload;
+  const chooseScene = (id: string) => {
+    if (!liveScenes) {
+      setSceneId(id);
+      return;
+    }
+    setPendingScene(id);
+    activateScene(id)
+      .catch(() => setPendingScene(null))
+      .finally(reloadScenes);
+  };
+  const toggleAutomation = (id: string, next: boolean) => {
+    if (!liveAutomations) {
+      setAutomationsOn((current) => ({ ...current, [id]: next }));
+      return;
+    }
+    setAutomation(id, next ? 'enable' : 'disable')
+      .catch(() => undefined)
+      .finally(reloadAutomations);
+  };
   const [expanded, setExpanded] = useState<Record<ExpandablePanel, boolean>>({
     scenes: false,
     energy: false,
@@ -194,7 +245,7 @@ function SmartHomeDashboard() {
     onActionPress: () => setExpanded((current) => ({ ...current, [panel]: !current[panel] })),
   });
 
-  const visibleScenes = expanded.scenes ? scenes : scenes.slice(0, previewCounts.scenes);
+  const visibleScenes = expanded.scenes ? sceneList : sceneList.slice(0, previewCounts.scenes);
   const deviceItems: DeviceItem[] = live
     ? roomDevices.map((device) => ({
         id: device.id,
@@ -223,8 +274,8 @@ function SmartHomeDashboard() {
     ? deviceItems
     : deviceItems.slice(0, previewCounts.devices);
   const visibleAutomations = expanded.automations
-    ? automations
-    : automations.slice(0, previewCounts.automations);
+    ? automationList
+    : automationList.slice(0, previewCounts.automations);
 
   const menuItems = useMemo<readonly AppMenuItem[]>(
     () => [
@@ -588,8 +639,8 @@ function SmartHomeDashboard() {
                   ))}
                 </View>
 
-                {/* Scenes, energy and automations are sample data: left out of the store build. */}
-                {flags.sampleContent ? (
+                {/* Scenes, energy and automations: the apartment's own, or (builds with sample content) the design's. */}
+                {liveScenes || flags.sampleContent ? (
                 <NeonPanel>
                   <PanelHeading
                     title={copy.scenesTitle}
@@ -609,8 +660,8 @@ function SmartHomeDashboard() {
                             photo={scene.photo ? images[scene.photo] : undefined}
                             iconSet={scene.iconSet}
                             iconName={scene.iconName}
-                            active={scene.id === sceneId}
-                            onPress={() => setSceneId(scene.id)}
+                            active={scene.id === activeScene}
+                            onPress={() => chooseScene(scene.id)}
                           />
                         ))}
                         {Array.from({ length: SCENES_PER_ROW - row.length }, (_, index) => (
@@ -623,35 +674,35 @@ function SmartHomeDashboard() {
                 ) : null}
               </>
               <>
-                {flags.sampleContent ? (
+                {liveEnergy || flags.sampleContent ? (
                 <NeonPanel>
                   <PanelHeading
                     title={copy.energyTitle}
-                    subtitle={copy.energySubtitle}
+                    subtitle={liveEnergy?.simulated ? copy.energySimulated : copy.energySubtitle}
                     icon={headingIcon('leaf-outline', theme.colors.textPrimary)}
                     iconSize={HEADING_ICON_SIZE}
-                    {...viewAll('energy')}
+                    {...(liveEnergy ? {} : viewAll('energy'))}
                     divider={false}
                   />
                   <View style={[styles.energyBody, layout.energyStacked && styles.energyStacked]}>
                     <View style={layout.energyStacked && styles.energyGaugeStacked}>
                       <EnergyGauge
-                        value={formatKwh(energy.todayKwh)}
+                        value={formatKwh(energyView.todayKwh)}
                         caption="Today"
-                        fraction={energy.todayKwh / energy.dailyBudgetKwh}
-                        trend={`${Math.abs(energy.changePercent)}%`}
-                        trendDown={energy.changePercent < 0}
+                        fraction={Math.min(1, energyView.todayKwh / energyView.dailyBudgetKwh)}
+                        trend={`${Math.abs(energyView.changePercent)}%`}
+                        trendDown={energyView.changePercent < 0}
                         trendCaption="vs. yesterday"
                         size={GAUGE_SIZE}
                       />
                     </View>
                     <View style={[styles.energyRows, layout.energyStacked && styles.energyRowsStacked]}>
-                      {energy.breakdown.map((row) =>
+                      {energyView.breakdown.map((row) =>
                         energyRow({ ...row, iconColor: theme.colors[row.iconColor] }),
                       )}
                     </View>
                   </View>
-                  {expanded.energy ? (
+                  {expanded.energy && !liveEnergy ? (
                     <View style={styles.energyRooms}>
                       <AppText
                         variant="statLabel"
@@ -747,7 +798,7 @@ function SmartHomeDashboard() {
                   </View>
                 </NeonPanel>
 
-                {flags.sampleContent ? (
+                {liveAutomations || flags.sampleContent ? (
                 <NeonPanel>
                   <PanelHeading
                     title={copy.automationTitle}
@@ -765,10 +816,8 @@ function SmartHomeDashboard() {
                         summary={automation.summary}
                         iconSet={automation.iconSet}
                         iconName={automation.iconName}
-                        enabled={automationsOn[automation.id] ?? automation.enabled}
-                        onToggle={(next) =>
-                          setAutomationsOn((current) => ({ ...current, [automation.id]: next }))
-                        }
+                        enabled={liveAutomations ? automation.enabled : (automationsOn[automation.id] ?? automation.enabled)}
+                        onToggle={(next) => toggleAutomation(automation.id, next)}
                         // TODO(nav): open the automation once its editor is designed.
                         onPress={notYetRouted}
                       />

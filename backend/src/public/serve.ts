@@ -37,7 +37,13 @@ const FILES: Record<string, { type: string; body: Buffer }> = {
   '/account/delete': { type: 'text/html; charset=utf-8', body: Buffer.from(fill(read('delete.html'))) },
   '/public/delete.js': { type: 'text/javascript; charset=utf-8', body: Buffer.from(read('delete.js')) },
   '/public/page.css': { type: 'text/css; charset=utf-8', body: Buffer.from(read('page.css')) },
+  '/public/pass.js': { type: 'text/javascript; charset=utf-8', body: Buffer.from(read('pass.js')) },
+  '/public/pass.css': { type: 'text/css; charset=utf-8', body: Buffer.from(read('pass.css')) },
 };
+
+/** A visitor's parking pass: one page for every link; its script reads the token from the address. */
+const PASS_PAGE = { type: 'text/html; charset=utf-8', body: Buffer.from(read('pass.html')) };
+const PASS_PATH = /^\/parking\/pass\/inv_[A-Za-z0-9_-]{20,40}$/;
 
 const HEADERS = {
   'Cache-Control': 'no-cache',
@@ -50,11 +56,13 @@ const HEADERS = {
 
 /** Answers a request for one of the public pages; false for any other path. */
 export function servePublic(path: string, method: string | undefined, res: ServerResponse): boolean {
-  const file = FILES[path.length > 1 ? path.replace(/\/+$/, '') : path];
+  const passPage = PASS_PATH.test(path);
+  const file = passPage ? PASS_PAGE : FILES[path.length > 1 ? path.replace(/\/+$/, '') : path];
   if (!file || (method !== 'GET' && method !== 'HEAD')) {
     return false;
   }
-  res.writeHead(200, { ...HEADERS, 'Content-Type': file.type, 'Content-Length': file.body.length });
+  // The pass page's address is its key: never cached or kept by a proxy.
+  res.writeHead(200, { ...HEADERS, ...(passPage ? { 'Cache-Control': 'no-store' } : {}), 'Content-Type': file.type, 'Content-Length': file.body.length });
   res.end(method === 'HEAD' ? undefined : file.body);
   return true;
 }
