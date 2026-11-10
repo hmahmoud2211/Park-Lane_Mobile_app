@@ -1,5 +1,5 @@
+import { flags } from '../../config/flags';
 import type { IconSet } from '../../types/icons.types';
-import type { ParamlessRoute } from '../../types/navigation.types';
 
 /**
  * Content for the Settings screen. Wording matches the Figma reference
@@ -11,6 +11,9 @@ export const settingsCopy = {
   subtitle: 'Manage your account and preferences.',
 } as const;
 
+/** The screens a row can open; kept to these few so navigate() checks each one. */
+export type SettingsRoute = 'Profile' | 'EmsDevices' | 'AccountSecurity' | 'HelpSupport' | 'Notifications';
+
 export interface SettingsItem {
   id: string;
   title: string;
@@ -18,14 +21,14 @@ export interface SettingsItem {
   iconSet: IconSet;
   iconName: string;
   /** Screen the row opens. */
-  route?: ParamlessRoute;
-  /** Signs the resident out instead of opening a screen. */
-  action?: 'logout';
+  route?: SettingsRoute;
+  /** Signs the resident out, or opens the privacy policy, instead of opening a screen. */
+  action?: 'logout' | 'privacy';
   // Rows with neither open the "Under Development" placeholder until their
-  // screen is designed.
+  // screen is designed; the store build leaves those rows out (flags.sampleContent).
 }
 
-export const settingsItems: readonly SettingsItem[] = [
+const allSettingsItems: readonly SettingsItem[] = [
   {
     id: 'profile',
     title: 'Profile',
@@ -45,16 +48,18 @@ export const settingsItems: readonly SettingsItem[] = [
   {
     id: 'notifications',
     title: 'Notifications',
-    description: 'Manage your notification preferences.',
+    description: 'Your updates, and what to be told about.',
     iconSet: 'ionicons',
     iconName: 'notifications-outline',
+    route: 'Notifications',
   },
   {
     id: 'security',
-    title: 'Security',
-    description: 'Update your password and security settings.',
+    title: 'Account & security',
+    description: 'Change your password, sign out other phones or delete your account.',
     iconSet: 'ionicons',
     iconName: 'shield-checkmark-outline',
+    route: 'AccountSecurity',
   },
   {
     id: 'language',
@@ -80,9 +85,18 @@ export const settingsItems: readonly SettingsItem[] = [
   {
     id: 'help',
     title: 'Help & Support',
-    description: 'Get assistance or explore FAQs.',
+    description: 'Contact building management and get help.',
     iconSet: 'ionicons',
     iconName: 'headset-outline',
+    route: 'HelpSupport',
+  },
+  {
+    id: 'privacy',
+    title: 'Privacy Policy',
+    description: 'What we collect, who receives it and how to delete it.',
+    iconSet: 'ionicons',
+    iconName: 'document-lock-outline',
+    action: 'privacy',
   },
   {
     id: 'logout',
@@ -93,3 +107,8 @@ export const settingsItems: readonly SettingsItem[] = [
     action: 'logout',
   },
 ];
+
+/** The rows on screen: a row with no screen yet is a placeholder, which the store build leaves out. */
+export const settingsItems: readonly SettingsItem[] = flags.sampleContent
+  ? allSettingsItems
+  : allSettingsItems.filter((item) => item.route || item.action);

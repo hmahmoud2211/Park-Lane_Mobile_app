@@ -1,5 +1,6 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
+import { flags } from '../../../config/flags';
 import type { AnswerSummary } from '../services/assistant.types';
 import type { ParamlessRoute } from '../../../types/navigation.types';
 import { SHORT_MONTHS } from '../../../utils/format';
@@ -31,8 +32,15 @@ const INTENTS: Record<string, IntentMeta> = {
   general_knowledge: { label: 'General', icon: 'sparkles-outline' },
 };
 
+/** Shortcuts to screens the store build leaves out (flags.sampleContent). */
+const SAMPLE_ONLY_ROUTES: ReadonlySet<NonNullable<IntentMeta['route']>> = new Set(['MyUnit', 'Parking', 'VisitorAccess', 'Maintenance']);
+
 export function intentMeta(intent: unknown): IntentMeta | null {
-  return typeof intent === 'string' ? (INTENTS[intent] ?? null) : null;
+  const meta = typeof intent === 'string' ? (INTENTS[intent] ?? null) : null;
+  if (meta?.route && !flags.sampleContent && SAMPLE_ONLY_ROUTES.has(meta.route)) {
+    return { label: meta.label, icon: meta.icon };
+  }
+  return meta;
 }
 
 export type InsightTone = 'info' | 'warning' | 'error';
@@ -91,7 +99,8 @@ export function insightsFor(summary: AnswerSummary | undefined): Insight[] {
   }
   const insights: Insight[] = [];
 
-  if (summary.resident_required) {
+  // The chip opens the resident picker, which only development builds have.
+  if (summary.resident_required && flags.sampleContent) {
     insights.push({
       id: 'sign-in',
       tone: 'info',

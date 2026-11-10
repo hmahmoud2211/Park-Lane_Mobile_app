@@ -51,17 +51,13 @@ export const defaultPolicy: PolicySettings = {
 /** Display and booking timezone. Storage is always UTC. */
 export const SITE_TIME_ZONE = 'Africa/Cairo';
 
-/** Fictional compound identity shown on passes. */
+/**
+ * The compound's identity on passes. The security desk's number comes from the backend (building management's
+ * Compound rules); the offline demo uses its own made-up number (demoPeople.ts).
+ */
 export const siteInfo = {
   compoundName: brand.compoundName,
-  city: 'New Capital (demo)',
-  /** Fictional number for the demo; replace with the real security desk. */
-  securityPhone: '+20 2 0000 0100',
+  city: 'New Capital',
   /** Turns a local number such as 0100 123 4567 into +20 100 123 4567 for WhatsApp. */
   countryCallingCode: '20',
-  /**
-   * Base URL for invitation links on native, where there is no page origin.
-   * On web the page's own origin is used. Fictional placeholder.
-   */
-  nativeInviteBaseUrl: 'https://parklane-demo.example',
 } as const;

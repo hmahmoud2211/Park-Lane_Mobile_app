@@ -163,6 +163,18 @@ export function createStyles(theme: AppTheme) {
       paddingVertical: DETAILS_VERTICAL,
     },
 
+    // Not in the design: cancelling a request that hasn't started, and the empty panel's line.
+    cancelLink: {
+      alignSelf: 'flex-start',
+      marginLeft: DETAILS_INSET,
+      marginBottom: PANEL_INSET,
+    },
+    emptyText: {
+      paddingHorizontal: PANEL_INSET,
+      paddingTop: REQUEST_TOP,
+      paddingBottom: PANEL_INSET,
+    },
+
     // "View All" / "My Requests": the other requests, under the active one's details.
     history: {
       paddingBottom: PANEL_INSET,

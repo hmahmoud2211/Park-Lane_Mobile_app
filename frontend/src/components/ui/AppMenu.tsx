@@ -107,9 +107,12 @@ export function AppMenu({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close menu">
+      {/* Not an accessible element itself, or VoiceOver reads it as one and can't reach the items. */}
+      <Pressable style={styles.backdrop} onPress={onClose} accessible={false} onAccessibilityEscape={onClose}>
         {/* Swallows taps on the panel so they do not dismiss it. */}
         <Pressable
+          accessible={false}
+          onAccessibilityEscape={onClose}
           style={[
             styles.anchor,
             align === 'right' ? styles.anchorRight : styles.anchorLeft,

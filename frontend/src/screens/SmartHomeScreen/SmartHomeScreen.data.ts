@@ -1,3 +1,6 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import type { HomeAutomation, HomeScene } from '../../../../shared/contracts/home';
+import type { EnergyLatest } from '../../../../shared/contracts/series';
 import type { IconSet } from '../../types/icons.types';
 import type { ImageKey } from '../../constants/images';
 import type { colors } from '../../theme/colors';
@@ -24,6 +27,8 @@ export const smartHomeCopy = {
   scenesSubtitle: 'One tap for the perfect atmosphere.',
   energyTitle: 'Energy Usage',
   energySubtitle: 'Live monitoring for a smarter home.',
+  /** Not in the design: the energy card's subtitle when the figures are simulated (a demo apartment). */
+  energySimulated: 'Simulated data · updates every 15 minutes.',
   devicesTitle: 'Smart Devices',
   devicesSubtitle: 'Manage all your connected devices.',
   automationTitle: 'Device Automation',
@@ -304,3 +309,66 @@ export const automations: readonly Automation[] = [
     iconName: 'flash-off-outline',
   },
 ];
+
+/* ------------------------------------------------------------ From the home */
+
+/** A Home Assistant icon ("mdi:movie") as the app's Material set names it, if the set has it. */
+function mdi(icon: string | null): string | null {
+  if (!icon?.startsWith('mdi:')) return null;
+  const name = icon.slice(4);
+  return name in MaterialCommunityIcons.glyphMap ? name : null;
+}
+
+/** The design's photos, for scenes whose names match them. */
+const SCENE_PHOTOS: readonly [RegExp, Scene['photo']][] = [
+  [/welcome|arriv|home/i, 'sceneWelcome'],
+  [/relax|calm|read/i, 'sceneRelax'],
+  [/movie|cinema|tv/i, 'sceneMovie'],
+  [/night|sleep|bed/i, 'sceneNight'],
+];
+
+/** The apartment's scenes as tiles; the one run most recently is shown as active. */
+export function sceneTilesFrom(list: readonly HomeScene[]): { tiles: Scene[]; activeId: string | null } {
+  const tiles = list.map((scene) => ({
+    id: scene.id,
+    label: scene.name,
+    photo: SCENE_PHOTOS.find(([pattern]) => pattern.test(scene.name))?.[1],
+    iconSet: 'material' as const,
+    iconName: mdi(scene.icon) ?? 'palette-outline',
+  }));
+  const latest = [...list].filter((scene) => scene.lastActivated).sort((a, b) => Date.parse(b.lastActivated!) - Date.parse(a.lastActivated!))[0];
+  return { tiles, activeId: latest?.id ?? null };
+}
+
+export function automationRowsFrom(list: readonly HomeAutomation[]): Automation[] {
+  return list.map((automation) => ({
+    id: automation.id,
+    title: automation.name,
+    summary: automation.lastTriggered
+      ? `Last ran ${new Date(automation.lastTriggered).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Cairo' })}`
+      : 'Not run yet',
+    iconSet: 'ionicons' as const,
+    iconName: automation.enabled ? 'flash-outline' : 'flash-off-outline',
+    enabled: automation.enabled,
+  }));
+}
+
+/** Today's energy from the quarter-hour data, in the energy card's shape, against yesterday's pace. */
+export function energyFrom(latest: EnergyLatest, yesterdayKwh: number | null) {
+  const elapsed = Math.max(1, Math.round((Date.parse(latest.at) - Date.parse(latest.at.slice(0, 10))) / 900_000) + 1);
+  const pace = latest.today.total / elapsed;
+  const yesterdayPace = yesterdayKwh !== null && yesterdayKwh > 0 ? yesterdayKwh / 96 : null;
+  return {
+    todayKwh: latest.today.total,
+    // The gauge fills against yesterday's whole day, or a typical apartment day without it.
+    dailyBudgetKwh: yesterdayKwh && yesterdayKwh > 0 ? yesterdayKwh : 28,
+    changePercent: yesterdayPace ? Math.round(((pace - yesterdayPace) / yesterdayPace) * 100) : 0,
+    breakdown: [
+      { id: 'lighting', label: 'Lighting', kwh: latest.today.lighting, iconSet: 'material', iconName: 'lightbulb-on-outline', iconColor: 'iconWarm' },
+      { id: 'ac', label: 'AC', kwh: latest.today.ac, iconSet: 'material', iconName: 'snowflake', iconColor: 'iconWarm' },
+      { id: 'media', label: 'TV & Media', kwh: latest.today.media, iconSet: 'material', iconName: 'monitor', iconColor: 'textPrimary' },
+      { id: 'other', label: 'Other', kwh: latest.today.other, iconSet: 'material', iconName: 'power-socket-eu', iconColor: 'textPrimary' },
+    ] satisfies readonly EnergyRow[],
+    simulated: latest.source === 'simulated',
+  };
+}

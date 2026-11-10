@@ -22,12 +22,12 @@ export const dataUsePoints: Record<HealthLang, readonly DataUsePoint[]> = {
     {
       icon: 'scan-outline',
       title: 'How documents are read',
-      body: 'When you upload a photo or PDF, AI on Parklane’s own servers reads it. You check every item before anything is saved, and originals may be deleted once you’ve confirmed them.',
+      body: 'When you upload a photo or PDF, it is sent to an outside AI service (Google Gemini or Anthropic Claude) to read it. You check every item before anything is saved, and originals may be deleted once you’ve confirmed them.',
     },
     {
       icon: 'mic-outline',
       title: 'Summaries for your doctor',
-      body: 'Only you, and anyone you share a record with, can create a spoken summary of it, each time one is asked for. It is made on our servers from what has been saved.',
+      body: 'Only you, and anyone you share a record with, can create a spoken summary of it, each time one is asked for. To make it, the saved record is sent to that AI service, and the text to ElevenLabs to read it aloud.',
     },
     {
       icon: 'people-outline',
@@ -42,7 +42,7 @@ export const dataUsePoints: Record<HealthLang, readonly DataUsePoint[]> = {
     {
       icon: 'information-circle-outline',
       title: 'Not medical advice',
-      body: 'Health Passport keeps and reads out your records. It does not diagnose or give medical advice.',
+      body: 'Health Passport keeps and reads out your records. It is not a medical device and does not diagnose, treat or give medical advice. AI can make mistakes, so always ask a doctor or pharmacist before making a medical decision.',
     },
   ],
   ar: [
@@ -54,12 +54,12 @@ export const dataUsePoints: Record<HealthLang, readonly DataUsePoint[]> = {
     {
       icon: 'scan-outline',
       title: 'كيف تُقرأ المستندات',
-      body: 'عند رفع صورة أو ملف PDF، يقرؤه الذكاء الاصطناعي على خوادم Parklane الخاصة. تراجع أنت كل عنصر قبل حفظ أي شيء، وقد تُحذف الملفات الأصلية بعد تأكيدها.',
+      body: 'عند رفع صورة أو ملف PDF، يُرسل إلى خدمة ذكاء اصطناعي خارجية (Google Gemini أو Anthropic Claude) لقراءته. تراجع أنت كل عنصر قبل حفظ أي شيء، وقد تُحذف الملفات الأصلية بعد تأكيدها.',
     },
     {
       icon: 'mic-outline',
       title: 'ملخصات لطبيبك',
-      body: 'أنت ومن تشاركه سجلًا فقط يمكنكم إنشاء ملخص صوتي له، في كل مرة يُطلب. يُعد الملخص على خوادمنا مما حُفظ.',
+      body: 'أنت ومن تشاركه سجلًا فقط يمكنكم إنشاء ملخص صوتي له، في كل مرة يُطلب. لإعداده يُرسل السجل المحفوظ إلى خدمة الذكاء الاصطناعي نفسها، ويُرسل النص إلى ElevenLabs لقراءته بصوت.',
     },
     {
       icon: 'people-outline',
@@ -74,7 +74,7 @@ export const dataUsePoints: Record<HealthLang, readonly DataUsePoint[]> = {
     {
       icon: 'information-circle-outline',
       title: 'ليس نصيحة طبية',
-      body: 'يحفظ جواز السفر الصحي سجلاتك ويقرؤها. ولا يقدم تشخيصًا أو نصيحة طبية.',
+      body: 'يحفظ جواز السفر الصحي سجلاتك ويقرؤها. وهو ليس جهازًا طبيًا ولا يقدم تشخيصًا أو علاجًا أو نصيحة طبية. قد يخطئ الذكاء الاصطناعي، لذا راجع طبيبًا أو صيدليًا دائمًا قبل اتخاذ أي قرار طبي.',
     },
   ],
 };

@@ -18,25 +18,9 @@ import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
-import {
-  bmsCopy as copy,
-  cameras,
-  elevator,
-  energyFeeds,
-  gates,
-  generator,
-  internet,
-  mainBoard,
-  networkReadings,
-  percent,
-  pumps,
-  safetySystems,
-  summaryFigures,
-  systemHealth,
-  ventilationFans,
-  waterTank,
-  type StatusReading,
-} from './BmsScreen.data';
+import { getBmsLatest } from '../../features/series/services/seriesApi';
+import { useQuarterHourly } from '../../lib/realtime/useQuarterHourly';
+import { bmsCopy as copy, bmsViewFrom, percent, sampleBms, type StatusReading } from './BmsScreen.data';
 import {
   BANNER_HEIGHT,
   CARD_GAP,
@@ -77,6 +61,11 @@ export function BmsScreen() {
   const scale = contentScaleFor(screen.columnFrameWidth);
   const styles = useMemo(() => createStyles(theme, scale), [theme, scale]);
   const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
+  // The compound's latest quarter-hour reading; a new one arrives by itself every 15 minutes. Without one (no
+  // building feed for this compound yet), the design's sample figures, labelled as such.
+  const bms = useQuarterHourly(getBmsLatest, 'bms.reading');
+  const view = bms.data ? bmsViewFrom(bms.data) : sampleBms;
+  const { systemHealth, summaryFigures, ventilationFans, mainBoard, generator, energyFeeds, internet, networkReadings, gates, cameras, elevator, waterTank, pumps, safetySystems } = view;
 
   /** A tile with a reading's name over its state, as the fans are drawn. */
   const fanTile = (fan: StatusReading) => (
@@ -444,9 +433,10 @@ export function BmsScreen() {
     >
       <TypeScaleContext value={scale}>
         <PageHeader title={copy.title} onMenuPress={() => setMenuOpen(true)} style={styles.header} />
+        {view.dataLabel ? <StatusChip label={view.dataLabel} tone="amber" style={styles.dataChip} /> : null}
 
         <FeatureBanner
-          title={copy.bannerTitle}
+          title={view.banner.title}
           body={copy.bannerBody}
           photo={images.bmsHero}
           photoAspect={imageAspects.bmsHero}
@@ -457,7 +447,7 @@ export function BmsScreen() {
             <View style={styles.bannerStatus}>
               <View style={styles.bannerDot} />
               <AppText variant="statValueLarge" color={theme.colors.bmsStatusBright}>
-                {copy.bannerStatus}
+                {view.banner.status}
               </AppText>
             </View>
           }

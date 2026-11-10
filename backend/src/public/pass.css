@@ -1,0 +1,10 @@
+/* The visitor's parking pass (/parking/pass/<token>): the QR on white so any gate scanner reads it, in light and dark. */
+.status { display: inline-block; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.9rem; font-weight: 600; }
+.qr { display: block; width: min(280px, 80vw); height: auto; margin: 16px auto; background: #ffffff; border-radius: 12px; padding: 8px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 12px 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 600; }
+.actions button { background: var(--accent); margin-right: 8px; }
+.actions button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.done { color: var(--muted); }
+ol { padding-left: 1.2rem; }

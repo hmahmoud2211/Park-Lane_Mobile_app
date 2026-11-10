@@ -18,18 +18,15 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
 import { AddDeviceScreen } from '../screens/AddDeviceScreen';
 import { AcControlScreen } from '../screens/AcControlScreen';
-import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
-import { BmsScreen } from '../screens/BmsScreen';
+import { AccountSecurityScreen } from '../screens/AccountSecurityScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
-import { ChargingSessionScreen } from '../screens/ChargingSessionScreen';
 import { ClinicAppointmentScreen } from '../screens/ClinicAppointmentScreen';
 import { ClinicBookingScreen } from '../screens/ClinicBookingScreen';
 import { ClinicDoctorScreen } from '../screens/ClinicDoctorScreen';
 import { ClinicScreen } from '../screens/ClinicScreen';
-import { CommunityScreen } from '../screens/CommunityScreen';
 import { ConnectAccountScreen } from '../screens/ConnectAccountScreen';
-import { DemoControlsScreen } from '../screens/DemoControlsScreen';
+import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { DeviceDetailScreen } from '../screens/DeviceDetailScreen';
 import { DeviceDiscoveryScreen } from '../screens/DeviceDiscoveryScreen';
 import { DeviceProvisioningScreen } from '../screens/DeviceProvisioningScreen';
@@ -37,7 +34,6 @@ import { DeviceSetupScreen } from '../screens/DeviceSetupScreen';
 import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { GatewaySetupScreen } from '../screens/GatewaySetupScreen';
-import { GuestPassScreen } from '../screens/GuestPassScreen';
 import { HealthConsultationScreen } from '../screens/HealthConsultationScreen';
 import { HealthDocumentScreen } from '../screens/HealthDocumentScreen';
 import { HealthItemFormScreen } from '../screens/HealthItemFormScreen';
@@ -50,27 +46,48 @@ import { HealthSettingsScreen } from '../screens/HealthSettingsScreen';
 import { HealthShareScreen } from '../screens/HealthShareScreen';
 import { HealthSummaryScreen } from '../screens/HealthSummaryScreen';
 import { HealthUploadScreen } from '../screens/HealthUploadScreen';
+import { HelpSupportScreen } from '../screens/HelpSupportScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LgPairingScreen } from '../screens/LgPairingScreen';
 import { LoginScreen } from '../screens/LoginScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { BillsScreen } from '../screens/BillsScreen';
+import { DeliveriesScreen } from '../screens/DeliveriesScreen';
 import { MaintenanceScreen } from '../screens/MaintenanceScreen';
+import { CommunityScreen } from '../screens/CommunityScreen';
+import { AmenitiesBookingScreen } from '../screens/AmenitiesBookingScreen';
 import { MyUnitScreen } from '../screens/MyUnitScreen';
-import { ParkingMapScreen } from '../screens/ParkingMapScreen';
-import { ParkingScreen } from '../screens/ParkingScreen';
+import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { ReservationDetailsScreen } from '../screens/ReservationDetailsScreen';
-import { ReservationHistoryScreen } from '../screens/ReservationHistoryScreen';
-import { ReserveParkingScreen } from '../screens/ReserveParkingScreen';
-import { SecurityConsoleScreen } from '../screens/SecurityConsoleScreen';
 import { ServicesScreen } from '../screens/ServicesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { SmartHomeScreen } from '../screens/SmartHomeScreen';
 import { UnderDevelopmentScreen } from '../screens/UnderDevelopmentScreen';
-import { VisitorAccessScreen } from '../screens/VisitorAccessScreen';
 import type { RootStackParamList } from '../types/navigation.types';
 import type { CurrentRoute, NavTab } from './navTabs';
 
+/**
+ * The screens that still show sample data (sampleScreens.tsx). A require, not an import, and the
+ * check written out rather than read from flags.ts, so the bundler can see it at build time and
+ * leave them out of the store build altogether.
+ */
+const sampleScreens =
+  process.env.EXPO_PUBLIC_STORE_MODE === '1'
+    ? null
+    : // eslint-disable-next-line @typescript-eslint/no-require-imports
+      (require('./sampleScreens') as typeof import('./sampleScreens')).sampleScreens;
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/**
+ * Parking's screens: a require behind a check written out in full, like the sample screens', so a store build
+ * without EXPO_PUBLIC_PARKING=1 leaves them out of the bundle (flags.parking is the same rule, for everything else).
+ */
+const parkingScreens =
+  process.env.EXPO_PUBLIC_STORE_MODE === '1' && process.env.EXPO_PUBLIC_PARKING !== '1'
+    ? null
+    : // eslint-disable-next-line @typescript-eslint/no-require-imports
+      (require('./parkingScreens') as typeof import('./parkingScreens')).parkingScreens;
 
 /** Lets the side rail, which sits outside the stack, navigate it and see where it is. */
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -85,7 +102,8 @@ const ROUTE_NAMES = [
   'ParkingMap', 'ChargingSession', 'SecurityConsole', 'DemoControls', 'HealthPassport',
   'HealthOnboarding', 'HealthProfile', 'HealthRecords', 'HealthDocument', 'HealthUpload',
   'HealthReview', 'HealthItemForm', 'HealthSummary', 'HealthSettings', 'HealthShare', 'HealthConsultation',
-  'Clinic', 'ClinicDoctor', 'ClinicBooking', 'ClinicAppointment',
+  'Clinic', 'ClinicDoctor', 'ClinicBooking', 'ClinicAppointment', 'AccountSecurity', 'DeleteAccount', 'HelpSupport', 'Notifications', 'Bills', 'Deliveries',
+  'Housekeeping', 'MovingRequest',
 ] as const satisfies readonly (keyof RootStackParamList)[];
 
 /**
@@ -115,21 +133,26 @@ const linking: LinkingOptions<RootStackParamList> = {
     screens: {
       ...visualRoutePaths(),
       FirstScreen: '',
-      Parking: 'parking',
-      ReserveParking: 'parking/reserve',
-      ReservationDetails: {
-        path: 'parking/reservation/:reservationId',
-        parse: {
-          justBooked: (value: string) => value === 'true',
-          justEdited: (value: string) => value === 'true',
-        },
-      },
-      ReservationHistory: 'parking/history',
-      ParkingMap: 'parking/map',
-      ChargingSession: 'parking/charging/:reservationId',
+      // Parking has addresses only in builds that include it (config/flags.ts).
+      ...(flags.parking
+        ? {
+            Parking: 'parking',
+            ReserveParking: 'parking/reserve',
+            ReservationDetails: {
+              path: 'parking/reservation/:reservationId',
+              parse: {
+                justBooked: (value: string) => value === 'true',
+                justEdited: (value: string) => value === 'true',
+              },
+            },
+            ReservationHistory: 'parking/history',
+            ParkingMap: 'parking/map',
+            ChargingSession: 'parking/charging/:reservationId',
+            GuestPass: 'pass/:invite',
+          }
+        : {}),
       // The demo's own tools get addresses only while the build includes them (config/flags.ts).
       ...(flags.demoTools ? { SecurityConsole: 'parking/security', DemoControls: 'parking/demo' } : {}),
-      GuestPass: 'pass/:invite',
       HealthPassport: 'health',
       Clinic: 'clinic',
     },
@@ -245,16 +268,15 @@ export function AppNavigator() {
         >
           <Stack.Screen name="FirstScreen" component={FirstScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ gestureEnabled: false }} />
+          {/* The forced step has no way back; changing one's password from Account & security does. */}
+          <Stack.Screen
+            name="ChangePassword"
+            component={ChangePasswordScreen}
+            options={({ route }) => ({ gestureEnabled: route.params?.voluntary === true })}
+          />
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="MyUnit" component={MyUnitScreen} />
-          <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
-          <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
-          <Stack.Screen name="Parking" component={ParkingScreen} />
-          <Stack.Screen name="Community" component={CommunityScreen} />
           <Stack.Screen name="SmartHome" component={SmartHomeScreen} />
-          <Stack.Screen name="Bms" component={BmsScreen} />
           <Stack.Screen name="EmsDevices" component={EmsDevicesScreen} />
           <Stack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
           <Stack.Screen name="ConnectAccount" component={ConnectAccountScreen} />
@@ -266,19 +288,36 @@ export function AppNavigator() {
           <Stack.Screen name="DeviceSetup" component={DeviceSetupScreen} />
           <Stack.Screen name="LgPairing" component={LgPairingScreen} />
           <Stack.Screen name="AcControl" component={AcControlScreen} />
-          <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
           <Stack.Screen name="Services" component={ServicesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
+          <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Bills" component={BillsScreen} />
+          <Stack.Screen name="Deliveries" component={DeliveriesScreen} />
+          {/* One screen, three kinds of request: it reads the route's name. */}
+          <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
+          <Stack.Screen name="Housekeeping" component={MaintenanceScreen} />
+          <Stack.Screen name="MovingRequest" component={MaintenanceScreen} />
+          <Stack.Screen name="Community" component={CommunityScreen} />
+          <Stack.Screen name="AmenitiesBooking" component={AmenitiesBookingScreen} />
+          <Stack.Screen name="MyUnit" component={MyUnitScreen} />
+          <Stack.Screen name="VisitorAccess" component={VisitorAccessScreen} />
+          {/* Parking from the backend; in the store build only once its real layout is confirmed (flags.parking). */}
+          {flags.parking && parkingScreens ? (
+            <Stack.Group>
+              <Stack.Screen name="Parking" component={parkingScreens.Parking} />
+              <Stack.Screen name="ReserveParking" component={parkingScreens.ReserveParking} />
+              <Stack.Screen name="ReservationDetails" component={parkingScreens.ReservationDetails} />
+              <Stack.Screen name="ReservationHistory" component={parkingScreens.ReservationHistory} />
+              <Stack.Screen name="GuestPass" component={parkingScreens.GuestPass} />
+              <Stack.Screen name="ParkingMap" component={parkingScreens.ParkingMap} />
+              <Stack.Screen name="ChargingSession" component={parkingScreens.ChargingSession} />
+            </Stack.Group>
+          ) : null}
           <Stack.Screen name="Assistant" component={AssistantScreen} />
           <Stack.Screen name="UnderDevelopment" component={UnderDevelopmentScreen} />
-          <Stack.Screen name="ReserveParking" component={ReserveParkingScreen} />
-          <Stack.Screen name="ReservationDetails" component={ReservationDetailsScreen} />
-          <Stack.Screen name="ReservationHistory" component={ReservationHistoryScreen} />
-          <Stack.Screen name="GuestPass" component={GuestPassScreen} />
-          <Stack.Screen name="ParkingMap" component={ParkingMapScreen} />
-          <Stack.Screen name="ChargingSession" component={ChargingSessionScreen} />
-          <Stack.Screen name="SecurityConsole" component={SecurityConsoleScreen} />
-          <Stack.Screen name="DemoControls" component={DemoControlsScreen} />
           <Stack.Screen name="HealthPassport" component={HealthPassportScreen} />
           <Stack.Screen name="HealthOnboarding" component={HealthOnboardingScreen} />
           <Stack.Screen name="HealthProfile" component={HealthProfileScreen} />
@@ -295,6 +334,17 @@ export function AppNavigator() {
           <Stack.Screen name="ClinicDoctor" component={ClinicDoctorScreen} />
           <Stack.Screen name="ClinicBooking" component={ClinicBookingScreen} />
           <Stack.Screen name="ClinicAppointment" component={ClinicAppointmentScreen} />
+          {/*
+            Sample data and on-device demos: left out of the store build (flags.sampleContent), where
+            nothing leads to them. Bring each back here once its backend exists.
+          */}
+          {sampleScreens ? (
+            <Stack.Group>
+              <Stack.Screen name="Bms" component={sampleScreens.Bms} />
+              {flags.demoTools ? <Stack.Screen name="SecurityConsole" component={sampleScreens.SecurityConsole} /> : null}
+              {flags.demoTools ? <Stack.Screen name="DemoControls" component={sampleScreens.DemoControls} /> : null}
+            </Stack.Group>
+          ) : null}
           {/* Register later screens here as their designs land. */}
         </Stack.Navigator>
       </AppShell>

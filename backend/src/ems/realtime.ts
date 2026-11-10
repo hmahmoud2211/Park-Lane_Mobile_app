@@ -13,6 +13,8 @@ import { subscribe, type UserEvent } from './events.ts';
  * Browsers cannot set headers on a WebSocket, so the client authenticates
  * with its first message, { type: 'auth', token }, within 10 seconds.
  * The server pings every 25 seconds; clients reconnect with back-off.
+ * Each ping also re-checks the token, so a signed-out, revoked or deleted
+ * session stops receiving events within one ping.
  */
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
@@ -41,6 +43,9 @@ class Connection {
   private buffer = Buffer.alloc(0);
   private closed = false;
   private unsubscribe: (() => void) | null = null;
+  /** Set once authenticated: whose events this socket carries, and the token that allowed it. */
+  userId: string | null = null;
+  private token = '';
   private readonly authTimer: NodeJS.Timeout;
   private readonly pingTimer: NodeJS.Timeout;
   private readonly socket: Duplex;
@@ -51,7 +56,16 @@ class Connection {
     socket.on('close', () => this.cleanup());
     socket.on('error', () => this.cleanup());
     this.authTimer = setTimeout(() => this.close(4401, 'auth timeout'), AUTH_TIMEOUT_MS);
-    this.pingTimer = setInterval(() => this.write(frame(0x9, Buffer.alloc(0))), PING_MS);
+    this.pingTimer = setInterval(() => this.ping(), PING_MS);
+  }
+
+  private ping() {
+    if (this.userId && !lookupToken(this.token, ['session'])) {
+      this.send({ type: 'error', code: 'unauthorized' });
+      this.close(4401, 'session ended');
+      return;
+    }
+    this.write(frame(0x9, Buffer.alloc(0)));
   }
 
   private write(data: Buffer) {
@@ -83,6 +97,7 @@ class Connection {
     clearInterval(this.pingTimer);
     this.unsubscribe?.();
     this.unsubscribe = null;
+    authenticated.delete(this);
   }
 
   private receive(chunk: Buffer) {
@@ -147,6 +162,9 @@ class Connection {
       return;
     }
     clearTimeout(this.authTimer);
+    this.userId = found.user_id;
+    this.token = token;
+    authenticated.add(this);
     this.unsubscribe = subscribe(found.user_id, (event: UserEvent) => this.send(event));
     this.send({ type: 'ready' });
   }
@@ -154,6 +172,18 @@ class Connection {
 
 /** Upgraded sockets are not the HTTP server's any more, so closing it has to end them here. */
 const open = new Set<Duplex>();
+/** Signed-in connections, for ending one account's at once. */
+const authenticated = new Set<Connection>();
+
+/** Ends every live connection of the account at once (e.g. it was deleted). */
+export function closeUserConnections(userId: string): void {
+  for (const connection of [...authenticated]) {
+    if (connection.userId === userId) {
+      connection.send({ type: 'error', code: 'unauthorized' });
+      connection.close(4401, 'session ended');
+    }
+  }
+}
 
 export function closeRealtimeConnections(): void {
   for (const socket of open) {

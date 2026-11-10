@@ -75,8 +75,9 @@ function Sheet({ title, body, options, onSelect, onClose, typeToConfirm, childre
   return (
     <Modal visible transparent animationType="fade" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <Pressable style={styles.backdrop} onPress={close} accessibilityLabel={t.actions.cancel}>
-          <Pressable style={styles.panelWrap} onPress={(event) => event.stopPropagation()}>
+        {/* Not accessible elements themselves, or VoiceOver can't reach the buttons inside. */}
+        <Pressable style={styles.backdrop} onPress={close} accessible={false} onAccessibilityEscape={close}>
+          <Pressable style={styles.panelWrap} onPress={(event) => event.stopPropagation()} accessible={false}>
             {/*
              * A plain tinted panel, not GlassSurface: the glass buttons inside
              * frost the backdrop themselves, and a blur nested in a blur

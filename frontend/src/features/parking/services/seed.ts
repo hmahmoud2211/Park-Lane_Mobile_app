@@ -15,17 +15,14 @@ import { cancelReservation, createReservation, type ReservationInput } from './r
 import { computeRoute, routeText } from './routing';
 import { runScheduledRules } from './scheduler';
 import {
-  associationDefs,
   buildingDefs,
   chargerDefs,
   connectorDefs,
   gateDefs,
-  propertyDefs,
-  residentDefs,
   spaceDefs,
-  vehicleDefs,
   zoneDefs,
 } from './site';
+import { associationDefs, propertyDefs, residentDefs, vehicleDefs } from './demoPeople';
 import { HOUR_MS, MINUTE_MS, addDaysToKey, cairoDateKey, cairoToUtc, iso } from './time';
 import { createTx, type Tx } from './tx';
 import type { Entity, ParkingDb, ParkingSpace } from './types';

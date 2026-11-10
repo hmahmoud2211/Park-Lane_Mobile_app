@@ -89,8 +89,9 @@ export function DateField({ label, value, onChange, error, hint, allowFuture = f
 
       {draft ? (
         <Modal visible transparent animationType="fade" onRequestClose={() => setDraft(null)}>
-          <Pressable style={styles.backdrop} onPress={() => setDraft(null)} accessibilityLabel={t.actions.cancel}>
-            <Pressable style={styles.panel} onPress={(event) => event.stopPropagation()}>
+          {/* Not accessible elements themselves, or VoiceOver can't reach the picker inside. */}
+          <Pressable style={styles.backdrop} onPress={() => setDraft(null)} accessible={false} onAccessibilityEscape={() => setDraft(null)}>
+            <Pressable style={styles.panel} onPress={(event) => event.stopPropagation()} accessible={false}>
               <DirectionView direction={lang === 'ar' ? 'rtl' : 'ltr'} style={styles.content}>
                 <DateTimePicker
                   value={draft}

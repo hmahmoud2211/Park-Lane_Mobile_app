@@ -1,10 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
+import * as WebBrowser from 'expo-web-browser';
 import { useMemo } from 'react';
 
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveGrid } from '../../components/layout/ResponsiveGrid';
 import { AppMenu } from '../../components/ui/AppMenu';
 import { LinkCard } from '../../components/ui/LinkCard';
+import { legal } from '../../config/legal';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { settingsCopy as copy, settingsItems, type SettingsItem } from './SettingsScreen.data';
@@ -21,6 +23,10 @@ export function SettingsScreen() {
   const open = (item: SettingsItem) => {
     if (item.action === 'logout') {
       handleLogout();
+    } else if (item.action === 'privacy') {
+      if (legal.privacyPolicyUrl) {
+        void WebBrowser.openBrowserAsync(legal.privacyPolicyUrl);
+      }
     } else if (item.route) {
       navigation.navigate(item.route);
     } else {

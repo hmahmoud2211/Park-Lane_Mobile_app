@@ -1,9 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as WebBrowser from 'expo-web-browser';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import { Alert, Pressable, ScrollView, useWindowDimensions, View, type ViewInstance } from 'react-native';
 
+import type { UnitOverview } from '../../../../shared/contracts/unitFinance';
 import { AppText } from '../../components/common/AppText';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { Notice } from '../../components/feedback/Notice';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
@@ -19,18 +24,21 @@ import { images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { downloadPdf, viewPdf } from '../../features/documents/services/exportPdf';
+import { useResidentIdentity } from '../../features/home/hooks/useResidentIdentity';
+import { getUnitOverview, getUnitPayments } from '../../features/unitFinance/services/unitApi';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
 import {
-  documents,
-  financial,
-  maintenanceFees,
+  documentTilesFrom,
+  financialFrom,
+  heroFrom,
+  maintenanceFeesFrom,
   myUnitCopy,
-  overviewColumns,
+  overviewColumnsFrom,
   sections,
-  unitHero,
-  utilities,
-  type DocumentId,
+  utilitiesFrom,
+  type DocumentItem,
 } from './MyUnitScreen.data';
-import { buildUnitDocument } from './MyUnitScreen.documents';
+import { contractSummary, paymentReceipts } from './MyUnitScreen.documents';
 import {
   UTILITY_ICON_GAP,
   UTILITY_ICON_SIZE,
@@ -45,6 +53,139 @@ function notYetRouted() {
   // TODO(nav): route to the section's detail screen once it is designed.
 }
 
+interface UnitViewProps {
+  overview: UnitOverview;
+  scale: number;
+  documents: readonly DocumentItem[];
+  preparing: string | null;
+  documentTiles: RefObject<Record<string, ViewInstance | null>>;
+  onOpenDocument: (doc: DocumentItem) => void;
+}
+
+/** The unit's cards, as the design draws them, filled from its records. Owners also see the money. */
+function UnitView({ overview, scale, documents, preparing, documentTiles, onOpenDocument }: UnitViewProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const hero = heroFrom(overview.details);
+  const overviewColumns = overviewColumnsFrom(overview.details);
+  const financial = overview.finance ? financialFrom(overview.finance) : null;
+  const maintenanceFees = overview.finance ? maintenanceFeesFrom(overview.finance) : null;
+  const utilities = utilitiesFrom(overview.meters);
+  return (
+    <>
+          <UnitHeroCard
+            title={hero.title}
+            meta={hero.meta}
+            stats={hero.stats}
+            statWeights={columns.hero.weights}
+            statScale={scale}
+            style={styles.hero}
+          />
+
+          {/* Unit and money on the left, running costs and papers on the right. */}
+          <ResponsiveColumns gap={CARD_GAP}>
+            <>
+              <SectionCard {...sections.overview} onPress={notYetRouted}>
+                <DividedRow weights={columns.overview.weights} gap={columns.overview.gap * scale}>
+                  {overviewColumns.map((column) => (
+                    <View key={column[0].id} style={styles.overviewColumn}>
+                      {renderStats(column, { scale })}
+                    </View>
+                  ))}
+                </DividedRow>
+              </SectionCard>
+
+              {financial ? (
+              <SectionCard {...sections.financial} onPress={notYetRouted}>
+                <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
+                  {renderStats(financial.summary, { size: 'large', scale })}
+                </DividedRow>
+
+                <View style={styles.progressRow}>
+                  <ProgressBar
+                    progress={financial.paidRatio}
+                    accessibilityLabel={financial.paidLabel}
+                    style={styles.progressBar}
+                  />
+                  <AppText variant="statValue" color={theme.colors.textPrimary}>
+                    {financial.paidLabel}
+                  </AppText>
+                </View>
+
+                <View style={styles.financialDivider} />
+
+                <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
+                  {renderStats(financial.schedule, { scale })}
+                </DividedRow>
+              </SectionCard>
+              ) : (
+                <AppText variant="bodySmall" color={theme.colors.textSecondary}>
+                  {myUnitCopy.memberNote}
+                </AppText>
+              )}
+            </>
+
+            <>
+              {maintenanceFees ? (
+                <SectionCard {...sections.maintenance} onPress={notYetRouted}>
+                  <DividedRow weights={columns.maintenance.weights} gap={columns.maintenance.gap * scale}>
+                    {renderStats(maintenanceFees, { scale })}
+                  </DividedRow>
+                </SectionCard>
+              ) : null}
+
+              <SectionCard {...sections.utilities} onPress={notYetRouted}>
+                <DividedRow weights={columns.utilities.weights} gap={columns.utilities.gap * scale}>
+                  {renderStats(utilities, {
+                    iconSize: UTILITY_ICON_SIZE,
+                    iconGap: UTILITY_ICON_GAP,
+                    trendOverhang: columns.utilities.gap,
+                    scale,
+                  })}
+                </DividedRow>
+              </SectionCard>
+
+              <SectionCard
+                {...sections.documents}
+                onPress={notYetRouted}
+                divider={false}
+                contentStyle={styles.documentsBody}
+              >
+                {documents.length === 0 ? (
+                  <AppText variant="bodySmall" color={theme.colors.textSecondary}>
+                    {myUnitCopy.noDocuments}
+                  </AppText>
+                ) : null}
+                {documents.map((doc) => (
+                  // Wrapped so the menu can measure where the tile sits.
+                  <View
+                    key={doc.id}
+                    ref={(node) => {
+                      documentTiles.current[doc.id] = node;
+                    }}
+                    collapsable={false}
+                    style={styles.documentTile}
+                  >
+                    <ServiceTile
+                      title={doc.title}
+                      subtitle={preparing === doc.id ? myUnitCopy.preparingDocument : doc.subtitle}
+                      iconSet={doc.iconSet}
+                      iconName={doc.iconName}
+                      compact
+                      nested
+                      glow
+                      scale={scale}
+                      onPress={() => onOpenDocument(doc)}
+                    />
+                  </View>
+                ))}
+              </SectionCard>
+            </>
+          </ResponsiveColumns>
+    </>
+  );
+}
+
 type StatRowOptions = Pick<StatItemProps, 'size' | 'iconSize' | 'iconGap' | 'trendOverhang' | 'scale'>;
 
 /** Maps a row of figures onto StatItems, keyed by their ids. */
@@ -54,7 +195,7 @@ function renderStats(items: readonly StatItemData[], options?: StatRowOptions) {
 
 /** The document whose menu is open, and where its tile sits on screen. */
 interface DocumentMenu {
-  id: DocumentId;
+  id: string;
   anchor: { y: number; height: number };
   align: 'left' | 'right';
 }
@@ -70,12 +211,23 @@ export function MyUnitScreen() {
   // The page's middle on screen: the side rail, if any, takes the window's left edge.
   const pageCenter = windowWidth - layout.frameWidth / 2;
   const [documentMenu, setDocumentMenu] = useState<DocumentMenu | null>(null);
-  const [preparing, setPreparing] = useState<DocumentId | null>(null);
-  const documentTiles = useRef<Partial<Record<DocumentId, ViewInstance | null>>>({});
+  const [preparing, setPreparing] = useState<string | null>(null);
+  const documentTiles = useRef<Record<string, ViewInstance | null>>({});
+  const identity = useResidentIdentity();
+
+  // The unit's records, and for an owner the payments too, so the receipts PDF opens straight from the tap.
+  const fetchUnit = useCallback(async () => {
+    const overview = await getUnitOverview();
+    const payments = overview.finance ? await getUnitPayments() : [];
+    return { overview, payments };
+  }, []);
+  const unit = useFocusQuery(fetchUnit);
+  const overview = unit.data?.overview;
+  const documents = useMemo(() => (overview ? documentTilesFrom(overview) : []), [overview]);
 
   // Hangs the View / Download menu off the tapped tile, on its side of the screen.
   const openDocumentMenu = useCallback(
-    (id: DocumentId) => {
+    (id: string) => {
       documentTiles.current[id]?.measureInWindow((x, y, tileWidth, tileHeight) => {
         setDocumentMenu({
           id,
@@ -87,22 +239,36 @@ export function MyUnitScreen() {
     [pageCenter],
   );
 
-  // The PDF is built from the screen's own data, on the device (frontend only).
+  // The PDF is made on the device from the records already loaded.
   const exportDocument = useCallback(
-    (id: DocumentId, action: 'view' | 'download') => {
+    (id: string, action: 'view' | 'download') => {
       setDocumentMenu(null);
-      if (preparing) {
+      if (preparing || !unit.data) {
         return;
       }
+      const { overview: records, payments } = unit.data;
       setPreparing(id);
       // Called straight from the tap, with no await first: the web build opens
       // a new tab, which browsers only allow inside a user gesture.
       const run = action === 'view' ? viewPdf : downloadPdf;
-      run(buildUnitDocument(id))
+      Promise.resolve()
+        .then(() => run(id === 'receipts' ? paymentReceipts(records, payments, identity.fullName) : contractSummary(records, identity.fullName)))
         .catch(() => Alert.alert(myUnitCopy.documentFailedTitle, myUnitCopy.documentFailedBody))
         .finally(() => setPreparing(null));
     },
-    [preparing],
+    [preparing, unit.data, identity.fullName],
+  );
+
+  // A file management uploaded opens as it is; the two the app makes get a View / Download menu.
+  const openDocument = useCallback(
+    (doc: DocumentItem) => {
+      if (doc.kind === 'uploaded' && doc.url) {
+        void WebBrowser.openBrowserAsync(doc.url);
+      } else {
+        openDocumentMenu(doc.id);
+      }
+    },
+    [openDocumentMenu],
   );
 
   const documentMenuItems = useMemo<readonly AppMenuItem[]>(() => {
@@ -158,102 +324,30 @@ export function MyUnitScreen() {
             }
           />
 
-          <UnitHeroCard
-            title={unitHero.title}
-            meta={unitHero.meta}
-            stats={unitHero.stats}
-            statWeights={columns.hero.weights}
-            statScale={scale}
-            style={styles.hero}
-          />
-
-          {/* Unit and money on the left, running costs and papers on the right. */}
-          <ResponsiveColumns gap={CARD_GAP}>
-            <>
-              <SectionCard {...sections.overview} onPress={notYetRouted}>
-                <DividedRow weights={columns.overview.weights} gap={columns.overview.gap * scale}>
-                  {overviewColumns.map((column) => (
-                    <View key={column[0].id} style={styles.overviewColumn}>
-                      {renderStats(column, { scale })}
-                    </View>
-                  ))}
-                </DividedRow>
-              </SectionCard>
-
-              <SectionCard {...sections.financial} onPress={notYetRouted}>
-                <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
-                  {renderStats(financial.summary, { size: 'large', scale })}
-                </DividedRow>
-
-                <View style={styles.progressRow}>
-                  <ProgressBar
-                    progress={financial.paidRatio}
-                    accessibilityLabel={financial.paidLabel}
-                    style={styles.progressBar}
-                  />
-                  <AppText variant="statValue" color={theme.colors.textPrimary}>
-                    {financial.paidLabel}
-                  </AppText>
-                </View>
-
-                <View style={styles.financialDivider} />
-
-                <DividedRow weights={columns.financial.weights} gap={columns.financial.gap * scale}>
-                  {renderStats(financial.schedule, { scale })}
-                </DividedRow>
-              </SectionCard>
-            </>
-
-            <>
-              <SectionCard {...sections.maintenance} onPress={notYetRouted}>
-                <DividedRow weights={columns.maintenance.weights} gap={columns.maintenance.gap * scale}>
-                  {renderStats(maintenanceFees, { scale })}
-                </DividedRow>
-              </SectionCard>
-
-              <SectionCard {...sections.utilities} onPress={notYetRouted}>
-                <DividedRow weights={columns.utilities.weights} gap={columns.utilities.gap * scale}>
-                  {renderStats(utilities, {
-                    iconSize: UTILITY_ICON_SIZE,
-                    iconGap: UTILITY_ICON_GAP,
-                    trendOverhang: columns.utilities.gap,
-                    scale,
-                  })}
-                </DividedRow>
-              </SectionCard>
-
-              <SectionCard
-                {...sections.documents}
-                onPress={notYetRouted}
-                divider={false}
-                contentStyle={styles.documentsBody}
-              >
-                {documents.map((doc) => (
-                  // Wrapped so the menu can measure where the tile sits.
-                  <View
-                    key={doc.id}
-                    ref={(node) => {
-                      documentTiles.current[doc.id] = node;
-                    }}
-                    collapsable={false}
-                    style={styles.documentTile}
-                  >
-                    <ServiceTile
-                      title={doc.title}
-                      subtitle={preparing === doc.id ? myUnitCopy.preparingDocument : doc.subtitle}
-                      iconSet={doc.iconSet}
-                      iconName={doc.iconName}
-                      compact
-                      nested
-                      glow
-                      scale={scale}
-                      onPress={() => openDocumentMenu(doc.id)}
-                    />
-                  </View>
-                ))}
-              </SectionCard>
-            </>
-          </ResponsiveColumns>
+          {!overview ? (
+            unit.error ? (
+              unit.error.code === 'no_home' ? (
+                <Notice tone="info" title={myUnitCopy.noHomeTitle}>
+                  {myUnitCopy.noHomeBody}
+                </Notice>
+              ) : (
+                <ErrorNotice title={myUnitCopy.loadFailed} retryLabel={myUnitCopy.retry} onRetry={unit.reload}>
+                  {unit.error.message}
+                </ErrorNotice>
+              )
+            ) : (
+              <LoadingState />
+            )
+          ) : (
+            <UnitView
+              overview={overview}
+              scale={scale}
+              documents={documents}
+              preparing={preparing}
+              documentTiles={documentTiles}
+              onOpenDocument={openDocument}
+            />
+          )}
         </ScrollView>
 
         {/* The same empty glass bar as the home screen. */}

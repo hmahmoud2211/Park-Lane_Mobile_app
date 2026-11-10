@@ -38,6 +38,11 @@ interface EmsContextValue {
   /** Ends every other session of this account (a lost phone); resolves with how many ended. */
   signOutOthers: () => Promise<number>;
   /**
+   * Deletes the account and its data on the backend after checking the password, then ends the
+   * session here as signing out does. Throws EmsError (wrong password, a protected account, offline).
+   */
+  deleteAccount: (password: string) => Promise<{ clinicRecordsKept: boolean }>;
+  /**
    * Signed in with a temporary password (or one an admin reset since): the app asks for the
    * resident's own before anything else, and the backend refuses everything else meanwhile.
    */
@@ -64,6 +69,11 @@ interface EmsContextValue {
    * without an EMS session (the assistant then asks the resident to sign in).
    */
   assistantToken: () => Promise<string | null>;
+  /**
+   * Every realtime event, for features with events of their own (the inbox, requests, visitors…). Returns the
+   * function that stops listening. A `ready` event means the channel (re)connected: refetch anything missed.
+   */
+  onRealtimeEvent: (listener: (event: EmsEvent) => void) => () => void;
 }
 
 /** An assistant token this close to lapsing is replaced rather than handed out. */
@@ -98,6 +108,13 @@ export function EmsProvider({ children }: PropsWithChildren) {
   const [changeRefused, setChangeRefused] = useState(false);
   const passwordChangeRequired = status === 'signedIn' && needsPasswordChange(user, changeRefused);
   const channel = useRef<EmsRealtime | null>(null);
+  const realtimeListeners = useRef(new Set<(event: EmsEvent) => void>());
+  const onRealtimeEvent = useCallback((listener: (event: EmsEvent) => void) => {
+    realtimeListeners.current.add(listener);
+    return () => {
+      realtimeListeners.current.delete(listener);
+    };
+  }, []);
   const assistantGrant = useRef<{ token: string; expiresAt: number } | null>(null);
   const assistantGrantPending = useRef<Promise<string | null> | null>(null);
 
@@ -233,6 +250,9 @@ export function EmsProvider({ children }: PropsWithChildren) {
           void refreshRef.current();
         }
       }
+      for (const listener of realtimeListeners.current) {
+        listener(event);
+      }
     };
     const next = new EmsRealtime(token, {
       onEvent,
@@ -272,6 +292,15 @@ export function EmsProvider({ children }: PropsWithChildren) {
   }, [endSession]);
 
   const signOutOthers = useCallback(async () => (await api.signOutOthers()).revoked, []);
+
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      const { clinicRecordsKept } = await api.deleteAccount(password);
+      await endSession('Your account and its data were deleted.');
+      return { clinicRecordsKept };
+    },
+    [endSession],
+  );
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const { user: updated } = await api.changePassword({ currentPassword, newPassword });
@@ -315,6 +344,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       createAccount,
       signOut,
       signOutOthers,
+      deleteAccount,
       passwordChangeRequired,
       changePassword,
       sessionNotice,
@@ -328,6 +358,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       upsertDevice,
       accountsVersion,
       assistantToken,
+      onRealtimeEvent,
     }),
     [
       status,
@@ -336,6 +367,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       createAccount,
       signOut,
       signOutOthers,
+      deleteAccount,
       passwordChangeRequired,
       changePassword,
       sessionNotice,
@@ -349,6 +381,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       upsertDevice,
       accountsVersion,
       assistantToken,
+      onRealtimeEvent,
     ],
   );
 

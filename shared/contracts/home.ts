@@ -128,3 +128,21 @@ export interface CommandRequest {
   value?: unknown;
   entityId?: string;
 }
+
+/** A scene in the apartment's Home Assistant (the installer makes them): GET /api/home/scenes. */
+export interface HomeScene {
+  id: string;
+  name: string;
+  /** Home Assistant's icon name (e.g. "mdi:movie"), if it has one. */
+  icon: string | null;
+  /** When it last ran, if known. */
+  lastActivated: string | null;
+}
+
+/** An automation in the apartment's Home Assistant: GET /api/home/automations. */
+export interface HomeAutomation {
+  id: string;
+  name: string;
+  enabled: boolean;
+  lastTriggered: string | null;
+}

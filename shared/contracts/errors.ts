@@ -27,6 +27,8 @@ export type ApiErrorCode =
   | 'too_large'
   | 'consent_required'
   | 'slot_taken'
+  /** A parking rule refused the step; `field` names the rule (e.g. space-unavailable, guest-limit, stale). */
+  | 'parking_refused'
   | 'invalid_transition'
   | 'version_conflict'
   | 'ai_failed'

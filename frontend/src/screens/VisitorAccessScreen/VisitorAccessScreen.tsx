@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Alert,
@@ -30,21 +30,34 @@ import { VisitorPassCard } from '../../components/ui/VisitorPassCard';
 import { VisitorRow } from '../../components/ui/VisitorRow';
 import { imageAspects, images } from '../../constants/images';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import { downloadPdf } from '../../features/documents/services/exportPdf';
+import { useEms } from '../../features/ems/hooks/useEms';
+import { EmsError, emsErrorText } from '../../features/ems/services/emsHttp';
+import { useResidentIdentity } from '../../features/home/hooks/useResidentIdentity';
+import { getMySite } from '../../features/sites/services/sitesApi';
+import { createVisitorPass, listVisitorPasses, revokeVisitorPass } from '../../features/visitors/services/visitorsApi';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { Notice } from '../../components/feedback/Notice';
+import { flags } from '../../config/flags';
+import { zonedDate, zonedInstant } from '../../utils/zonedTime';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import {
+  DEFAULT_RULES,
   SEPARATOR,
   UPCOMING_LIMIT,
   dateOptions,
+  formFieldOf,
   formFields,
   guestOptions,
   initialForm,
-  initialVisitors,
   initialsOf,
-  passPayload,
+  labelFor,
+  orderPasses,
   statusDisplay,
   timeOptions,
+  toScreenPass,
   validateForm,
   visitorAccessCopy as copy,
   type FormErrors,
@@ -84,9 +97,30 @@ export function VisitorAccessScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<RootStackScreenProps<'VisitorAccess'>['navigation']>();
 
-  const [visitors, setVisitors] = useState<readonly VisitorPass[]>(initialVisitors);
-  const [activeId, setActiveId] = useState<string | null>(initialVisitors[0]?.id ?? null);
-  const [form, setForm] = useState<VisitorForm>(initialForm);
+  // The unit's passes and the compound's visiting rules; both reload whenever the screen is shown.
+  const passes = useFocusQuery(listVisitorPasses);
+  const site = useFocusQuery(getMySite);
+  const { onRealtimeEvent } = useEms();
+  const identity = useResidentIdentity();
+  const timeZone = site.data?.site.timezone ?? 'Africa/Cairo';
+  const rules = site.data?.settings.visitors ?? DEFAULT_RULES;
+  const visitors = useMemo<readonly VisitorPass[]>(
+    () => orderPasses(passes.data ?? []).map((pass) => toScreenPass(pass, timeZone)),
+    [passes.data, timeZone],
+  );
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState<VisitorForm>(() => initialForm(zonedDate(Date.now(), 'Africa/Cairo')));
+  const reloadPasses = passes.reload;
+
+  // The gate letting a visitor in (or a family member making a pass) shows at once.
+  useEffect(
+    () =>
+      onRealtimeEvent((event) => {
+        if (event.type === 'visitor.updated' || event.type === 'ready') reloadPasses();
+      }),
+    [onRealtimeEvent, reloadPasses],
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [openMenu, setOpenMenu] = useState<OpenMenu | null>(null);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
@@ -94,15 +128,21 @@ export function VisitorAccessScreen() {
   const inputRefs = useRef<Partial<Record<FormFieldKey, TextInputInstance | null>>>({});
   const selectRefs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
-  const activePass = visitors.find((visitor) => visitor.id === activeId) ?? null;
+  const activePass =
+    visitors.find((visitor) => visitor.id === chosenId) ??
+    visitors.find((visitor) => visitor.status === 'scheduled' || visitor.status === 'arrived') ??
+    visitors[0] ??
+    null;
+  const activeId = activePass?.id ?? null;
+  const setActiveId = setChosenId;
   const allUpcoming = visitors.filter((visitor) => visitor.id !== activeId);
   // "View All" only appears when someone is hidden behind it.
   const hasMoreUpcoming = allUpcoming.length > UPCOMING_LIMIT;
   const upcoming = showAllUpcoming ? allUpcoming : allUpcoming.slice(0, UPCOMING_LIMIT);
 
   const selectOptions = useMemo<Record<SelectKey, readonly Option[]>>(
-    () => ({ date: dateOptions(), time: timeOptions, guests: guestOptions }),
-    [],
+    () => ({ date: dateOptions(rules, timeZone), time: timeOptions(rules, form.date, timeZone), guests: guestOptions(rules) }),
+    [rules, timeZone, form.date],
   );
 
   const closeMenu = useCallback(() => setOpenMenu(null), []);
@@ -133,12 +173,15 @@ export function VisitorAccessScreen() {
 
   const cancelActivePass = useCallback(() => {
     setOpenMenu(null);
-    const remaining = visitors.filter((visitor) => visitor.id !== activeId);
-    setVisitors(remaining);
-    // Brings the next visitor forward, so the card is never left blank while
-    // anyone is still expected.
-    setActiveId(remaining[0]?.id ?? null);
-  }, [visitors, activeId]);
+    if (!activeId) return;
+    revokeVisitorPass(activeId)
+      .then(() => {
+        // Brings the next visitor forward, so the card is never left blank while anyone is still expected.
+        setChosenId(null);
+        reloadPasses();
+      })
+      .catch((error: unknown) => Alert.alert(copy.cancelFailedTitle, emsErrorText(error)));
+  }, [activeId, reloadPasses]);
 
   // The visitor needs the QR, so the pass goes out as a one-page PDF: the
   // share sheet on a phone (WhatsApp, Mail, Files...), the print dialog's
@@ -148,37 +191,43 @@ export function VisitorAccessScreen() {
     if (!activePass) {
       return;
     }
-    downloadPdf(buildPassDocument(activePass)).catch(() =>
+    downloadPdf(buildPassDocument(activePass, { name: identity.fullName, unit: site.data ? site.data.site.name : '' })).catch(() =>
       Alert.alert(copy.shareFailedTitle, copy.shareFailedBody),
     );
-  }, [activePass]);
+  }, [activePass, identity.fullName, site.data]);
 
   const handleGenerate = useCallback(() => {
     Keyboard.dismiss();
+    if (busy) return;
     const found = validateForm(form);
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return;
     }
 
-    // Frontend only: the pass lives in this screen's state until a backend
-    // issues real ones.
-    const pass: VisitorPass = {
-      id: `visitor-${Date.now()}`,
-      name: form.name.trim(),
-      mobile: form.mobile.trim(),
-      date: form.date,
-      time: form.time,
+    // The backend makes the pass and its QR; it checks the compound's rules again.
+    setBusy(true);
+    createVisitorPass({
+      visitorName: form.name.trim(),
+      visitorPhone: form.mobile.trim() || null,
+      plate: form.plate.trim().toUpperCase() || null,
       guests: Number.parseInt(form.guests, 10) || 1,
-      plate: form.plate.trim().toUpperCase(),
-      status: 'scheduled',
-    };
-    setVisitors((current) => [pass, ...current]);
-    setActiveId(pass.id);
-    setForm(initialForm);
-    setErrors({});
-    AccessibilityInfo.announceForAccessibility(`QR pass created for ${pass.name}`);
-  }, [form]);
+      arrivesAt: new Date(zonedInstant(form.date, form.time, timeZone)).toISOString(),
+    })
+      .then((pass) => {
+        setChosenId(pass.id);
+        setForm(initialForm(zonedDate(Date.now(), timeZone)));
+        setErrors({});
+        reloadPasses();
+        AccessibilityInfo.announceForAccessibility(`QR pass created for ${pass.visitorName}`);
+      })
+      .catch((error: unknown) => {
+        const field = error instanceof EmsError ? formFieldOf(error.field) : null;
+        if (field) setErrors({ [field]: emsErrorText(error) });
+        else Alert.alert(copy.createFailedTitle, emsErrorText(error));
+      })
+      .finally(() => setBusy(false));
+  }, [busy, form, timeZone, reloadPasses]);
 
   const menuItems = useMemo<readonly AppMenuItem[]>(() => {
     if (!openMenu) {
@@ -212,7 +261,9 @@ export function VisitorAccessScreen() {
       id: option.id,
       label: option.label,
       onPress: () => {
-        updateField(key, option.label);
+        updateField(key, option.id);
+        // A new day has other free times: the chosen time may no longer exist.
+        if (key === 'date') updateField('time', '');
         setOpenMenu(null);
       },
     }));
@@ -228,7 +279,7 @@ export function VisitorAccessScreen() {
 
   const selectedOptionId =
     openMenu?.kind === 'select'
-      ? selectOptions[openMenu.key].find((option) => option.label === form[openMenu.key])?.id
+      ? selectOptions[openMenu.key].find((option) => option.id === form[openMenu.key])?.id
       : undefined;
 
   const renderField = (field: FormFieldConfig, column: number) => {
@@ -243,7 +294,7 @@ export function VisitorAccessScreen() {
 
     if (field.kind === 'select') {
       const key = field.key as SelectKey;
-      const value = form[key];
+      const value = labelFor(selectOptions[key], form[key]);
       return (
         <Pressable
           key={key}
@@ -379,14 +430,32 @@ export function VisitorAccessScreen() {
                   ))}
                 </View>
 
-                <FormSubmitButton title={copy.generate} onPress={handleGenerate} style={styles.cta} />
+                <FormSubmitButton title={busy ? copy.creating : copy.generate} onPress={handleGenerate} style={styles.cta} />
               </NeonPanel>
             </>
 
             <>
+              {passes.error ? (
+                passes.error.code === 'no_home' ? (
+                  <Notice tone="info" title={copy.noHomeTitle} style={styles.card}>
+                    {copy.noHomeBody}
+                  </Notice>
+                ) : (
+                  <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={passes.reload}>
+                    {passes.error.message}
+                  </ErrorNotice>
+                )
+              ) : passes.data && visitors.length === 0 ? (
+                <NeonPanel style={[styles.card, styles.list]}>
+                  <AppText variant="bodySmall" color={theme.colors.textSecondary}>
+                    {copy.noPasses}
+                  </AppText>
+                </NeonPanel>
+              ) : null}
+
               {activePass ? (
                 <VisitorPassCard
-                  qrValue={passPayload(activePass)}
+                  qrValue={activePass.code}
                   name={activePass.name}
                   schedule={`${activePass.date}${SEPARATOR}${activePass.time}`}
                   guestsLabel={guestsLabel(activePass.guests)}
@@ -432,7 +501,8 @@ export function VisitorAccessScreen() {
                 </NeonPanel>
               ) : null}
 
-              {/* "Reserve Guest Parking" goes straight to the booking flow. */}
+              {/* "Reserve Guest Parking" goes straight to the booking flow, where the build has parking. */}
+              {flags.sampleContent ? (
               <Pressable
                 onPress={() => navigation.navigate('ReserveParking', { mode: 'guest' })}
                 accessibilityRole="button"
@@ -456,6 +526,7 @@ export function VisitorAccessScreen() {
                   />
                 </NeonPanel>
               </Pressable>
+              ) : null}
             </>
           </ResponsiveColumns>
         </ScrollView>

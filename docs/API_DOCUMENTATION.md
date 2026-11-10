@@ -59,10 +59,171 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | `POST /api/auth/assistant-token` | — | `AssistantToken`: `{ token, expiresAt }` |
 | `POST /api/auth/logout-others` | — | `SignedOutOthers`: `{ revoked }`; every other session of the account ends (a lost phone), and their CUBE gateway access within five minutes |
 | `POST /api/auth/change-password` | `ChangePassword`: `{ currentPassword, newPassword }` | `{ user }`; at least 10 characters, not the current one, not the email; the same session stays valid, the others end. 401 for a wrong current password |
+| `POST /api/auth/delete-account` | `{ password }` | `{ deleted: true, clinicRecordsKept }`; deletes the signed-in resident's account and data (`ems/accountDeletion.ts`): sign-ins and live sockets, apartment membership, Health Passport data and files, invites; upcoming clinic visits are cancelled. Past clinic visits stay, and then the account row is kept with no name, email or usable password (`clinicRecordsKept: true`). 401 for a wrong password; 403 for staff accounts and the shared demo account |
+
+**The shared demo account** (`EMS_DEFAULT_USERNAME`) cannot change its password, sign out its other sessions or be
+deleted (403): everyone who tries the app signs in with it.
+
+**Public pages** (no sign-in; strict CSP): `GET /privacy`, the privacy policy, and `GET /account/delete`, where an
+account can be deleted without the app (Google Play asks for this address). The operator's name and contact come from
+`LEGAL_OPERATOR_NAME` and `LEGAL_CONTACT_EMAIL` (`PRIVACY_POLICY_DATE` for the date); until both are set, `/privacy`
+shows a draft notice. The texts are in `backend/src/public/`.
 
 **Temporary passwords.** An account an admin created or reset has `user.mustChangePassword: true`. Until it changes
 its password, every route except `GET /api/auth/me`, `POST /api/auth/logout` and `POST /api/auth/change-password`
 answers 403 `password_change_required`.
+
+## Sites and the inbox — `routes/sites.ts`, `routes/notifications.ts`
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/sites/me` | resident in a unit | `{ site: SiteView, settings: SiteSettings }`; `404 no_home` without a unit |
+| `GET /api/admin/sites` | admin | every site with its settings |
+| `GET`, `PUT /api/admin/sites/:id/settings` | admin | `SiteSettings`; PUT takes any part (`SiteSettingsPatch`), `422 invalid` with `field` for a bad value |
+| `GET /api/notifications?before=&limit=` | signed in | `NotificationPage`: newest first, `unread`, `next` for older ones |
+| `POST /api/notifications/read` | signed in | `{ ids }` or `{ all: true }` → `{ unread }` |
+| `GET`, `PUT /api/notifications/prefs` | signed in | `NotificationPrefs`; PUT `{ <kind>: boolean }`. A kind turned off is neither stored nor sent |
+
+Realtime: `notification.new` `{ notification, unread }`. Errors may carry `field` (the input that was refused).
+Notifications are kept 180 days.
+
+## My Unit and Bills — `routes/unitFinance.ts`
+
+Money is integer piastres (EGP × 100); dates are `YYYY-MM-DD` in the compound's zone. Finance is for the unit's owners.
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/unit/overview` | resident in a unit | `UnitOverview`: details, `finance` (null for members), meters (this month vs last), documents with 2-hour signed URLs |
+| `GET /api/unit/charges?group=bills\|installments` | owner | `Charge[]` with `paid`, `outstanding`, `status` (paid / partial / due / overdue / void) |
+| `GET /api/unit/payments` | owner | `Payment[]` with server-issued `receiptNo` (`RCP-YYYY-NNNNN`) |
+| `GET /api/unit/meters?months=12` | resident | readings, newest first |
+| `GET /api/unit/documents/:id/file` | member, or a signed link | the file (`nosniff`) |
+| `PUT /api/admin/units/:id/details` · `GET …/finance` | admin | details · everything plus the owner's summary |
+| `POST /api/admin/units/:id/contracts` | admin | `{ kind, price, signedOn?, schedule?: { downPayment?, downPaymentDueOn?, installments, firstDueOn, everyMonths } }`: whole-pound installments, the last takes the remainder |
+| `POST /api/admin/units/:id/charges` · `POST /api/admin/charges/:id/void` | admin | a bill (`INV-YYYY-NNNNN`) · cancel one with no payments |
+| `POST /api/admin/units/:id/payments` | admin | `{ chargeId?, amount, paidOn, method, note? }`; never more than what is left on the charge |
+| `PUT /api/admin/units/:id/meters` | admin | `{ readings: [{ meter, period, value, readOn? }] }` |
+| `POST /api/admin/units/:id/documents?kind=&title=` · `DELETE /api/admin/documents/:id` | admin | the file as the body: PDF, PNG or JPEG, checked by its bytes, 10 MB |
+
+## Visitors and parcels — `routes/visitors.ts`
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET`, `POST /api/visitors` · `POST /api/visitors/:id/revoke` | resident in a unit | the unit's passes; a new one follows the compound's rules (`422 invalid` with `field`) and holds a QR `code` (`PLV1.<id>.<token>`) |
+| `GET /api/parcels` | resident | waiting parcels, then the last 30 days |
+| `POST /api/security/visitors/check { code }` | `security` or admin | `GateCheck`: admit / exit / too_early / expired / revoked / used / unknown (records nothing) |
+| `POST /api/security/visitors/:id/entry \| /exit { gate? }` | `security` or admin | only one gate can admit a pass; entry tells the unit |
+| `GET /api/security/visitors/today` | `security` or admin | today's passes on the site |
+| `GET`, `POST /api/security/parcels` · `POST …/:id/collect \| /return` · `GET /api/security/units` | `security` or admin | waiting parcels; log one (`PCL-YYYY-NNNNN`, the unit is told); hand over once; apartment names only |
+
+Realtime: `visitor.updated`, `parcel.updated` to the unit's residents. Past passes are deleted after the compound's
+`visitors.retentionDays` (90 by default).
+
+## Maintenance, housekeeping and moving — `routes/requests.ts`
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/requests/options?kind=maintenance\|housekeeping\|moving` | resident in a unit | `ServiceRequestOptions`: active categories, visit windows (`HH:MM-HH:MM`), first and last day, the emergency number (or null), time zone, apartment name |
+| `GET`, `POST /api/requests` | resident in a unit | the unit's requests, newest first; a new one follows the compound's rules (`422 invalid` with `field`: `category`, `title`, `details`, `preferredDate`, `preferredWindow`) and gets `REQ-YYYY-NNNNN` |
+| `POST /api/requests/:id/cancel` | any resident of the unit | only while `submitted` or `assigned` (`409 invalid_transition` after) |
+| `POST /api/requests/:id/comments { note }` | any resident of the unit | not on a cancelled request |
+| `POST /api/requests/:id/photos` (JPEG or PNG as the body, 5 MB) | any resident of the unit | up to 4 per open request; checked by its first bytes; sealed on disk |
+| `GET /api/requests/photos/:id/file` | a resident of the unit, an admin, or a two-hour signed link | the photo |
+| `GET /api/admin/requests?status=open\|…&kind=&site=` | admin | the queue: open first, urgent on top |
+| `POST /api/admin/requests/:id/assign { technicianId, scheduledDate, scheduledWindow, note? }` | admin | books an active technician of the same compound; again to change the booking, until work starts |
+| `POST /api/admin/requests/:id/status { status, note? }` | admin | `in_progress` (from assigned), `completed` (from assigned or in progress), `cancelled` (needs a note); only one of two people acting at once wins |
+| `POST /api/admin/requests/:id/comments { note }` | admin | a message to the unit |
+| `GET`, `POST /api/admin/technicians` · `PUT /api/admin/technicians/:id` | admin | technicians on record (not app accounts); the phone is sealed and shown to the resident once booked |
+| `GET /api/admin/service-categories` · `PUT /api/admin/service-categories/:kind/:id { active }` | admin | which categories residents may choose |
+
+Realtime: `request.updated` to the unit's residents. Management's steps and messages also go to their inbox
+(kind `requests`). The request stays with the apartment when the person who made it deletes their account.
+
+## Community — `routes/community.ts`
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/community` | resident in a unit | `CommunityFeed`: live notices and alerts, upcoming events (with `rsvp`: going / open / soon / full / closed), the open poll, the last 5 closed polls, the compound's time zone |
+| `POST /api/community/events/:id/rsvp { going }` | resident | places are counted inside one transaction (`409 conflict` when full; `409 invalid_transition` before registration opens or after it closes) |
+| `POST /api/community/polls/:id/vote { optionId }` | resident | one vote per resident, changeable until the poll closes |
+| `GET`, `POST /api/community/feedback { topic, message }` | resident | topic suggestion / concern / compliment / other, message 10–500 characters, sealed at rest; the list shows management's reply |
+| `GET /api/admin/community` · `GET /api/admin/pictures` | admin | everything published (expired too) · the picture names the app ships |
+| `POST /api/admin/community/announcements` · `PUT`, `DELETE …/:id` · `POST …/:id/expire` | admin | publishing tells residents (inbox kind `community`); `picture` must be one of the listed names |
+| `POST /api/admin/community/events` · `PUT …/:id` · `POST …/:id/cancel { note? }` · `GET …/:id/attendees` | admin | a new event tells residents; a change of time or place, or a cancellation, tells those registered |
+| `POST /api/admin/community/polls { question, closesAt, opensAt?, options }` · `POST …/:id/close` · `DELETE …/:id` | admin | 2–6 options, up to 90 days |
+| `GET /api/admin/community/feedback?status=` · `POST …/:id/reply { reply }` · `POST …/:id/close` | admin | the reply goes to the resident's inbox |
+
+Realtime: `community.updated` to the compound's residents whenever management changes something.
+
+## Amenities — `routes/amenities.ts`
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/amenities` | resident in a unit | `AmenityOptions`: active amenities, the days that can be booked, the time zone |
+| `GET /api/amenities/:id/slots?date=YYYY-MM-DD` | resident | each slot's places left (shared) or 1 / 0 (exclusive), whether it is the apartment's, whether it has started |
+| `POST /api/amenities/:id/bookings { date, start, people }` | resident | `BK-NNNNN`; `409 slot_taken` when there is no room, the court is taken, or the apartment already has that slot. Checked in one transaction, and the database refuses a second booking of an exclusive slot or of the same slot by one apartment |
+| `GET /api/amenities/bookings` · `POST /api/amenities/bookings/:id/cancel` | anyone in the apartment | until the amenity's cut-off before the start |
+| `GET`, `POST /api/admin/amenities` · `PUT /api/admin/amenities/:id` | admin | the catalogue; switching one off stops new bookings and keeps those made |
+| `GET /api/admin/amenities/:id/bookings?date=` · `POST /api/admin/amenity-bookings/:id/cancel { note }` | admin | a day's bookings with apartment names; a cancellation tells the apartment |
+
+Realtime: `amenity.updated` to the compound's residents on every booking or cancellation. Deleting an account
+cancels that person's bookings that haven't started.
+
+## Parking — `routes/parking.ts`
+
+The parking rules (`backend/src/parking/engine/`, ported from the app) run on the server. Each request is one SQLite
+transaction: load what a rule can touch, run the due rules (no-shows, overdue visits, charging windows), run the
+step, write back only what changed. A rule's refusal is `409 parking_refused` with the rule's code in `field`
+(`space-unavailable`, `guest-limit`, `stale`, `checked-in`, …). Pass and invitation tokens are never stored, only
+their hashes; the server re-creates them from its key for the people allowed to see them.
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/parking/snapshot` | resident in a unit | the store as the apartment may see it: the layout and live occupancy, its own bookings (90 days) with their passes and links (`displayToken`, `inviteToken`), other apartments' open bookings as bay and time only, `me`, `inviteBase`, `securityPhone` |
+| `POST /api/parking/search { kind, start, end, connectorType?, chargingStart?, chargingEnd? }` | resident | bays and whether each is free for that time (times in ms) |
+| `POST /api/parking/reservations` | resident | a booking for a guest (or the resident's own EV); the apartment and person come from the session |
+| `POST /api/parking/reservations/:id/cancel \| replace-pass \| reassign \| share \| plug-in \| stop \| extend \| edit` | anyone in the apartment | the apartment's bookings only (`404` otherwise); `extend` and `edit` take `expectedVersion` |
+| `POST /api/parking/notifications/read` · `GET`, `POST /api/parking/vehicles` · `DELETE …/:id` | resident | up to 5 vehicles; one with an open booking can't be removed |
+| `GET /api/parking/pass/:token` · `POST …/plate \| help \| plug-in \| stop` | the visitor (no account; the link is the key) | that booking only, with its QR while it can open a gate; rate limited per address |
+| `GET /parking/pass/:token` | the visitor | the pass page (`no-store`, `no-referrer`, strict CSP) |
+| `GET /api/security/parking` | `security` or admin | gates, expected arrivals, who is inside, upcoming visits, bays, chargers, open alerts |
+| `POST /api/security/parking/scan { code, gateId, direction }` | `security` or admin | the gate's decision; only one scan admits a pass |
+| `POST /api/security/parking/reservations/:id/entry \| exit { gateId, reason, plate? }` · `…/moved-out \| reassign \| stop-charging` | `security` or admin | by hand, with a reason (plates checked) |
+| `POST /api/security/parking/spaces/:id/occupancy \| serviceability { state, note }` · `…/chargers/:id/fault \| restore` · `…/alerts/:id/resolve` | `security` or admin | |
+
+Realtime: `parking.updated` to the compound's residents after any change. The rules' alerts go to the inbox (kind
+`parking`): the owner's to the resident who booked, operator alerts to `security` and admin accounts. A sweep runs
+the due rules every minute. Deleting an account cancels that person's upcoming bookings (the pass and link stop
+working) and keeps past ones as the gate's log without them.
+
+## Quarter-hour series and weather — `routes/series.ts`, `routes/sites.ts`
+
+Readings are stored one per quarter hour (`slot = floor(epoch ms / 900 000)`). Rows may be written ahead (the
+generator fills through 2029), but **no query reads a slot after now**, so one new reading per series appears every
+15 minutes by itself. Answers carry `source` (`simulated` for a demo compound, `live` otherwise).
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/sites/me/bms/latest` | resident in a unit | `BmsLatest` (power, solar, MDB, generator, water and pumps, air, fans, internet, cameras, elevator, gates, fire panel, any non-safety fault, health) or `null`; `Cache-Control: private, max-age=<seconds to the next quarter>`, `ETag` (a match gets `304`) |
+| `GET /api/sites/me/bms/series?metrics=kw,co2&from&to&bucket=15m\|1h\|1d` | resident | average, min and max per bucket (days follow Cairo's calendar), at most 2,000 points; metrics `kw kwh solar_kw grid_cost co2 temp humidity net_down ping water_tank` |
+| `GET /api/units/me/energy/latest` | resident | `EnergyLatest`: this quarter hour and today since midnight, by lighting, AC, media and other; or `null` |
+| `GET /api/units/me/energy/series?…` | resident | metrics `total lighting ac media other` (kWh per quarter hour, averaged per bucket) |
+| `GET /api/admin/sites/:id/bms/latest` | admin | the compound's latest reading |
+| `GET /api/weather` | resident | `{ temperatureC, symbol, updatedAt, credit }` from MET Norway, or `null` while `WEATHER_CONTACT` is unset |
+
+Realtime: `bms.reading` to the compound's residents and `energy.reading` to the apartment's members when a new
+quarter hour becomes current (a timer re-aligned at every tick).
+
+Generator: `node scripts/generate-series.ts --site <demo site> [--create "Name" --demo-units N] --from 2026-01-01
+--to "2029-12-31 23:45" --seed 42 --units all [--yes-i-am-sure]`. It writes only to a demo site, refuses a database
+with real residents without `--yes-i-am-sure` (checked before anything is written), and never writes an alarm.
+
+## Scenes and automations — `routes/home.ts`
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `GET /api/home/scenes` · `POST /api/home/scenes/:id/activate` | resident (assistant tokens may read) | the scenes in the apartment's Home Assistant (hidden or disabled ones left out); activating calls `scene.turn_on` only |
+| `GET /api/home/automations` · `PATCH /api/home/automations/:id { action: enable \| disable \| run }` | resident | `automation.turn_on`, `turn_off` or `trigger` only; anything else is `404` or `422` |
 
 ## The home — `routes/home.ts`
 

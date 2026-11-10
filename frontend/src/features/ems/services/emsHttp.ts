@@ -19,12 +19,15 @@ export type EmsErrorCode = ApiErrorCode | 'network' | 'timeout' | (string & {});
 export class EmsError extends Error {
   readonly code: EmsErrorCode;
   readonly status?: number;
+  /** For `invalid`: the input the backend refused, so the screen can show the message beside it. */
+  readonly field?: string;
 
-  constructor(code: EmsErrorCode, message: string, status?: number) {
+  constructor(code: EmsErrorCode, message: string, status?: number, field?: string) {
     super(message);
     this.name = 'EmsError';
     this.code = code;
     this.status = status;
+    this.field = field;
   }
 }
 
@@ -71,7 +74,7 @@ export function reportPasswordChangeRequired() {
 export const isEmsConfigured = () => emsConfig.url !== '';
 
 export interface CallInit {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   timeoutMs?: number;
   /** Send the session token (default). Sign-in and sign-up do not. */
@@ -119,7 +122,7 @@ export async function call<T>(path: string, init: CallInit = {}): Promise<T> {
           if (body.error.code === 'password_change_required' && useAuth) {
             reportPasswordChangeRequired();
           }
-          throw new EmsError(body.error.code, body.error.message, response.status);
+          throw new EmsError(body.error.code, body.error.message, response.status, body.error.field);
         }
         return body.data;
       },

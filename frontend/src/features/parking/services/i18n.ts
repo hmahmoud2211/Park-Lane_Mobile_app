@@ -11,28 +11,13 @@ import { gateDefs, levels } from './site';
 import { cairoParts, formatDate, formatDuration, formatRange, formatTime } from './time';
 import type { LevelId, RouteStep, RouteStepInfo, RouteStepKind, WalkTarget } from './types';
 import type { Lang } from '../../../types/i18n.types';
+import { arabicDigits } from '../../../utils/lang';
 
 export type { Lang };
 
 export const isLang = (value: unknown): value is Lang => value === 'en' || value === 'ar';
 
-/** Arabic when the phone or browser is set to Arabic, else English. */
-export function deviceLang(): Lang {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith('ar') ? 'ar' : 'en';
-  } catch {
-    return 'en';
-  }
-}
-
-const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
-
-/** Arabic-Indic digits, with the Arabic decimal separator: 33.3 becomes ٣٣٫٣. */
-export const arabicDigits = (text: string) =>
-  text.replace(/(\d)\.(\d)/g, '$1٫$2').replace(/[0-9]/g, (d) => AR_DIGITS[Number(d)]);
-
-/** Numbers in the reader's digits. */
-export const digitsIn = (text: string | number, lang: Lang) => (lang === 'ar' ? arabicDigits(String(text)) : String(text));
+export { arabicDigits, deviceLang, digitsIn } from '../../../utils/lang';
 
 /* -------------------------------------------------------- Dates, times */
 

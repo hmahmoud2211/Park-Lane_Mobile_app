@@ -1,3 +1,4 @@
+import type { HomeAutomation, HomeScene } from '../../../../../shared/contracts/home';
 import { call } from '../../ems/services/emsHttp';
 import type { Command, Device, FlowStep, Home, Integration, LinkedAccount, Room } from '../../../types/home.types';
 
@@ -64,3 +65,20 @@ export const refreshAccounts = () =>
     method: 'POST',
     timeoutMs: FLOW_TIMEOUT_MS,
   });
+
+/** Scenes and automations the installer made in the apartment's Home Assistant. */
+export const listScenes = () => call<HomeScene[]>('/api/home/scenes', { retry: true });
+export const activateScene = (id: string) => call<{ activated: true }>(`/api/home/scenes/${encodeURIComponent(id)}/activate`, { method: 'POST' });
+export const listAutomations = () => call<HomeAutomation[]>('/api/home/automations', { retry: true });
+export const setAutomation = (id: string, action: 'enable' | 'disable' | 'run') =>
+  call<HomeAutomation | null>(`/api/home/automations/${encodeURIComponent(id)}`, { method: 'PATCH', body: { action } });
+
+/** The compound's weather (MET Norway via the backend), or null while it is off on the server. */
+export const getWeather = () => call<WeatherNow | null>('/api/weather', { retry: true });
+
+export interface WeatherNow {
+  temperatureC: number;
+  symbol: string | null;
+  updatedAt: string;
+  credit: string;
+}

@@ -81,7 +81,7 @@ export interface PassCopy {
 
 const en: PassCopy = {
   title: 'Guest Pass',
-  city: 'New Capital (demo)',
+  city: 'New Capital',
   welcome: (name) => `Welcome, ${name ?? 'guest'}`,
   status: {
     confirmed: 'Confirmed',
@@ -179,7 +179,7 @@ const en: PassCopy = {
 
 const ar: PassCopy = {
   title: 'تصريح الزائر',
-  city: 'العاصمة الإدارية الجديدة (تجريبي)',
+  city: 'العاصمة الإدارية الجديدة',
   welcome: (name) => (name ? `أهلًا ${name}` : 'أهلًا بك'),
   status: {
     confirmed: 'مؤكد',

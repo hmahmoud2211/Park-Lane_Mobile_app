@@ -95,16 +95,18 @@ Every HTTP client uses `timedFetch()` from `lib/http/request.ts` (timeout, cance
 flowchart TB
   server["app.ts<br/>CORS · OAuth callback · dispatch · errors · access log"]
   http["http/<br/>context · router · guards · rate limits · body · respond"]
-  routes["routes/<br/>auth · home · accounts · ops"]
+  routes["routes/<br/>auth · home · accounts · clinic · gateway · unit · notifications · sites<br/>unitFinance · visitors · requests · community · amenities · parking · series · ops"]
+  domain["domain modules<br/>unit/finance · visitors · parcels · requests · community · amenities<br/>parking (rules engine + store) · series (model, API, push) · weather"]
   ems["ems/<br/>auth · realtime · events · db (migrations) · secrets"]
   ha["ha/<br/>hubs · hubRuntime · hubStore · mapping · commands · accounts · provisioner"]
-  repos["repositories/<br/>users · tokens · units · hubs · pairingSessions · audit"]
+  repos["repositories/<br/>users · tokens · units · hubs · sites · notifications · unitFinance · visitors<br/>parcels · serviceRequests · community · amenities · parking · series · …"]
   sqlite[("SQLite<br/>DATA_DIR/ems.db")]
   haApi["Home Assistant<br/>WebSocket + REST"]
   docker["integrations/docker<br/>Docker Engine API"]
 
   server --> http
   server --> routes --> ems
+  routes --> domain --> repos
   routes --> ha
   routes --> http
   ems --> repos --> sqlite
@@ -119,6 +121,11 @@ flowchart TB
 - **Live state is in memory**: one `HubRuntime` per hub keeps the unit's devices current from Home Assistant's own pushes and fans out changes to that unit's residents over `/api/events`. Rate-limit windows and the event bus are in memory too, **so the backend must run as one process**.
 - **Data**: SQLite (`node:sqlite`) in `DATA_DIR`. Tokens are stored as hashes. Hub tokens and passwords are sealed with `EMS_ENCRYPTION_KEY`. Each unit's Home Assistant `/config` folder lives under `DATA_DIR/ha`.
 - **Provisioning a unit** (`ha/provisioner.ts`): create the container on a private Docker network, onboard Home Assistant, store the address and sealed token, connect.
+- **Compounds** (`sites`): every unit belongs to one; rules (visiting hours, visit windows, amenity limits, the emergency and management numbers) are per compound (`ems/sites.ts`). A `demo` compound may hold simulated data; a `real` one never does. References (`REQ-…`, `INV-…`, `RCP-…`, `PCL-…`, `BK-…`) come from one counter per kind and year across compounds.
+- **Building services** (migrations 14–18): My Unit's records and Bills, visitor passes checked online at the gate, parcels, service requests, community, amenities and parking. Rows that can name a person (visitors, guests, request details and photos, feedback, technicians' phones) are sealed; files are sealed under `DATA_DIR` (`lib/sealedFiles.ts`). Each change goes to the inbox (`ems/notifications.ts`) and the realtime channel of the unit or compound it concerns, never wider.
+- **Parking** (`parking/`): the rules engine the app used to run on the phone, ported (`parking/engine/`), run one SQLite transaction per step (`parking/store.ts`): load what a rule can touch, run the due rules, apply the step, write back only changed rows. Pass and invitation tokens are re-created from the server key and stored only as hashes. The visitor's pass page is `/parking/pass/<token>`.
+- **Quarter-hour series** (`series/`, migration 19): `bms_readings` and `unit_energy`, keyed by series and slot. Queries never read a slot after now, so rows written ahead appear one per quarter hour. `scripts/generate-series.ts` fills demo compounds only; a timer pushes `bms.reading` and `energy.reading` each quarter hour.
+- **Weather** (`weather/met.ts`): MET Norway, fetched and cached by the server; off until `WEATHER_CONTACT` is set.
 
 ## Signing in
 

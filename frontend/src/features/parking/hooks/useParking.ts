@@ -1,8 +1,8 @@
 import { useContext } from 'react';
 
-import { ParkingDemoContext } from '../context/ParkingDemoContext';
+import { ParkingDemoContext } from '../context/parkingValue';
 
-/** The parking demo's store, clock and service. */
+/** The parking store, clock and service: the backend's, or the offline demo's for the demo tools. */
 export function useParking() {
   const context = useContext(ParkingDemoContext);
   if (!context) {

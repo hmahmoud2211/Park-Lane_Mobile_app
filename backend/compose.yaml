@@ -1,4 +1,5 @@
-# The production backend. `./scripts/dev.sh server` builds and starts it (docs/production.md).
+# The production backend, and the CUBE relay when backend/.env turns it on (COMPOSE_PROFILES=relay).
+# `./scripts/dev.sh server` builds and starts them (docs/production.md).
 #
 # Settings come from backend/.env, which compose also reads for the ${…} values below.
 
@@ -6,10 +7,17 @@ name: parklane
 
 services:
   backend:
-    build: .
-    # dev.sh tags each build with its git commit, so an earlier one starts again without a
-    # rebuild: PARKLANE_VERSION=<commit> docker compose up -d --no-build
-    image: parklane-backend:${PARKLANE_VERSION:-latest}
+    # Two ways to get the image, both tagged with the git commit:
+    #   - from Docker Hub, pushed from a developer machine: ./scripts/dev.sh push, then on the
+    #     server ./scripts/dev.sh server --pull <commit>
+    #   - built here, from this checkout: ./scripts/dev.sh server
+    # An earlier one starts again with ./scripts/dev.sh server --pull <commit>, which uses the copy
+    # already on the machine. (Plain `docker compose` here needs DOCKER_GID set, which dev.sh finds.)
+    build:
+      context: .
+      args:
+        REVISION: ${PARKLANE_VERSION:-unknown}
+    image: ${BACKEND_IMAGE:-hmahmoud2211/parklane-backend}:${PARKLANE_VERSION:-latest}
     container_name: parklane-backend
     restart: unless-stopped
     # Node ignores Docker's stop signal as PID 1; a small init passes it on.
@@ -37,8 +45,43 @@ services:
       start_period: 20s
       retries: 3
 
+  # The CUBE relay: phones reach the apartments' gateways through it from anywhere
+  # (docs/CUBE_GATEWAY.md). Its own image, the gateway's, in `relay` mode: it only routes, and it
+  # gets neither the Docker socket nor the backend's data. Off unless backend/.env has
+  # COMPOSE_PROFILES=relay; `docker compose up -d relay` also starts it by name.
+  relay:
+    profiles: [relay]
+    # Pin a version or digest in RELAY_IMAGE. Compose never pulls it by itself, but a moving tag such
+    # as :latest also moves when the backend pulls it for an apartment's gateway, and the relay then
+    # restarts on the newer build at the next `up`. To upgrade on purpose: change RELAY_IMAGE, then
+    # docker compose pull relay && docker compose up -d relay
+    image: ${RELAY_IMAGE:-hmahmoud2211/cube-os-gateway:latest}
+    container_name: cube-relay
+    command: ["relay"]
+    restart: unless-stopped
+    # Listens on 127.0.0.1:8687 (CUBE_RELAY_PORT); nginx in front serves https://cube-relay.ems-iot.com,
+    # and the device broker it manages is on this host too.
+    network_mode: host
+    # The enrol token (and the broker's admin login) live in their own file, outside the repo,
+    # mode 0600. Compose refuses to start the relay without it, so it never runs with open enrolment.
+    env_file: ${RELAY_ENV_FILE:-/home/ems-server/EMS/cube-relay/relay.env}
+    volumes:
+      - relay-data:/data
+      # The device broker's CA certificate (setup-broker.sh), never its key. Without RELAY_CA_FILE
+      # an empty file stands in, which is right only while the relay manages no broker.
+      - ${RELAY_CA_FILE:-/dev/null}:/ca/ca.crt:ro
+    # Health: the image's own check (cube-gateway healthcheck) asks /relay/v1/health.
+
 networks:
   ha:
     # Shared with the units' containers, which the backend reaches as http://parklane-ha-<unit>:8123.
     name: ${HA_NETWORK:-parklane-ha}
+    external: true
+
+volumes:
+  relay-data:
+    # The relay's database: the enrolled gateways and their hashed tunnel secrets. The volume the
+    # relay used before compose, kept as it is. External, so `docker compose down -v` never deletes it;
+    # dev.sh creates it on a new server.
+    name: cube-relay-data
     external: true

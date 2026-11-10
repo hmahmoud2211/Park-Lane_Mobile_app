@@ -7,6 +7,24 @@ export interface Unit {
   name: string;
   building: string | null;
   createdAt: string;
+  /** The compound it belongs to (sites table). New units go to DEFAULT_SITE_ID unless one is given. */
+  siteId?: string;
+}
+
+/** The site every unit belonged to before sites existed (migration 14). */
+export const DEFAULT_SITE_ID = 'park-lane';
+
+/** What building management records about a unit, shown on My Unit. Every field may be unset. */
+export interface UnitDetails {
+  tower: string | null;
+  floor: number | null;
+  number: string | null;
+  unitType: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaM2: number | null;
+  parkingBay: string | null;
+  handoverStatus: string | null;
 }
 
 export type MemberRole = 'owner' | 'member';
@@ -16,23 +34,76 @@ interface UnitRow {
   name: string;
   building: string | null;
   created_at: string;
+  site_id: string | null;
 }
 
-const toUnit = (row: UnitRow): Unit => ({ id: row.id, name: row.name, building: row.building, createdAt: row.created_at });
+const UNIT_COLUMNS = 'units.id, units.name, units.building, units.created_at, units.site_id';
+
+const toUnit = (row: UnitRow): Unit => ({
+  id: row.id,
+  name: row.name,
+  building: row.building,
+  createdAt: row.created_at,
+  siteId: row.site_id ?? DEFAULT_SITE_ID,
+});
 
 export function insertUnit(unit: Unit): void {
   db()
-    .prepare('INSERT INTO units (id, name, building, created_at) VALUES (?, ?, ?, ?)')
-    .run(unit.id, unit.name, unit.building, unit.createdAt);
+    .prepare('INSERT INTO units (id, name, building, created_at, site_id) VALUES (?, ?, ?, ?, ?)')
+    .run(unit.id, unit.name, unit.building, unit.createdAt, unit.siteId ?? DEFAULT_SITE_ID);
 }
 
 export function findUnit(id: string): Unit | null {
-  const row = db().prepare('SELECT id, name, building, created_at FROM units WHERE id = ?').get(id) as UnitRow | undefined;
+  const row = db().prepare(`SELECT ${UNIT_COLUMNS} FROM units WHERE id = ?`).get(id) as UnitRow | undefined;
   return row ? toUnit(row) : null;
 }
 
 export function listUnits(): Unit[] {
-  return (db().prepare('SELECT id, name, building, created_at FROM units ORDER BY name').all() as unknown as UnitRow[]).map(toUnit);
+  return (db().prepare(`SELECT ${UNIT_COLUMNS} FROM units ORDER BY name`).all() as unknown as UnitRow[]).map(toUnit);
+}
+
+export function findUnitDetails(id: string): UnitDetails | null {
+  const row = db()
+    .prepare('SELECT tower, floor, number, unit_type, bedrooms, bathrooms, area_m2, parking_bay, handover_status FROM units WHERE id = ?')
+    .get(id) as Record<string, string | number | null> | undefined;
+  if (!row) return null;
+  return {
+    tower: row.tower as string | null,
+    floor: row.floor as number | null,
+    number: row.number as string | null,
+    unitType: row.unit_type as string | null,
+    bedrooms: row.bedrooms as number | null,
+    bathrooms: row.bathrooms as number | null,
+    areaM2: row.area_m2 as number | null,
+    parkingBay: row.parking_bay as string | null,
+    handoverStatus: row.handover_status as string | null,
+  };
+}
+
+export function updateUnitDetails(id: string, details: UnitDetails): void {
+  db()
+    .prepare(
+      `UPDATE units SET tower = ?, floor = ?, number = ?, unit_type = ?, bedrooms = ?, bathrooms = ?, area_m2 = ?,
+       parking_bay = ?, handover_status = ? WHERE id = ?`,
+    )
+    .run(
+      details.tower, details.floor, details.number, details.unitType, details.bedrooms, details.bathrooms,
+      details.areaM2, details.parkingBay, details.handoverStatus, id,
+    );
+}
+
+/** Everyone who lives in the unit. */
+export function memberIdsOfUnit(unitId: string): string[] {
+  const rows = db().prepare('SELECT user_id FROM unit_members WHERE unit_id = ?').all(unitId) as unknown as { user_id: string }[];
+  return rows.map((row) => row.user_id);
+}
+
+/** Everyone who lives anywhere on the site. */
+export function memberIdsOfSite(siteId: string): string[] {
+  const rows = db()
+    .prepare('SELECT unit_members.user_id FROM unit_members JOIN units ON units.id = unit_members.unit_id WHERE units.site_id = ?')
+    .all(siteId) as unknown as { user_id: string }[];
+  return rows.map((row) => row.user_id);
 }
 
 export function deleteUnit(id: string): void {
@@ -52,7 +123,7 @@ export function upsertMember(unitId: string, userId: string, role: MemberRole, c
 export function findUnitOfUser(userId: string): Unit | null {
   const row = db()
     .prepare(
-      `SELECT units.id, units.name, units.building, units.created_at
+      `SELECT ${UNIT_COLUMNS}
        FROM unit_members JOIN units ON units.id = unit_members.unit_id
        WHERE unit_members.user_id = ?`,
     )

@@ -13,7 +13,9 @@
     "attach-hub": "node scripts/attach-hub.ts",
     "clinic": "node scripts/clinic.ts",
     "test": "node --test test/*.test.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "generate-series": "node scripts/generate-series.ts",
+    "seed-dev": "node scripts/seed-dev.ts"
   },
   "devDependencies": {
     "@types/node": "~26.6.2",

@@ -27,7 +27,7 @@ const HOME_TAB: NavTab = {
 /** Either side of the bottom bar's raised Home button. */
 export const LEFT_TABS: readonly NavTab[] = [
   { id: 'ems-ai', label: 'EMS AI', iconSet: 'material', iconName: 'robot-outline', route: 'Assistant' },
-  { id: 'contact', label: 'Contact Us', iconSet: 'ionicons', iconName: 'call-outline', underDevelopment: true },
+  { id: 'contact', label: 'Contact Us', iconSet: 'ionicons', iconName: 'call-outline', route: 'HelpSupport' },
 ];
 export const RIGHT_TABS: readonly NavTab[] = [
   { id: 'services', label: 'Services', iconSet: 'ionicons', iconName: 'grid-outline', route: 'Services' },

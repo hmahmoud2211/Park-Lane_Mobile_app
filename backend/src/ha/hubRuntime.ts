@@ -8,7 +8,8 @@ import type { Hub } from '../repositories/hubs.ts';
 import { ASSISTANT_REFUSED, AUDITED, resolveCommand, type CommandSource } from './commands.ts';
 import { HaConnection, HaError, type ConnectionStatus } from './haClient.ts';
 import { updateHubRow } from './hubStore.ts';
-import { toDevices, toRooms } from './mapping.ts';
+import { domainOf, toDevices, toRooms } from './mapping.ts';
+import type { HomeAutomation, HomeScene } from '../../../shared/contracts/home.ts';
 import { membersOfHub } from './units.ts';
 import type { CommandRequest, Device, HaArea, HaDevice, HaEntity, HaState, HubStatus, Registries, Room } from './types.ts';
 
@@ -113,6 +114,62 @@ export class HubRuntime {
   listRooms(): Room[] {
     this.requireLoaded();
     return this.rooms;
+  }
+
+  /** Visible entities of a domain, with their state (scenes and automations the installer made). */
+  private entitiesOf(domain: 'scene' | 'automation'): { id: string; name: string; state: HaState }[] {
+    this.requireLoaded();
+    const out: { id: string; name: string; state: HaState }[] = [];
+    for (const [entityId, state] of this.states) {
+      if (domainOf(entityId) !== domain) continue;
+      const entry = this.registries.entities.get(entityId);
+      if (entry?.disabled_by || entry?.hidden_by) continue;
+      const name = entry?.name ?? (typeof state.attributes.friendly_name === 'string' ? state.attributes.friendly_name : null) ?? entry?.original_name ?? entityId;
+      out.push({ id: entityId, name, state });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  listScenes(): HomeScene[] {
+    return this.entitiesOf('scene').map(({ id, name, state }) => ({
+      id,
+      name,
+      icon: typeof state.attributes.icon === 'string' ? state.attributes.icon : null,
+      // A scene's state is when it was last activated.
+      lastActivated: !Number.isNaN(Date.parse(state.state)) ? state.state : null,
+    }));
+  }
+
+  listAutomations(): HomeAutomation[] {
+    return this.entitiesOf('automation').map(({ id, name, state }) => ({
+      id,
+      name,
+      enabled: state.state === 'on',
+      lastTriggered: typeof state.attributes.last_triggered === 'string' ? state.attributes.last_triggered : null,
+    }));
+  }
+
+  /** Activates a scene, or enables, disables or runs an automation: the only services these two domains get. */
+  async runEntity(userId: string, entityId: string, action: 'activate' | 'enable' | 'disable' | 'run'): Promise<void> {
+    this.requireOnline();
+    const domain = domainOf(entityId);
+    const allowed = domain === 'scene' ? { activate: 'turn_on' } : domain === 'automation' ? { enable: 'turn_on', disable: 'turn_off', run: 'trigger' } : {};
+    const service = (allowed as Record<string, string>)[action];
+    if (!service || !this.states.has(entityId) || !this.entitiesOf(domain as 'scene' | 'automation').some((entity) => entity.id === entityId)) {
+      throw new ApiError('not_found', domain === 'scene' ? 'No such scene in your home.' : 'No such automation in your home.');
+    }
+    if (this.inFlight.has(entityId)) throw new ApiError('conflict', 'Still busy with the last request.');
+    this.inFlight.add(entityId);
+    recordAudit({ userId, hubId: this.hubId, action: `${domain}.${service}`, target: entityId, via: null, at: new Date().toISOString() });
+    try {
+      await this.connection.command({ type: 'call_service', domain, service, target: { entity_id: entityId }, service_data: {} });
+    } catch (error) {
+      throw error instanceof HaError && error.code === 'not_connected'
+        ? new ApiError('hub_offline', 'Your home hub is not reachable right now. Try again in a moment.')
+        : new ApiError('ha_rejected', error instanceof HaError ? error.message : 'The hub could not run it.');
+    } finally {
+      this.inFlight.delete(entityId);
+    }
   }
 
   private requireLoaded() {

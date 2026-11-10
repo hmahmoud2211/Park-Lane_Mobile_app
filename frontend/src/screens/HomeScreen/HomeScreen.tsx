@@ -14,12 +14,16 @@ import { PromoCard } from '../../components/ui/PromoCard';
 import { ServiceTile } from '../../components/ui/ServiceTile';
 import { UnitSummaryCard } from '../../components/ui/UnitSummaryCard';
 import { WeatherPill } from '../../components/ui/WeatherPill';
+import { flags } from '../../config/flags';
 import { images } from '../../constants/images';
+import { useResidentIdentity } from '../../features/home/hooks/useResidentIdentity';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { initialsOf, resident, unit } from '../../data/demoResident';
-import { promo, serviceTiles, weather } from './HomeScreen.data';
+import { unit } from '../../data/demoResident';
+import { getWeather } from '../../features/home/services/homeApi';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
+import { homeTiles, promo, weather, weatherFrom } from './HomeScreen.data';
 import { GREETING_TO_UNIT, MIN_TILE_WIDTH, TILE_GAP, TILE_ROW_GAP, createStyles } from './HomeScreen.styles';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
 
@@ -29,20 +33,27 @@ export function HomeScreen() {
   const navigation = useNavigation<RootStackScreenProps<'Home'>['navigation']>();
   const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
   const layout = useScreenLayout();
+  const identity = useResidentIdentity();
+  // The unit card is sample content: the store build leaves it out.
+  const sample = flags.sampleContent;
+  // The compound's weather from the backend (MET Norway), shown once the server has it switched on; until then,
+  // builds with sample content show the design's sample and the store build shows nothing.
+  const liveWeather = useFocusQuery(getWeather);
+  const pill = liveWeather.data ? weatherFrom(liveWeather.data) : sample ? { ...weather, icon: 'moon' as const } : null;
 
   const greeting = (
     <View style={styles.greetingRow}>
       <View style={styles.greetingText}>
         <AppText variant="statLabel" color={theme.colors.textSecondary}>
-          {resident.greeting}
+          {identity.greeting}
         </AppText>
-        <AppText variant="screenTitle">{resident.firstName}</AppText>
+        <AppText variant="screenTitle">{identity.firstName}</AppText>
         <AppText variant="statLabel" color={theme.colors.textSecondary} style={styles.tagline}>
-          {resident.tagline}
+          {identity.tagline}
         </AppText>
       </View>
 
-      <WeatherPill temperature={weather.temperature} condition={weather.condition} />
+      {pill ? <WeatherPill temperature={pill.temperature} condition={pill.condition} icon={pill.icon} credit={liveWeather.data ? liveWeather.data.credit : undefined} /> : null}
     </View>
   );
 
@@ -52,7 +63,7 @@ export function HomeScreen() {
 
   const tileGrid = (
     <ResponsiveGrid
-      data={serviceTiles}
+      data={homeTiles}
       keyExtractor={(tile) => tile.id}
       minItemWidth={MIN_TILE_WIDTH}
       minColumns={2}
@@ -90,9 +101,8 @@ export function HomeScreen() {
       title={promo.title}
       body={promo.body}
       ctaLabel={promo.ctaLabel}
-      onPress={() => {
-        // TODO(nav): route to the lifestyle section once it exists.
-      }}
+      // Until a lifestyle section exists, "Explore Now" opens the services residents can use.
+      onPress={() => navigation.navigate('Services')}
     />
   );
 
@@ -114,12 +124,18 @@ export function HomeScreen() {
         >
           <ScreenHeader
             style={styles.header}
-            initials={initialsOf(resident)}
+            initials={identity.initials}
             onMenuPress={() => setMenuOpen(true)}
             onProfilePress={() => navigation.navigate('Profile')}
           />
 
-          {layout.isWide ? (
+          {!sample ? (
+            <>
+              <View style={styles.greetingSpacing}>{greeting}</View>
+              {tileGrid}
+              {promoCard}
+            </>
+          ) : layout.isWide ? (
             <>
               {/* Greeting and unit beside the promo, then every tile in one band. */}
               <ResponsiveColumns gap={GREETING_TO_UNIT} align="end" style={styles.wideTop}>

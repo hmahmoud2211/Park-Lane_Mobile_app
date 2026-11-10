@@ -18,7 +18,36 @@
           "audio"
         ]
       },
-      "bundleIdentifier": "com.parklane.app"
+      "bundleIdentifier": "com.parklane.app",
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1",
+              "3B52.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.parklane.app",
@@ -38,6 +67,11 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -56,7 +90,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Parklane uses the camera so the assistant can see what you show it, so security staff can scan visitor parking passes, so you can scan the QR code on a smart device while setting it up, and so you can photograph medical documents for your Health Passport.",
+          "cameraPermission": "Parklane uses the camera so the assistant can see what you choose to show it, so you can scan the QR code on a smart device while setting it up, and so you can photograph medical documents for your Health Passport.",
           "microphonePermission": "Parklane uses the microphone so you can talk to the Parklane Assistant.",
           "recordAudioAndroid": false
         }
@@ -65,7 +99,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Parklane lets you choose photos of your medical documents to add them to your Health Passport.",
-          "cameraPermission": "Parklane uses the camera so the assistant can see what you show it, so security staff can scan visitor parking passes, so you can scan the QR code on a smart device while setting it up, and so you can photograph medical documents for your Health Passport.",
+          "cameraPermission": "Parklane uses the camera so the assistant can see what you choose to show it, so you can scan the QR code on a smart device while setting it up, and so you can photograph medical documents for your Health Passport.",
           "microphonePermission": "Parklane uses the microphone so you can talk to the Parklane Assistant."
         }
       ],
@@ -81,7 +115,12 @@
       ],
       "expo-asset",
       "expo-status-bar",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-web-browser",
       "@react-native-community/datetimepicker"
     ],

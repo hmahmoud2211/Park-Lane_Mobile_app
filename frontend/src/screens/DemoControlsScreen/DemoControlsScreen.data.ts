@@ -13,6 +13,7 @@ export const demoCopy = {
     device:
       'Saved on this device only. Refreshing or restarting keeps everything; other devices cannot see it without a shared backend.',
     memory: 'Saved in memory only (storage is blocked here), so a refresh starts again from the seed data.',
+    server: 'This is the offline demo. Residents\' real parking is on the backend; gate staff use the dashboard\'s Parking page.',
   },
   resetConfirm: 'Replace all bookings and events with fresh demo data at the current time?',
 } as const;

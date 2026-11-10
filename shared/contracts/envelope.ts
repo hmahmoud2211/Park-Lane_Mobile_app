@@ -6,4 +6,6 @@ export type ApiEnvelope<T> = { ok: true; data: T } | { ok: false; error: ApiErro
 export interface ApiError {
   code: ApiErrorCode;
   message: string;
+  /** For `invalid`: the field that was refused, so the app can show the message beside it. */
+  field?: string;
 }

@@ -13,6 +13,8 @@ export const env = {
   assistantUrl: process.env.EXPO_PUBLIC_ASSISTANT_URL,
   /** `0`, `false` or `off` hides the parking demo's tools (config/flags.ts). */
   demoTools: process.env.EXPO_PUBLIC_DEMO_TOOLS,
+  /** `1` puts Parking in the store build, once building management has confirmed the real parking layout. */
+  parking: process.env.EXPO_PUBLIC_PARKING,
   /**
    * DNS zones whose `<gateway id>.<zone>` HTTPS names the app trusts, comma-separated (config/gateway.ts). Unset:
    * the EMS relay's zones. A gateway reports its names in plain-HTTP health, so this list is what keeps a
@@ -30,4 +32,15 @@ export const env = {
   healthApi: process.env.EXPO_PUBLIC_HEALTH_API,
   /** Health Passport's backend. Unset: the EMS backend. */
   healthApiUrl: process.env.EXPO_PUBLIC_HEALTH_API_URL,
+  /**
+   * `1` builds the App Store / Google Play version (config/flags.ts): parts that still show
+   * sample data or only save on the phone are left out, and the app shows the signed-in person.
+   */
+  storeMode: process.env.EXPO_PUBLIC_STORE_MODE,
+  /** The public privacy policy. Unset: the EMS backend's /privacy page (config/legal.ts). */
+  privacyPolicyUrl: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
+  /** The AI companies behind the Parklane Assistant, named in its consent screen, e.g. "OpenAI". */
+  assistantAiProviders: process.env.EXPO_PUBLIC_ASSISTANT_AI_PROVIDERS,
+  /** Where residents write for help (Help & Support). Unset: the screen points to building management. */
+  supportEmail: process.env.EXPO_PUBLIC_SUPPORT_EMAIL,
 } as const;

@@ -3,9 +3,10 @@
 /**
  * `resident` is everyone who registers in the app. `doctor` and `clinic_staff` (the clinic's
  * front desk) come from the clinic CLI and open the clinic's own routes. `admin` is building
- * management: the admin dashboard (/admin) and /api/admin/*.
+ * management: the admin dashboard (/admin) and /api/admin/*. `security` is gate and lobby staff (visitor
+ * check-in, parcels, parking gates), made by an admin.
  */
-export type Role = 'resident' | 'doctor' | 'clinic_staff' | 'admin';
+export type Role = 'resident' | 'doctor' | 'clinic_staff' | 'admin' | 'security';
 
 export interface User {
   id: string;

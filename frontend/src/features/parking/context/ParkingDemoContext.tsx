@@ -1,6 +1,5 @@
 import * as Crypto from 'expo-crypto';
 import {
-  createContext,
   useEffect,
   useMemo,
   useState,
@@ -10,12 +9,13 @@ import {
 import { AppState, Platform } from 'react-native';
 
 import { setRandomSource } from '../services/crypto';
-import { siteInfo } from '../services/policy';
 import { ParkingRepository } from '../services/repository';
 import { ParkingService } from '../services/service';
-import { DEMO_RESIDENT_ID } from '../services/site';
+import { DEMO_INVITE_BASE_URL, DEMO_RESIDENT_ID, DEMO_SECURITY_PHONE } from '../services/demoPeople';
 import { createDeviceStorage } from '../services/storage';
-import type { ParkingDb } from '../services/types';
+import { ParkingDemoContext, type ParkingDemoValue } from './parkingValue';
+
+export { ParkingDemoContext, type ParkingDemoValue };
 
 // Native has no global crypto; expo-crypto supplies the secure bytes for pass tokens.
 setRandomSource((bytes) => Crypto.getRandomValues(bytes));
@@ -25,17 +25,6 @@ const SWEEP_INTERVAL_MS = 30_000;
 /** How often time-based labels ("overdue", charging progress) refresh. */
 const CLOCK_INTERVAL_MS = 5_000;
 
-export interface ParkingDemoValue {
-  service: ParkingService;
-  db: ParkingDb;
-  /** The demo clock: real time plus the offset set in Demo controls. */
-  now: number;
-  /** The signed-in resident, until the app has real accounts. */
-  residentId: string;
-  storageKind: ParkingRepository['storageKind'];
-  /** Base for invitation links: the page origin on web, a placeholder on native. */
-  inviteOrigin: string;
-}
 
 /**
  * The demo clock as an external store: it advances every few seconds and
@@ -73,13 +62,12 @@ function createClockStore(repo: ParkingRepository) {
   };
 }
 
-export const ParkingDemoContext = createContext<ParkingDemoValue | undefined>(undefined);
 
 function originForInvites(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return window.location.origin;
   }
-  return siteInfo.nativeInviteBaseUrl;
+  return DEMO_INVITE_BASE_URL;
 }
 
 /**
@@ -87,6 +75,7 @@ function originForInvites(): string {
  * component, holds all state; this only re-renders consumers when it
  * commits and runs the scheduled rules on a timer.
  */
+/** The offline demo: the rules on this device, with seeded sample data (Demo controls, Security console). */
 export function ParkingDemoProvider({ children }: PropsWithChildren) {
   const [service] = useState(() => new ParkingService(new ParkingRepository(createDeviceStorage())));
   const repo = service.repo;
@@ -122,6 +111,11 @@ export function ParkingDemoProvider({ children }: PropsWithChildren) {
       residentId: DEMO_RESIDENT_ID,
       storageKind: repo.storageKind,
       inviteOrigin: originForInvites(),
+      status: 'ready',
+      error: null,
+      reload: () => void service.tick(),
+      securityPhone: DEMO_SECURITY_PHONE,
+      retain: () => () => undefined,
     }),
     [service, db, now, repo],
   );

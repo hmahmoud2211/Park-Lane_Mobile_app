@@ -27,6 +27,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   too_large: 413,
   consent_required: 403,
   slot_taken: 409,
+  parking_refused: 409,
   invalid_transition: 409,
   version_conflict: 409,
   ai_failed: 502,

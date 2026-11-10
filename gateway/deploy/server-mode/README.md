@@ -22,16 +22,16 @@ Phone (anywhere) ──▶ https://cube-relay.ems-iot.com ───┘
 3. **Broker:** `./setup-broker.sh mqtt-cube.ems-iot.com`. Creates CUBE's device CA, the broker certificate,
    the broker admin login (in `/home/ems-server/EMS/cube-mqtt/admin.env`, mode 0600) and starts `cube-mqtt`.
    Re-running keeps all of it.
-4. **Relay:** add the lines of `admin.env` to the relay's env file and restart it with the CA mounted:
+4. **Relay:** add the lines of `admin.env` to the relay's env file, point the backend's compose file at the CA
+   (`RELAY_CA_FILE` in `backend/.env`, see [production.md](../../../docs/production.md#the-relay)) and restart it:
    ```bash
    cat /home/ems-server/EMS/cube-mqtt/admin.env >> /home/ems-server/EMS/cube-relay/relay.env
-   docker rm -f cube-relay
-   docker run -d --name cube-relay --network host --restart unless-stopped \
-     --env-file /home/ems-server/EMS/cube-relay/relay.env -v cube-relay-data:/data \
-     -v /home/ems-server/EMS/cube-mqtt/certs/ca.crt:/ca/ca.crt:ro \
-     hmahmoud2211/cube-os-gateway:latest relay
+   grep -q '^RELAY_CA_FILE=' backend/.env || echo 'RELAY_CA_FILE=/home/ems-server/EMS/cube-mqtt/certs/ca.crt' >> backend/.env
+   (cd backend && docker compose up -d --force-recreate relay)
    curl https://cube-relay.ems-iot.com/relay/v1/health    # "device_broker": true
    ```
+   Run from the repo (`/opt/parklane`). A relay still started with `docker run` moves into compose first:
+   `./scripts/dev.sh server` does it ([production.md](../../../docs/production.md#the-relay)).
 
 ## Per apartment
 
@@ -162,7 +162,8 @@ their passwords across the internet in clear text.
 ## Upgrading
 
 Meross needs the relay's new routes, so upgrade `cube-relay` as well as the apartment gateways. The relay adds its
-new table by itself.
+new table by itself. Set `RELAY_IMAGE` in `backend/.env` to the new build, then
+`cd backend && docker compose pull relay && docker compose up -d relay`.
 
 ## Checks
 

@@ -55,6 +55,10 @@ export function createStyles(theme: AppTheme, isWide: boolean) {
           width: '100%',
           alignItems: 'center',
         },
+    back: {
+      alignSelf: 'flex-start',
+      marginBottom: theme.spacing.sm,
+    },
     lockup: {
       width: LOCKUP_WIDTH,
       height: LOCKUP_HEIGHT,

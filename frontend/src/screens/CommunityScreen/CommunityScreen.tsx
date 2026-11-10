@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Image,
@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
+import { ErrorNotice } from '../../components/feedback/ErrorNotice';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { Notice } from '../../components/feedback/Notice';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { BottomBar } from '../../components/layout/BottomBar';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -30,23 +33,29 @@ import { PanelHeading } from '../../components/ui/PanelHeading';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { imageAspects, images } from '../../constants/images';
+import { pictureFor } from '../../constants/pictures';
+import { castVote, getCommunity, sendFeedback as postFeedback, setRsvp } from '../../features/community/services/communityApi';
+import { useEms } from '../../features/ems/hooks/useEms';
+import { emsErrorText } from '../../features/ems/services/emsHttp';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { useFocusQuery } from '../../hooks/useFocusQuery';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import {
-  announcements,
-  communityAlerts,
+  canToggleRsvp,
+  closedOn,
   communityCopy as copy,
-  currentPoll,
   dateParts,
-  pastPolls,
   pollShares,
   rsvpDisplay,
   shownCounts,
   timeRange,
-  upcomingEvents,
+  toAlert,
+  toAnnouncement,
+  toEvent,
+  topicValue,
   type AlertLevel,
   type CommunityEvent,
-  type RsvpStatus,
+  type FeedbackForm as FeedbackValues,
 } from './CommunityScreen.data';
 import {
   ALERT_BADGE_ICON_SIZE,
@@ -63,6 +72,9 @@ import {
 import { FeedbackForm } from './FeedbackForm';
 import { PollOptionRow } from './PollOptionRow';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
+
+/** The feed, with when it arrived, which "2h ago" counts from. */
+const loadFeed = async () => ({ ...(await getCommunity()), loadedAt: Date.now() });
 
 /** The panels whose "View All" opens the full list in place. */
 type ExpandablePanel = 'announcements' | 'events' | 'alerts' | 'polls';
@@ -86,13 +98,27 @@ export function CommunityScreen() {
   const columnsY = useRef(0);
   const { menuOpen, setMenuOpen, menuItems } = useScreenMenu();
 
-  // Screen-local until there is a backend to send RSVPs and votes to.
-  // TODO(api): persist both once the community service exists.
-  const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>(() =>
-    Object.fromEntries(upcomingEvents.map((event) => [event.id, event.rsvp])),
+  // What management published; reloaded when the screen is shown and whenever they change something.
+  const feed = useFocusQuery(loadFeed);
+  const { onRealtimeEvent } = useEms();
+  const reload = feed.reload;
+  useEffect(
+    () =>
+      onRealtimeEvent((event) => {
+        if (event.type === 'community.updated' || event.type === 'ready') reload();
+      }),
+    [onRealtimeEvent, reload],
   );
-  const [vote, setVote] = useState(currentPoll.myVote);
-  const shares = useMemo(() => pollShares(currentPoll, vote), [vote]);
+  const timeZone = feed.data?.timezone ?? 'Africa/Cairo';
+  const loadedAt = feed.data?.loadedAt ?? 0;
+  const announcements = useMemo(() => (feed.data?.announcements ?? []).map((item) => toAnnouncement(item, loadedAt)), [feed.data, loadedAt]);
+  const communityAlerts = useMemo(() => (feed.data?.alerts ?? []).map((item) => toAlert(item, loadedAt)), [feed.data, loadedAt]);
+  const upcomingEvents = useMemo(() => (feed.data?.events ?? []).map((item) => toEvent(item, timeZone)), [feed.data, timeZone]);
+  const currentPoll = feed.data?.poll ?? null;
+  const pastPolls = feed.data?.pastPolls ?? [];
+  const shares = useMemo(() => (currentPoll ? pollShares(currentPoll) : {}), [currentPoll]);
+  /** The event or poll option being sent, so a second tap waits. */
+  const [pending, setPending] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<ExpandablePanel, boolean>>({
     announcements: false,
     events: false,
@@ -102,7 +128,6 @@ export function CommunityScreen() {
   /** The one row opened to its full text, across all lists. */
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  // TODO(api): send feedback to management once the community service exists.
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   const scroll = useRef<ScrollViewInstance>(null);
@@ -135,33 +160,54 @@ export function CommunityScreen() {
     setFeedbackOpen(true);
   };
 
-  // The form hands over a valid message; with no service yet, it is only
-  // acknowledged here.
-  const sendFeedback = () => {
-    setFeedbackOpen(false);
-    setFeedbackSent(true);
-    AccessibilityInfo.announceForAccessibility(copy.feedbackThanks);
+  // The message goes to building management, who reply into the resident's inbox.
+  const sendFeedback = useCallback(async (form: FeedbackValues): Promise<string | null> => {
+    try {
+      await postFeedback(topicValue(form.topic), form.message);
+      setFeedbackOpen(false);
+      setFeedbackSent(true);
+      AccessibilityInfo.announceForAccessibility(copy.feedbackThanks);
+      return null;
+    } catch (error: unknown) {
+      return emsErrorText(error);
+    }
+  }, []);
+
+  // Registering marks the resident as going; tapping "I'm Going" withdraws. The server counts the places, so a
+  // full event (or one that just filled) comes back as such.
+  const toggleRsvp = (event: CommunityEvent) => {
+    if (pending || !canToggleRsvp(event.rsvp)) return;
+    setPending(event.id);
+    setRsvp(event.id, event.rsvp !== 'going')
+      .catch(() => undefined)
+      .finally(() => {
+        setPending(null);
+        reload();
+      });
   };
 
-  // Registering marks the resident as going; tapping "I'm Going" withdraws.
-  const toggleRsvp = (eventId: string) =>
-    setRsvps((current) => {
-      const status = current[eventId];
-      if (status === 'soon') return current;
-      return { ...current, [eventId]: status === 'going' ? 'open' : 'going' };
-    });
+  const vote = (optionId: string) => {
+    if (pending || !currentPoll || currentPoll.myVote === optionId) return;
+    setPending(optionId);
+    castVote(currentPoll.id, optionId)
+      .catch(() => undefined)
+      .finally(() => {
+        setPending(null);
+        reload();
+      });
+  };
 
   const renderRsvp = (event: CommunityEvent) => {
-    const status = rsvps[event.id] ?? event.rsvp;
+    const status = event.rsvp;
     const { label, tone } = rsvpDisplay[status];
     const chip = <StatusChip label={label} tone={tone} glow={status === 'going'} style={styles.rsvp} />;
 
-    if (status === 'soon') {
+    if (!canToggleRsvp(status)) {
       return chip;
     }
     return (
       <Pressable
-        onPress={() => toggleRsvp(event.id)}
+        onPress={() => toggleRsvp(event)}
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel={
@@ -235,8 +281,23 @@ export function CommunityScreen() {
             style={styles.card}
           />
 
-          {/* News down one side, the poll and feedback down the other, when wide. */}
-          {/* The cards carry their own spacing, so the columns add none. */}
+          {feed.error ? (
+            feed.error.code === 'no_home' ? (
+              <Notice tone="info" title={copy.noHomeTitle} style={styles.card}>
+                {copy.noHomeBody}
+              </Notice>
+            ) : (
+              <View style={styles.card}>
+                <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={reload}>
+                  {feed.error.message}
+                </ErrorNotice>
+              </View>
+            )
+          ) : !feed.data ? (
+            <LoadingState />
+          ) : (
+          /* News down one side, the poll and feedback down the other, when wide.
+             The cards carry their own spacing, so the columns add none. */
           <View
             onLayout={(event) => {
               columnsY.current = event.nativeEvent.layout.y;
@@ -252,6 +313,7 @@ export function CommunityScreen() {
                     iconSize={HEADING_ICON_SIZE}
                     {...viewAll('announcements')}
                   />
+                  {announcements.length === 0 ? <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.emptyText}>{copy.noAnnouncements}</AppText> : null}
                   {shown(announcements, 'announcements').map((item, index) => (
                     <MediaRow
                       key={item.id}
@@ -277,6 +339,7 @@ export function CommunityScreen() {
                     iconSize={HEADING_ICON_SIZE}
                     {...viewAll('events')}
                   />
+                  {upcomingEvents.length === 0 ? <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.emptyText}>{copy.noEvents}</AppText> : null}
                   {shown(upcomingEvents, 'events').map((event, index) => (
                     <MediaRow
                       key={event.id}
@@ -304,6 +367,7 @@ export function CommunityScreen() {
                     iconSize={HEADING_ICON_SIZE}
                     {...viewAll('alerts')}
                   />
+                  {communityAlerts.length === 0 ? <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.emptyText}>{copy.noAlerts}</AppText> : null}
                   {shown(communityAlerts, 'alerts').map((alert, index) => (
                     <MediaRow
                       key={alert.id}
@@ -343,21 +407,38 @@ export function CommunityScreen() {
                     iconSet="ionicons"
                     iconName="stats-chart-outline"
                     iconSize={HEADING_ICON_SIZE}
-                    {...viewAll('polls')}
+                    {...(pastPolls.length > 0 ? viewAll('polls') : {})}
                     divider={false}
                   />
-                  <View accessibilityRole="radiogroup">
-                    {currentPoll.options.map((option) => (
-                      <PollOptionRow
-                        key={option.id}
-                        label={option.label}
-                        photo={images[option.photo]}
-                        share={shares[option.id] ?? 0}
-                        selected={vote === option.id}
-                        onSelect={() => setVote(option.id)}
-                      />
-                    ))}
-                  </View>
+                  {currentPoll ? (
+                    <>
+                      <AppText variant="statValue" style={styles.pollQuestion}>
+                        {currentPoll.question}
+                      </AppText>
+                      <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.pollMeta}>
+                        {`${copy.pollCloses(closedOn(currentPoll.closesAt, timeZone))} · ${copy.pollVotes(currentPoll.totalVotes)}`}
+                      </AppText>
+                      <View accessibilityRole="radiogroup">
+                        {currentPoll.options.map((option) => {
+                          const picture = option.picture ? pictureFor(option.picture, { set: 'ionicons', name: 'ellipse-outline' }) : null;
+                          return (
+                            <PollOptionRow
+                              key={option.id}
+                              label={option.label}
+                              photo={picture?.photo ? images[picture.photo] : undefined}
+                              share={shares[option.id] ?? 0}
+                              selected={currentPoll.myVote === option.id}
+                              onSelect={() => vote(option.id)}
+                            />
+                          );
+                        })}
+                      </View>
+                    </>
+                  ) : (
+                    <AppText variant="tileCaption" color={theme.colors.textSupport} style={styles.emptyText}>
+                      {copy.noPoll}
+                    </AppText>
+                  )}
                   {expanded.polls ? (
                     <View style={styles.pastPolls}>
                       <AppText
@@ -368,7 +449,7 @@ export function CommunityScreen() {
                         {copy.pastPollsTitle}
                       </AppText>
                       {pastPolls.map((poll) => {
-                        const total = poll.options.reduce((sum, option) => sum + option.votes, 0);
+                        const total = poll.totalVotes;
                         return (
                           <View key={poll.id}>
                             <AppText variant="statValue">{poll.question}</AppText>
@@ -377,7 +458,7 @@ export function CommunityScreen() {
                               color={theme.colors.textSupport}
                               style={styles.pastPollMeta}
                             >
-                              {`${copy.pollClosed(poll.closedOn)} · ${copy.pollVotes(total)}`}
+                              {`${copy.pollClosed(closedOn(poll.closesAt, timeZone))} · ${copy.pollVotes(total)}`}
                             </AppText>
                             {poll.options.map((option) => {
                               const share = total > 0 ? option.votes / total : 0;
@@ -484,6 +565,7 @@ export function CommunityScreen() {
               </>
             </ResponsiveColumns>
           </View>
+          )}
 
           {sideBySide ? null : feedbackForm}
         </ScrollView>

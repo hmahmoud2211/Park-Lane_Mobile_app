@@ -1,5 +1,6 @@
 import { DEMO_ASSISTANT_RESIDENT_ID } from './demo';
 import { env } from './env';
+import { flags } from './flags';
 
 /**
  * The Parklane Assistant backend (FRONTEND_INTEGRATION.md). REST answers text
@@ -18,8 +19,14 @@ export const assistantConfig = {
   wsBase: httpBase.replace(/^http/, 'ws'),
   apiPrefix: '/api/v1',
 
-  /** Who the assistant answers for until the app has real sign-in (config/demo.ts). */
-  defaultResidentId: DEMO_ASSISTANT_RESIDENT_ID,
+  /**
+   * Who the assistant answers for until it knows the signed-in account (config/demo.ts). The
+   * store build asks as no resident at all: it must never answer as someone else.
+   */
+  defaultResidentId: flags.sampleContent ? DEMO_ASSISTANT_RESIDENT_ID : null,
+
+  /** The AI companies named in the consent screen (EXPO_PUBLIC_ASSISTANT_AI_PROVIDERS). */
+  aiProviders: (env.assistantAiProviders ?? '').trim() || null,
 
   /** A typical answer takes 2-5s; beyond this the request is abandoned. */
   chatTimeoutMs: 45_000,

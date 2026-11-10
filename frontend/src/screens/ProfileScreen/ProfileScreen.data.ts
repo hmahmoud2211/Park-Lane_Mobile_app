@@ -1,3 +1,4 @@
+import { flags } from '../../config/flags';
 import type { IconSet } from '../../types/icons.types';
 
 /**
@@ -10,9 +11,11 @@ export interface ProfileMenuItem {
   title: string;
   iconSet: IconSet;
   iconName: string;
+  /** The screen the row opens; the sample rows have none yet. */
+  route?: 'AccountSecurity' | 'EmsDevices' | 'HelpSupport';
 }
 
-export const profileMenu: readonly ProfileMenuItem[] = [
+const sampleProfileMenu: readonly ProfileMenuItem[] = [
   { id: 'my-profile', title: 'My Profile', iconSet: 'ionicons', iconName: 'person-outline' },
   {
     id: 'family',
@@ -35,11 +38,21 @@ export const profileMenu: readonly ProfileMenuItem[] = [
   },
 ];
 
+/** The store build lists only rows that open a real screen (flags.sampleContent). */
+export const profileMenu: readonly ProfileMenuItem[] = flags.sampleContent
+  ? sampleProfileMenu
+  : [
+      { id: 'account', title: 'Account & Security', iconSet: 'ionicons', iconName: 'shield-checkmark-outline', route: 'AccountSecurity' },
+      { id: 'devices', title: 'My Devices', iconSet: 'material', iconName: 'devices', route: 'EmsDevices' },
+      { id: 'help', title: 'Help & Support', iconSet: 'ionicons', iconName: 'headset-outline', route: 'HelpSupport' },
+    ];
+
 /**
  * Payload behind the resident's gate-access QR. Static mock: a real one would
  * be short-lived and issued by the backend.
  */
-export const accessPassPayload = 'PARKLANE:RESIDENT:A-302:AHMED-HASSAN';
+// Written out in full so the bundler drops the sample code from the store build, which never shows it.
+export const accessPassPayload = process.env.EXPO_PUBLIC_STORE_MODE === '1' ? '' : 'PARKLANE:RESIDENT:A-302:AHMED-HASSAN';
 
 export const profileCopy = {
   title: 'Profile',

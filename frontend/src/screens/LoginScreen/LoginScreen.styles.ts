@@ -127,6 +127,9 @@ export function createStyles(theme: AppTheme, isWide: boolean) {
     formError: {
       marginTop: theme.spacing.sm,
     },
+    inlineLink: {
+      textDecorationLine: 'underline',
+    },
     submit: {
       marginTop: FORGOT_TO_SUBMIT,
     },

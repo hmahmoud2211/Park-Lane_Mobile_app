@@ -13,29 +13,35 @@ import type { AppTheme } from '../../types/theme.types';
 import { FIELD_CHEVRON_SIZE, FIELD_HEIGHT, FORM_ICON_SIZE } from '../../components/forms/formMetrics';
 import {
   emptyRequestForm,
+  labelFor,
   maintenanceCopy as copy,
   requestFieldRows,
-  serviceCategories,
   validateRequest,
-  visitDateOptions,
-  visitWindows,
+  type Choice,
+  type KindCopy,
   type RequestFieldConfig,
   type RequestForm as RequestFormValues,
   type RequestFormErrors,
   type RequestFormKey,
+  type SelectKey,
 } from './MaintenanceScreen.data';
 import { FormSubmitButton } from '../../components/forms/FormSubmitButton';
 
 export interface RequestFormProps {
-  /** Fills in the category, e.g. when the form was opened from its tile. */
-  categoryTitle?: string;
-  /** Receives a form that passed validation. */
-  onSubmit: (form: RequestFormValues) => void;
+  /** The kind of request's title and wording. */
+  kindCopy: KindCopy;
+  /** What the compound offers: categories, visit days and windows. */
+  choices: Record<SelectKey, readonly Choice[]>;
+  /** Fills in the category (its id), e.g. when the form was opened from its tile. */
+  categoryId?: string;
+  /**
+   * Receives a form that passed the app's checks. Resolves with what went wrong, if anything: the backend's
+   * refusal of one field (shown beside it) or a message (shown under the button).
+   */
+  onSubmit: (form: RequestFormValues) => Promise<RequestFormErrors | string | null>;
   onClose: () => void;
   style?: StyleProp<ViewStyle>;
 }
-
-type SelectKey = Extract<RequestFormKey, 'category' | 'date' | 'window'>;
 
 interface OpenSelect {
   key: SelectKey;
@@ -53,41 +59,33 @@ const CTA_TOP = 16;
 const CLOSE_ICON_SIZE = 16;
 
 /**
- * The new maintenance request, built on Visitor Access's "New Visitor Pass"
- * form: text fields, fields that open a list of choices, and a gradient
- * submit button. The form keeps its own values; the screen only receives a
- * valid request.
+ * A new request, built on Visitor Access's "New Visitor Pass" form: text fields, fields that open a list of
+ * choices, and a gradient submit button. The form keeps its own values; the screen sends a valid request.
  */
-export function RequestForm({ categoryTitle, onSubmit, onClose, style }: RequestFormProps) {
+export function RequestForm({ kindCopy, choices, categoryId, onSubmit, onClose, style }: RequestFormProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [form, setForm] = useState<RequestFormValues>(() => ({
     ...emptyRequestForm,
-    category: categoryTitle ?? '',
+    category: categoryId ?? '',
   }));
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [errors, setErrors] = useState<RequestFormErrors>({});
   const [openSelect, setOpenSelect] = useState<OpenSelect | null>(null);
   const selectRefs = useRef<Partial<Record<SelectKey, ViewInstance | null>>>({});
 
   // Another tile tapped while the form is open picks that category instead.
   // Adjusted during render, as React recommends for state that follows a prop.
-  const [lastCategory, setLastCategory] = useState(categoryTitle);
-  if (categoryTitle !== lastCategory) {
-    setLastCategory(categoryTitle);
-    if (categoryTitle) {
-      setForm((current) => ({ ...current, category: categoryTitle }));
+  const [lastCategory, setLastCategory] = useState(categoryId);
+  if (categoryId !== lastCategory) {
+    setLastCategory(categoryId);
+    if (categoryId) {
+      setForm((current) => ({ ...current, category: categoryId }));
       setErrors((current) => ({ ...current, category: undefined }));
     }
   }
-
-  const options = useMemo<Record<SelectKey, readonly string[]>>(
-    () => ({
-      category: serviceCategories.map((category) => category.title),
-      date: visitDateOptions(),
-      window: visitWindows,
-    }),
-    [],
-  );
+  const fieldRows = useMemo(() => requestFieldRows(kindCopy), [kindCopy]);
 
   const update = (key: RequestFormKey, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -104,20 +102,28 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
 
   const submit = () => {
     Keyboard.dismiss();
+    if (busy) return;
     const found = validateRequest(form);
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return;
     }
-    onSubmit(form);
+    setBusy(true);
+    setFormError(null);
+    onSubmit(form)
+      .then((problem) => {
+        if (typeof problem === 'string') setFormError(problem);
+        else if (problem) setErrors(problem);
+      })
+      .finally(() => setBusy(false));
   };
 
   const menuItems: readonly AppMenuItem[] = openSelect
-    ? options[openSelect.key].map((label) => ({
-        id: label,
-        label,
+    ? choices[openSelect.key].map((choice) => ({
+        id: choice.value,
+        label: choice.label,
         onPress: () => {
-          update(openSelect.key, label);
+          update(openSelect.key, choice.value);
           setOpenSelect(null);
         },
       }))
@@ -128,6 +134,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
 
     if (field.kind === 'select') {
       const key = field.key as SelectKey;
+      const shown = labelFor(choices[key], form[key]);
       return (
         <Pressable
           key={key}
@@ -136,7 +143,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
           }}
           onPress={() => open(key, column)}
           accessibilityRole="button"
-          accessibilityLabel={`${field.label}: ${form[key] || field.placeholder}`}
+          accessibilityLabel={`${field.label}: ${shown || field.placeholder}`}
           accessibilityHint="Opens a list of choices"
           style={({ pressed }) => [styles.field, pressed && styles.pressed]}
         >
@@ -146,7 +153,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
               variant="field"
               height={FIELD_HEIGHT}
               label={field.label}
-              value={form[key]}
+              value={shown}
               onChangeText={() => undefined}
               placeholder={field.placeholder}
               editable={false}
@@ -174,7 +181,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
         leftIcon={icon}
         error={errors[field.key]}
         autoCapitalize="sentences"
-        maxLength={field.key === 'issue' ? 60 : 200}
+        maxLength={field.key === 'issue' ? 60 : 500}
         returnKeyType="done"
         accessibilityLabel={field.label}
       />
@@ -187,7 +194,7 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
         <Ionicons name="construct-outline" size={FORM_ICON_SIZE} color={theme.colors.textPrimary} />
         <View style={styles.title}>
           <AppText variant="sectionTitle" accessibilityRole="header">
-            {copy.formTitle}
+            {kindCopy.formTitle}
           </AppText>
           <AppText variant="statLabel" color={theme.colors.textSupport} style={styles.subtitle}>
             {copy.formSubtitle}
@@ -205,14 +212,19 @@ export function RequestForm({ categoryTitle, onSubmit, onClose, style }: Request
       </View>
 
       <View style={styles.grid}>
-        {requestFieldRows.map((row) => (
+        {fieldRows.map((row) => (
           <View key={row[0].key} style={styles.row}>
             {row.map((field, column) => renderField(field, column))}
           </View>
         ))}
       </View>
 
-      <FormSubmitButton title={copy.submit} onPress={submit} style={styles.cta} />
+      <FormSubmitButton title={busy ? copy.submitting : copy.submit} onPress={submit} style={styles.cta} />
+      {formError ? (
+        <AppText variant="statLabel" color={theme.colors.error} accessibilityRole="alert" style={styles.formError}>
+          {formError}
+        </AppText>
+      ) : null}
 
       <AppMenu
         visible={openSelect !== null}
@@ -265,6 +277,10 @@ function createStyles(theme: AppTheme) {
       borderWidth: theme.glass.strokeWidth,
       borderColor: theme.colors.frameStroke,
       ...theme.shadows.glow,
+    },
+    formError: {
+      marginTop: theme.spacing.sm,
+      textAlign: 'center',
     },
     pressed: {
       opacity: 0.7,

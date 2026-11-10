@@ -32,6 +32,8 @@ docker build -t parklane-backend .
 docker run -d --init --name parklane-backend --env-file .env -p 8787:8787 -v parklane-data:/app/data parklane-backend
 ```
 
+Instead of building, you can use a pushed image: replace the last word of `docker run` with `hmahmoud2211/parklane-backend:<commit>` (or `:latest`). `../scripts/dev.sh push` publishes one, see [production.md](../docs/production.md#images-on-docker-hub).
+
 The `parklane-data` volume keeps the database and the clinic's files, so to upgrade, build again, run `docker rm -f parklane-backend`, and repeat the `docker run`. A new volume starts empty, apart from the default account. To carry on with the data `npm start` uses, mount that folder instead: `-v "$PWD/data":/app/data`.
 
 ```bash

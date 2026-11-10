@@ -8,10 +8,8 @@ import {
 import type { PdfDocument } from '../../features/documents/services/pdf.types';
 import { qrSvg } from '../../features/documents/services/qrSvg';
 import { colors } from '../../theme';
-import { resident, unit } from '../../data/demoResident';
 import { guestsLabel } from '../../utils/format';
 import {
-  passPayload,
   statusDisplay,
   visitorAccessCopy as copy,
   type VisitorPass,
@@ -25,11 +23,10 @@ const QR_SIZE = 220;
  * the card's (so the gate reads either), at a sturdier error-correction level
  * for a code shown on another phone or printed, with the visit details under it.
  */
-export function buildPassDocument(pass: VisitorPass): PdfDocument {
-  const host = `${resident.firstName} ${resident.lastName}`;
+export function buildPassDocument(pass: VisitorPass, host: { name: string; unit: string }): PdfDocument {
   const details = [
     ['Visitor', pass.name],
-    ['Mobile', pass.mobile],
+    ...(pass.mobile ? ([['Mobile', pass.mobile]] as const) : []),
     ['Visit Date', pass.date],
     ['Arrival Time', pass.time],
     ['Guests', guestsLabel(pass.guests)],
@@ -38,7 +35,7 @@ export function buildPassDocument(pass: VisitorPass): PdfDocument {
   ] as const;
 
   const body = [
-    `<div class="qr">${qrSvg(passPayload(pass), QR_SIZE, colors.deepNavy)}</div>`,
+    `<div class="qr">${qrSvg(pass.code, QR_SIZE, colors.deepNavy)}</div>`,
     `<p class="qr-caption">${escapeHtml(copy.passCaption)}</p>`,
     section('Visit', detailsTable(details)),
   ].join('');
@@ -50,11 +47,11 @@ export function buildPassDocument(pass: VisitorPass): PdfDocument {
       title: copy.passDocumentTitle,
       pageTitle: `${copy.passDocumentTitle} - ${pass.name}`,
       meta: [
-        `Hosted by ${host} · ${unit.title}`,
+        host.unit ? `Hosted by ${host.name} · ${host.unit}` : `Hosted by ${host.name}`,
         `Issued ${formatDocumentDate(new Date())}`,
       ],
       body,
-      note: 'Generated in the Park Lane app. Valid only for the visit above.',
+      note: 'Issued by Park Lane. The gate checks this code; it works only for the visit above, and stops working if the resident cancels it.',
     }),
   };
 }

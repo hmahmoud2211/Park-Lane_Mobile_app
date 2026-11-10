@@ -13,7 +13,7 @@ import { AppProvider } from './src/context/AppContext';
 import { EmsProvider } from './src/features/ems/context/EmsContext';
 import { GatewayProvider } from './src/features/gateway/context/GatewayContext';
 import { HealthProvider } from './src/features/health/context/HealthContext';
-import { ParkingDemoProvider } from './src/features/parking/context/ParkingDemoContext';
+import { ParkingProvider } from './src/features/parking/context/ParkingContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { colors } from './src/theme';
@@ -22,6 +22,7 @@ import { installWebZoomLock } from './src/utils/webZoomLock';
 
 installWebFormStyles();
 installWebZoomLock();
+
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -40,13 +41,14 @@ export default function App() {
           <AppProvider>
             <EmsProvider>
               <GatewayProvider>
-                <ParkingDemoProvider>
+                {/* Parking from the backend; it asks only while a parking screen is open. */}
+                <ParkingProvider>
                   <HealthProvider>
                     {/* Every screen is dark, so light status bar content is the default. */}
                     <StatusBar style="light" />
                     {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
                   </HealthProvider>
-                </ParkingDemoProvider>
+                </ParkingProvider>
               </GatewayProvider>
             </EmsProvider>
           </AppProvider>

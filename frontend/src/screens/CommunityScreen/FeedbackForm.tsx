@@ -20,8 +20,8 @@ import {
 import { FormSubmitButton } from '../../components/forms/FormSubmitButton';
 
 export interface FeedbackFormProps {
-  /** Receives a message that passed validation. */
-  onSubmit: (feedback: FeedbackValues) => void;
+  /** Sends a message that passed the app's checks; resolves with what went wrong, if anything. */
+  onSubmit: (feedback: FeedbackValues) => Promise<string | null>;
   onClose: () => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -46,6 +46,8 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
   const [form, setForm] = useState<FeedbackValues>({ topic: '', message: '' });
   const [errors, setErrors] = useState<FeedbackErrors>({});
   const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const topicRef = useRef<ViewInstance>(null);
 
   const update = (key: keyof FeedbackValues, value: string) => {
@@ -65,7 +67,12 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
       setErrors(found);
       return;
     }
-    onSubmit({ topic: form.topic, message: form.message.trim() });
+    if (busy) return;
+    setBusy(true);
+    setFailure(null);
+    onSubmit({ topic: form.topic, message: form.message.trim() })
+      .then(setFailure)
+      .finally(() => setBusy(false));
   };
 
   const topicItems: readonly AppMenuItem[] = feedbackTopics.map((topic) => ({
@@ -145,7 +152,12 @@ export function FeedbackForm({ onSubmit, onClose, style }: FeedbackFormProps) {
         />
       </View>
 
-      <FormSubmitButton title={copy.feedbackSend} onPress={submit} style={styles.cta} />
+      <FormSubmitButton title={busy ? copy.feedbackSending : copy.feedbackSend} onPress={submit} style={styles.cta} />
+      {failure ? (
+        <AppText variant="statLabel" color={theme.colors.error} accessibilityRole="alert" style={styles.failure}>
+          {failure}
+        </AppText>
+      ) : null}
 
       <AppMenu
         visible={anchor !== null}
@@ -194,6 +206,10 @@ function createStyles(theme: AppTheme) {
       borderWidth: theme.glass.strokeWidth,
       borderColor: theme.colors.frameStroke,
       ...theme.shadows.glow,
+    },
+    failure: {
+      marginTop: theme.spacing.sm,
+      textAlign: 'center',
     },
     pressed: {
       opacity: 0.7,

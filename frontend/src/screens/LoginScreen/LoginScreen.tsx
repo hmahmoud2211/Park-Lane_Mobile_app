@@ -1,6 +1,7 @@
 // Imported by subpath: the package root re-exports every icon set, which
 // bundles ~2.5MB of unused .ttf fonts.
 import { useNavigation } from '@react-navigation/native';
+import * as WebBrowser from 'expo-web-browser';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +26,7 @@ import { GradientText } from '../../components/common/GradientText';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { assistantConfig } from '../../config/assistant';
+import { legal } from '../../config/legal';
 import { images } from '../../constants/images';
 import { useEms } from '../../features/ems/hooks/useEms';
 import { emsErrorText } from '../../features/ems/services/emsHttp';
@@ -107,6 +109,7 @@ export function LoginScreen() {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showForgotHelp, setShowForgotHelp] = useState(false);
 
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
@@ -149,6 +152,7 @@ export function LoginScreen() {
     setMode((current) => (current === 'signIn' ? 'create' : 'signIn'));
     setErrors({});
     setFailure(null);
+    setShowForgotHelp(false);
   }, []);
 
   // Straight to Home with no resident, so the assistant answers as for a guest.
@@ -310,11 +314,10 @@ export function LoginScreen() {
                 </Pressable>
                 {creating ? null : (
                   <Pressable
-                    onPress={() => {
-                      // TODO(nav): route to password recovery once that screen exists.
-                    }}
+                    onPress={() => setShowForgotHelp((shown) => !shown)}
                     style={styles.link}
                     accessibilityRole="button"
+                    accessibilityState={{ expanded: showForgotHelp }}
                   >
                     <AppText variant="bodySmall" color={theme.colors.link}>
                       {loginCopy.forgotPassword}
@@ -323,9 +326,32 @@ export function LoginScreen() {
                 )}
               </View>
 
+              {showForgotHelp && !creating ? (
+                <AppText variant="bodySmall" color={theme.colors.textAccentSoft} style={styles.formError}>
+                  {loginCopy.forgotPasswordHelp}
+                </AppText>
+              ) : null}
+
               {notice ? (
-                <AppText variant="bodySmall" color={theme.colors.error} accessibilityRole="alert" style={styles.formError}>
+                // A session that ended (or an account just deleted) is news, not a mistake.
+                <AppText variant="bodySmall" color={failure ? theme.colors.error : theme.colors.textAccentSoft} accessibilityRole="alert" style={styles.formError}>
                   {notice}
+                </AppText>
+              ) : null}
+
+              {creating && legal.privacyPolicyUrl ? (
+                <AppText variant="bodySmall" color={theme.colors.textAccentSoft} style={styles.formError}>
+                  {accountCopy.consentLead}
+                  <AppText
+                    variant="bodySmall"
+                    color={theme.colors.textPrimary}
+                    style={styles.inlineLink}
+                    accessibilityRole="link"
+                    onPress={() => void WebBrowser.openBrowserAsync(legal.privacyPolicyUrl as string)}
+                  >
+                    {accountCopy.privacyLink}
+                  </AppText>
+                  {accountCopy.consentEnd}
                 </AppText>
               ) : null}
 

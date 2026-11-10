@@ -16,6 +16,17 @@ export const changePasswordCopy = {
   signOut: 'Sign out',
 } as const;
 
+/** The same form opened from Account & security, to change a password the resident already chose. */
+export const voluntaryPasswordCopy = {
+  ...changePasswordCopy,
+  headingLead: 'Change your',
+  headingAccent: 'password',
+  intro: 'Choose a new password. Your other phones are signed out; this one stays signed in.',
+  currentLabel: 'Current password',
+  rules: `At least ${MIN_PASSWORD_LENGTH} characters, not your email and not your current password.`,
+  submit: 'Save new password',
+} as const;
+
 const PROBLEM_TEXT = {
   current: { required: 'Enter the temporary password' },
   next: {
@@ -27,11 +38,16 @@ const PROBLEM_TEXT = {
   confirm: { required: 'Enter the new password again', mismatch: 'The passwords don’t match' },
 } as const;
 
+const VOLUNTARY_TEXT = {
+  current: { required: 'Enter your current password' },
+  same: 'Use a password different from your current one',
+} as const;
+
 /** Each field's problem, worded; a field without one has none. */
-export function problemText(problems: PasswordProblems): { current?: string; next?: string; confirm?: string } {
+export function problemText(problems: PasswordProblems, voluntary = false): { current?: string; next?: string; confirm?: string } {
   return {
-    current: problems.current && PROBLEM_TEXT.current[problems.current],
-    next: problems.next && PROBLEM_TEXT.next[problems.next],
+    current: problems.current && (voluntary ? VOLUNTARY_TEXT.current : PROBLEM_TEXT.current)[problems.current],
+    next: problems.next && (voluntary && problems.next === 'same' ? VOLUNTARY_TEXT.same : PROBLEM_TEXT.next[problems.next]),
     confirm: problems.confirm && PROBLEM_TEXT.confirm[problems.confirm],
   };
 }
