@@ -11,8 +11,11 @@ import type { Lang } from './i18n.types';
 export type RootStackParamList = {
   FirstScreen: undefined;
   Login: undefined;
-  /** Choosing one's own password after signing in with a temporary one; nothing else opens until it is set. */
-  ChangePassword: undefined;
+  /**
+   * Choosing one's own password: after signing in with a temporary one (nothing else opens until
+   * it is set), or `voluntary` from Account & security, which returns there when done.
+   */
+  ChangePassword: { voluntary?: boolean } | undefined;
   Home: undefined;
   Profile: undefined;
   MyUnit: undefined;
@@ -51,6 +54,12 @@ export type RootStackParamList = {
   AmenitiesBooking: undefined;
   Services: undefined;
   Settings: undefined;
+  /** Password, signing out other phones and deleting the account, from Settings. */
+  AccountSecurity: undefined;
+  /** Deleting the signed-in account and its data, after the password. */
+  DeleteAccount: undefined;
+  /** How to get help, the privacy policy and the app version; the Contact Us tab and Settings. */
+  HelpSupport: undefined;
   /** Opens in chat unless `mode` asks for voice, e.g. from Home's mic button. */
   Assistant: { mode?: 'chat' | 'voice' } | undefined;
   /** Placeholder for a feature still being built, named and drawn by its tile. */
@@ -110,7 +119,15 @@ export type RecordTab = RecordSection | 'documents';
  * Paramless routes that only their own flow opens, by name; no tile or tab points at them.
  * The way in (FirstScreen, Login) counts: sign-in and sign-out reach it by name.
  */
-type FlowOnlyRoute = 'FirstScreen' | 'Login' | 'HealthOnboarding' | 'HealthProfile' | 'HealthSettings' | 'ChangePassword';
+type FlowOnlyRoute =
+  | 'FirstScreen'
+  | 'Login'
+  | 'HealthOnboarding'
+  | 'HealthProfile'
+  | 'HealthSettings'
+  | 'ChangePassword'
+  | 'AccountSecurity'
+  | 'DeleteAccount';
 
 /**
  * Routes that can be opened without params, e.g. from data-driven tiles and tabs.

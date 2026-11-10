@@ -1,3 +1,4 @@
+import { flags } from '../../config/flags';
 import type { IconSet } from '../../types/icons.types';
 import type { ParamlessRoute } from '../../types/navigation.types';
 
@@ -95,6 +96,19 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     route: 'AmenitiesBooking',
   },
 ];
+
+/**
+ * The store build's tiles: the parts backed by a real service. The other Home tiles still
+ * show sample data, so that build leaves them out (flags.sampleContent).
+ */
+const storeTiles: readonly ServiceTileItem[] = [
+  ...serviceTiles.filter((tile) => tile.route === 'SmartHome'),
+  { id: 'health-passport', title: 'Health Passport', subtitle: 'Family records', iconSet: 'ionicons', iconName: 'medkit-outline', route: 'HealthPassport' },
+  { id: 'clinic', title: 'Clinic', subtitle: 'Book a doctor', iconSet: 'ionicons', iconName: 'calendar-number-outline', route: 'Clinic' },
+  { id: 'assistant', title: 'EMS AI', subtitle: 'Ask the assistant', iconSet: 'material', iconName: 'robot-outline', route: 'Assistant' },
+];
+
+export const homeTiles: readonly ServiceTileItem[] = flags.sampleContent ? serviceTiles : storeTiles;
 
 export const promo = {
   title: 'A Better\nTomorrow Together',

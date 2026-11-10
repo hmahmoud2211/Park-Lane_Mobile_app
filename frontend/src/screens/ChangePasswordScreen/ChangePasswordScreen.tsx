@@ -1,7 +1,7 @@
 // Imported by subpath: the package root re-exports every icon set, which
 // bundles ~2.5MB of unused .ttf fonts.
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInputInstance } from 'react-native';
@@ -9,6 +9,7 @@ import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, typ
 import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
+import { BackButton } from '../../components/common/BackButton';
 import { GradientText } from '../../components/common/GradientText';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
@@ -23,7 +24,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useLogout } from '../../hooks/useScreenMenu';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { changePasswordCopy as copy, failureText, problemText } from './ChangePasswordScreen.data';
+import { changePasswordCopy, failureText, problemText, voluntaryPasswordCopy } from './ChangePasswordScreen.data';
 import {
   BACKGROUND_ASPECT,
   BACKGROUND_OVERLAY_WIDE,
@@ -40,12 +41,17 @@ import {
  * management created, or reset). It comes before anything else: Login sends a resident here,
  * and AppNavigator brings them back whenever a call is refused for it. Once the password is
  * set the app opens exactly as after any sign-in, on the same session.
+ *
+ * With `voluntary` (from Account & security) it changes a password the resident chose before:
+ * there is a way back, and saving returns to where they came from.
  */
 export function ChangePasswordScreen() {
   const theme = useAppTheme();
   const { isWide } = useScreenLayout();
   const styles = useMemo(() => createStyles(theme, isWide), [theme, isWide]);
   const navigation = useNavigation<RootStackScreenProps<'ChangePassword'>['navigation']>();
+  const voluntary = useRoute<RootStackScreenProps<'ChangePassword'>['route']>().params?.voluntary === true;
+  const copy = voluntary ? voluntaryPasswordCopy : changePasswordCopy;
   const { setResidentId } = useAppContext();
   const { status, user, passwordChangeRequired, changePassword } = useEms();
   const logout = useLogout();
@@ -66,15 +72,15 @@ export function ChangePasswordScreen() {
   useEffect(() => {
     if (status === 'signedOut') {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    } else if (status === 'signedIn' && !passwordChangeRequired) {
+    } else if (!voluntary && status === 'signedIn' && !passwordChangeRequired) {
       setResidentId(assistantConfig.defaultResidentId);
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     }
-  }, [status, passwordChangeRequired, navigation, setResidentId]);
+  }, [status, passwordChangeRequired, navigation, setResidentId, voluntary]);
 
   const submit = async () => {
     const found = passwordProblems({ current, next, confirm, email: user?.email ?? null });
-    setProblems(problemText(found));
+    setProblems(problemText(found, voluntary));
     setFailure(null);
     if (hasProblems(found)) {
       return;
@@ -82,6 +88,9 @@ export function ChangePasswordScreen() {
     setBusy(true);
     try {
       await changePassword(current, next);
+      if (voluntary) {
+        navigation.goBack();
+      }
     } catch (error) {
       setFailure(failureText(passwordChangeFailure(error instanceof EmsError ? error.code : null), emsErrorText(error)));
       setBusy(false);
@@ -106,6 +115,7 @@ export function ChangePasswordScreen() {
       <StatusBar style="light" />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {voluntary ? <BackButton style={styles.back} /> : null}
           <Image fadeDuration={0} source={images.brandWordmark} style={styles.lockup} resizeMode="contain" accessibilityLabel={brand.wordmarkLabel} />
 
           <View style={styles.card}>
@@ -198,11 +208,13 @@ export function ChangePasswordScreen() {
                 style={styles.submit}
               />
 
-              <Pressable onPress={logout} style={styles.link} accessibilityRole="button">
-                <AppText variant="bodySmall" color={theme.colors.link}>
-                  {copy.signOut}
-                </AppText>
-              </Pressable>
+              {voluntary ? null : (
+                <Pressable onPress={logout} style={styles.link} accessibilityRole="button">
+                  <AppText variant="bodySmall" color={theme.colors.link}>
+                    {copy.signOut}
+                  </AppText>
+                </Pressable>
+              )}
             </View>
           </View>
         </ScrollView>

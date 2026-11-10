@@ -21,6 +21,8 @@ export function sendBytes(res: ServerResponse, contentType: string, body: Buffer
     'Content-Type': contentType,
     'Content-Length': body.length,
     'Cache-Control': 'no-store',
+    // Files residents upload: never let a browser guess a different type than the one stored.
+    'X-Content-Type-Options': 'nosniff',
   });
   res.end(body);
 }

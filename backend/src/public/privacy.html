@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parklane privacy policy</title>
+<link rel="stylesheet" href="/public/page.css">
+</head>
+<body>
+<main>
+{{NOTICE}}
+<h1>Parklane privacy policy</h1>
+<p class="meta">Last updated: {{UPDATED}} · Operated by {{OPERATOR}}</p>
+
+<p>Parklane is the resident app of the Park Lane compound. This policy explains what the app and its servers collect, why, who else receives it, how long it is kept and how you delete it. It covers the Parklane app for iPhone, iPad and Android and the services behind it.</p>
+
+<h2>What we collect</h2>
+<h3>Your account</h3>
+<p>Your name, your email address (or the username building management gave you) and your password, stored only as a salted hash. We also keep the sessions your phones are signed in with, and which apartment you belong to and your role there (owner or member).</p>
+
+<h3>Smart home</h3>
+<p>To show and control your apartment's devices we store the devices, their rooms and their current state, and a log of actions sent to them (for example, a door unlocked and when). Brand accounts you link (for example a device maker's cloud account) are stored in your apartment's home hub, not in your Parklane account. When you set up a device, the app sends your home Wi-Fi name and password to that device, or to your apartment's gateway, so the device can join your network.</p>
+
+<h3>Health Passport (optional)</h3>
+<p>Only if you switch it on and agree: the profiles you keep for yourself and your family (name, sex, date of birth, blood type), medical records you enter or confirm (allergies, medicines, conditions, lab results, procedures, visits), photos or PDFs of medical documents you upload, and spoken summaries you ask for. Medical records, documents and summaries are stored encrypted.</p>
+
+<h3>Clinic appointments</h3>
+<p>When you book a visit at the compound's clinic: who the visit is for, the time, the reason you give (stored encrypted) and the choices you make for that visit (whether the doctor may read your Health Passport, and whether AI may assist). After the visit the clinic keeps the doctor's notes.</p>
+
+<h3>Parklane Assistant</h3>
+<p>Messages you type, your voice while a voice conversation is on, and camera images you choose to show are sent to the Parklane Assistant service so it can answer and act on your devices.</p>
+
+<h3>On your phone only</h3>
+<p>The app reads the name of the Wi-Fi network you are on, only during device setup, to check you joined a device's setup network. iOS and Android require location permission for this; the app does not use or store your location. Photos you pick are read only when you add them to your Health Passport.</p>
+
+<h2>Artificial intelligence and other services that receive your data</h2>
+<ul>
+<li><strong>Reading medical documents:</strong> the pages you upload are sent to the AI service the server is set up with (Google Gemini or Anthropic Claude) to suggest record items. Nothing is added to your record until you check and confirm each item.</li>
+<li><strong>Spoken summaries:</strong> your record is sent to that AI service to write the summary, and the text is sent to ElevenLabs to read it aloud. Only when you ask for a summary.</li>
+<li><strong>Clinic visits:</strong> only if you (or the patient in the room) agree for that visit, the clinic uses the same AI and speech services to summarise history, transcribe the consultation and draft notes for the doctor, who reviews everything. Names and identifiers are left out of AI requests, except the patient's first name in a spoken handover.</li>
+<li><strong>Parklane Assistant:</strong> your messages, voice and shown images are processed by the assistant service and the AI providers it uses.</li>
+<li><strong>QR codes (Android):</strong> scanning uses Google ML Kit on your phone, which may send Google anonymous usage and diagnostic information.</li>
+</ul>
+<p>The app asks for your permission before it first sends data to these services. These providers process the data to provide the feature; ElevenLabs may keep request data for a limited time under its own terms. We do not sell your data, show advertising, or track you across other companies' apps or websites.</p>
+
+<h2>Who can see your data</h2>
+<ul>
+<li>Building management can see your account, your apartment and its devices to run the service.</li>
+<li>Health Passport records are visible to you, to residents of your apartment you choose to share a record with, and to a clinic doctor only for a visit where you allowed it.</li>
+<li>We may disclose data if the law requires it.</li>
+</ul>
+
+<h2>How long we keep it</h2>
+<ul>
+<li>Your account and its data: until you delete your account.</li>
+<li>Health Passport: until you delete a record or profile, withdraw consent, or delete your account.</li>
+<li>Clinic: consultation transcripts and AI drafts are deleted 30 days after the visit is finalised, and AI history summaries a day after the visit. The doctor's approved notes and the clinic's record of visits are kept as medical records, as clinics are required to.</li>
+</ul>
+
+<h2>Deleting your account</h2>
+<p>In the app: <strong>Settings → Account &amp; security → Delete account</strong>. Without the app: <a href="/account/delete">request deletion on the web</a>. Deleting your account signs out all your phones, removes you from your apartment, deletes your Health Passport data and documents, and removes your name and email. Upcoming clinic visits are cancelled. The clinic keeps its record of visits that already happened, no longer linked to your name or email in the app.</p>
+
+<h2>Your choices</h2>
+<ul>
+<li>Health Passport is optional. Withdrawing consent in Health Passport settings deletes its data.</li>
+<li>You can turn off camera, microphone, photo and location access in your phone's settings at any time; only the feature that needs it stops working.</li>
+<li>You can ask us for a copy of your data or to correct it at the address below.</li>
+</ul>
+
+<h2>Security</h2>
+<p>The app talks to our servers over HTTPS. Sign-in tokens are kept in your phone's secure storage. Health and clinic records are encrypted on our servers. Devices in your apartment may be reached over your home network.</p>
+
+<h2>Children</h2>
+<p>Parklane is for residents. Parents may keep Health Passport profiles for their children; the app is not meant to be used by children on their own.</p>
+
+<h2>Contact</h2>
+<p>Questions or requests about your data: {{CONTACT}}.</p>
+</main>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { AssistantConsentPanel } from '../../features/assistant/components/AssistantConsentPanel';
 import { FadeSwap } from '../../features/assistant/components/FadeSwap';
 import type { IntentMeta } from '../../features/assistant/components/insights';
 import { ModeSwitch, type AssistantMode } from '../../features/assistant/components/ModeSwitch';
@@ -11,7 +12,11 @@ import { AppText } from '../../components/common/AppText';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { AppMenu, type AppMenuItem } from '../../components/ui/AppMenu';
+import { assistantConfig } from '../../config/assistant';
+import { flags } from '../../config/flags';
 import { images } from '../../constants/images';
+import { useAssistantConsent } from '../../features/assistant/hooks/useAssistantConsent';
+import { useResidentIdentity } from '../../features/home/hooks/useResidentIdentity';
 import { useAppContext } from '../../hooks/useAppContext';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useAssistantChat } from '../../features/assistant/hooks/useAssistantChat';
@@ -21,7 +26,7 @@ import { useSideNav } from '../../hooks/useSideNav';
 import type { AssistantResident } from '../../features/assistant/services/assistant.types';
 import { fetchHealth, fetchResidents } from '../../features/assistant/services/assistantApi';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { assistantCopy as copy } from './AssistantScreen.data';
+import { assistantConsentCopy, assistantCopy as copy } from './AssistantScreen.data';
 import { ASSISTANT_MENU_COLUMN, createStyles } from './AssistantScreen.styles';
 import { ChatPanel } from './ChatPanel';
 import { VoicePanel } from './VoicePanel';
@@ -53,6 +58,12 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
   const { assistantToken } = useEms();
   const chat = useAssistantChat(residentId, assistantToken);
   const resetChat = chat.reset;
+  const { consent, agree } = useAssistantConsent();
+  const identity = useResidentIdentity();
+  const consentCopy = useMemo(
+    () => ({ ...assistantConsentCopy, points: assistantConsentCopy.points(assistantConfig.aiProviders) }),
+    [],
+  );
 
   const probeHealth = useCallback((signal?: AbortSignal) => {
     fetchHealth(signal)
@@ -72,9 +83,12 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
   useEffect(() => {
     const controller = new AbortController();
     probeHealth(controller.signal);
-    fetchResidents(controller.signal)
-      .then(setResidents)
-      .catch(() => undefined);
+    // The developer's resident picker; the store build never asks who else lives here.
+    if (flags.sampleContent) {
+      fetchResidents(controller.signal)
+        .then(setResidents)
+        .catch(() => undefined);
+    }
     return () => controller.abort();
   }, [probeHealth]);
 
@@ -90,7 +104,12 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
   }
 
   const resident = residents.find((entry) => entry.residentId === residentId);
-  const residentName = resident?.name ?? (residentId != null ? `Resident ${residentId}` : null);
+  // In the store build the chip shows who is signed in; the assistant isn't told, and never picks a resident.
+  const residentName = flags.sampleContent
+    ? (resident?.name ?? (residentId != null ? `Resident ${residentId}` : null))
+    : identity.email
+      ? identity.firstName
+      : null;
 
   const openRoute = useCallback(
     (target: NonNullable<IntentMeta['route']>) => navigation.navigate(target),
@@ -115,15 +134,51 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
           setMode('chat');
         },
       },
-      ...residents.map((entry) => ({
-        id: residentItemId(entry.residentId),
-        label: `${entry.name} · ${entry.unitCode}`,
-        icon: 'person-outline' as const,
-        onPress: choose(entry.residentId),
-      })),
-      { id: GUEST_ID, label: copy.guest, icon: 'person-remove-outline', onPress: choose(null) },
+      ...(flags.sampleContent
+        ? [
+            ...residents.map((entry) => ({
+              id: residentItemId(entry.residentId),
+              label: `${entry.name} · ${entry.unitCode}`,
+              icon: 'person-outline' as const,
+              onPress: choose(entry.residentId),
+            })),
+            { id: GUEST_ID, label: copy.guest, icon: 'person-remove-outline' as const, onPress: choose(null) },
+          ]
+        : []),
     ];
   }, [resetChat, residents, setResidentId]);
+
+  // Keyed by mode, so each switch slides the new pane in. Voice unmounts when left, which ends its call.
+  const pane = (
+    <FadeSwap
+      key={mode}
+      swapKey={mode}
+      rise={0}
+      shift={mode === 'voice' ? PANE_SHIFT : -PANE_SHIFT}
+      duration={360}
+      style={styles.pane}
+    >
+      {mode === 'chat' ? (
+        <ChatPanel
+          messages={chat.messages}
+          pending={chat.pending}
+          residentName={resident?.name ?? null}
+          onSend={chat.send}
+          onRetry={chat.retry}
+          onVoice={showVoice}
+          onSignIn={openResidentMenu}
+          onOpenRoute={openRoute}
+        />
+      ) : (
+        <VoicePanel
+          residentId={residentId}
+          homeToken={assistantToken}
+          onSignIn={openResidentMenu}
+          onOpenRoute={openRoute}
+        />
+      )}
+    </FadeSwap>
+  );
 
   return (
     <ScreenWrapper backgroundSource={images.homeBackground} withScrim={false} backgroundOverlay={0.34}>
@@ -162,36 +217,12 @@ export function AssistantScreen({ navigation, route }: RootStackScreenProps<'Ass
           </FadeSwap>
         ) : null}
 
-        {/* Keyed by mode, so each switch slides the new pane in. Voice
-            unmounts when left, which ends its call. */}
-        <FadeSwap
-          key={mode}
-          swapKey={mode}
-          rise={0}
-          shift={mode === 'voice' ? PANE_SHIFT : -PANE_SHIFT}
-          duration={360}
-          style={styles.pane}
-        >
-          {mode === 'chat' ? (
-            <ChatPanel
-              messages={chat.messages}
-              pending={chat.pending}
-              residentName={resident?.name ?? null}
-              onSend={chat.send}
-              onRetry={chat.retry}
-              onVoice={showVoice}
-              onSignIn={openResidentMenu}
-              onOpenRoute={openRoute}
-            />
-          ) : (
-            <VoicePanel
-              residentId={residentId}
-              homeToken={assistantToken}
-              onSignIn={openResidentMenu}
-              onOpenRoute={openRoute}
-            />
-          )}
-        </FadeSwap>
+        {/* Nothing is sent to the assistant until the resident has agreed. */}
+        {consent === 'given' ? (
+          pane
+        ) : consent === 'needed' ? (
+          <AssistantConsentPanel copy={consentCopy} onAgree={agree} onDecline={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home'))} />
+        ) : null}
       </View>
 
       <AppMenu

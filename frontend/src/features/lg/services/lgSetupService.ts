@@ -68,7 +68,7 @@ export async function sendWifiToAppliance(
   servers: SetupRequest['servers'] = null,
 ): Promise<SetupProtocol> {
   if (!isLgSetupAvailable()) {
-    throw new LgSetupError('unreachable', 'This build cannot talk to LG appliances. Install the latest CUBE OS build (not Expo Go or the web).');
+    throw new LgSetupError('unreachable', 'This version of the app cannot talk to LG appliances. Update Parklane from the App Store or Google Play.');
   }
   const request: SetupRequest = { ssid, password, utcOffsetMinutes: -new Date().getTimezoneOffset(), servers };
   let lastError: unknown;

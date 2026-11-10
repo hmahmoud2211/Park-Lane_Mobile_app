@@ -22,7 +22,7 @@ export const summaryCopy = {
     beingPrepared: 'Being prepared',
     takesMinutes: 'Takes several minutes',
     step3: '3. Your consent',
-    consent: 'I agree to generate a summary of my medical record to share with my doctor.',
+    consent: 'I agree to send this medical record to Google Gemini or Anthropic Claude and to ElevenLabs, to make a spoken summary to share with my doctor.',
     pendingTitle: (n: number) =>
       n === 1 ? '1 document hasn’t been reviewed yet and won’t be included.' : `${n} documents haven’t been reviewed yet and won’t be included.`,
     reviewNow: 'Review now',
@@ -51,7 +51,7 @@ export const summaryCopy = {
     textSize: 'Text size',
     smaller: 'Smaller text',
     larger: 'Larger text',
-    incomplete: 'Generated from records you uploaded. It may be incomplete.',
+    incomplete: 'AI-generated from records you uploaded. It may be incomplete or wrong, and it is not medical advice.',
     regenerate: 'Regenerate',
     switchTo: (lang: string) => `Switch to ${lang}`,
     player: {
@@ -85,7 +85,7 @@ export const summaryCopy = {
     beingPrepared: 'قيد الإعداد',
     takesMinutes: 'يستغرق عدة دقائق',
     step3: '٣. موافقتك',
-    consent: 'أوافق على إعداد ملخص لسجلي الطبي لمشاركته مع طبيبي.',
+    consent: 'أوافق على إرسال هذا السجل الطبي إلى Google Gemini أو Anthropic Claude وإلى ElevenLabs لإعداد ملخص صوتي لمشاركته مع طبيبي.',
     pendingTitle: (n: number) =>
       n === 1 ? 'مستند واحد لم تتم مراجعته بعد ولن يُضمَّن.' : `${num(n, 'ar')} مستندات لم تتم مراجعتها بعد ولن تُضمَّن.`,
     reviewNow: 'راجع الآن',
@@ -114,7 +114,7 @@ export const summaryCopy = {
     textSize: 'حجم النص',
     smaller: 'تصغير النص',
     larger: 'تكبير النص',
-    incomplete: 'أُعد من السجلات التي رفعتها، وقد يكون غير مكتمل.',
+    incomplete: 'أعده الذكاء الاصطناعي من السجلات التي رفعتها، وقد يكون غير مكتمل أو غير صحيح، وهو ليس نصيحة طبية.',
     regenerate: 'إعادة الإعداد',
     switchTo: (lang: string) => `التبديل إلى ${lang}`,
     player: {

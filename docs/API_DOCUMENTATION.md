@@ -59,6 +59,15 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | `POST /api/auth/assistant-token` | — | `AssistantToken`: `{ token, expiresAt }` |
 | `POST /api/auth/logout-others` | — | `SignedOutOthers`: `{ revoked }`; every other session of the account ends (a lost phone), and their CUBE gateway access within five minutes |
 | `POST /api/auth/change-password` | `ChangePassword`: `{ currentPassword, newPassword }` | `{ user }`; at least 10 characters, not the current one, not the email; the same session stays valid, the others end. 401 for a wrong current password |
+| `POST /api/auth/delete-account` | `{ password }` | `{ deleted: true, clinicRecordsKept }`; deletes the signed-in resident's account and data (`ems/accountDeletion.ts`): sign-ins and live sockets, apartment membership, Health Passport data and files, invites; upcoming clinic visits are cancelled. Past clinic visits stay, and then the account row is kept with no name, email or usable password (`clinicRecordsKept: true`). 401 for a wrong password; 403 for staff accounts and the shared demo account |
+
+**The shared demo account** (`EMS_DEFAULT_USERNAME`) cannot change its password, sign out its other sessions or be
+deleted (403): everyone who tries the app signs in with it.
+
+**Public pages** (no sign-in; strict CSP): `GET /privacy`, the privacy policy, and `GET /account/delete`, where an
+account can be deleted without the app (Google Play asks for this address). The operator's name and contact come from
+`LEGAL_OPERATOR_NAME` and `LEGAL_CONTACT_EMAIL` (`PRIVACY_POLICY_DATE` for the date); until both are set, `/privacy`
+shows a draft notice. The texts are in `backend/src/public/`.
 
 **Temporary passwords.** An account an admin created or reset has `user.mustChangePassword: true`. Until it changes
 its password, every route except `GET /api/auth/me`, `POST /api/auth/logout` and `POST /api/auth/change-password`

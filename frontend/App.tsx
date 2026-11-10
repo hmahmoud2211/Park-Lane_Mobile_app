@@ -6,6 +6,7 @@ import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -13,7 +14,6 @@ import { AppProvider } from './src/context/AppContext';
 import { EmsProvider } from './src/features/ems/context/EmsContext';
 import { GatewayProvider } from './src/features/gateway/context/GatewayContext';
 import { HealthProvider } from './src/features/health/context/HealthContext';
-import { ParkingDemoProvider } from './src/features/parking/context/ParkingDemoContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { colors } from './src/theme';
@@ -22,6 +22,16 @@ import { installWebZoomLock } from './src/utils/webZoomLock';
 
 installWebFormStyles();
 installWebZoomLock();
+
+/**
+ * The parking demo's on-device store. A require behind a check written out in full, so the
+ * store build (EXPO_PUBLIC_STORE_MODE=1), which has no parking screens, leaves it out altogether.
+ */
+const ParkingDemoProvider =
+  process.env.EXPO_PUBLIC_STORE_MODE === '1'
+    ? Fragment
+    : // eslint-disable-next-line @typescript-eslint/no-require-imports
+      (require('./src/features/parking/context/ParkingDemoContext') as typeof import('./src/features/parking/context/ParkingDemoContext')).ParkingDemoProvider;
 
 export default function App() {
   const [fontsLoaded] = useFonts({

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -12,10 +13,12 @@ import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Avatar } from '../../components/ui/Avatar';
 import { ServiceTile } from '../../components/ui/ServiceTile';
+import { flags } from '../../config/flags';
 import { images } from '../../constants/images';
+import { useResidentIdentity } from '../../features/home/hooks/useResidentIdentity';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useScreenLayout } from '../../hooks/useScreenLayout';
-import { initialsOf, resident } from '../../data/demoResident';
+import type { RootStackScreenProps } from '../../types/navigation.types';
 import { accessPassPayload, profileCopy, profileMenu } from './ProfileScreen.data';
 import { PASS_SIZE, createStyles } from './ProfileScreen.styles';
 
@@ -23,8 +26,10 @@ export function ProfileScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const layout = useScreenLayout();
-
-  const fullName = `${resident.firstName} ${resident.lastName}`;
+  const navigation = useNavigation<RootStackScreenProps<'Profile'>['navigation']>();
+  const identity = useResidentIdentity();
+  // The gate pass is a fixed sample code, so the store build doesn't show it.
+  const sample = flags.sampleContent;
 
   return (
     <ScreenWrapper
@@ -53,34 +58,41 @@ export function ProfileScreen() {
                 strokeColors={[theme.colors.featureStrokeFrom, theme.colors.featureStrokeTo]}
                 style={styles.identity}
               >
-                <Avatar initials={initialsOf(resident)} size={36} variant="flat" />
+                <Avatar initials={identity.initials} size={36} variant="flat" />
                 <View style={styles.identityText}>
-                  <AppText variant="sectionTitle">{fullName}</AppText>
+                  <AppText variant="sectionTitle">{identity.fullName}</AppText>
+                  {identity.email ? (
+                    <AppText variant="bodySmall" color={theme.colors.textSecondary}>
+                      {identity.email}
+                    </AppText>
+                  ) : null}
                 </View>
-                <Ionicons name="chevron-forward" size={15} color={theme.colors.textSecondary} />
+                {sample ? <Ionicons name="chevron-forward" size={15} color={theme.colors.textSecondary} /> : null}
               </GlassSurface>
 
-              <GlassSurface
-                radius={theme.borderRadius.lg}
-                stroke="gradient"
-                style={styles.passCard}
-              >
-                <View style={styles.passSurface}>
-                  <QRCode
-                    value={accessPassPayload}
-                    size={PASS_SIZE}
-                    color={theme.colors.deepNavy}
-                    backgroundColor={theme.colors.white}
-                  />
-                </View>
-                <AppText
-                  variant="tileCaption"
-                  color={theme.colors.textSecondary}
-                  style={styles.passCaption}
+              {sample ? (
+                <GlassSurface
+                  radius={theme.borderRadius.lg}
+                  stroke="gradient"
+                  style={styles.passCard}
                 >
-                  {profileCopy.passCaption}
-                </AppText>
-              </GlassSurface>
+                  <View style={styles.passSurface}>
+                    <QRCode
+                      value={accessPassPayload}
+                      size={PASS_SIZE}
+                      color={theme.colors.deepNavy}
+                      backgroundColor={theme.colors.white}
+                    />
+                  </View>
+                  <AppText
+                    variant="tileCaption"
+                    color={theme.colors.textSecondary}
+                    style={styles.passCaption}
+                  >
+                    {profileCopy.passCaption}
+                  </AppText>
+                </GlassSurface>
+              ) : null}
             </>
 
             <>
@@ -92,7 +104,10 @@ export function ProfileScreen() {
                   iconName={item.iconName}
                   style={styles.menuRow}
                   onPress={() => {
-                    // TODO(nav): route to the `item.id` screen once it is designed.
+                    // TODO(nav): the sample rows have no screen yet; the store build has none of those.
+                    if (item.route) {
+                      navigation.navigate(item.route);
+                    }
                   }}
                 />
               ))}

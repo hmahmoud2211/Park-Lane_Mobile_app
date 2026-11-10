@@ -83,6 +83,12 @@ HA_TIME_ZONE=Africa/Cairo
 
 # Every new apartment gets its CUBE gateway: the relay's enrol token
 GATEWAY_RELAY_ENROLL_TOKEN=<CUBE_RELAY_ENROLL_TOKEN from /home/ems-server/EMS/cube-relay/relay.env>
+
+# Shown on the public privacy policy (/privacy) and account deletion page (/account/delete),
+# which the App Store and Google Play listings link to. Both must be set before you submit.
+LEGAL_OPERATOR_NAME=<the company responsible for the app, as registered>
+LEGAL_CONTACT_EMAIL=<a mailbox someone reads, for privacy and deletion requests>
+PRIVACY_POLICY_DATE=<YYYY-MM-DD, the day the policy text was approved>
 ```
 
 `GATEWAY_RELAY_ENROLL_TOKEN` turns on the gateway per apartment. To copy it:
@@ -213,6 +219,8 @@ everywhere. Admins sign in with their own accounts, so each change in the log na
 ### The default account
 
 The backend creates one ready-made sign-in when it starts: username `ems`, password `5002`. It is an ordinary resident account, made once and never overwritten.
+
+Nobody can change its password, sign out its other sessions or delete it (the API answers 403), so one person cannot lock out the next.
 
 **That password is short and known, and the login route allows 10 tries a minute from each address, so treat this account as public.** Never link it to a real resident's apartment, because anyone could then control that home's devices, and keep no real medical records in it. To change it before the first start, set `EMS_DEFAULT_USERNAME` and `EMS_DEFAULT_PASSWORD` in `backend/.env`; to turn it off, set both empty. Once the account exists, those settings no longer change it.
 

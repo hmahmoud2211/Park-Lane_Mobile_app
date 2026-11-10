@@ -5,7 +5,7 @@
  * doses, test names) left exactly as entered or read from the document.
  * Each screen keeps its own copy in its `.data.ts`.
  */
-import { digitsIn } from '../../parking/services/i18n';
+import { digitsIn } from '../../../utils/lang';
 import type {
   BloodType,
   ConditionStatus,
@@ -20,7 +20,7 @@ import type {
 } from '../../../types/health.types';
 import type { HealthErrorKind } from './healthService';
 
-export { deviceLang } from '../../parking/services/i18n';
+export { deviceLang } from '../../../utils/lang';
 
 const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];

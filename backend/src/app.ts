@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http';
 
 import { serveAdmin } from './admin/serve.ts';
+import { servePublic } from './public/serve.ts';
 import { attachRealtime } from './ems/realtime.ts';
 import { ApiError } from './errors.ts';
 import { oauthCallback } from './ha/accounts.ts';
@@ -41,6 +42,10 @@ async function route(ctx: RequestContext) {
   }
   // Building management's dashboard: static files; everything it does goes through /api/admin/*.
   if ((ctx.path === '/admin' || ctx.path.startsWith('/admin/')) && serveAdmin(ctx.path, ctx.req.method, ctx.res)) {
+    return;
+  }
+  // The privacy policy and the web page for deleting an account, which the store listings link to.
+  if (servePublic(ctx.path, ctx.req.method, ctx.res)) {
     return;
   }
   if (ctx.path.startsWith('/api/') && (await dispatch(ctx, API_ROUTES))) {

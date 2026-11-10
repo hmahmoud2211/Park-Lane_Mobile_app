@@ -61,6 +61,20 @@ export const config = {
   corsOrigin: env.CORS_ORIGIN || '*',
   dataDir,
 
+  /**
+   * Who runs the service, as the public privacy policy (/privacy) and account deletion page
+   * (/account/delete) name them. Until the operator and contact are set, /privacy shows a
+   * visible "draft" notice: the store listings must not point at it before then.
+   */
+  legal: {
+    /** The legal entity responsible for the app and its data, e.g. a company's registered name. */
+    operatorName: (env.LEGAL_OPERATOR_NAME ?? '').trim(),
+    /** Where residents send privacy questions and deletion requests. */
+    contactEmail: (env.LEGAL_CONTACT_EMAIL ?? '').trim(),
+    /** The date the policy text was last changed, shown on the page (YYYY-MM-DD). */
+    policyDate: (env.PRIVACY_POLICY_DATE ?? '').trim(),
+  },
+
   /** EMS accounts. */
   ems: {
     /** 32 bytes, base64. Seals stored secrets. Generated into DATA_DIR when unset. */

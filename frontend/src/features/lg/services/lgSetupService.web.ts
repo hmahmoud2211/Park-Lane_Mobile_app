@@ -8,5 +8,5 @@ export async function sendWifiToAppliance(
   _password: string,
   _servers: SetupRequest['servers'] = null,
 ): Promise<SetupProtocol> {
-  throw new LgSetupError('unreachable', 'Setting up LG appliances needs the CUBE OS phone app.');
+  throw new LgSetupError('unreachable', 'Setting up LG appliances needs the Parklane phone app.');
 }

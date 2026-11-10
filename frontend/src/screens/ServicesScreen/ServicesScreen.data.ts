@@ -1,3 +1,4 @@
+import { flags } from '../../config/flags';
 import type { IconSet } from '../../types/icons.types';
 import type { ImageKey } from '../../constants/images';
 import type { ParamlessRoute } from '../../types/navigation.types';
@@ -30,7 +31,7 @@ export interface ServiceItem {
   route?: ParamlessRoute;
 }
 
-export const services: readonly ServiceItem[] = [
+const allServices: readonly ServiceItem[] = [
   {
     id: 'housekeeping',
     title: 'Housekeeping',
@@ -92,5 +93,12 @@ export const services: readonly ServiceItem[] = [
     icon: 'serviceSupport',
     iconSet: 'material',
     iconName: 'headset',
+    route: 'HelpSupport',
   },
 ];
+
+/**
+ * The rows on screen. A row with no screen yet opens the "coming soon" placeholder, which the
+ * store build leaves out (flags.sampleContent): there, only services that really work are listed.
+ */
+export const services: readonly ServiceItem[] = flags.sampleContent ? allServices : allServices.filter((item) => item.route);

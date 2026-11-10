@@ -44,6 +44,14 @@ export const signOutOthers = () => call<SignedOutOthers>('/api/auth/logout-other
 export const changePassword = (body: ChangePassword) =>
   call<{ user: EmsUser }>('/api/auth/change-password', { method: 'POST', body, sessionCheck: false });
 
+/**
+ * Deletes the signed-in account and its data on the backend (App Store 5.1.1(v), Google Play).
+ * The password is asked again; a 401 here is a wrong password, not a lost session. The shared
+ * demo account and staff accounts are refused (403) with a message to show.
+ */
+export const deleteAccount = (password: string) =>
+  call<{ deleted: true; clinicRecordsKept: boolean }>('/api/auth/delete-account', { method: 'POST', body: { password }, sessionCheck: false });
+
 export const getMe = () => call<{ user: EmsUser }>('/api/auth/me', { retry: true });
 
 /**

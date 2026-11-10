@@ -21,7 +21,7 @@ export const lgPairingCopy = {
   backendFailed: 'LG setup not ready',
   backendReady: 'Your gateway can set up LG appliances through ReThink.',
   unavailable:
-    'This build cannot pair LG appliances. Install the CUBE OS phone app build (Expo Go and the web cannot open the AC’s setup connection).',
+    'This version of the app cannot pair LG appliances. Update Parklane from the App Store or Google Play.',
 
   wifiTitle: 'Your home Wi-Fi',
   wifiBody: 'The network the AC should join.',
@@ -77,7 +77,7 @@ export const lgPairingCopy = {
     'Open Settings, then Wi-Fi.',
     'Choose the network that starts with LGE_.',
     'Enter its password if asked (on the AC’s label or in its manual). The documented default for names like LGE_AC2_1234 is the suffix twice (12341234), and for older names like LGE_AC-12-34-56, lge12345.',
-    'Come back to CUBE OS and tap “I’ve joined, send”.',
+    'Come back to Parklane and tap “I’ve joined, send”.',
   ],
   sendJoined: 'I’ve joined, send',
   openWifiSettings: 'Open Wi-Fi settings',

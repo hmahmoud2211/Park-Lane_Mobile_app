@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 
 import { AppIcon } from '../../components/common/AppIcon';
@@ -76,6 +76,9 @@ import {
   wideDeviceColumns,
 } from './SmartHomeScreen.styles';
 import { useScreenMenu } from '../../hooks/useScreenMenu';
+import { LoadingState } from '../../components/feedback/LoadingState';
+import { flags } from '../../config/flags';
+import { useEms } from '../../features/ems/hooks/useEms';
 import { readyHome } from '../../features/ems/services/readyHome';
 
 /** Placeholder for links whose destination screens are not designed yet. */
@@ -125,7 +128,7 @@ function coverAction(state: string): CurtainAction | null {
   return null;
 }
 
-export function SmartHomeScreen() {
+function SmartHomeDashboard() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const screen = useScreenLayout();
@@ -526,7 +529,7 @@ export function SmartHomeScreen() {
               photoAspect={imageAspects.smartHomeHero}
               height={BANNER_HEIGHT}
               footer={
-                <Pressable
+                !flags.sampleContent ? null : <Pressable
                   onPress={() => navigation.navigate('MyUnit')}
                   hitSlop={10}
                   accessibilityRole="button"
@@ -585,6 +588,8 @@ export function SmartHomeScreen() {
                   ))}
                 </View>
 
+                {/* Scenes, energy and automations are sample data: left out of the store build. */}
+                {flags.sampleContent ? (
                 <NeonPanel>
                   <PanelHeading
                     title={copy.scenesTitle}
@@ -615,8 +620,10 @@ export function SmartHomeScreen() {
                     ))}
                   </View>
                 </NeonPanel>
+                ) : null}
               </>
               <>
+                {flags.sampleContent ? (
                 <NeonPanel>
                   <PanelHeading
                     title={copy.energyTitle}
@@ -668,6 +675,7 @@ export function SmartHomeScreen() {
                     </View>
                   ) : null}
                 </NeonPanel>
+                ) : null}
 
                 <NeonPanel>
                   <PanelHeading
@@ -739,6 +747,7 @@ export function SmartHomeScreen() {
                   </View>
                 </NeonPanel>
 
+                {flags.sampleContent ? (
                 <NeonPanel>
                   <PanelHeading
                     title={copy.automationTitle}
@@ -766,6 +775,7 @@ export function SmartHomeScreen() {
                     ))}
                   </View>
                 </NeonPanel>
+                ) : null}
               </>
             </ResponsiveColumns>
           </ScrollView>
@@ -783,4 +793,33 @@ export function SmartHomeScreen() {
       />
     </ScreenWrapper>
   );
+}
+
+const centered = { flex: 1, justifyContent: 'center' } as const;
+
+/**
+ * The store build shows only a real home: anyone signed out or without a ready home goes to My
+ * Devices, which offers sign-in or says what is missing. Other builds keep the design's sample home.
+ */
+export function SmartHomeScreen() {
+  const navigation = useNavigation<RootStackScreenProps<'SmartHome'>['navigation']>();
+  const { status, home, devicesLoaded } = useEms();
+  const ready = readyHome(status, home) !== null;
+  const waiting = !flags.sampleContent && !ready && (status === 'loading' || (status === 'signedIn' && !devicesLoaded));
+  const leave = !flags.sampleContent && !ready && !waiting;
+
+  useEffect(() => {
+    if (leave) {
+      navigation.replace('EmsDevices');
+    }
+  }, [leave, navigation]);
+
+  if (leave || waiting) {
+    return (
+      <View style={centered}>
+        <LoadingState />
+      </View>
+    );
+  }
+  return <SmartHomeDashboard />;
 }

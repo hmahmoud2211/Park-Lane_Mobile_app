@@ -38,6 +38,11 @@ interface EmsContextValue {
   /** Ends every other session of this account (a lost phone); resolves with how many ended. */
   signOutOthers: () => Promise<number>;
   /**
+   * Deletes the account and its data on the backend after checking the password, then ends the
+   * session here as signing out does. Throws EmsError (wrong password, a protected account, offline).
+   */
+  deleteAccount: (password: string) => Promise<{ clinicRecordsKept: boolean }>;
+  /**
    * Signed in with a temporary password (or one an admin reset since): the app asks for the
    * resident's own before anything else, and the backend refuses everything else meanwhile.
    */
@@ -273,6 +278,15 @@ export function EmsProvider({ children }: PropsWithChildren) {
 
   const signOutOthers = useCallback(async () => (await api.signOutOthers()).revoked, []);
 
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      const { clinicRecordsKept } = await api.deleteAccount(password);
+      await endSession('Your account and its data were deleted.');
+      return { clinicRecordsKept };
+    },
+    [endSession],
+  );
+
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const { user: updated } = await api.changePassword({ currentPassword, newPassword });
     setUser(updated);
@@ -315,6 +329,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       createAccount,
       signOut,
       signOutOthers,
+      deleteAccount,
       passwordChangeRequired,
       changePassword,
       sessionNotice,
@@ -336,6 +351,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       createAccount,
       signOut,
       signOutOthers,
+      deleteAccount,
       passwordChangeRequired,
       changePassword,
       sessionNotice,
