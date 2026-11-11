@@ -19,6 +19,7 @@ import {
   listDoctorPatients,
   listQueueAppointments,
   listResidentAppointments,
+  listUnfinishedConsultations,
   listUpcomingAppointments,
   markAppointmentRescheduled,
   setAppointmentAiConsent,
@@ -360,7 +361,9 @@ export function transition(actor: Actor, id: string, action: Action, options: { 
       throw new ApiError('invalid_transition', 'Only upcoming appointments can be cancelled from the app. Call the clinic.');
     }
     if (action === 'start') {
-      if (findOtherConsultationInProgress(row.doctor_id, row.id)) {
+      // One at a time within a clinic day. A visit left open on an earlier day must not stop this one: it is listed as unfinished.
+      const day = clinicDayBounds(clinicDate(start));
+      if (findOtherConsultationInProgress(row.doctor_id, row.id, day.from, day.to)) {
         throw new ApiError('invalid_transition', 'Finish the current consultation, or return that patient to the queue, first.');
       }
     }
@@ -484,6 +487,8 @@ export interface Dashboard {
   appointments: StaffAppointment[];
   /** The next appointments after today, for the "Upcoming" panel. */
   upcoming: StaffAppointment[];
+  /** Consultations left open on earlier days: a draft nobody approved, so the doctor must see them. */
+  unfinished: StaffAppointment[];
 }
 
 function dayRows(doctorId: string | null, date: string): AppointmentRow[] {
@@ -499,6 +504,7 @@ export function dashboard(doctorId: string, date: string | null, nowMs = Date.no
   const count = (...statuses: Status[]) => views.filter((view) => statuses.includes(view.status)).length;
   const after = clinicDayBounds(day).to;
   const upcoming = listUpcomingAppointments(doctorId, after).map((row) => staffView(row, nowMs));
+  const unfinished = listUnfinishedConsultations(doctorId, clinicDayBounds(day).from).map((row) => staffView(row, nowMs));
   return {
     date: day,
     timezone: config.clinic.timezone,
@@ -516,6 +522,7 @@ export function dashboard(doctorId: string, date: string | null, nowMs = Date.no
     queue,
     appointments: views,
     upcoming,
+    unfinished,
   };
 }
 

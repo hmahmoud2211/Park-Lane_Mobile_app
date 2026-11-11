@@ -65,6 +65,11 @@ export function updateProfileFields(id: string, fields: ProfileFields, recordUpd
 }
 
 /** Leaves record_updated_at alone; for the clinic CLI's demo data. */
+export function setProfileName(id: string, name: string): void {
+  db().prepare('UPDATE health_profiles SET name = ? WHERE id = ?').run(name, id);
+}
+
+/** Leaves record_updated_at alone; for the clinic CLI's demo data. */
 export function setProfileSexAndBirthDate(id: string, sex: NonNullable<ProfileRow['sex']>, dateOfBirth: string): void {
   db().prepare('UPDATE health_profiles SET sex = ?, date_of_birth = ? WHERE id = ?').run(sex, dateOfBirth, id);
 }

@@ -1,9 +1,14 @@
 import { ApiError } from '../errors.ts';
 
 /**
- * A consultation's clinical note, SOAP-shaped. The same shape is what the AI
- * proposes, what the doctor edits as a draft, and what the doctor approves;
- * only the approved one is ever the patient's record.
+ * A consultation's clinical note. The clinic fills three parts of it:
+ * `diagnoses`, `medications` and `investigations` (the assessment: the lab
+ * tests the patient should have), by dictation or by hand. The other
+ * SOAP fields are kept for records written before that and for the
+ * resident's app, which still reads them; new notes leave them empty. The
+ * same shape is what the AI proposes, what the doctor edits as a draft,
+ * and what the doctor approves; only the approved one is ever the patient's
+ * record.
  *
  * Text fields are '' rather than null when empty, so an editor can bind them
  * directly. Nothing here is free-form JSON: `cleanNote` keeps exactly these
@@ -159,12 +164,9 @@ export function cleanNote(input: unknown): ClinicalNote {
   };
 }
 
-/** What a finalized note must have: a reason for the visit, and an assessment or a diagnosis. */
+/** What a finalized note must have: at least one diagnosis. The reason for the visit comes from the booking when the note has none. */
 export function assertFinalizable(note: ClinicalNote): void {
-  if (!note.chief_complaint) {
-    throw new ApiError('invalid', 'Add the reason for the visit before finalizing.', 'chief_complaint');
-  }
-  if (!note.assessment && note.diagnoses.length === 0) {
-    throw new ApiError('invalid', 'Add an assessment or a diagnosis before finalizing.', 'assessment');
+  if (note.diagnoses.length === 0 && !note.assessment) {
+    throw new ApiError('invalid', 'Add the diagnosis before finalizing.', 'diagnoses');
   }
 }

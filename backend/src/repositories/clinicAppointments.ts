@@ -203,12 +203,19 @@ export function countOverlappingAppointments(profileId: string, endsAt: string, 
   return row.count;
 }
 
-/** The doctor's other appointment now in consultation, if any. */
-export function findOtherConsultationInProgress(doctorId: string, appointmentId: string): string | undefined {
+/** The doctor's other appointment in consultation among those starting in the range, if any. */
+export function findOtherConsultationInProgress(doctorId: string, appointmentId: string, from: string, to: string): string | undefined {
   const row = db()
-    .prepare("SELECT id FROM clinic_appointments WHERE doctor_id = ? AND status = 'in_consultation' AND id != ?")
-    .get(doctorId, appointmentId) as { id: string } | undefined;
+    .prepare("SELECT id FROM clinic_appointments WHERE doctor_id = ? AND status = 'in_consultation' AND id != ? AND starts_at >= ? AND starts_at < ?")
+    .get(doctorId, appointmentId, from, to) as { id: string } | undefined;
   return row?.id;
+}
+
+/** The doctor's consultations still open from before `before`, oldest first. */
+export function listUnfinishedConsultations(doctorId: string, before: string): AppointmentRow[] {
+  return db()
+    .prepare("SELECT * FROM clinic_appointments WHERE doctor_id = ? AND starts_at < ? AND status = 'in_consultation' ORDER BY starts_at, id")
+    .all(doctorId, before) as unknown as AppointmentRow[];
 }
 
 /** The start times in the range held by an appointment in one of `statuses`. */

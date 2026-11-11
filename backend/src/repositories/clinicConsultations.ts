@@ -59,17 +59,8 @@ export interface DoctorHistoryRow extends FinalConsultationRow {
   patient_profile_id: string | null;
 }
 
-export interface SegmentRow {
-  id: string;
-  seq: number;
-  duration_ms: number | null;
-  language: string | null;
-  content: string;
-  created_at: string;
-}
-
 /** Columns updateDraftIfVersion() may set, besides the version and updated_at. */
-export type DraftColumn = 'notes' | 'draft' | 'transcript_edited' | 'ai_used';
+export type DraftColumn = 'draft' | 'ai_used';
 
 // ---- Consultations ------------------------------------------------------------------------
 
@@ -120,10 +111,6 @@ export function updateDraftIfVersion(id: string, version: number, changes: Parti
     )
     .run(...columns.map((column) => changes[column] as string | number | null), updatedAt, id, version);
   return Number(result.changes) === 1;
-}
-
-export function setRecordingConsent(id: string, at: string): void {
-  db().prepare('UPDATE clinic_consultations SET recording_consent_at = ?, updated_at = ? WHERE id = ?').run(at, at, id);
 }
 
 /** The AI's proposal, beside the doctor's draft; the version moves on so other tabs notice. */
@@ -211,36 +198,7 @@ export function listDoctorHistory(doctorId: string, limit: number): DoctorHistor
 
 // ---- Transcript segments ------------------------------------------------------------------
 
-export function listTranscriptSegments(consultationId: string): SegmentRow[] {
-  return db()
-    .prepare('SELECT id, seq, duration_ms, language, content, created_at FROM clinic_transcript_segments WHERE consultation_id = ? ORDER BY seq')
-    .all(consultationId) as unknown as SegmentRow[];
-}
-
-/** Ignored if this segment number is already stored, so a retried upload changes nothing. */
-export function insertSegmentIfMissing(segment: {
-  id: string;
-  consultationId: string;
-  seq: number;
-  durationMs: number | null;
-  language: string | null;
-  content: string;
-  createdAt: string;
-}): void {
-  db()
-    .prepare(
-      `INSERT OR IGNORE INTO clinic_transcript_segments (id, consultation_id, seq, duration_ms, language, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(segment.id, segment.consultationId, segment.seq, segment.durationMs, segment.language, segment.content, segment.createdAt);
-}
-
-/** False when the consultation has no such segment. */
-export function deleteTranscriptSegment(id: string, consultationId: string): boolean {
-  const result = db().prepare('DELETE FROM clinic_transcript_segments WHERE id = ? AND consultation_id = ?').run(id, consultationId);
-  return Number(result.changes) === 1;
-}
-
+/** Segments recorded before dictation replaced recording: only the retention purge still touches them. */
 export function deleteConsultationSegments(consultationId: string): void {
   db().prepare('DELETE FROM clinic_transcript_segments WHERE consultation_id = ?').run(consultationId);
 }

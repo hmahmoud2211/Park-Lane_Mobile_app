@@ -10,8 +10,8 @@ import { after, before, describe, mock, test } from 'node:test';
 /**
  * The clinic and Health Passport, end to end over HTTP and WebSocket:
  * booking and double-booking, the status machine and who may drive it, the
- * queue and next-patient notices, history access, AI summaries and notes,
- * speech, finalizing into Health Passport, and retention.
+ * queue and next-patient notices, history access, AI summaries, dictated
+ * notes, speech, finalizing into Health Passport, and retention.
  *
  * Claude and ElevenLabs are stand-ins on localhost that answer like the
  * real APIs, so the tests check what is sent to them as well as what the
@@ -60,14 +60,15 @@ const { closeRealtimeConnections } = await import('../src/ems/realtime.ts');
 const { resetLimits } = await import('../src/ems/rateLimit.ts');
 const { purgeExpiredContent } = await import('../src/clinic/consultations.ts');
 const { speechParts } = await import('../src/integrations/elevenlabs.ts');
+const { config } = await import('../src/config.ts');
 const { CLOSING } = await import('../src/health/spoken.ts');
 
 // ---- Stand-ins for Claude and ElevenLabs ----------------------------------------------------
 
+/** What the doctor dictates after the visit, as Scribe hears it. */
 const TRANSCRIPT =
-  'How long have you had the chest tightness? About two weeks, when I climb the stairs. ' +
-  'Your blood pressure is 150 over 95. This is likely stable angina. ' +
-  'I will start aspirin 75 once a day for a month, and we will do an ECG.';
+  'Fifty-eight year old man, two weeks of chest tightness on the stairs, blood pressure 150 over 95. ' +
+  'This is likely stable angina. Start aspirin 75 once a day for a month, and we will do an ECG.';
 
 const ai = {
   mode: 'ok' as 'ok' | 'error' | 'refusal',
@@ -92,29 +93,18 @@ const historyReply = {
 
 const noteReply = {
   note: {
-    chief_complaint: 'Chest tightness on exertion',
-    history: 'Two weeks of chest tightness when climbing stairs.',
-    symptoms: ['Chest tightness on exertion'],
-    symptom_duration: 'Two weeks',
-    reported_history: '',
-    examination: 'Blood pressure 150/95.',
-    vitals: [{ name: 'Blood pressure', value: '150/95' }],
-    assessment: 'Likely stable angina.',
-    diagnoses: [{ name: 'Stable angina', certainty: 'provisional' }],
-    plan: 'Start aspirin and arrange an ECG.',
+    diagnoses: [
+      { name: 'Stable angina', certainty: 'provisional' },
+      { name: 'Hypertension', certainty: 'provisional' },
+    ],
     medications: [{ name: 'Aspirin', dose: '75 mg', frequency: 'once daily', duration_days: 30, route: 'oral', instructions: '' }],
     investigations: ['ECG', 'Lipid profile'],
-    follow_up: { needed: true, in_days: 14, instructions: 'Review the ECG.' },
-    patient_instructions: 'Take aspirin 75 mg once a day for a month. Come back for your ECG.',
   },
   evidence: [
-    { field: 'vitals[0]', quote: 'blood pressure is 150 over 95' },
-    { field: 'examination', quote: 'blood pressure is 150 over 95' },
     { field: 'diagnoses[0]', quote: 'likely stable angina' },
+    { field: 'diagnoses[1]', quote: 'the troponin was normal' },
     { field: 'medications[0]', quote: 'start aspirin 75 once a day for a month' },
     { field: 'investigations[0]', quote: 'we will do an ECG' },
-    { field: 'assessment', quote: 'the troponin was normal' },
-    { field: 'plan', quote: 'start aspirin 75' },
   ],
   review_flags: [{ field: 'medications[0].route', message: 'Route not stated; assumed oral.' }],
 };
@@ -145,7 +135,7 @@ const aiServer: Server = createServer(async (req, res) => {
   if (ai.mode === 'error') return json(500, { type: 'error', error: { type: 'api_error' } });
   if (ai.mode === 'refusal') return json(200, { model: 'claude-opus-5-5', stop_reason: 'refusal', content: [] });
   const system = String(body.system);
-  const text = system.includes('spoken handover') ? SPOKEN_SCRIPT : JSON.stringify(system.includes('SOAP') ? noteReply : historyReply);
+  const text = system.includes('spoken handover') ? SPOKEN_SCRIPT : JSON.stringify(system.includes('dictation') ? noteReply : historyReply);
   return json(200, {
     model: 'claude-opus-5-5',
     stop_reason: 'end_turn',
@@ -171,18 +161,13 @@ const voiceServer: Server = createServer(async (req, res) => {
   if (req.url?.startsWith('/v1/speech-to-text')) {
     voice.stt += 1;
     assert.match(String(req.headers['content-type']), /^multipart\/form-data/);
-    const [doctorLine, patientLine] = [TRANSCRIPT.slice(0, 43), TRANSCRIPT.slice(43)];
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
         language_code: 'en',
         language_probability: 0.98,
         text: TRANSCRIPT,
-        words: [
-          { text: doctorLine, type: 'word', speaker_id: 'speaker_0' },
-          { text: ' ', type: 'spacing', speaker_id: 'speaker_0' },
-          { text: patientLine, type: 'word', speaker_id: 'speaker_1' },
-        ],
+        words: [{ text: TRANSCRIPT, type: 'word', speaker_id: 'speaker_0' }],
       }),
     );
     return;
@@ -556,6 +541,54 @@ describe('roles, the status machine and the queue', () => {
     again.socket.close();
     patientEvents.socket.close();
   });
+
+  test('testing mode books any future minute, outside the doctor’s hours; only that one setting allows it', async () => {
+    setClock(TODAY, '09:00');
+    const doctor = await addDoctor('Dr. Any Time', 'cardiology');
+    const [a, b] = [await resident(), await resident()];
+    const late = iso(TODAY, '23:17');
+    assert.equal((await book(a.token, doctor.id, late, a.profileId)).error?.code, 'invalid', 'off: only the doctor’s slots');
+
+    const clinic = config.clinic as { anyTimeBooking: boolean };
+    clinic.anyTimeBooking = true;
+    try {
+      const shown = expectOk(await api<{ any_time_booking: boolean }>('GET', '/api/clinic/config', { token: a.token }));
+      assert.equal(shown.any_time_booking, true);
+      const booked = expectOk(await book(a.token, doctor.id, late, a.profileId));
+      assert.equal(booked.time, '23:17');
+      assert.equal((await book(b.token, doctor.id, late, b.profileId)).error?.code, 'slot_taken', 'a taken minute stays taken');
+      assert.equal((await book(b.token, doctor.id, iso(TODAY, '08:59'), b.profileId)).error?.code, 'invalid', 'not in the past');
+      assert.equal((await book(b.token, doctor.id, iso('2027-06-01', '10:00'), b.profileId)).error?.code, 'invalid', 'not past the booking window');
+    } finally {
+      clinic.anyTimeBooking = false;
+    }
+  });
+
+  test('a consultation left open on an earlier day is listed, and does not block the next day', async () => {
+    setClock(TODAY, '09:00');
+    const doctor = await addDoctor('Dr. Left Open', 'cardiology');
+    const [a, b, c] = [await resident(), await resident(), await resident()];
+    const forgotten = expectOk(await book(a.token, doctor.id, iso(TODAY, '10:00'), a.profileId));
+    const first = expectOk(await book(b.token, doctor.id, iso(TOMORROW, '10:00'), b.profileId));
+    const second = expectOk(await book(c.token, doctor.id, iso(TOMORROW, '10:20'), c.profileId));
+    setClock(TODAY, '09:55');
+    expectOk(await status(deskToken, forgotten.id, 'check_in', '/api/clinic/desk'));
+    expectOk(await status(doctor.token, forgotten.id, 'start'));
+
+    // Staff sessions last 12 hours, so the next morning everyone signs in again.
+    setClock(TOMORROW, '09:55');
+    const morningDesk = await desk();
+    const token = await signIn(doctor.email, 'doctor password 123');
+    expectOk(await status(morningDesk, first.id, 'check_in', '/api/clinic/desk'));
+    expectOk(await status(morningDesk, second.id, 'check_in', '/api/clinic/desk'));
+    const board = expectOk(await api<Record<string, any>>('GET', '/api/clinic/doctor/dashboard', { token }));
+    assert.deepEqual(board.unfinished.map((entry: { id: string }) => entry.id), [forgotten.id], 'still shown, so it can be finished');
+    assert.equal(board.current, null);
+
+    expectOk(await status(token, first.id, 'start'));
+    assert.equal((await status(token, second.id, 'start')).error?.code, 'invalid_transition', 'one at a time within the day');
+    setClock(TODAY, '09:00');
+  });
 });
 
 describe('history, AI and the consultation, into Health Passport', () => {
@@ -675,54 +708,58 @@ describe('history, AI and the consultation, into Health Passport', () => {
     ai.mode = 'ok';
   });
 
-  test('recording needs consent; a segment is transcribed once however often it is sent', async () => {
+  test('a dictation needs AI consent and audio; it is transcribed once and sorted into diagnosis, medications and tests, with unbacked items flagged', async () => {
     setClock(TODAY, '11:55');
     expectOk(await status(deskToken, appointmentId, 'check_in', '/api/clinic/desk'));
     const opened = expectOk(await api<Record<string, any>>('POST', `/api/clinic/doctor/appointments/${appointmentId}/consultation`, { token: doctor.token }));
     consultationId = opened.id;
     assert.equal(opened.status, 'draft');
     assert.equal(opened.appointment.status, 'in_consultation');
+    assert.equal(opened.ai_draft, null);
+    for (const hidden of ['notes', 'transcript', 'recording_consent_at']) assert.ok(!(hidden in opened), `${hidden} is gone`);
     const reopened = expectOk(await api<Record<string, any>>('POST', `/api/clinic/doctor/appointments/${appointmentId}/consultation`, { token: doctor.token }));
     assert.equal(reopened.id, consultationId, 'opening twice makes one consultation');
 
     const audio = Buffer.alloc(4_000, 1);
-    const upload = () => api<Record<string, any>>('POST', `/api/clinic/doctor/consultations/${consultationId}/segments?seq=0&lang=en&duration_ms=30000`, { token: doctor.token, raw: audio });
-    assert.equal((await upload()).error?.code, 'consent_required');
-    expectOk(await api('POST', `/api/clinic/doctor/consultations/${consultationId}/recording-consent`, { token: doctor.token }));
-    const first = expectOk(await upload());
-    assert.equal(first.duplicate, false);
-    assert.deepEqual(first.segment.utterances.map((u: { speaker: string }) => u.speaker), ['speaker_0', 'speaker_1']);
-    const retry = expectOk(await upload());
-    assert.equal(retry.duplicate, true);
-    assert.equal(voice.stt, 1);
-    assert.equal((await api('POST', `/api/clinic/doctor/consultations/${consultationId}/segments?seq=1`, { token: doctor.token, raw: Buffer.alloc(10) })).status, 422);
-  });
+    const dictation = `/api/clinic/doctor/consultations/${consultationId}/dictation?lang=en&note_lang=en`;
+    const withdrawn = expectOk(await api<Record<string, any>>('PATCH', `/api/clinic/me/appointments/${appointmentId}/consents`, { token: patient.token, body: { ai_consent: false } }));
+    assert.equal(withdrawn.ai_consent, false);
+    assert.equal((await api('POST', dictation, { token: doctor.token, raw: audio })).error?.code, 'consent_required');
+    expectOk(await api('POST', `/api/clinic/doctor/appointments/${appointmentId}/ai-consent`, { token: doctor.token }));
+    assert.equal((await api('POST', dictation, { token: doctor.token, raw: Buffer.alloc(10) })).status, 422, 'too short to be speech');
+    assert.equal((await api('POST', dictation, { token: doctor.token, raw: audio, contentType: 'text/plain' })).status, 422, 'not audio');
+    assert.equal(voice.stt, 0, 'nothing was sent to the speech service');
 
-  test('the AI drafts a note beside the doctor’s draft, with unbacked items flagged', async () => {
-    const before = expectOk(await api<Record<string, any>>('GET', `/api/clinic/doctor/consultations/${consultationId}`, { token: doctor.token }));
-    const drafted = expectOk(await api<Record<string, any>>('POST', `/api/clinic/doctor/consultations/${consultationId}/ai-draft`, { token: doctor.token, body: { lang: 'en' } }));
-    assert.equal(drafted.draft.chief_complaint, '', 'the doctor’s own draft is untouched');
+    const drafted = expectOk(await api<Record<string, any>>('POST', dictation, { token: doctor.token, raw: audio }));
+    assert.equal(voice.stt, 1);
+    assert.ok(drafted.version > opened.version);
+    assert.deepEqual(drafted.draft.diagnoses, [], 'the doctor’s own draft is untouched');
+    assert.equal(drafted.ai_draft.dictation.text, TRANSCRIPT, 'the doctor can read what was heard');
     assert.equal(drafted.ai_draft.note.diagnoses[0].certainty, 'provisional');
+    assert.equal(drafted.ai_draft.note.chief_complaint, '', 'only the three dictated parts are filled');
+    assert.deepEqual(drafted.ai_draft.note.investigations, ['ECG', 'Lipid profile']);
     const flagged = drafted.ai_draft.flags.map((flag: { field: string; origin: string }) => `${flag.origin}:${flag.field}`);
     assert.ok(flagged.includes('check:investigations[1]'), 'a test with no quote is flagged');
-    assert.ok(flagged.includes('check:assessment'), 'a quote that is not in the transcript is flagged');
+    assert.ok(flagged.includes('check:diagnoses[1]'), 'a quote that is not in the dictation is flagged');
     assert.ok(!flagged.includes('check:medications[0]'), 'a quoted prescription passes');
     assert.ok(flagged.includes('model:medications[0].route'));
-    assert.ok(drafted.version > before.version);
-    assert.ok(String(ai.calls.at(-1)?.body.system).includes('SOAP'));
+    const request = ai.calls.at(-1) as (typeof ai.calls)[number];
+    assert.ok(String(request.body.system).includes('dictation'));
+    assert.ok(JSON.stringify(request.body).includes(TRANSCRIPT), 'the dictation text, not the audio, goes to the AI');
+    assert.ok(!JSON.stringify(request.body).includes('Patient Number'), 'the patient’s name does not');
   });
 
   test('drafts save with a version, stale saves are refused, and finalizing writes Health Passport exactly once', async () => {
     let current = expectOk(await api<Record<string, any>>('GET', `/api/clinic/doctor/consultations/${consultationId}`, { token: doctor.token }));
-    const note = { ...current.ai_draft.note, assessment: 'Likely stable angina; rule out hypertension.' };
-    const saved = expectOk(await api<Record<string, any>>('PUT', `/api/clinic/doctor/consultations/${consultationId}/draft`, { token: doctor.token, body: { version: current.version, draft: note, notes: 'Smoker, 20/day.', ai_applied: true } }));
-    const stale = await api('PUT', `/api/clinic/doctor/consultations/${consultationId}/draft`, { token: doctor.token, body: { version: current.version, notes: 'older tab' } });
+    const note = { ...current.ai_draft.note, diagnoses: [current.ai_draft.note.diagnoses[0]] };
+    const saved = expectOk(await api<Record<string, any>>('PUT', `/api/clinic/doctor/consultations/${consultationId}/draft`, { token: doctor.token, body: { version: current.version, draft: note, ai_applied: true } }));
+    const stale = await api('PUT', `/api/clinic/doctor/consultations/${consultationId}/draft`, { token: doctor.token, body: { version: current.version, draft: note } });
     assert.equal(stale.error?.code, 'version_conflict');
 
     const unattested = await api('POST', `/api/clinic/doctor/consultations/${consultationId}/finalize`, { token: doctor.token, body: { version: saved.version, note } });
     assert.equal(unattested.status, 422);
-    const empty = await api('POST', `/api/clinic/doctor/consultations/${consultationId}/finalize`, { token: doctor.token, body: { version: saved.version, note: { ...note, chief_complaint: '' }, attest: true } });
-    assert.equal(empty.status, 422);
+    const empty = await api('POST', `/api/clinic/doctor/consultations/${consultationId}/finalize`, { token: doctor.token, body: { version: saved.version, note: { ...note, diagnoses: [] }, attest: true } });
+    assert.equal(empty.status, 422, 'no diagnosis, no record');
     assert.equal(db().prepare("SELECT status FROM clinic_consultations WHERE id = ?").get(consultationId)?.status, 'draft', 'a refused finalize changes nothing');
 
     const patientEvents = await listen(patient.token);
@@ -743,10 +780,10 @@ describe('history, AI and the consultation, into Health Passport', () => {
     const fromVisit = db().prepare('SELECT section, COUNT(*) AS count FROM health_items WHERE source = ? GROUP BY section ORDER BY section').all(`consultation:${consultationId}`);
     assert.deepEqual(fromVisit.map((row) => ({ ...row })), [{ section: 'medications', count: 1 }, { section: 'visits', count: 1 }]);
 
-    assert.equal((await api('PUT', `/api/clinic/doctor/consultations/${consultationId}/draft`, { token: doctor.token, body: { version: current.version, notes: 'late edit' } })).error?.code, 'invalid_transition');
+    assert.equal((await api('PUT', `/api/clinic/doctor/consultations/${consultationId}/draft`, { token: doctor.token, body: { version: current.version, draft: note } })).error?.code, 'invalid_transition');
     const amended = expectOk(await api<Record<string, any>>('POST', `/api/clinic/doctor/consultations/${consultationId}/addenda`, { token: doctor.token, body: { text: 'ECG booked for 4 Nov.' } }));
     assert.equal(amended.addenda.length, 1);
-    assert.equal(amended.final.assessment, note.assessment, 'the approved record itself never changes');
+    assert.deepEqual(amended.final.medications, note.medications, 'the approved record itself never changes');
   });
 
   test('the resident reads the approved visit in Health Passport, without transcript or AI output', async () => {
@@ -760,28 +797,28 @@ describe('history, AI and the consultation, into Health Passport', () => {
     assert.equal(aspirin.end, '2026-12-01');
 
     const detail = expectOk(await api<Record<string, any>>('GET', `/health/consultations/${consultationId}`, { token: patient.token }));
-    assert.equal(detail.note.patient_instructions, noteReply.note.patient_instructions);
+    assert.deepEqual(detail.note.investigations, noteReply.note.investigations, 'the tests the doctor asked for reach the patient');
+    assert.equal(visit.reason, 'Chest tightness — Stable angina', 'the visit names the booking reason and the diagnosis');
     assert.equal(detail.approved_by, 'Dr. Full Flow');
     assert.equal(detail.ai_assisted, true);
     assert.equal(detail.addenda[0].text, 'ECG booked for 4 Nov.');
-    for (const hidden of ['transcript', 'ai_draft', 'draft', 'notes']) assert.ok(!(hidden in detail), `${hidden} is not shown to the patient`);
+    for (const hidden of ['transcript', 'ai_draft', 'draft', 'notes', 'dictation']) assert.ok(!(hidden in detail), `${hidden} is not shown to the patient`);
     assert.equal((await api('GET', `/health/consultations/${consultationId}`, { token: (await resident()).token })).status, 404);
 
     const mine = expectOk(await api<{ id: string; consultation_id: string }[]>('GET', '/api/clinic/me/appointments', { token: patient.token }));
     assert.equal(mine.find((entry) => entry.id === appointmentId)?.consultation_id, consultationId);
   });
 
-  test('transcripts and AI drafts are deleted after the retention period; the record stays', async () => {
+  test('dictations and AI proposals are deleted after the retention period; the record stays', async () => {
     setClock('2026-12-05', '09:00');
     assert.equal(purgeExpiredContent(), 1);
     // A month on, the doctor's 12-hour session is long over.
     assert.equal((await api('GET', '/api/clinic/doctor/me', { token: doctor.token })).status, 401);
     doctor.token = await signIn(doctor.email, 'doctor password 123');
     const kept = expectOk(await api<Record<string, any>>('GET', `/api/clinic/doctor/consultations/${consultationId}`, { token: doctor.token }));
-    assert.equal(kept.transcript.segments.length, 0);
-    assert.equal(kept.ai_draft, null);
+    assert.equal(kept.ai_draft, null, 'the dictation text went with the proposal');
     assert.equal(kept.content_purged, true);
-    assert.equal(kept.final.chief_complaint, 'Chest tightness on exertion');
+    assert.equal(kept.final.diagnoses[0].name, 'Stable angina');
     const history = expectOk(await api<Record<string, any>>('GET', `/api/clinic/doctor/appointments/${appointmentId}/history`, { token: doctor.token }));
     assert.equal(history.access.level, 'limited', 'shared access ends a week after the visit');
     setClock(TODAY, '09:00');

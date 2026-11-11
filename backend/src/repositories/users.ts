@@ -44,6 +44,11 @@ export function findUserByEmail(email: string): User | null {
   return row ? toUser(row) : null;
 }
 
+/** For the clinic CLI's demo data. */
+export function setUserName(userId: string, name: string): void {
+  db().prepare('UPDATE users SET name = ? WHERE id = ?').run(name, userId);
+}
+
 export function setMustChangePassword(userId: string, value: boolean): void {
   db().prepare('UPDATE users SET must_change_password = ? WHERE id = ?').run(value ? 1 : 0, userId);
 }
