@@ -48,7 +48,7 @@ export function VoicePanel({ residentId, homeToken, onSignIn, onOpenRoute }: Voi
   const captureFrame = useCallback(() => camera.current?.capture() ?? Promise.resolve(''), []);
 
   const session = useVoiceSession({ residentId, cameraEnabled: cameraOn, captureFrame, homeToken });
-  const { phase } = session;
+  const { phase, duringPrompt } = session;
   const inCall = phase !== 'idle' && phase !== 'error';
 
   const toggleCamera = useCallback(async () => {
@@ -57,13 +57,15 @@ export function VoicePanel({ residentId, homeToken, onSignIn, onOpenRoute }: Voi
       setCameraOn(false);
       return;
     }
-    const granted = cameraPermission?.granted || (await requestCameraPermission()).granted;
+    // Asked through the session, so the prompt doesn't end a call in progress.
+    const granted =
+      cameraPermission?.granted || (await duringPrompt(requestCameraPermission)).granted;
     if (!granted) {
       setCameraNotice(copy.cameraDenied);
       return;
     }
     setCameraOn(true);
-  }, [cameraOn, cameraPermission?.granted, requestCameraPermission]);
+  }, [cameraOn, cameraPermission?.granted, duringPrompt, requestCameraPermission]);
 
   const onOrbPress = useCallback(() => {
     if (phase === 'idle' || phase === 'error') {

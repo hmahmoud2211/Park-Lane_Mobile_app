@@ -1,5 +1,6 @@
 import {
   createAudioPlayer,
+  getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   useAudioStream,
@@ -106,6 +107,11 @@ class NativeVoiceAudio implements VoiceAudioEngine {
   }
 
   async requestPermission(): Promise<boolean> {
+    // On Android, asking always opens the system permission screen, even when
+    // access was given before, and that briefly backgrounds the app. Check first.
+    if ((await getRecordingPermissionsAsync()).granted) {
+      return true;
+    }
     const response = await requestRecordingPermissionsAsync();
     return response.granted;
   }

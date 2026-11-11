@@ -95,6 +95,8 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeT
   const pendingQuery = useRef<VoiceQueryResult | null>(null);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ready = useRef(false);
+  /** How many system permission prompts are open; see `duringPrompt`. */
+  const prompts = useRef(0);
   const handlers = useRef<{
     handleEvent: (event: RealtimeServerEvent) => void;
     handleClose: (info: RealtimeCloseInfo) => void;
@@ -162,6 +164,20 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeT
       replyTimer.current = null;
     }
   };
+
+  /**
+   * Runs a system permission request without ending the call. Android reports
+   * the app as backgrounded while its permission screen covers it, which would
+   * otherwise look like the resident leaving the app.
+   */
+  const duringPrompt = useCallback(async <T>(request: () => Promise<T>): Promise<T> => {
+    prompts.current++;
+    try {
+      return await request();
+    } finally {
+      prompts.current--;
+    }
+  }, []);
 
   const sendChunk = useCallback((pcm: ArrayBuffer) => {
     if (!mutedRef.current) {
@@ -416,7 +432,7 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeT
     refresh();
 
     void (async () => {
-      const granted = await engine.requestPermission().catch(() => false);
+      const granted = await duringPrompt(() => engine.requestPermission()).catch(() => false);
       if (flags.current.status !== 'connecting') {
         return; // hung up while the permission prompt was open
       }
@@ -429,7 +445,7 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeT
         sessionId: `parklane-${Date.now().toString(36)}`,
       });
     })();
-  }, [client, engine, fail, refresh, residentId]);
+  }, [client, duringPrompt, engine, fail, refresh, residentId]);
 
   /** "Stop talking": cuts the reply short and hands the floor back. */
   const interrupt = useCallback(() => {
@@ -477,7 +493,9 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeT
       return undefined;
     }
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' && flags.current.status !== 'idle') {
+      // Only a real move to the background ends it: iOS reports 'inactive' for
+      // system alerts, and Android 'background' under a permission prompt.
+      if (state === 'background' && prompts.current === 0 && flags.current.status !== 'idle') {
         stop();
       }
     });
@@ -536,5 +554,7 @@ export function useVoiceSession({ residentId, cameraEnabled, captureFrame, homeT
     stop,
     interrupt,
     toggleMute,
+    /** Wrap any other permission request made during a call (e.g. the camera) in this. */
+    duringPrompt,
   };
 }
