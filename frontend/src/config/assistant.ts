@@ -12,8 +12,7 @@ import { flags } from './flags';
  *
  * The host name must not contain an underscore. Android 10 and later refuse TLS
  * to such a name (OkHttp fails with "Android internal error"), so voice and chat
- * would work in the browser and on iPhone but not in the APK. The service was
- * first published as `attal_voice_2`, which is why this one uses hyphens.
+ * would work in the browser and on iPhone but not in the APK. Use hyphens.
  */
 const DEFAULT_ASSISTANT_URL = 'https://attal-voice-2.ems-iot.com';
 
