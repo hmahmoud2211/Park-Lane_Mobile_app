@@ -171,6 +171,11 @@ export const config = {
     /** How far ahead residents can book, and how soon before a slot booking closes. */
     bookingHorizonDays: Number(env.CLINIC_BOOKING_HORIZON_DAYS || 30),
     bookingLeadMinutes: Number(env.CLINIC_BOOKING_LEAD_MINUTES || 30),
+    /**
+     * For testing: residents may book any future minute on any day, outside
+     * the doctor's hours and grid. Ignored when NODE_ENV=production.
+     */
+    anyTimeBooking: env.CLINIC_ANY_TIME_BOOKING === '1' && env.NODE_ENV !== 'production',
     /** Arriving later than this after the slot starts queues the patient by arrival time. */
     lateGraceMinutes: Number(env.CLINIC_LATE_GRACE_MINUTES || 10),
     /** Upcoming appointments one resident may hold at once, across their family. */

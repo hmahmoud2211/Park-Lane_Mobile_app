@@ -25,7 +25,7 @@ await ensureDefaultAccount();
 await ensureAdminAccount();
 startHubs();
 
-// Clinic retention: transcripts and AI drafts after CLINIC_TRANSCRIPT_RETENTION_DAYS, expired history summaries.
+// Clinic retention: dictations and AI proposals after CLINIC_TRANSCRIPT_RETENTION_DAYS, expired history summaries.
 const purge = () => {
   try {
     const purged = purgeExpiredContent();

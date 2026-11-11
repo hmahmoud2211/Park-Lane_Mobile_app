@@ -35,8 +35,7 @@ import * as summaries from '../clinic/summaries.ts';
  *     GET  /doctor/appointments/:id/history-summary/speech/:part?lang=&v=  → audio/mpeg
  *     POST /doctor/appointments/:id/consultation
  *     GET  /doctor/consultations  /doctor/consultations/:id   PUT /doctor/consultations/:id/draft
- *     POST /doctor/consultations/:id/recording-consent | /segments | /ai-draft | /finalize | /addenda
- *     DELETE /doctor/consultations/:id/segments/:segmentId
+ *     POST /doctor/consultations/:id/dictation?lang=&note_lang= (audio body) | /finalize | /addenda
  *     GET  /doctor/patients?q=  /doctor/patients/:profileId
  *
  *   the front desk         check-in and the day's list, no clinical content
@@ -77,6 +76,7 @@ async function residentRoute(req: IncomingMessage, res: ServerResponse, path: st
     ok(res, {
       timezone: config.clinic.timezone,
       booking_horizon_days: config.clinic.bookingHorizonDays,
+      any_time_booking: config.clinic.anyTimeBooking,
       ai_available: aiConfigured(),
       speech_available: speechConfigured(),
       role: user.role,
@@ -219,7 +219,7 @@ async function doctorRoute(req: IncomingMessage, res: ServerResponse, path: stri
     ok(res, consultations.doctorHistory(doctor, { q: url.searchParams.get('q') }));
     return true;
   }
-  const consultation = /^\/consultations\/([^/]+)(?:\/([a-z-]+)(?:\/([^/]+))?)?$/.exec(path);
+  const consultation = /^\/consultations\/([^/]+)(?:\/([a-z-]+))?$/.exec(path);
   if (consultation) {
     const id = decodeURIComponent(consultation[1]);
     const sub = consultation[2] ?? '';
@@ -231,34 +231,21 @@ async function doctorRoute(req: IncomingMessage, res: ServerResponse, path: stri
       ok(res, consultations.saveDraft(user, doctor, id, await readJson(req, config.clinic.maxNoteBytes)));
       return true;
     }
-    if (sub === 'recording-consent' && method === 'POST') {
-      ok(res, consultations.recordRecordingConsent(user, doctor, id));
-      return true;
-    }
-    if (sub === 'segments' && method === 'POST' && !consultation[3]) {
+    if (sub === 'dictation' && method === 'POST') {
+      // One clip is a transcription and an AI request.
       throttle('clinic-stt', user.id);
+      throttle('clinic-ai', user.id);
       const params = url.searchParams;
       const lang = params.get('lang');
       const audio = await readBytes(req, config.clinic.maxSegmentBytes);
       ok(
         res,
-        await consultations.addSegment(user, doctor, id, audio, {
-          seq: Number(params.get('seq')),
+        await consultations.dictate(user, doctor, id, audio, {
           mimeType: String(req.headers['content-type'] ?? ''),
           lang: (lang === 'ar' || lang === 'en' ? lang : 'auto') as SpeechLang,
-          durationMs: params.get('duration_ms') ? Number(params.get('duration_ms')) : null,
+          noteLang: langOf(params.get('note_lang')),
         }),
       );
-      return true;
-    }
-    if (sub === 'segments' && method === 'DELETE' && consultation[3]) {
-      ok(res, consultations.removeSegment(user, doctor, id, decodeURIComponent(consultation[3])));
-      return true;
-    }
-    if (sub === 'ai-draft' && method === 'POST') {
-      throttle('clinic-ai', user.id);
-      const body = await readJson(req);
-      ok(res, await consultations.draftWithAi(user, doctor, id, langOf(body.lang)));
       return true;
     }
     if (sub === 'finalize' && method === 'POST') {
