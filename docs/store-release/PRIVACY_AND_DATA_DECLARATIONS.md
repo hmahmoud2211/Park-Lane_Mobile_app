@@ -12,7 +12,7 @@ Phone ──HTTPS──► EMS backend (api-iot-2.ems-iot.com)
                    ├─► Google Gemini or Anthropic Claude   (document reading, summaries, clinic notes — only with consent)
                    ├─► ElevenLabs                           (speech for summaries; clinic transcription — only with consent)
                    └─► Home Assistant hub per apartment ─► device makers' clouds (brand accounts the resident links)
-Phone ──HTTPS──► Parklane Assistant service (attal_voice_2.ems-iot.com) ─► its AI providers ⚑ (not named in code)
+Phone ──HTTPS──► Parklane Assistant service (attal-voice-2.ems-iot.com) ─► its AI providers ⚑ (not named in code)
 Phone ──LAN────► CUBE Gateway and devices on the home Wi-Fi (Wi-Fi name/password sent to the device to set it up)
 Phone (Android) ─► Google ML Kit inside expo-camera (QR scanning on the phone; anonymous usage data to Google)
 ```

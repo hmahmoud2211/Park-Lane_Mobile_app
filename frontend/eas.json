@@ -10,7 +10,7 @@
       "environment": "development",
       "env": {
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
-        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com"
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal-voice-2.ems-iot.com"
       }
     },
     "preview": {
@@ -21,14 +21,14 @@
       },
       "env": {
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
-        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com"
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal-voice-2.ems-iot.com"
       }
     },
     "store-preview": {
       "extends": "preview",
       "env": {
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
-        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com",
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal-voice-2.ems-iot.com",
         "EXPO_PUBLIC_STORE_MODE": "1",
         "EXPO_PUBLIC_DEMO_TOOLS": "0"
       }
@@ -38,7 +38,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_DEVICE_BACKEND_URL": "https://api-iot-2.ems-iot.com",
-        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal_voice_2.ems-iot.com",
+        "EXPO_PUBLIC_ASSISTANT_URL": "https://attal-voice-2.ems-iot.com",
         "EXPO_PUBLIC_STORE_MODE": "1",
         "EXPO_PUBLIC_DEMO_TOOLS": "0"
       }

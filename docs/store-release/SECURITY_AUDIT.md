@@ -55,11 +55,11 @@ outside this repository (the assistant). Those are listed below.
 
 | # | Finding | Severity | Who |
 |---|---|---|---|
-| X1 | The assistant service (`attal_voice_2.ems-iot.com`, "Al Atal Voice") answers `GET /api/v1/residents` **without any login** (HTTP 200, checked by status code only; content not read). Its chat accepts any `resident_id` without proof, so a caller can ask as any resident it knows. Its home page is a public "Chat Console" | **High** if it holds real residents | Its owner: require the EMS session or assistant token; remove the console |
+| X1 | The assistant service (`attal_voice_2.ems-iot.com`, to be served as `attal-voice-2.ems-iot.com`, "Al Atal Voice") answers `GET /api/v1/residents` **without any login** (HTTP 200, checked by status code only; content not read). Its chat accepts any `resident_id` without proof, so a caller can ask as any resident it knows. Its home page is a public "Chat Console" | **High** if it holds real residents | Its owner: require the EMS session or assistant token; remove the console |
 | X2 | Which AI company the assistant uses, and its data retention, are not documented anywhere | Medium (consent accuracy) | You: name it in `EXPO_PUBLIC_ASSISTANT_AI_PROVIDERS` and the privacy policy |
 | X3 | The production backend has not been updated with these fixes | High (deletion doesn't exist until then) | You: deploy (RELEASE_READINESS_REPORT.md §8) |
 | X4 | ElevenLabs keeps request data unless an enterprise zero-retention plan is used (`ELEVENLABS_ZERO_RETENTION`) | Medium | You: choose the plan; the privacy policy says so |
-| X5 | The hostname `attal_voice_2` has underscores. Some Android HTTP and TLS stacks reject them. It worked with curl; it was not tested on an Android phone | Medium | Test the assistant on Android, or give the service a name without underscores |
+| X5 | **Confirmed, Nov 11 2026:** voice did not work in the APK. The hostname `attal_voice_2` has underscores. On Android 10+, OkHttp 4.9.2 (React Native's HTTP and WebSocket client) reads the socket's `SSLParameters`; Android builds an `SNIHostName` from the host, which throws on `_`, and OkHttp fails the connection ("Android internal error"). Voice and text chat both fail; the web and iPhone are unaffected. Sending `Host:` through another `ems-iot.com` name works for REST but not for the voice WebSocket (502), so it has to be a new name. The app now uses `attal-voice-2.ems-iot.com` (`config/assistant.ts`, `eas.json`) | **High** (no assistant on Android) | You: publish `attal-voice-2.ems-iot.com` in Cloudflare for the same service, then rebuild the APK and test voice on a phone |
 
 ## Secrets
 

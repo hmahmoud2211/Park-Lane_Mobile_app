@@ -9,10 +9,19 @@ import { flags } from './flags';
  * Override the host per build with EXPO_PUBLIC_ASSISTANT_URL, e.g.
  * `http://192.168.1.20:8001` for a backend on the LAN. The WebSocket base is
  * derived from it (https -> wss), as the mic and camera need a secure origin.
+ *
+ * The host name must not contain an underscore. Android 10 and later refuse TLS
+ * to such a name (OkHttp fails with "Android internal error"), so voice and chat
+ * would work in the browser and on iPhone but not in the APK. The service was
+ * first published as `attal_voice_2`, which is why this one uses hyphens.
  */
-const DEFAULT_ASSISTANT_URL = 'https://attal_voice_2.ems-iot.com';
+const DEFAULT_ASSISTANT_URL = 'https://attal-voice-2.ems-iot.com';
 
 const httpBase = (env.assistantUrl ?? DEFAULT_ASSISTANT_URL).replace(/\/+$/, '');
+
+if (__DEV__ && /^[a-z]+:\/\/[^/?#]*_/i.test(httpBase)) {
+  console.warn(`[assistant] ${httpBase} has an underscore in its host name; Android cannot connect to it.`);
+}
 
 export const assistantConfig = {
   httpBase,
