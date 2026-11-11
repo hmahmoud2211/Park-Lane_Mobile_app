@@ -9,7 +9,7 @@ Park-Lane is one repository with three programs and their shared contract:
 | [`shared/`](../shared) | The API contract between those two, as TypeScript types only | Type-only TypeScript |
 | [`gateway/`](../gateway) | The CUBE Gateway: a box (or container) in the home that controls local devices | Python 3.12+, FastAPI |
 
-Supporting folders: [`docker/rethink`](../docker/rethink) (the local LG ThinQ replacement for development), [`scripts/dev.sh`](../scripts/dev.sh) (runs the pieces together), [`tools/launcher`](../tools/launcher) (the Windows launchers' source), [`docs/`](.) and [`.github/workflows`](../.github/workflows).
+Supporting folders: [`docker/rethink`](../docker/rethink) (the local LG ThinQ replacement for development), [`scripts/dev.sh`](../scripts/dev.sh) (runs the pieces together), [`tools/launcher`](../tools/launcher) (the Windows launchers' source), [`docs/`](.), [`.github/workflows`](../.github/workflows) and [`.claude/`](../.claude) (makes Claude Code follow this structure: rules, recipes and a check hook; see its README).
 
 There is no root `package.json`: each program installs and runs from its own folder.
 

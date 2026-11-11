@@ -7,6 +7,9 @@ This is an Expo/React Native mobile application. Prioritize mobile-first pattern
 - `backend/` is the EMS device backend (Node, no runtime packages), `gateway/` the CUBE
   gateway (Python). They have their own tooling and READMEs.
 - `scripts/dev.sh` runs the pieces together; see docs/DEVELOPMENT_GUIDE.md.
+- `.claude/` makes Claude Code follow this file and docs/PROJECT_STRUCTURE.md: rules per area,
+  recipes for a new screen or feature, and a hook that blocks changes breaking the structure
+  (`node .claude/hooks/check-structure.mjs --changed` runs the same check). See `.claude/README.md`.
 
 ## Expo has changed — do not trust your training data
 
