@@ -71,7 +71,7 @@ browser checks are not real-device checks.
 | G9 | Account deletion URL in Play Console | NEEDS MANUAL ACTION | After deployment |
 | G10 | Content rating (IARC), target audience, ads = no, app access | NEEDS MANUAL ACTION | — |
 | G11 | Closed test 12 testers × 14 days | NEEDS MANUAL ACTION | Only for new personal accounts |
-| G12 | Package registration (developer verification) | NEEDS MANUAL ACTION | Check `com.parklane.app` is registered |
+| G12 | Package registration (developer verification) | NEEDS MANUAL ACTION | `com.parklane.app` was taken on Google Play, so the app is now `com.emsiot.parklane` on Android and iOS (12 Nov 2026). Register that name when creating the app in Play Console |
 | G13 | Permissions minimal and asked in context | FIXED (verify next build) | The bundle carried `SYSTEM_ALERT_WINDOW`, `USE_BIOMETRIC`, `USE_FINGERPRINT` from templates; now blocked in app.json |
 | G14 | Assistant reachable on Android (underscore hostname) | NOT VERIFIED | Test on a phone |
 | G15 | Store screenshots, feature graphic, 512 px icon | NEEDS MANUAL ACTION | — |

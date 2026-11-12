@@ -18,7 +18,7 @@
           "audio"
         ]
       },
-      "bundleIdentifier": "com.parklane.app",
+      "bundleIdentifier": "com.emsiot.parklane",
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
           {
@@ -50,7 +50,7 @@
       }
     },
     "android": {
-      "package": "com.parklane.app",
+      "package": "com.emsiot.parklane",
       "adaptiveIcon": {
         "backgroundColor": "#071B44",
         "foregroundImage": "./assets/android-icon-foreground.png",

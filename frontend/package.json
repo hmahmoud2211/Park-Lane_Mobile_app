@@ -12,26 +12,26 @@
     "@react-native-community/datetimepicker": "9.2.1",
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/native-stack": "^7.19.2",
-    "expo": "~58.0.23",
+    "expo": "~58.0.25",
     "expo-asset": "~58.0.18",
-    "expo-audio": "~58.0.11",
-    "expo-blur": "~58.0.5",
+    "expo-audio": "~58.0.12",
+    "expo-blur": "~58.0.6",
     "expo-build-properties": "~58.0.12",
     "expo-camera": "~58.0.14",
     "expo-clipboard": "~58.0.4",
-    "expo-crypto": "~58.0.7",
-    "expo-document-picker": "~58.0.4",
+    "expo-crypto": "~58.0.8",
+    "expo-document-picker": "~58.0.5",
     "expo-file-system": "~58.0.11",
     "expo-font": "~58.0.10",
     "expo-image-manipulator": "~58.0.16",
     "expo-image-picker": "~58.0.10",
-    "expo-linear-gradient": "~58.0.3",
-    "expo-network": "~58.0.4",
-    "expo-print": "~58.0.8",
-    "expo-secure-store": "~58.0.2",
-    "expo-sharing": "~58.0.22",
-    "expo-status-bar": "~58.0.4",
-    "expo-web-browser": "~58.0.7",
+    "expo-linear-gradient": "~58.0.4",
+    "expo-network": "~58.0.5",
+    "expo-print": "~58.0.9",
+    "expo-secure-store": "~58.0.3",
+    "expo-sharing": "~58.0.23",
+    "expo-status-bar": "~58.0.5",
+    "expo-web-browser": "~58.0.8",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -73,5 +73,14 @@
   "private": true,
   "engines": {
     "node": "22.x"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-tcp-socket"
+        ]
+      }
+    }
   }
 }

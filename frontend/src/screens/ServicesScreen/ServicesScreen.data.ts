@@ -46,7 +46,7 @@ const allServices: readonly ServiceItem[] = [
   {
     id: 'bills',
     title: 'Bills & Utilities',
-    description: 'View and pay your electricity,\nwater and gas bills.',
+    description: 'View your electricity,\nwater and gas bills.',
     icon: 'serviceBills',
     iconSet: 'material',
     iconName: 'file-document-outline',

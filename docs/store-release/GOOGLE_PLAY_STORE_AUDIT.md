@@ -1,6 +1,7 @@
 # Google Play audit — Parklane 1.0.0
 
-Date: 10 November 2026 · Branch: `release/store-readiness-2026-11` · Package: `com.parklane.app`
+Date: 10 November 2026 · Branch: `release/store-readiness-2026-11` · Package: `com.emsiot.parklane` (was
+`com.parklane.app` when this audit ran; renamed on 12 November 2026 because Google Play reported that name taken)
 
 Rules were read from Google's own pages on 10 November 2026 (Play Console Help and the Developer Policy Center).
 Status words: *Fixed*, *OK*, *Owner* (an account, console or legal step only you can do), *Open*, *Not verified*.
@@ -15,7 +16,7 @@ Status words: *Fixed*, *OK*, *Owner* (an account, console or legal step only you
 | 16 KB memory pages: updates that don't support them are blocked from 1 Feb 2027 ([page sizes](https://developer.android.com/guide/practices/page-sizes)) | RN builds its native code with `ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON`, NDK 27.1 | See BUILD_VALIDATION.md (checked on the built bundle) |
 | Android App Bundle | `eas.json → production` builds an `.aab` (store distribution) | OK |
 | Play App Signing | Google enrolls new apps automatically; EAS holds the upload key | **Owner** (team project credentials) |
-| Package registration (developer verification), from 30 Sep 2026 ([answer 16984799](https://support.google.com/googleplay/android-developer/answer/16984799)) | Not visible from the repo | **Owner**: check `com.parklane.app` is registered to your developer account |
+| Package registration (developer verification), from 30 Sep 2026 ([answer 16984799](https://support.google.com/googleplay/android-developer/answer/16984799)) | Not visible from the repo | **Owner**: check `com.emsiot.parklane` is registered to your developer account |
 
 ## 2. Permissions (what the build asks for)
 

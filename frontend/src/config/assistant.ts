@@ -18,7 +18,8 @@ const DEFAULT_ASSISTANT_URL = 'https://attal-voice-2.ems-iot.com';
 
 const httpBase = (env.assistantUrl ?? DEFAULT_ASSISTANT_URL).replace(/\/+$/, '');
 
-if (__DEV__ && /^[a-z]+:\/\/[^/?#]*_/i.test(httpBase)) {
+// `typeof` first: the Node checks load this file, and Node has no __DEV__.
+if (typeof __DEV__ !== 'undefined' && __DEV__ && /^[a-z]+:\/\/[^/?#]*_/i.test(httpBase)) {
   console.warn(`[assistant] ${httpBase} has an underscore in its host name; Android cannot connect to it.`);
 }
 

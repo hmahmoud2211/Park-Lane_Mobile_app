@@ -1,6 +1,7 @@
 # Apple App Store audit — Parklane 1.0.0
 
-Date: 10 November 2026 · Branch: `release/store-readiness-2026-11` (from Master `7a1f4bb`) · App: `com.parklane.app`
+Date: 10 November 2026 · Branch: `release/store-readiness-2026-11` (from Master `7a1f4bb`) · App: `com.emsiot.parklane` (was
+`com.parklane.app` when this audit ran; renamed on 12 November 2026 to match the Android package)
 
 This audit checks the iPhone and iPad app against Apple's rules as they are today. Every rule was read from Apple's
 own pages on 10 November 2026 (App Review Guidelines "Last updated October 16, 2026"). Nothing here promises approval.
