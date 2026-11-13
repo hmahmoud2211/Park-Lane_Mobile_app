@@ -239,6 +239,38 @@ export const typography = {
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
+
+  /*
+   * Device controls (a device's own screen and its card in lists). No design exists; set
+   * well above the inner screens' figure sizes so anyone, children and older people
+   * included, reads them at a glance. Every one wraps rather than clips at large text.
+   */
+
+  /** The big figure on a device's main control, e.g. the room temperature. */
+  controlFigure: {
+    fontFamily: fontFamily.bold,
+    fontSize: 44,
+    lineHeight: 52,
+    letterSpacing: -0.5,
+  },
+  /** A device's state in words, e.g. "On", "Locked", "Set to 22°". */
+  controlState: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  /** Labels on device buttons and chips, e.g. "Volume up", and a device's name on its card. */
+  controlLabel: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  /** Section titles, captions and readings around the controls, e.g. "Mode", "Tap to turn off". */
+  controlCaption: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
 } satisfies Record<string, TextStyle>;
 
 export type TypographyVariant = keyof typeof typography;

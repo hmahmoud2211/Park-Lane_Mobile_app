@@ -47,7 +47,10 @@ interface EmsContextValue {
    * resident's own before anything else, and the backend refuses everything else meanwhile.
    */
   passwordChangeRequired: boolean;
-  /** Replaces the temporary password; the same session carries on. Throws EmsError. */
+  /**
+   * Replaces the password; the same session carries on. Throws EmsError: `unauthorized` for a wrong
+   * current password, `session_ended` when the session itself had ended (it is signed out too).
+   */
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   /** Set when the backend ended the session (expired or revoked). */
   sessionNotice: string | null;
@@ -78,16 +81,20 @@ interface EmsContextValue {
 
 /** An assistant token this close to lapsing is replaced rather than handed out. */
 const ASSISTANT_TOKEN_MARGIN_MS = 10 * 60_000;
+/** Longer than this in the background, the realtime channel is replaced on return rather than trusted. */
+const RESTART_AFTER_BACKGROUND_MS = 30_000;
+/** What the sign-in screen says when the backend ended the session. */
+const SIGNED_OUT_NOTICE = 'You were signed out. Please sign in again.';
 
 export const EmsContext = createContext<EmsContextValue | undefined>(undefined);
 
 function problemOf(error: unknown): HomeProblem {
   if (!(error instanceof api.EmsError)) {
-    return { code: 'internal', message: 'Something went wrong talking to the EMS backend.' };
+    return { code: 'internal', message: 'Something went wrong. Try again in a moment.' };
   }
   // A backend from before the smart-home service answers its routes with a bare "Not found."
   if (error.code === 'not_found') {
-    return { code: 'unsupported', message: 'The smart home service is not available on this EMS server yet.' };
+    return { code: 'unsupported', message: 'Smart home isn’t available for your building yet.' };
   }
   return { code: error.code, message: error.message };
 }
@@ -140,6 +147,12 @@ export function EmsProvider({ children }: PropsWithChildren) {
     assistantGrant.current = null;
     api.setSessionToken(next.token);
     await sessionStore.save(next.token);
+    // A new session starts empty: nothing an earlier one read may show in it.
+    setHome(null);
+    setHomeProblem(null);
+    setRooms([]);
+    setDevices([]);
+    setDevicesLoaded(false);
     setChangeRefused(false);
     setSessionNotice(null);
     setUser(next.user);
@@ -167,7 +180,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
       } catch (error) {
         if (cancelled) return;
         if (error instanceof api.EmsError && error.code === 'unauthorized') {
-          await endSession('Your EMS session ended. Sign in again.');
+          await endSession(SIGNED_OUT_NOTICE);
         } else {
           // Offline at launch: keep the session and retry when screens ask.
           setToken(stored);
@@ -181,7 +194,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
     };
   }, [endSession]);
 
-  useEffect(() => api.onSessionExpired(() => void endSession('Your EMS session ended. Sign in again.')), [endSession]);
+  useEffect(() => api.onSessionExpired(() => void endSession(SIGNED_OUT_NOTICE)), [endSession]);
 
   useEffect(() => api.onPasswordChangeRequired(() => setChangeRefused(true)), []);
 
@@ -194,21 +207,33 @@ export function EmsProvider({ children }: PropsWithChildren) {
   }, []);
 
   const refreshHome = useCallback(async () => {
+    // Signed out (or in as someone else) meanwhile: what this read finds belongs to the session that asked.
+    const session = api.getSessionToken();
+    const current = () => api.getSessionToken() === session;
     try {
       const next = await homeApi.getHome();
+      if (!current()) return;
       setHome(next);
       setRooms(next.rooms);
       if (next.hub.status === 'provisioning') {
         setDevices([]);
         setHomeProblem({ code: 'provisioning', message: 'Your smart home is still being set up. Check back in a few minutes.' });
       } else {
-        setDevices(sortDevices(await homeApi.listDevices()));
+        const list = await homeApi.listDevices();
+        if (!current()) return;
+        setDevices(sortDevices(list));
         setHomeProblem(null);
       }
       if (!user) {
-        api.getMe().then((me) => setUser(me.user), () => undefined);
+        api.getMe().then(
+          (me) => {
+            if (current()) setUser(me.user);
+          },
+          () => undefined,
+        );
       }
     } catch (error) {
+      if (!current()) return;
       const problem = problemOf(error);
       setHomeProblem(problem);
       if (problem.code === 'no_home') {
@@ -217,7 +242,7 @@ export function EmsProvider({ children }: PropsWithChildren) {
         setDevices([]);
       }
     } finally {
-      setDevicesLoaded(true);
+      if (current()) setDevicesLoaded(true);
     }
   }, [user]);
 
@@ -257,14 +282,24 @@ export function EmsProvider({ children }: PropsWithChildren) {
     const next = new EmsRealtime(token, {
       onEvent,
       onState: setRealtime,
-      onRefused: () => void endSession('Your EMS session ended. Sign in again.'),
+      onRefused: () => void endSession(SIGNED_OUT_NOTICE),
     });
     channel.current = next;
     next.start();
     void refreshRef.current();
 
+    // Back after a long time away, the socket may be dead while still looking open: replace it.
+    let backgroundedAt: number | null = null;
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
+      if (state !== 'active') {
+        backgroundedAt ??= Date.now();
+        return;
+      }
+      const away = backgroundedAt === null ? 0 : Date.now() - backgroundedAt;
+      backgroundedAt = null;
+      if (away > RESTART_AFTER_BACKGROUND_MS) {
+        next.restart();
+      } else {
         next.wake();
       }
     });
@@ -303,9 +338,24 @@ export function EmsProvider({ children }: PropsWithChildren) {
   );
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    const { user: updated } = await api.changePassword({ currentPassword, newPassword });
-    setUser(updated);
-    setChangeRefused(false);
+    try {
+      const { user: updated } = await api.changePassword({ currentPassword, newPassword });
+      setUser(updated);
+      setChangeRefused(false);
+    } catch (error) {
+      // A wrong current password and a session that ended both answer 401 here, so ask which:
+      // reading the account with the session signs out (with its notice) if the session ended.
+      if (error instanceof api.EmsError && error.code === 'unauthorized') {
+        const sessionEnded = await api.getMe().then(
+          () => false,
+          (check: unknown) => check instanceof api.EmsError && check.code === 'unauthorized',
+        );
+        if (sessionEnded) {
+          throw new api.EmsError('session_ended', SIGNED_OUT_NOTICE, error.status);
+        }
+      }
+      throw error;
+    }
   }, []);
 
   // Reused until shortly before it lapses; one request at a time.

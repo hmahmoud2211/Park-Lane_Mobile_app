@@ -118,7 +118,7 @@ async function main() {
 
   check('EMS: refuses before sending when signed out', async () => {
     ems.setSessionToken(null);
-    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'unauthorized', message: 'Sign in to your EMS account first.' });
+    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'unauthorized', message: 'Please sign in first.' });
     equal(sent.length, 0, 'requests sent');
   });
 
@@ -148,7 +148,7 @@ async function main() {
     await rejects(ems.call('/api/home'), {
       class: 'EmsError',
       code: 'network',
-      message: 'Could not reach the EMS backend. Check your internet connection.',
+      message: 'Couldn’t connect. Check your internet connection and try again.',
     });
   });
 
@@ -160,10 +160,10 @@ async function main() {
     await tick();
     fireTimers();
     realTimers();
-    await rejects(pending, { class: 'EmsError', code: 'timeout', message: 'The EMS backend took too long to answer.' });
+    await rejects(pending, { class: 'EmsError', code: 'timeout', message: 'This is taking too long. Check your internet connection and try again.' });
   });
 
-  check('EMS: the timeout covers reading the body', async () => {
+  check('EMS: the timeout covers reading the body, and is reported as one', async () => {
     ems.setSessionToken('tok');
     handler = hangBody;
     fakeTimers();
@@ -171,15 +171,16 @@ async function main() {
     await tick();
     fireTimers();
     realTimers();
-    await rejects(pending, { class: 'EmsError', code: 'internal', message: 'The EMS backend answered 200.', status: 200 });
+    await rejects(pending, { class: 'EmsError', code: 'timeout', message: 'This is taking too long. Check your internet connection and try again.' });
   });
 
   check('EMS: a body that is not an envelope', async () => {
     ems.setSessionToken('tok');
+    const odd = 'Something went wrong on our side. Try again in a moment.';
     handler = async () => text('<html>Bad gateway</html>', 502);
-    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'internal', message: 'The EMS backend answered 502.', status: 502 });
+    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'internal', message: odd, status: 502 });
     handler = async () => json(5, 200);
-    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'internal', message: 'The EMS backend answered 200.', status: 200 });
+    await rejects(ems.call('/api/home'), { class: 'EmsError', code: 'internal', message: odd, status: 200 });
   });
 
   check('EMS: an error envelope, and a refused session tells the listeners', async () => {
@@ -194,6 +195,22 @@ async function main() {
     equal(expired, 1, 'expired listeners after unauthorized');
     await rejects(ems.call('/api/auth/login', { auth: false }), { class: 'EmsError', code: 'unauthorized', status: 401 });
     equal(expired, 1, 'expired listeners after an unauthenticated call');
+    stop();
+  });
+
+  check('EMS: a refusal for a session that has since ended leaves the new one signed in', async () => {
+    ems.setSessionToken('old');
+    let expired = 0;
+    const stop = ems.onSessionExpired(() => expired++);
+    let answer: (response: Response) => void = () => undefined;
+    handler = () => new Promise((resolve) => (answer = resolve));
+    const pending = ems.call('/api/home');
+    await tick();
+    ems.setSessionToken('new');
+    answer(json({ ok: false, error: { code: 'unauthorized', message: 'Sign in again.' } }, 401));
+    await rejects(pending, { class: 'EmsError', code: 'unauthorized', status: 401 });
+    equal(sent[0].headers.Authorization, 'Bearer old', 'sent with the session it was made for');
+    equal(expired, 0, 'expired listeners');
     stop();
   });
 
@@ -276,8 +293,8 @@ async function main() {
     await rejects(gateway.gatewayCall(target, '/devices'), {
       class: 'GatewayError',
       code: 'network',
-      message: 'Could not reach the gateway.',
-      recovery: 'Check that it is running and that your phone is on the same network, or use its remote address.',
+      message: 'Could not reach your gateway.',
+      recovery: 'Check that it is switched on and your phone has internet, then try again.',
     });
     handler = hang;
     fakeTimers();
@@ -288,8 +305,8 @@ async function main() {
     await rejects(pending, {
       class: 'GatewayError',
       code: 'timeout',
-      message: 'The gateway took too long to answer.',
-      recovery: 'Check that it is running and that your phone is on the same network.',
+      message: 'Your gateway took too long to answer.',
+      recovery: 'Check that it is switched on and your phone has internet, then try again.',
     });
   });
 
@@ -316,7 +333,13 @@ async function main() {
     await rejects(gateway.gatewayCall({ baseUrl: target.baseUrl }, '/devices'), { class: 'GatewayError', code: 'unauthorized' });
     equal(refused.length, 1, 'refused without a token');
     handler = async () => text('nope', 500);
-    await rejects(gateway.gatewayCall(target, '/devices'), { class: 'GatewayError', code: 'internal', message: 'The gateway answered 500.', recovery: null, status: 500 });
+    await rejects(gateway.gatewayCall(target, '/devices'), {
+      class: 'GatewayError',
+      code: 'internal',
+      message: 'Your gateway gave an answer the app didn’t understand.',
+      recovery: 'Try again in a moment.',
+      status: 500,
+    });
     stop();
   });
 
@@ -497,14 +520,14 @@ async function main() {
     await rejects(pending, { class: 'HealthError', kind: 'timeout', message: 'The request timed out.' });
   });
 
-  check('Health: the timeout covers reading the body', async () => {
+  check('Health: the timeout covers reading the body, and is reported as one', async () => {
     handler = hangBody;
     fakeTimers();
     const pending = healthClient().getConsent();
     await tick();
     fireTimers();
     realTimers();
-    await rejects(pending, { class: 'HealthError', kind: 'server', message: 'HTTP 200', status: 200 });
+    await rejects(pending, { class: 'HealthError', kind: 'timeout', message: 'The request timed out.' });
   });
 
   check('Health: an upload refuses before sending without a backend address', async () => {
@@ -713,7 +736,7 @@ async function main() {
     }
   });
 
-  check('Realtime (EMS): wake reconnects at once; stop closes; a refused constructor throws', async () => {
+  check('Realtime (EMS): wake reconnects at once; restart replaces; stop closes; a refused constructor throws', async () => {
     FakeSocket.all = [];
     delays.length = 0;
     socketTimers();
@@ -724,6 +747,12 @@ async function main() {
       FakeSocket.all[0].onclose?.();
       channel.wake();
       equal(FakeSocket.all.length, 2, 'woke without waiting');
+      channel.wake();
+      equal(FakeSocket.all.length, 2, 'wake leaves an open socket alone');
+      channel.restart();
+      equal([FakeSocket.all.length, FakeSocket.all[1].closed], [3, true], 'restart replaces it at once');
+      FakeSocket.all[1].onclose?.();
+      equal(FakeSocket.all.length, 3, 'the replaced socket closing changes nothing');
       channel.stop();
       equal(FakeSocket.all[1].closed, true, 'closed on stop');
       equal(log.at(-1), 'state:offline', 'offline on stop');

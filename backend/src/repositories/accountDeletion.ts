@@ -37,6 +37,9 @@ export function deleteAccountData(userId: string): void {
   database
     .prepare("UPDATE amenity_bookings SET status = 'cancelled', cancelled_at = ?, updated_at = ? WHERE user_id = ? AND status = 'booked' AND starts_at > ?")
     .run(now, now, userId, now);
+  // Reports of AI answers they sent go too: the excerpt can be their own health information and the note is their
+  // words. (The foreign key does the same when the users row goes; this covers a row kept for the clinic.)
+  database.prepare('DELETE FROM ai_reports WHERE user_id = ?').run(userId);
   // The inbox and its settings are only that person's.
   database.prepare('DELETE FROM notifications WHERE user_id = ?').run(userId);
   database.prepare('DELETE FROM notification_prefs WHERE user_id = ?').run(userId);

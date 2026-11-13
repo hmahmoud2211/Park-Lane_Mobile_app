@@ -67,6 +67,8 @@ export function ChangePasswordScreen() {
   const [busy, setBusy] = useState(false);
   const nextRef = useRef<TextInputInstance>(null);
   const confirmRef = useRef<TextInputInstance>(null);
+  /** Set while a change is being sent, so the keyboard's Go key can't send it twice. */
+  const submitting = useRef(false);
 
   // Done (or never needed, or signed out meanwhile): on as a sign-in goes, with nothing to go back to.
   useEffect(() => {
@@ -79,12 +81,16 @@ export function ChangePasswordScreen() {
   }, [status, passwordChangeRequired, navigation, setResidentId, voluntary]);
 
   const submit = async () => {
+    if (submitting.current) {
+      return;
+    }
     const found = passwordProblems({ current, next, confirm, email: user?.email ?? null });
     setProblems(problemText(found, voluntary));
     setFailure(null);
     if (hasProblems(found)) {
       return;
     }
+    submitting.current = true;
     setBusy(true);
     try {
       await changePassword(current, next);
@@ -92,8 +98,10 @@ export function ChangePasswordScreen() {
         navigation.goBack();
       }
     } catch (error) {
-      setFailure(failureText(passwordChangeFailure(error instanceof EmsError ? error.code : null), emsErrorText(error)));
+      setFailure(failureText(passwordChangeFailure(error instanceof EmsError ? error.code : null), emsErrorText(error), voluntary));
       setBusy(false);
+    } finally {
+      submitting.current = false;
     }
   };
 

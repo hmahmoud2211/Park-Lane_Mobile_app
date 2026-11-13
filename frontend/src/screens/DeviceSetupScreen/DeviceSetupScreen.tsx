@@ -23,6 +23,7 @@ import type { RootStackScreenProps } from '../../types/navigation.types';
 import { capabilityLabels, deviceSetupCopy as copy } from './DeviceSetupScreen.data';
 import { BUTTON_HEIGHT, FIELD_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceSetupScreen.styles';
 import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
+import { GatewayProblem } from '../../features/gateway/components/GatewayProblem';
 
 type TestOutcome = { tone: 'success' | 'warning' | 'error' | 'info'; text: string };
 
@@ -96,7 +97,7 @@ export function DeviceSetupScreen() {
 
   const renderBody = () => {
     if (!target) {
-      return <Notice tone="warning">{copy.offline}</Notice>;
+      return <GatewayProblem />;
     }
     if (!device || !raw) {
       return (

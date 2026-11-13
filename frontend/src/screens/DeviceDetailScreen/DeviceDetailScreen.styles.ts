@@ -7,7 +7,8 @@ import { layout } from '../../theme';
 
 /**
  * No Figma reference: the same frame as My Devices (16dp gutter, 44/30/18
- * rhythm, NeonPanels with PanelHeadings).
+ * rhythm, NeonPanels with PanelHeadings). Buttons are the device controls'
+ * 48dp touch target, so everyone can hit them.
  */
 const GUTTER = layout.innerScreen.gutter;
 /** The gutter PageHeader is drawn for; the header keeps its place on screen. */
@@ -17,7 +18,7 @@ export const CARD_GAP = layout.innerScreen.cardGap;
 const PANEL_INSET = layout.innerScreen.panelInset;
 const ROW_GAP = 12;
 export const FIELD_HEIGHT = 54;
-export const SMALL_BUTTON_HEIGHT = 36;
+export const BUTTON_HEIGHT = layout.deviceControl.minTarget;
 /** A button beside text has no width of its own to take. */
 const INLINE_BUTTON_WIDTH = 112;
 
@@ -46,11 +47,6 @@ export function createStyles(theme: AppTheme) {
     form: {
       gap: ROW_GAP,
     },
-    chips: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
-    },
     actions: {
       flexDirection: 'row',
       gap: theme.spacing.sm,
@@ -64,8 +60,14 @@ export function createStyles(theme: AppTheme) {
     },
     factRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'space-between',
+      alignItems: 'center',
       gap: theme.spacing.sm,
+    },
+    factValue: {
+      flexShrink: 1,
+      textAlign: 'right',
     },
   });
 }

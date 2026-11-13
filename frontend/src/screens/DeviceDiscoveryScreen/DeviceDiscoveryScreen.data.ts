@@ -31,6 +31,5 @@ export const discoveryCopy = {
   detectionOnly: 'The gateway sees this device but has no local integration for it, so it can’t be controlled here.',
   alreadyAdded: 'Already added',
   openDevice: 'Set up device',
-  offline: 'Your gateway is not reachable right now.',
   noMatchesErrors: 'Some checks did not finish:',
 } as const;

@@ -45,7 +45,15 @@ export async function timedFetch<T>(url: string, options: TimedFetchOptions<T>):
     } catch {
       throw noAnswer({ timedOut, aborted: signal?.aborted ?? false });
     }
-    return await read(response);
+    try {
+      return await read(response);
+    } catch (error) {
+      // The body never finished arriving (timed out or cancelled): that is no answer, not an odd one.
+      if (controller.signal.aborted) {
+        throw noAnswer({ timedOut, aborted: signal?.aborted ?? false });
+      }
+      throw error;
+    }
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', forwardAbort);

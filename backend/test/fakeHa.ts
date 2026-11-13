@@ -156,6 +156,9 @@ export class FakeHa {
   readonly failingReloads = new Set<string>();
   /** When false, service calls succeed but the device never reports back. */
   reportBack = true;
+  /** The code a demo alarm panel takes (it refuses others, as Home Assistant does). */
+  alarmCode = '1234';
+  private track = 1;
   onboarded = false;
   private readonly sockets = new Set<FakeSocket>();
   private readonly raw = new Set<Duplex>();
@@ -408,26 +411,143 @@ export class FakeHa {
     if (this.failing.has(entityId)) {
       return this.error(socket, message.id, 'home_assistant_error', 'The device did not respond.');
     }
+    const current = this.states[entityId];
+    if (domain === 'alarm_control_panel' && typeof current?.a.code_format === 'string') {
+      const wanted = service === 'alarm_disarm' || current.a.code_arm_required !== false;
+      if (wanted && data.code !== this.alarmCode) {
+        return this.error(socket, message.id, 'service_validation_error', 'Invalid alarm code provided');
+      }
+    }
     this.result(socket, message.id, { context: { id: 'ctx' } });
     if (!this.reportBack) return;
-    const current = this.states[entityId];
-    if (service === 'turn_on') {
-      const attrs: Record<string, unknown> = {};
-      if (typeof data.brightness_pct === 'number') attrs.brightness = Math.round((data.brightness_pct / 100) * 255);
-      if (typeof data.color_temp_kelvin === 'number') attrs.color_temp_kelvin = data.color_temp_kelvin;
-      setTimeout(() => this.setState(entityId, 'on', attrs), 20);
-    } else if (service === 'turn_off') {
-      setTimeout(() => this.setState(entityId, 'off'), 20);
-    } else if (service === 'set_temperature') {
-      setTimeout(() => this.setState(entityId, current.s, { temperature: data.temperature }), 20);
-    } else if (service === 'set_hvac_mode') {
-      setTimeout(() => this.setState(entityId, String(data.hvac_mode)), 20);
-    } else if (service === 'set_fan_mode') {
-      setTimeout(() => this.setState(entityId, current.s, { fan_mode: data.fan_mode }), 20);
-    } else if (service === 'open_cover' || service === 'close_cover') {
-      setTimeout(() => this.setState(entityId, service === 'open_cover' ? 'open' : 'closed', { current_position: service === 'open_cover' ? 100 : 0 }), 20);
-    } else if (service === 'lock' || service === 'unlock') {
-      setTimeout(() => this.setState(entityId, service === 'lock' ? 'locked' : 'unlocked'), 20);
+    const next = this.simulate(domain, service, data, current);
+    if (next) {
+      setTimeout(() => this.setState(entityId, next.s, next.a), 20);
+    }
+  }
+
+  /** The state a device reports after a service call, roughly as the real integration would; null when nothing changes. */
+  private simulate(domain: string, service: string, data: Record<string, unknown>, current: { s: string; a: Record<string, unknown> } | undefined) {
+    const s = current?.s ?? 'unknown';
+    const a = current?.a ?? {};
+    const same = (attrs: Record<string, unknown>) => ({ s, a: attrs });
+    const position = (value: unknown) => (typeof value === 'number' ? value : 0);
+    switch (service) {
+      case 'turn_on': {
+        const attrs: Record<string, unknown> = {};
+        if (typeof data.brightness_pct === 'number') attrs.brightness = Math.round((data.brightness_pct / 100) * 255);
+        if (typeof data.color_temp_kelvin === 'number') attrs.color_temp_kelvin = data.color_temp_kelvin;
+        if (Array.isArray(data.hs_color)) attrs.hs_color = data.hs_color;
+        if (typeof data.effect === 'string') attrs.effect = data.effect;
+        if (typeof data.activity === 'string') attrs.current_activity = data.activity;
+        const modes = Array.isArray(a.operation_list) ? (a.operation_list as string[]) : [];
+        return { s: domain === 'water_heater' ? (modes.find((mode) => mode !== 'off') ?? 'eco') : 'on', a: attrs };
+      }
+      case 'turn_off':
+        return { s: 'off', a: {} };
+      case 'toggle':
+        return { s: s === 'on' ? 'off' : 'on', a: {} };
+      case 'set_temperature': {
+        const attrs: Record<string, unknown> = {};
+        for (const key of ['temperature', 'target_temp_low', 'target_temp_high']) if (typeof data[key] === 'number') attrs[key] = data[key];
+        return same(attrs);
+      }
+      case 'set_hvac_mode':
+        return { s: String(data.hvac_mode), a: {} };
+      case 'set_fan_mode':
+        return same({ fan_mode: data.fan_mode });
+      case 'set_preset_mode':
+        return same({ preset_mode: data.preset_mode });
+      case 'set_swing_mode':
+        return same({ swing_mode: data.swing_mode });
+      case 'set_humidity':
+        return same({ humidity: data.humidity });
+      case 'set_mode':
+        return same({ mode: data.mode });
+      case 'open_cover':
+      case 'close_cover':
+        return { s: service === 'open_cover' ? 'open' : 'closed', a: { current_position: service === 'open_cover' ? 100 : 0 } };
+      case 'set_cover_position':
+        return { s: position(data.position) > 0 ? 'open' : 'closed', a: { current_position: data.position } };
+      case 'open_cover_tilt':
+      case 'close_cover_tilt':
+        return same({ current_tilt_position: service === 'open_cover_tilt' ? 100 : 0 });
+      case 'set_cover_tilt_position':
+        return same({ current_tilt_position: data.tilt_position });
+      case 'lock':
+        return { s: 'locked', a: {} };
+      case 'unlock':
+        return { s: 'unlocked', a: {} };
+      case 'open':
+        return { s: 'open', a: {} };
+      case 'set_percentage':
+        return { s: position(data.percentage) > 0 ? 'on' : 'off', a: { percentage: data.percentage } };
+      case 'oscillate':
+        return same({ oscillating: data.oscillating });
+      case 'set_direction':
+        return same({ direction: data.direction });
+      case 'media_play':
+        return { s: 'playing', a: {} };
+      case 'media_pause':
+        return { s: 'paused', a: {} };
+      case 'media_play_pause':
+        return { s: s === 'playing' ? 'paused' : 'playing', a: {} };
+      case 'media_stop':
+        return { s: 'idle', a: {} };
+      case 'media_next_track':
+      case 'media_previous_track':
+        return same({ media_title: `Episode ${(this.track += service === 'media_next_track' ? 1 : -1)}` });
+      case 'volume_set':
+        return same({ volume_level: data.volume_level });
+      case 'volume_up':
+      case 'volume_down': {
+        const level = typeof a.volume_level === 'number' ? a.volume_level : 0;
+        return same({ volume_level: Math.round(Math.min(1, Math.max(0, level + (service === 'volume_up' ? 0.1 : -0.1))) * 100) / 100 });
+      }
+      case 'volume_mute':
+        return same({ is_volume_muted: data.is_volume_muted });
+      case 'select_source':
+        return same({ source: data.source });
+      case 'select_sound_mode':
+        return same({ sound_mode: data.sound_mode });
+      case 'shuffle_set':
+        return same({ shuffle: data.shuffle });
+      case 'repeat_set':
+        return same({ repeat: data.repeat });
+      case 'select_option':
+        return { s: String(data.option), a: {} };
+      case 'set_value':
+        return { s: String(data.value), a: {} };
+      case 'press':
+        return { s: new Date().toISOString(), a: {} };
+      case 'start':
+      case 'clean_spot':
+        return { s: 'cleaning', a: {} };
+      case 'start_mowing':
+        return { s: 'mowing', a: {} };
+      case 'pause':
+        return { s: 'paused', a: {} };
+      case 'stop':
+        return { s: 'idle', a: {} };
+      case 'return_to_base':
+      case 'dock':
+        return { s: 'returning', a: {} };
+      case 'set_fan_speed':
+        return same({ fan_speed: data.fan_speed });
+      case 'set_operation_mode':
+        return { s: String(data.operation_mode), a: { operation_mode: data.operation_mode } };
+      case 'set_away_mode':
+        return same({ away_mode: data.away_mode ? 'on' : 'off' });
+      case 'open_valve':
+      case 'close_valve':
+        return { s: service === 'open_valve' ? 'open' : 'closed', a: { current_position: service === 'open_valve' ? 100 : 0 } };
+      case 'set_valve_position':
+        return { s: position(data.position) > 0 ? 'open' : 'closed', a: { current_position: data.position } };
+      case 'alarm_disarm':
+        return { s: 'disarmed', a: {} };
+      default:
+        // alarm_arm_home → armed_home, and so on; anything else (locate, stop_cover…) changes nothing visible.
+        return service.startsWith('alarm_arm_') ? { s: `armed_${service.slice('alarm_arm_'.length)}`, a: {} } : null;
     }
   }
 
@@ -640,7 +760,11 @@ export class FakeHa {
   }
 }
 
-/** A small home: a dimmable light, a plug, an AC, a lock, a sensor, plus things the app must not show. */
+/**
+ * A small home: a dimmable light, a plug, an AC with presets, swing and humidity, a lock that can unlatch, a
+ * sensor, a TV, a robot vacuum, tilting blinds and an alarm panel (code 1234), plus settings (`config` entities: the
+ * plug's child lock and power-on behaviour, the light's transition time) and things the app must not show.
+ */
 export function demoHome(prefix = ''): FakeSetup {
   return {
     areas: [
@@ -654,16 +778,26 @@ export function demoHome(prefix = ''): FakeSetup {
       { id: `${prefix}dev-lock`, name: 'Front Door', config_entry_id: 'entry-tuya' },
       { id: `${prefix}dev-sensor`, name: 'Climate Sensor', area_id: 'living_room', config_entry_id: 'entry-tuya' },
       { id: `${prefix}dev-service`, name: 'Forecast', entry_type: 'service' },
+      { id: `${prefix}dev-tv`, name: 'Living Room TV', manufacturer: 'LG', model: 'OLED55C3', area_id: 'living_room', config_entry_id: 'entry-webostv' },
+      { id: `${prefix}dev-vacuum`, name: 'Robot Vacuum', manufacturer: 'Roborock', model: 'S8', area_id: 'living_room', config_entry_id: 'entry-roborock' },
+      { id: `${prefix}dev-blinds`, name: 'Bedroom Blinds', manufacturer: 'Tuya', area_id: 'bedroom', config_entry_id: 'entry-tuya' },
+      { id: `${prefix}dev-alarm`, name: 'Alarm Panel', manufacturer: 'Tuya', config_entry_id: 'entry-tuya' },
     ],
     entities: [
       { entity_id: `light.${prefix}ceiling`, device_id: `${prefix}dev-light`, original_name: null, platform: 'tuya' },
+      { entity_id: `number.${prefix}ceiling_transition`, device_id: `${prefix}dev-light`, original_name: 'Transition time', entity_category: 'config', platform: 'tuya' },
       { entity_id: `switch.${prefix}plug`, device_id: `${prefix}dev-plug`, platform: 'tuya' },
-      { entity_id: `switch.${prefix}plug_child_lock`, device_id: `${prefix}dev-plug`, entity_category: 'config', platform: 'tuya' },
+      { entity_id: `switch.${prefix}plug_child_lock`, device_id: `${prefix}dev-plug`, original_name: 'Child lock', entity_category: 'config', platform: 'tuya' },
+      { entity_id: `select.${prefix}plug_power_on`, device_id: `${prefix}dev-plug`, original_name: 'Power-on behaviour', entity_category: 'config', platform: 'tuya' },
       { entity_id: `sensor.${prefix}plug_power`, device_id: `${prefix}dev-plug`, original_name: 'Power', platform: 'tuya' },
       { entity_id: `climate.${prefix}ac`, device_id: `${prefix}dev-ac`, platform: 'tuya' },
       { entity_id: `lock.${prefix}front`, device_id: `${prefix}dev-lock`, platform: 'tuya' },
       { entity_id: `sensor.${prefix}temperature`, device_id: `${prefix}dev-sensor`, original_name: 'Temperature', platform: 'tuya' },
       { entity_id: `button.${prefix}restart`, device_id: `${prefix}dev-sensor`, entity_category: 'diagnostic', platform: 'tuya' },
+      { entity_id: `media_player.${prefix}tv`, device_id: `${prefix}dev-tv`, platform: 'webostv' },
+      { entity_id: `vacuum.${prefix}robot`, device_id: `${prefix}dev-vacuum`, platform: 'roborock' },
+      { entity_id: `cover.${prefix}blinds`, device_id: `${prefix}dev-blinds`, platform: 'tuya' },
+      { entity_id: `alarm_control_panel.${prefix}home`, device_id: `${prefix}dev-alarm`, platform: 'tuya' },
       { entity_id: `weather.${prefix}home`, device_id: `${prefix}dev-service`, platform: 'met' },
       { entity_id: `switch.${prefix}hidden`, device_id: null, hidden_by: 'user', platform: 'template' },
       { entity_id: `input_boolean.${prefix}guest_mode`, device_id: null, name: 'Guest mode', area_id: 'living_room', platform: 'input_boolean' },
@@ -673,16 +807,78 @@ export function demoHome(prefix = ''): FakeSetup {
         s: 'off',
         a: { friendly_name: 'Ceiling Light', supported_color_modes: ['color_temp'], min_color_temp_kelvin: 2700, max_color_temp_kelvin: 6500 },
       },
+      [`number.${prefix}ceiling_transition`]: { s: '1.0', a: { min: 0, max: 10, step: 0.5, mode: 'slider', unit_of_measurement: 's' } },
       [`switch.${prefix}plug`]: { s: 'off', a: { friendly_name: 'Smart Plug', device_class: 'outlet' } },
       [`switch.${prefix}plug_child_lock`]: { s: 'off' },
+      [`select.${prefix}plug_power_on`]: { s: 'previous', a: { options: ['off', 'on', 'previous'] } },
       [`sensor.${prefix}plug_power`]: { s: '0', a: { unit_of_measurement: 'W', device_class: 'power' } },
       [`climate.${prefix}ac`]: {
         s: 'cool',
-        a: { supported_features: 1 | 8, current_temperature: 26, temperature: 24, min_temp: 16, max_temp: 30, target_temp_step: 1, hvac_modes: ['off', 'cool', 'heat'], fan_modes: ['low', 'high'], fan_mode: 'low' },
+        a: {
+          // TARGET_TEMPERATURE | TARGET_HUMIDITY | FAN_MODE | PRESET_MODE | SWING_MODE
+          supported_features: 1 | 4 | 8 | 16 | 32,
+          current_temperature: 26,
+          temperature: 24,
+          min_temp: 16,
+          max_temp: 30,
+          target_temp_step: 1,
+          hvac_modes: ['off', 'cool', 'heat'],
+          fan_modes: ['low', 'high'],
+          fan_mode: 'low',
+          preset_modes: ['none', 'eco', 'boost', 'sleep'],
+          preset_mode: 'none',
+          swing_modes: ['off', 'vertical', 'horizontal', 'both'],
+          swing_mode: 'off',
+          current_humidity: 55,
+          humidity: 50,
+          min_humidity: 30,
+          max_humidity: 70,
+        },
       },
-      [`lock.${prefix}front`]: { s: 'locked' },
+      // OPEN: the lock can unlatch the door.
+      [`lock.${prefix}front`]: { s: 'locked', a: { supported_features: 1 } },
       [`sensor.${prefix}temperature`]: { s: '22.5', a: { unit_of_measurement: '°C', device_class: 'temperature' } },
       [`button.${prefix}restart`]: { s: 'unknown' },
+      [`media_player.${prefix}tv`]: {
+        s: 'playing',
+        a: {
+          friendly_name: 'Living Room TV',
+          device_class: 'tv',
+          // Everything the contract shows: pause, volume set/mute/step, previous/next, on/off, source, stop, play,
+          // shuffle, sound mode, repeat.
+          supported_features: 1 | 4 | 8 | 16 | 32 | 128 | 256 | 1024 | 2048 | 4096 | 16384 | 32768 | 65536 | 262144,
+          volume_level: 0.25,
+          is_volume_muted: false,
+          media_title: 'Episode 1',
+          media_artist: 'Planet Earth III',
+          source: 'Netflix',
+          source_list: ['Live TV', 'HDMI 1', 'Netflix', 'YouTube'],
+          sound_mode: 'Cinema',
+          sound_mode_list: ['Standard', 'Cinema', 'Music'],
+          shuffle: false,
+          repeat: 'off',
+        },
+      },
+      [`vacuum.${prefix}robot`]: {
+        s: 'docked',
+        a: {
+          // PAUSE | STOP | RETURN_HOME | FAN_SPEED | BATTERY | LOCATE | CLEAN_SPOT | STATE | START
+          supported_features: 4 | 8 | 16 | 32 | 64 | 512 | 1024 | 4096 | 8192,
+          battery_level: 87,
+          fan_speed: 'balanced',
+          fan_speed_list: ['quiet', 'balanced', 'turbo', 'max'],
+        },
+      },
+      [`cover.${prefix}blinds`]: {
+        s: 'open',
+        // Every cover feature: open, close, position, stop, and the slats' open/close/stop/position.
+        a: { device_class: 'blind', supported_features: 255, current_position: 60, current_tilt_position: 45 },
+      },
+      [`alarm_control_panel.${prefix}home`]: {
+        s: 'disarmed',
+        // ARM_HOME | ARM_AWAY | ARM_NIGHT | ARM_VACATION; the code is needed to disarm only.
+        a: { supported_features: 1 | 2 | 4 | 32, code_format: 'number', code_arm_required: false, changed_by: null },
+      },
       [`weather.${prefix}home`]: { s: 'sunny' },
       [`switch.${prefix}hidden`]: { s: 'on' },
       [`input_boolean.${prefix}guest_mode`]: { s: 'off' },

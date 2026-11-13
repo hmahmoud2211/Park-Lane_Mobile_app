@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, ScrollView, StyleSheet, View, type ScrollViewInstance, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../../../hooks/useAppTheme';
@@ -17,13 +17,18 @@ export interface VoiceTranscriptProps {
   turns: readonly VoiceTurn[];
   onOpenRoute?: (route: NonNullable<IntentMeta['route']>) => void;
   onSignIn?: () => void;
+  /**
+   * Drawn under each assistant reply once it is complete (finished or cut off), e.g. the "Report" button.
+   * Keep it stable (useCallback) so the rows stay memoised.
+   */
+  renderAnswerFooter?: (turn: VoiceTurn) => ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
 const NATIVE = Platform.OS !== 'web';
 
 /** The conversation so far, as live captions that follow the latest line. */
-export function VoiceTranscript({ turns, onOpenRoute, onSignIn, style }: VoiceTranscriptProps) {
+export function VoiceTranscript({ turns, onOpenRoute, onSignIn, renderAnswerFooter, style }: VoiceTranscriptProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const scroll = useRef<ScrollViewInstance>(null);
@@ -43,6 +48,7 @@ export function VoiceTranscript({ turns, onOpenRoute, onSignIn, style }: VoiceTr
           latest={index === turns.length - 1}
           onOpenRoute={onOpenRoute}
           onSignIn={onSignIn}
+          renderAnswerFooter={renderAnswerFooter}
         />
       ))}
     </ScrollView>
@@ -54,9 +60,10 @@ interface TurnRowProps {
   latest: boolean;
   onOpenRoute?: VoiceTranscriptProps['onOpenRoute'];
   onSignIn?: () => void;
+  renderAnswerFooter?: VoiceTranscriptProps['renderAnswerFooter'];
 }
 
-const TurnRow = memo(function TurnRow({ turn, latest, onOpenRoute, onSignIn }: TurnRowProps) {
+const TurnRow = memo(function TurnRow({ turn, latest, onOpenRoute, onSignIn, renderAnswerFooter }: TurnRowProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [appear] = useState(() => new Animated.Value(0));
@@ -116,6 +123,7 @@ const TurnRow = memo(function TurnRow({ turn, latest, onOpenRoute, onSignIn }: T
       {turn.query ? (
         <QueryCard query={turn.query} onOpenRoute={onOpenRoute} onSignIn={onSignIn} />
       ) : null}
+      {renderAnswerFooter && (turn.final || turn.interrupted) && turn.text.trim() ? renderAnswerFooter(turn) : null}
     </Animated.View>
   );
 });

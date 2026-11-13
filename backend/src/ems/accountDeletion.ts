@@ -21,8 +21,8 @@ import { closeUserConnections } from './realtime.ts';
  * from the app or from the /account/delete page.
  *
  * What goes: the sign-ins, the apartment membership (and with it every health share and the gateway
- * phones), all Health Passport data with its files, invites, smart-home links, and the account's
- * name and email. Upcoming clinic visits are cancelled first, as if the resident cancelled them.
+ * phones), all Health Passport data with its files, invites, smart-home links, the reports of AI
+ * answers it sent (their excerpts can be its health information), and the account's name and email. Upcoming clinic visits are cancelled first, as if the resident cancelled them.
  *
  * What stays: the clinic's own record of visits that happened (the patient's name as booked and the
  * doctor's approved note), which a clinic must keep. Those rows point at the account, so when any

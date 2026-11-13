@@ -110,3 +110,7 @@ dialog::backdrop { background: rgba(5, 8, 20, 0.7); }
 details { margin-top: 14px; }
 summary { cursor: pointer; font-size: 14px; padding: 4px 0; }
 details[open] summary { margin-bottom: 4px; }
+/* Reported AI answers (pages/ai-reports.js): long text scrolls inside its cell. */
+.report-cell { min-width: 240px; max-width: 520px; }
+.report-cell details { margin-top: 0; }
+.report-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16em; overflow-y: auto; font-size: 13px; }

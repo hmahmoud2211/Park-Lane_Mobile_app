@@ -559,6 +559,12 @@ All optional, as `-e NAME=value` on `docker run`.
   minutes, for this gateway only), checked offline with the backend's pinned key. Such phones carry the account
   id. Every five minutes the gateway asks the backend which residents are still members (with its own secret),
   removes phones of anyone who left and follows role changes. While the backend can't be reached, nothing changes.
+- **The Parklane Assistant:** the voice and chat assistant runs on a server, so the EMS backend reads and drives a
+  resident's gateway devices for it through the relay, one request at a time. Each request is signed with the backend's
+  pinned key for this gateway, that resident, and that exact method and path, and works once within two minutes. It
+  reaches only the device list, one device and device commands, as a member. The backend sends only allow-listed
+  commands and audits each one, and the gateway's own audit log names the resident (`ems:<account>`). This needs the
+  gateway linked to EMS (`CUBE_EMS_URL`) and on the relay, so the backend can reach it.
 - **Gateway identity:** an HMAC challenge before a phone sends its token to a new address.
 - **Credentials at rest:** local keys, TV tokens, device keys and Tapo logins are sealed with AES-256-GCM.
   The key is in `/data/secret.key` (0600), and each blob is bound to its device ID. They are never returned

@@ -13,6 +13,7 @@ export const deleteAccountCopy = {
     'Upcoming clinic appointments are cancelled.',
     'Upcoming visitor passes, amenity bookings and parking bookings you made are cancelled.',
     'Your vehicles, your inbox, your event registrations and your poll votes.',
+    'Reports you sent about AI answers.',
   ],
   keptHeading: 'What is kept',
   kept: [

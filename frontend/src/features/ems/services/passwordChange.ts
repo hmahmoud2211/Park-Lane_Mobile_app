@@ -61,13 +61,19 @@ export function routeAfterSignIn(user: Pick<EmsUser, 'mustChangePassword'> | nul
   return needsPasswordChange(user, refused) ? 'ChangePassword' : 'Home';
 }
 
-/** How a refused change is worded: a wrong temporary password, the backend's rules (its own message), too many tries, or as it came. */
+/**
+ * How a refused change is worded: a wrong current password (temporary or the resident's own), the
+ * backend's rules (its own message), too many tries, or as it came. A session that had ended
+ * (`session_ended`, see EmsContext.changePassword) is not a wrong password: its message is shown.
+ */
 export type PasswordChangeFailure = 'wrong_current' | 'rules' | 'rate_limited' | 'other';
 
 export function passwordChangeFailure(code: string | null): PasswordChangeFailure {
   switch (code) {
     case 'unauthorized':
       return 'wrong_current';
+    case 'session_ended':
+      return 'other';
     case 'bad_request':
       return 'rules';
     case 'rate_limited':

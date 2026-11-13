@@ -46,6 +46,15 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/** What the clipboard holds as text, or '' when it is empty or can't be read (a browser may refuse). */
+export async function pasteText(): Promise<string> {
+  try {
+    return await Clipboard.getStringAsync();
+  } catch {
+    return '';
+  }
+}
+
 export function shareOutcomeMessage(outcome: ShareOutcome, what: string): string {
   switch (outcome) {
     case 'shared':

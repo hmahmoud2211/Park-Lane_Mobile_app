@@ -12,6 +12,8 @@ import { brand } from '../../../config/brand';
 const RETURN_URL = brand.accountsReturnUrl;
 /** A background step (the brand finishing on its side) is re-read this often. */
 const PROGRESS_POLL_MS = 2_000;
+/** Failed re-reads in a row before the wait stops and shows the error with Try again. */
+const MAX_POLL_FAILURES = 5;
 
 /**
  * One brand-linking flow: start, answer each step, sign in on the brand's
@@ -23,6 +25,8 @@ export function useAccountLink() {
   const [step, setStep] = useState<FlowStep | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Failed re-reads in a row of a step the brand is still working on. */
+  const [pollFailures, setPollFailures] = useState(0);
   const stepRef = useRef(step);
   useEffect(() => {
     stepRef.current = step;
@@ -32,6 +36,7 @@ export function useAccountLink() {
     async (work: () => Promise<FlowStep | null>) => {
       setBusy(true);
       setError(null);
+      setPollFailures(0);
       try {
         const next = await work();
         setStep(next);
@@ -78,19 +83,56 @@ export function useAccountLink() {
     const current = stepRef.current;
     setStep(null);
     setError(null);
+    setPollFailures(0);
     if (current && current.type !== 'done' && current.type !== 'abort') {
       await homeApi.cancelFlow(current.flowId).catch(() => undefined);
     }
   }, []);
 
-  // While the brand works on its side, keep asking until the step moves on.
+  // While the brand works on its side, keep asking until the step moves on. A failed read (a moment
+  // without signal) is asked again; only after several in a row does the wait stop, with Try again.
+  const pollStalled = step?.type === 'progress' && pollFailures >= MAX_POLL_FAILURES;
   useEffect(() => {
-    if (step?.type !== 'progress') {
+    if (step?.type !== 'progress' || pollFailures >= MAX_POLL_FAILURES) {
       return;
     }
-    const timer = setTimeout(() => void run(() => homeApi.getFlow(step.flowId)), PROGRESS_POLL_MS);
-    return () => clearTimeout(timer);
-  }, [step, run]);
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      homeApi.getFlow(step.flowId).then(
+        (next) => {
+          if (cancelled) return;
+          setPollFailures(0);
+          setError(null);
+          setStep(next);
+          if (next?.type === 'done') {
+            void refreshHome();
+          }
+        },
+        (caught: unknown) => {
+          if (cancelled) return;
+          if (caught instanceof EmsError && caught.code === 'flow_expired') {
+            setError(emsErrorText(caught));
+            setStep(null);
+            return;
+          }
+          if (pollFailures + 1 >= MAX_POLL_FAILURES) {
+            setError(emsErrorText(caught));
+          }
+          setPollFailures(pollFailures + 1);
+        },
+      );
+    }, PROGRESS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [step, pollFailures, refreshHome]);
 
-  return { step, busy, error, start, open, submit, signInWithBrand, cancel };
+  /** After the wait stopped: ask again. */
+  const retryPoll = useCallback(() => {
+    setError(null);
+    setPollFailures(0);
+  }, []);
+
+  return { step, busy, error, pollStalled, retryPoll, start, open, submit, signInWithBrand, cancel };
 }

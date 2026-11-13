@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 
 from aiowebostv import WebOsClient, WebOsTvCommandError, WebOsTvPairError
 
-from ..models import AdapterInfo, AuthKind, Candidate, Category, CommandResult, ConnectionStatus, PairingRequirements, SupportLevel
+from ..models import AdapterInfo, AuthKind, Candidate, Category, CommandResult, ConnectionStatus, PairingRequirements, Setting, SupportLevel
 from . import _lan, caps
 from .base import (
     AdapterError,
@@ -96,13 +96,46 @@ def _sources(tv_state: Any) -> tuple[list[str], dict[str, tuple[str, str, str]]]
     return list(lookup)[:MAX_SOURCES], lookup
 
 
+#: The TV remote's keys the app offers while the TV is on, as `button` settings pressed with `press` (params.key):
+#: our key → (name shown, aiowebostv button name). Sent over the TV's pointer input socket.
+REMOTE_KEYS: dict[str, tuple[str, str]] = {
+    "up": ("Up", "UP"),
+    "down": ("Down", "DOWN"),
+    "left": ("Left", "LEFT"),
+    "right": ("Right", "RIGHT"),
+    "ok": ("OK", "ENTER"),
+    "back": ("Back", "BACK"),
+    "home": ("Home", "HOME"),
+    "menu": ("Settings", "MENU"),
+    "channel_up": ("Channel up", "CHANNELUP"),
+    "channel_down": ("Channel down", "CHANNELDOWN"),
+    "info": ("Info", "INFO"),
+    "exit": ("Exit", "EXIT"),
+}
+
+
+#: Screens of the TV itself, which it reports as the current app but doesn't list among its apps.
+SYSTEM_SCREENS: dict[str, str] = {
+    "com.webos.app.home": "Home screen",
+    "com.webos.app.livetv": "Live TV",
+    "com.webos.app.browser": "Web browser",
+    "com.webos.app.discovery": "LG Content Store",
+    "com.palm.app.settings": "Settings",
+}
+
+
+def _remote_settings() -> list[Setting]:
+    return [Setting(key=key, kind="button", name=name) for key, (name, _button) in REMOTE_KEYS.items()]
+
+
 def _state_from(tv_state: Any, *, reachable: bool = True) -> DeviceState:
     if not reachable or tv_state is None:
         capabilities = [caps.power(False, confirmed=False), caps.media(state="off", confirmed=False)]
         return DeviceState(capabilities=capabilities, commands=["turn_on", "turn_off"])
     sources, lookup = _sources(tv_state)
     current = getattr(tv_state, "current_app_id", None)
-    source = next((label for label, (_kind, _ident, app_id) in lookup.items() if app_id == current), current)
+    # The TV's own screens aren't in its app list: name them in words rather than showing an app id.
+    source = next((label for label, (_kind, _ident, app_id) in lookup.items() if app_id == current), None) or SYSTEM_SCREENS.get(str(current))
     on = bool(getattr(tv_state, "is_on", False))
     capabilities = [
         caps.power(on),
@@ -127,7 +160,10 @@ def _state_from(tv_state: Any, *, reachable: bool = True) -> DeviceState:
         "media_next",
         "media_previous",
     ]
-    return DeviceState(capabilities=capabilities, commands=commands)
+    if not on:
+        return DeviceState(capabilities=capabilities, commands=commands)
+    # The remote's keys work only while the TV is on (its input socket is up).
+    return DeviceState(capabilities=capabilities, commands=[*commands, "press"], settings=_remote_settings())
 
 
 class WebOsAdapter(DeviceAdapter):
@@ -322,6 +358,12 @@ class WebOsAdapter(DeviceAdapter):
                 kind, ident, app_id = lookup[label]
                 await (client.set_input(ident) if kind == "input" else client.launch_app(ident))
                 return await self._settle(client, lambda s: getattr(s, "current_app_id", None) == app_id)
+            if command == "press":
+                key = str(caps.param(params, "key"))
+                if key not in REMOTE_KEYS:
+                    raise AdapterError(f"The TV remote has no key called {key!r}.", code="bad_params")
+                await client.button(REMOTE_KEYS[key][1])
+                return CommandOutcome(result=CommandResult(status="assumed", message=f"{REMOTE_KEYS[key][0]} sent."), state=_state_from(client.tv_state))
             actions = {"media_play": "play", "media_pause": "pause", "media_next": "channel_up", "media_previous": "channel_down"}
             if command in actions:
                 await getattr(client, actions[command])()

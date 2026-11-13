@@ -35,6 +35,7 @@ No analytics, advertising, crash reporting or tracking SDK is in the app.
 | Clinic bookings, reason, consents, doctor's notes | Yes | Yes | Clinic care | Past visits are kept as medical records ⚑ (confirm the legal period with the clinic) |
 | Consultation transcripts, AI drafts | Yes, only with consent | Yes | Clinic notes | 30 days after the visit is finalised |
 | Assistant messages, voice, camera pictures shown | Yes, after the assistant consent | ⚑ depends on the assistant service | Answering, device control | ⚑ set by the assistant service |
+| Reports of AI answers: the reported AI text (can contain health information), reason, optional note, time | Yes, only when the person taps Report and sends | Yes when signed in (account and apartment); a guest's report is linked to no one | Moderating AI content (Google Play's AI-Generated Content policy) | Deleted with the account; guests' reports kept, naming no one; text and note sealed |
 | Apartment records (details, contract, bills, payments, meters, documents) | Yes (entered by building management) | Yes (the apartment) | My Unit, Bills | Kept as the building's records |
 | Visitors' names, phones (optional), plates (optional), arrival; gate entries | Yes | Yes (the apartment that invited) | Visitor passes and the gate | Building's retention, 90 days by default; names and phones sealed |
 | Guests' names, phones (optional), plates for parking; gate scans | Yes (when parking is on) | Yes | Guest parking and the gate | Kept as the gate's log; sealed |
@@ -59,7 +60,7 @@ No analytics, advertising, crash reporting or tracking SDK is in the app.
 | Health & fitness → Health | Yes | Yes | No | App functionality |
 | User content → Photos or videos (medical document photos; pictures shown to the assistant) | Yes | Yes | No | App functionality |
 | User content → Audio data (voice to the assistant; clinic transcription with consent) | Yes | Yes ⚑ | No | App functionality |
-| User content → Other user content (assistant messages, booking reason, service-request descriptions and messages, community feedback, poll votes) | Yes | Yes | No | App functionality |
+| User content → Other user content (assistant messages, booking reason, service-request descriptions and messages, community feedback, poll votes, reports of AI answers) | Yes | Yes | No | App functionality |
 | User content → Photos or videos (photos added to a service request) | Yes | Yes | No | App functionality |
 | Contact info → Name, Phone number (of visitors and guests the resident enters) | Yes | Yes | No | App functionality |
 | Contact info → Other user contact info (vehicle plates of the resident and their visitors) | Yes | Yes | No | App functionality |
@@ -81,7 +82,7 @@ No analytics, advertising, crash reporting or tracking SDK is in the app.
 | Health and fitness → Health info | Yes | No | Optional (Health Passport, clinic) | App functionality |
 | Photos and videos → Photos | Yes | No | Optional | App functionality |
 | Audio → Voice or sound recordings | Yes | No | Optional | App functionality |
-| Messages → Other in-app messages (assistant chat; service-request messages; community feedback) | Yes | No | Optional | App functionality |
+| Messages → Other in-app messages (assistant chat; service-request messages; community feedback; reports of AI answers with their note) | Yes | No | Optional | App functionality |
 | Personal info → Phone number, Name (visitors' and guests' details the resident enters); Other info (vehicle plates) | Yes | Shared with the compound's gate staff and building management, who operate the service ⚑ (confirm this counts as "service provider", not "sharing") | Optional | App functionality |
 | Photos and videos → Photos (added to a service request) | Yes | No | Optional | App functionality |
 | Financial info → Purchase history: payments and bills building management records (no card details) | Yes | No | Required for owners' Bills | App functionality |
@@ -97,7 +98,7 @@ not a medical device. **Apple medical device status (EEA, UK, US):** "No", if yo
 
 The in-app screen, the web page and the privacy policy all say the same thing:
 
-- **Deleted at once:** name, email, password, sign-ins, apartment membership, Health Passport data and files, shares, invites, vehicles, the inbox and its settings, event registrations, poll votes. Upcoming clinic visits, visitor passes, amenity bookings and parking bookings the person made are cancelled.
+- **Deleted at once:** name, email, password, sign-ins, apartment membership, Health Passport data and files, shares, invites, vehicles, the inbox and its settings, event registrations, poll votes, reports of AI answers. Upcoming clinic visits, visitor passes, amenity bookings and parking bookings the person made are cancelled.
 - **Kept:**
   - the clinic's record of past visits, with no link to the person's name or email in the app;
   - the anonymised device-action log;

@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import { Alert, Pressable, ScrollView, useWindowDimensions, View, type ViewInstance } from 'react-native';
 
 import type { UnitOverview } from '../../../../shared/contracts/unitFinance';
+import { AppButton } from '../../components/common/AppButton';
 import { AppText } from '../../components/common/AppText';
 import { ErrorNotice } from '../../components/feedback/ErrorNotice';
 import { LoadingState } from '../../components/feedback/LoadingState';
@@ -47,6 +49,8 @@ import {
   createStyles,
 } from './MyUnitScreen.styles';
 import { statScaleFor } from '../../utils/responsive';
+import { layout as themeLayout } from '../../theme';
+import type { RootStackScreenProps } from '../../types/navigation.types';
 
 /** Placeholder for links whose destination screens are not designed yet. */
 function notYetRouted() {
@@ -214,6 +218,8 @@ export function MyUnitScreen() {
   const [preparing, setPreparing] = useState<string | null>(null);
   const documentTiles = useRef<Record<string, ViewInstance | null>>({});
   const identity = useResidentIdentity();
+  const navigation = useNavigation<RootStackScreenProps<'MyUnit'>['navigation']>();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // The unit's records, and for an owner the payments too, so the receipts PDF opens straight from the tap.
   const fetchUnit = useCallback(async () => {
@@ -311,9 +317,8 @@ export function MyUnitScreen() {
             style={styles.header}
             trailing={
               <Pressable
-                onPress={() => {
-                  // TODO(menu): the design gives this button no menu items yet.
-                }}
+                // The design gives this button no items; it opens the household (who lives here, invites).
+                onPress={() => setMoreOpen(true)}
                 hitSlop={11}
                 accessibilityRole="button"
                 accessibilityLabel="More options"
@@ -327,7 +332,11 @@ export function MyUnitScreen() {
           {!overview ? (
             unit.error ? (
               unit.error.code === 'no_home' ? (
-                <Notice tone="info" title={myUnitCopy.noHomeTitle}>
+                <Notice
+                  tone="info"
+                  title={myUnitCopy.noHomeTitle}
+                  actions={<AppButton title={myUnitCopy.joinWithCode} variant="gradient" height={themeLayout.innerScreen.buttonHeight} onPress={() => navigation.navigate('Household')} />}
+                >
                   {myUnitCopy.noHomeBody}
                 </Notice>
               ) : (
@@ -354,6 +363,22 @@ export function MyUnitScreen() {
         <BottomBar />
       </View>
 
+      <AppMenu
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        align="right"
+        items={[
+          {
+            id: 'household',
+            label: myUnitCopy.household,
+            icon: 'people-outline',
+            onPress: () => {
+              setMoreOpen(false);
+              navigation.navigate('Household');
+            },
+          },
+        ]}
+      />
       <AppMenu
         visible={documentMenu !== null}
         onClose={() => setDocumentMenu(null)}

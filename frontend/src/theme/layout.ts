@@ -70,4 +70,56 @@ export const layout = {
     panelInset: 14,
     buttonHeight: 46,
   },
+
+  /**
+   * Device controls (DeviceDetail, DeviceCard): every touch target at least 48dp, the
+   * main control bigger still, so a child or an older resident hits what they mean.
+   * Heights are minimums: buttons grow with large text instead of clipping it.
+   */
+  deviceControl: {
+    minTarget: 48,
+    button: 56,
+    /** A light's big On/Off. */
+    heroButton: 104,
+    /** Buttons with the icon above the words: Open / Stop / Close, Start / Pause, − / +. */
+    remoteKey: 72,
+    /** The round − / + around a target temperature. */
+    stepButton: 64,
+    swatch: 36,
+    /** A long list of choices (a TV's inputs) scrolls inside this height. */
+    listMaxHeight: 312,
+    /** Chip rows hold three across before wrapping; four choices sit two by two. */
+    chipBasis: '30%',
+    chipBasisPair: '45%',
+  },
+
+  /**
+   * The TV remote (features/home/components/TvRemote): a tall rounded body like the remote in
+   * the hand, round keys, a circular D-pad and two rockers. Every key is at least 56dp.
+   */
+  tvRemote: {
+    bodyMaxWidth: 360,
+    roundKey: 56,
+    /** The ring's diameter and the OK key at its centre. */
+    dpad: 232,
+    dpadOk: 96,
+    /** Each arrow is a segment of the ring: long side along the ring, short side across it. */
+    dpadArrowLong: 96,
+    dpadArrowShort: 64,
+    /** VOL and CH: pills with + on top and − below, each half a full key. */
+    rockerWidth: 68,
+    rockerHalf: 64,
+    keyIcon: 24,
+    okIcon: 28,
+  },
+
+  /**
+   * Reporting an AI answer (features/aiReports): the small "Report" text button under an answer still takes a
+   * tap at least 44dp tall and wide, and the sheet it opens offers each reason as a big, easy target.
+   */
+  aiReport: {
+    minTarget: 44,
+    sheetMaxWidth: 440,
+    reasonMinHeight: 52,
+  },
 } as const;

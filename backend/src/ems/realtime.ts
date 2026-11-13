@@ -59,13 +59,20 @@ class Connection {
     this.pingTimer = setInterval(() => this.ping(), PING_MS);
   }
 
-  private ping() {
+  /** Ends the connection if the sign-in it opened with no longer works; true if it still does. */
+  recheck(): boolean {
     if (this.userId && !lookupToken(this.token, ['session'])) {
       this.send({ type: 'error', code: 'unauthorized' });
       this.close(4401, 'session ended');
-      return;
+      return false;
     }
-    this.write(frame(0x9, Buffer.alloc(0)));
+    return true;
+  }
+
+  private ping() {
+    if (this.recheck()) {
+      this.write(frame(0x9, Buffer.alloc(0)));
+    }
   }
 
   private write(data: Buffer) {
@@ -181,6 +188,18 @@ export function closeUserConnections(userId: string): void {
     if (connection.userId === userId) {
       connection.send({ type: 'error', code: 'unauthorized' });
       connection.close(4401, 'session ended');
+    }
+  }
+}
+
+/**
+ * Re-checks the account's live connections now rather than at the next ping: those whose sign-in was just revoked
+ * (logout, "sign out other phones", a password change or reset) end; the phone that asked keeps its own.
+ */
+export function recheckUserConnections(userId: string): void {
+  for (const connection of [...authenticated]) {
+    if (connection.userId === userId) {
+      connection.recheck();
     }
   }
 }

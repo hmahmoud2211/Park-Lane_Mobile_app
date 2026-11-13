@@ -40,7 +40,7 @@ flowchart LR
 
 - **EMS device backend** (`backend/`): EMS accounts, and each resident's home through their unit's own Home Assistant, which reaches the brands' clouds. It keeps every unit's Home Assistant token and runs only allow-listed commands.
 - **CUBE Gateway** (`gateway/`): a box in the home for devices that work locally, paired with the phone by a setup code; reachable on the LAN, over Tailscale or through the company's relay. It never talks to the backend; the app merges the two device lists.
-- **Parklane Assistant**: an external text and voice assistant. The app gives it a short-lived assistant token, with which it reads the home and sends commands. Every command is audited, and it can never unlock a door.
+- **Parklane Assistant**: an external text and voice assistant. The app gives it a short-lived assistant token, with which it reads the home and sends commands. Every command is audited, and it can never unlock a door. Devices on the unit's CUBE gateway reach it the same way: the backend lists and commands them through the gateway's relay, one signed request at a time (`backend/src/gateway/`).
 - **Setup hotspots**: new Shelly, SONOFF and LG devices are given the home Wi-Fi straight from the phone, on their own setup network.
 - **Parking** is a demo that runs entirely on the device (see [PARKING_DEMO.md](PARKING_DEMO.md)).
 - **Health Passport and the clinic** live on the same backend, database and accounts: residents keep records and book doctors in the app, and doctors work in a separate web app (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md) and [CLINIC.md](CLINIC.md)). The app's Health Passport uses a built-in mock in development unless told otherwise.

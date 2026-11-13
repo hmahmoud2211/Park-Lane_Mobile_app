@@ -1,0 +1,10 @@
+/* The invite page (/join/<code>): two big steps, then the code to type if the app can't open. */
+.steps { padding-left: 1.4em; margin: 24px 0; }
+.steps li { margin-bottom: 24px; }
+.steps strong { display: block; margin-bottom: 8px; }
+.steps .meta { display: block; margin-top: 8px; }
+.button { display: block; text-align: center; min-height: 52px; padding: 14px 18px; font-weight: 600; font-size: 1.05rem; color: #fff; background: var(--accent); border-radius: 12px; text-decoration: none; }
+.button.secondary { color: var(--accent); background: transparent; border: 2px solid var(--accent); }
+.code-box { border-top: 1px solid var(--line); padding-top: 12px; }
+.code { font: 700 2rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; text-align: center; margin: 12px 0; user-select: all; }
+.code-box button { display: block; width: 100%; background: var(--accent); }

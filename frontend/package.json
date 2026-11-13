@@ -66,6 +66,8 @@
     "check:phones": "npx --yes tsx src/features/gateway/services/gatewayPhones.checks.ts",
     "check:unit": "npx --yes tsx src/features/unit/services/unitRules.checks.ts",
     "check:password": "npx --yes tsx src/features/ems/services/passwordChange.checks.ts",
+    "check:home": "npx --yes tsx src/features/home/services/deviceControls.checks.ts",
+    "check:ai-reports": "npx --yes tsx src/features/aiReports/services/aiReports.checks.ts",
     "build": "expo export --platform web",
     "serve": "npx serve dist --single",
     "postinstall": "patch-package"

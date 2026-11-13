@@ -36,6 +36,8 @@ export const loginCopy = {
     'Ask Park Lane building management to reset your password. They give you a temporary password; when you sign in with it, the app asks you to choose your own.',
   submit: 'Sign in',
   divider: 'OR',
+  /** While a sign-in kept from last time is checked. */
+  checking: 'Checking your sign-in…',
 } as const;
 
 /** Deliberately permissive: enough to catch typos, not to police addresses. */

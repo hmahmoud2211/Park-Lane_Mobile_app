@@ -90,7 +90,7 @@ export const config = {
   ems: {
     /** 32 bytes, base64. Seals stored secrets. Generated into DATA_DIR when unset. */
     encryptionKey: env.EMS_ENCRYPTION_KEY ?? '',
-    /** Set TRUST_PROXY=1 only behind a reverse proxy that overwrites X-Forwarded-For. */
+    /** TRUST_PROXY=1 behind Cloudflare and/or our reverse proxy: ems/rateLimit.ts clientIp says which header counts. */
     trustProxy: env.TRUST_PROXY === '1',
     sessionTtlMs: 30 * 24 * 3600_000,
     /**

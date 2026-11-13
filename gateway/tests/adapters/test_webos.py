@@ -10,6 +10,7 @@ from aiowebostv import WebOsTvPairError
 from cube_gateway.adapters import webos
 from cube_gateway.adapters.base import (
     AdapterContext,
+    AdapterError,
     DeviceUnreachable,
     PairingRejected,
     ScanContext,
@@ -73,6 +74,9 @@ class FakeTv:
 
     async def power_off(self):
         self.calls.append(("power_off",))
+
+    async def button(self, name):
+        self.calls.append(("button", name))
 
 
 @pytest.fixture
@@ -175,6 +179,34 @@ async def test_state_and_media_commands(adapter):
     assert outcome.result.status == "assumed"
     outcome = await adapter.execute_command(stored(), "turn_off", {})
     assert outcome.result.status == "assumed" and outcome.state.capabilities[0].confirmed is False
+
+
+async def test_remote_keys_while_the_tv_is_on(adapter):
+    state = await adapter.get_state(stored())
+    assert "press" in state.commands
+    keys = {setting.key: setting for setting in state.settings}
+    assert {"up", "down", "left", "right", "ok", "back", "home", "channel_up", "channel_down"} <= keys.keys()
+    assert all(setting.kind == "button" for setting in state.settings) and keys["ok"].name == "OK"
+
+    outcome = await adapter.execute_command(stored(), "press", {"key": "ok"})
+    assert outcome.result.status == "assumed" and FakeTv.instances[-1].calls[-1] == ("button", "ENTER")
+    await adapter.execute_command(stored(), "press", {"key": "channel_down"})
+    assert FakeTv.instances[-1].calls[-1] == ("button", "CHANNELDOWN")
+    with pytest.raises(AdapterError):
+        await adapter.execute_command(stored(), "press", {"key": "self_destruct"})
+
+    # The TV's own screens read in words, never as an app id; an unknown app reads as nothing.
+    FakeTv.instances[-1].tv_state.current_app_id = "com.webos.app.home"
+    media = next(c for c in (await adapter.get_state(stored())).capabilities if c.type == "media")
+    assert media.source == "Home screen"
+    FakeTv.instances[-1].tv_state.current_app_id = "com.example.unknown"
+    media = next(c for c in (await adapter.get_state(stored())).capabilities if c.type == "media")
+    assert media.source is None
+
+    # Off: no remote keys, only power.
+    FakeTv.instances[-1].tv_state.is_on = False
+    off = await adapter.get_state(stored())
+    assert "press" not in off.commands and off.settings == []
 
 
 async def test_turn_on_uses_wake_on_lan(adapter, monkeypatch):

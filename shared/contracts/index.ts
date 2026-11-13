@@ -3,6 +3,7 @@
  * them with `import type` so nothing here is ever bundled or run. See docs/API_DOCUMENTATION.md.
  */
 export type * from './accounts.ts';
+export type * from './aiReports.ts';
 export type * from './auth.ts';
 export type * from './clinic.ts';
 export type * from './envelope.ts';

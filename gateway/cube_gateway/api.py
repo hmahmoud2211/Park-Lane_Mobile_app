@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import API_VERSION, __version__, tunnel
+from .accounts import DEVICE_CALL_PREFIX
 from .adapters.base import AdapterError, AuthRequired, LocalKeyRequired, NotSupported, PairingRejected, UnsupportedCommand
 from .catalog import build_brands
 from .config import Settings
@@ -165,8 +166,21 @@ async def owner(client: Annotated[Client, Depends(current_client)]) -> Client:
     return client
 
 
+async def device_caller(request: Request) -> Client:
+    """A paired phone, or the EMS backend acting for a resident with a signed device call (accounts.py). Only the
+    device list, one device and device commands take this dependency, so a device call reaches nothing else."""
+    header = request.headers.get("authorization", "")
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    if token.startswith(DEVICE_CALL_PREFIX):
+        client = await gw(request).accounts.device_call(token[len(DEVICE_CALL_PREFIX) :], request.method, request.url.path)
+        request.state.client = client
+        return client
+    return await current_client(request)
+
+
 AnyClient = Annotated[Client, Depends(current_client)]
 Owner = Annotated[Client, Depends(owner)]
+DeviceCaller = Annotated[Client, Depends(device_caller)]
 
 
 def limit(request: Request, limiter: RateLimiter, key: str) -> None:
@@ -428,11 +442,11 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
     # -- devices and rooms --
 
     @v1.get("/devices")
-    async def devices(request: Request, _: AnyClient) -> JSONResponse:
+    async def devices(request: Request, _: DeviceCaller) -> JSONResponse:
         return ok(dump(gw(request).devices.list()))
 
     @v1.get("/devices/{device_id}")
-    async def device(request: Request, device_id: str, _: AnyClient) -> JSONResponse:
+    async def device(request: Request, device_id: str, _: DeviceCaller) -> JSONResponse:
         return ok(dump(gw(request).devices.get(device_id)))
 
     @v1.patch("/devices/{device_id}")
@@ -448,7 +462,7 @@ def create_app(settings: Settings, gateway: Gateway | None = None) -> FastAPI:
         return ok({"removed": device_id})
 
     @v1.post("/devices/{device_id}/commands")
-    async def command(request: Request, device_id: str, body: CommandRequest, client: AnyClient) -> JSONResponse:
+    async def command(request: Request, device_id: str, body: CommandRequest, client: DeviceCaller) -> JSONResponse:
         limit(request, command_limiter, client.id)
         updated, result = await gw(request).devices.command(device_id, body, client.id)
         return ok({"device": dump(updated), "result": dump(result)})

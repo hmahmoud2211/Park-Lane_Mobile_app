@@ -1,5 +1,6 @@
 import { authenticate, requireUser } from '../ems/auth.ts';
 import { ApiError } from '../errors.ts';
+import { assistantDevices, commandGatewayDevice, gatewayDevice, isGatewayDeviceId } from '../gateway/devices.ts';
 import { parseCommand } from '../ha/commands.ts';
 import { homeFor } from '../ha/home.ts';
 import { runtimeForUser } from '../ha/hubs.ts';
@@ -21,6 +22,10 @@ import type { RouteGroup } from '../http/router.ts';
  * An assistant token reaches only the reads above and device commands, never
  * unlocks a door, and every command it sends is audited. Renaming devices and
  * creating rooms need the app's own session.
+ *
+ * An assistant token also sees the unit's CUBE gateway devices (ids `gw.…`),
+ * reached through the relay (src/gateway/devices.ts), since the assistant can't
+ * reach the gateway itself. The app's session doesn't: the app talks to its gateway.
  */
 export const homeRoutes: RouteGroup = async ({ req, res, path, method }) => {
   if (path === '/api/home' && method === 'GET') {
@@ -28,7 +33,8 @@ export const homeRoutes: RouteGroup = async ({ req, res, path, method }) => {
     return true;
   }
   if (path === '/api/devices' && method === 'GET') {
-    ok(res, runtimeForUser(requireUser(req, HOME_CALLERS).id).listDevices());
+    const { user, kind } = authenticate(req, HOME_CALLERS);
+    ok(res, kind === 'assistant' ? await assistantDevices(user.id) : runtimeForUser(user.id).listDevices());
     return true;
   }
   const device = /^\/api\/devices\/([^/]+)(\/commands)?$/.exec(path);
@@ -36,14 +42,16 @@ export const homeRoutes: RouteGroup = async ({ req, res, path, method }) => {
     // Renaming and moving devices stay with the app.
     const { user, kind } = authenticate(req, method === 'PATCH' ? ['session'] : HOME_CALLERS);
     const id = decodeURIComponent(device[1]);
+    const onGateway = kind === 'assistant' && isGatewayDeviceId(id);
     if (device[2] && method === 'POST') {
       throttle('device-command', user.id);
       const command = parseCommand(await readJson(req));
-      ok(res, await runtimeForUser(user.id).command(user.id, id, command, kind === 'assistant' ? 'assistant' : 'app'));
+      const source = kind === 'assistant' ? 'assistant' : 'app';
+      ok(res, onGateway ? await commandGatewayDevice(user.id, id, command, source) : await runtimeForUser(user.id).command(user.id, id, command, source));
       return true;
     }
     if (!device[2] && method === 'GET') {
-      ok(res, runtimeForUser(user.id).getDevice(id));
+      ok(res, onGateway ? await gatewayDevice(user.id, id) : runtimeForUser(user.id).getDevice(id));
       return true;
     }
     if (!device[2] && method === 'PATCH') {

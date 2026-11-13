@@ -6,31 +6,33 @@ import { AppButton } from '../../components/common/AppButton';
 import { AppInput } from '../../components/common/AppInput';
 import { AppText } from '../../components/common/AppText';
 import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
-import { DeviceCard } from '../../features/home/components/DeviceCard';
+import { ChoiceGroup } from '../../features/home/components/ControlParts';
 import { DeviceControl } from '../../features/home/components/DeviceControl';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ResponsiveColumns } from '../../components/layout/ResponsiveColumns';
+import { LoadingState } from '../../components/feedback/LoadingState';
 import { Notice } from '../../components/feedback/Notice';
-import { FilterChip } from '../../components/ui/FilterChip';
 import { NeonPanel } from '../../components/ui/NeonPanel';
 import { PanelHeading } from '../../components/ui/PanelHeading';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGatewayDevices } from '../../features/gateway/hooks/useGatewayDevices';
 import { useHomeDevices } from '../../features/home/hooks/useHomeDevices';
-import { kindLabel, roomGlyph, toggleCommand } from '../../features/home/services/capabilities';
+import { kindLabel, roomGlyph } from '../../features/home/services/capabilities';
 import * as gatewayApi from '../../features/gateway/services/gatewayApi';
 import { hasControlSettings, isGatewayDeviceId, toGatewayDeviceId } from '../../features/gateway/services/deviceMapping';
 import { errorMessage } from '../../features/gateway/services/gatewayHttp';
 import type { RootStackScreenProps } from '../../types/navigation.types';
-import { deviceDetailCopy as copy } from './DeviceDetailScreen.data';
-import { FIELD_HEIGHT, SMALL_BUTTON_HEIGHT, createStyles } from './DeviceDetailScreen.styles';
+import { NO_ROOM, deviceDetailCopy as copy } from './DeviceDetailScreen.data';
+import { BUTTON_HEIGHT, CARD_GAP, FIELD_HEIGHT, createStyles } from './DeviceDetailScreen.styles';
 import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 
 /**
- * One device: every control it offers, then its name, room and where it
- * comes from. Commands show at once and settle on what the device reports;
- * changes made elsewhere arrive live. A device is either the building hub's
- * (through EmsContext) or the resident's CUBE Gateway's (GatewayContext, ids
- * prefixed `gw:`), and each action goes to the backend it belongs to.
+ * One device: what it is doing and its one obvious control at the top, then its other
+ * controls and settings (DeviceControl), then its name, room and where it comes from.
+ * Commands show at once and settle on what the device reports; changes made elsewhere
+ * arrive live. A device is either the building hub's (through EmsContext) or the
+ * resident's CUBE Gateway's (GatewayContext, ids prefixed `gw:`), and each action goes to
+ * the backend it belongs to.
  */
 export function DeviceDetailScreen() {
   const theme = useAppTheme();
@@ -68,54 +70,61 @@ export function DeviceDetailScreen() {
       return <EmsAccountPanel intro={copy.accountIntro} />;
     }
     if (!device) {
+      // Still connecting or reading the list (e.g. opened from a link or just after launch): not "missing" yet.
+      const stillLoading = isLocal
+        ? local.status === 'loading' || local.status === 'connecting' || local.account.state === 'connecting'
+        : !hub.devicesLoaded;
+      if (stillLoading) {
+        return <LoadingState label={isLocal ? copy.connectingHub : copy.loadingDevice} announce />;
+      }
       return (
         <Notice
           tone="error"
           title={copy.missingTitle}
-          actions={<AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => navigation.goBack()} />}
+          actions={<AppButton title={copy.back} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.goBack()} />}
         >
           {copy.missingBody}
         </Notice>
       );
     }
     const deviceBusy = busy[device.id];
-    const toggle = toggleCommand(device, true) ? (on: boolean) => {
-      const next = toggleCommand(device, on);
-      if (next) void ems.command(device, next);
-    } : undefined;
     const facts = [
       [copy.manufacturer, device.manufacturer],
       [copy.model, device.model],
       [copy.integration, device.integration],
       [copy.address, raw?.ip ?? null],
     ].filter((fact): fact is [string, string] => Boolean(fact[1]));
+    const roomChoices = [
+      { value: NO_ROOM, label: copy.noRoom, icon: 'home-outline' },
+      ...rooms.map((room) => ({ value: room.id, label: room.name, icon: roomGlyph(room).iconName })),
+    ];
 
     return (
-      <>
-        {!isLocal && hub.home?.hub.status === 'offline' ? <Notice tone="warning">{copy.hubOffline}</Notice> : null}
-        {isLocal && local.status !== 'online' ? <Notice tone="warning">{copy.gatewayOffline}</Notice> : null}
-        {device.experimental ? <Notice tone="warning">{copy.experimental}</Notice> : null}
-        {device.assumed ? <Notice tone="info">{copy.assumed}</Notice> : null}
-        <DeviceCard device={device} onToggle={toggle} busy={deviceBusy === 'command'} error={errors[device.id]} />
-
-        <NeonPanel style={styles.panel}>
-          <PanelHeading title={copy.controlsTitle} iconSet="ionicons" iconName="options-outline" divider />
-          {!device.online ? (
-            <AppText variant="bodySmall" color={theme.colors.textSupport}>
-              {copy.offline}
-            </AppText>
-          ) : null}
-          <DeviceControl device={device} busy={deviceBusy === 'command'} onCommand={(next) => void ems.command(device, next)} />
-          {raw && raw.category === 'climate' && hasControlSettings(raw) ? (
-            <AppButton
-              title={copy.acSettings}
-              variant="secondary"
-              height={SMALL_BUTTON_HEIGHT}
-              onPress={() => navigation.navigate('AcControl', { deviceId: params.deviceId })}
-              accessibilityHint={copy.acSettingsHint}
-            />
-          ) : null}
-        </NeonPanel>
+      <ResponsiveColumns gap={CARD_GAP} weights={[3, 2]}>
+        <>
+          {!isLocal && hub.home?.hub.status === 'offline' ? <Notice tone="warning">{copy.hubOffline}</Notice> : null}
+          {isLocal && local.status !== 'online' ? <Notice tone="warning">{copy.gatewayOffline}</Notice> : null}
+          {device.experimental ? <Notice tone="warning">{copy.experimental}</Notice> : null}
+          {device.assumed ? <Notice tone="info">{copy.assumed}</Notice> : null}
+          <DeviceControl
+            device={device}
+            busy={deviceBusy === 'command'}
+            error={errors[device.id]}
+            onCommand={(next) => void ems.command(device, next)}
+            footer={
+              raw && raw.category === 'climate' && hasControlSettings(raw) ? (
+                <AppButton
+                  title={copy.acSettings}
+                  variant="secondary"
+                  height={BUTTON_HEIGHT}
+                  labelVariant="controlLabel"
+                  onPress={() => navigation.navigate('AcControl', { deviceId: params.deviceId })}
+                  accessibilityHint={copy.acSettingsHint}
+                />
+              ) : null
+            }
+          />
+        </>
 
         <NeonPanel style={styles.panel}>
           <PanelHeading title={copy.detailsTitle} iconSet="ionicons" iconName="information-circle-outline" divider />
@@ -126,7 +135,8 @@ export function DeviceDetailScreen() {
                 <AppButton
                   title={copy.save}
                   variant="gradient"
-                  height={SMALL_BUTTON_HEIGHT}
+                  height={BUTTON_HEIGHT}
+                  labelVariant="controlLabel"
                   loading={deviceBusy === 'edit'}
                   disabled={!draftName.trim()}
                   onPress={async () => {
@@ -134,58 +144,52 @@ export function DeviceDetailScreen() {
                   }}
                   style={styles.action}
                 />
-                <AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => setDraftName(null)} style={styles.action} />
+                <AppButton
+                  title={copy.cancel}
+                  variant="secondary"
+                  height={BUTTON_HEIGHT}
+                  labelVariant="controlLabel"
+                  onPress={() => setDraftName(null)}
+                  style={styles.action}
+                />
               </View>
             </View>
           ) : (
             <View style={styles.factRow}>
-              <AppText variant="statValue" style={styles.flex} numberOfLines={2}>
+              <AppText variant="controlLabel" style={styles.flex} numberOfLines={2}>
                 {device.name}
               </AppText>
               <AppButton
                 title={copy.rename}
                 variant="secondary"
-                height={SMALL_BUTTON_HEIGHT}
+                height={BUTTON_HEIGHT}
+                labelVariant="controlLabel"
                 onPress={() => setDraftName(device.name)}
+                accessibilityLabel={`${copy.rename} ${device.name}`}
                 style={styles.inlineButton}
               />
             </View>
           )}
 
-          <AppText variant="statLabel" color={theme.colors.textSupport}>
-            {copy.room}
-          </AppText>
-          <View style={styles.chips} accessibilityRole="radiogroup">
-            <FilterChip
-              role="radio"
-              label={copy.noRoom}
-              iconSet="material"
-              iconName="home-outline"
-              selected={device.roomId === null}
-              onPress={() => device.roomId !== null && void ems.update(device, { roomId: null })}
-            />
-            {rooms.map((room) => {
-              const glyph = roomGlyph(room);
-              return (
-                <FilterChip
-                  key={room.id}
-                  role="radio"
-                  label={room.name}
-                  iconSet={glyph.iconSet}
-                  iconName={glyph.iconName}
-                  selected={device.roomId === room.id}
-                  onPress={() => device.roomId !== room.id && void ems.update(device, { roomId: room.id })}
-                />
-              );
-            })}
-          </View>
+          <ChoiceGroup
+            label={copy.room}
+            choices={roomChoices}
+            selected={device.roomId ?? NO_ROOM}
+            waiting={deviceBusy === 'edit'}
+            onPick={(value) => {
+              const roomId = value === NO_ROOM ? null : value;
+              if (roomId !== device.roomId) void ems.update(device, { roomId });
+            }}
+          />
 
           {facts.map(([label, value]) => (
             <View key={label} style={styles.factRow}>
-              <AppText variant="tileCaption" color={theme.colors.textSupport}>
+              <AppText variant="controlCaption" color={theme.colors.textSupport}>
                 {label}
               </AppText>
-              <AppText variant="tileCaption">{value}</AppText>
+              <AppText variant="controlCaption" style={styles.factValue}>
+                {value}
+              </AppText>
             </View>
           ))}
           {isLocal && local.role === 'owner' ? (
@@ -194,14 +198,15 @@ export function DeviceDetailScreen() {
               <AppButton
                 title={confirmRemove ? copy.confirmRemove : copy.remove}
                 variant="secondary"
-                height={SMALL_BUTTON_HEIGHT}
+                height={BUTTON_HEIGHT}
+                labelVariant="controlLabel"
                 onPress={() => void remove()}
                 accessibilityHint={copy.removeHint}
               />
             </>
           ) : null}
         </NeonPanel>
-      </>
+      </ResponsiveColumns>
     );
   };
 

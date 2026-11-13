@@ -18,6 +18,7 @@ import type {
   Sex,
   ShareAccess,
 } from '../../../types/health.types';
+import type { ReportCopy } from '../../aiReports/types';
 import type { HealthErrorKind } from './healthService';
 
 export { deviceLang } from '../../../utils/lang';
@@ -164,6 +165,8 @@ export interface HealthStrings {
   pickDate: string;
   clearDate: string;
   done: string;
+  /** Reporting AI text (a spoken summary, a document's reading): features/aiReports' ReportAnswer. */
+  report: ReportCopy;
 }
 
 const en: HealthStrings = {
@@ -282,6 +285,32 @@ const en: HealthStrings = {
   pickDate: 'Choose a date',
   clearDate: 'Clear date',
   done: 'Done',
+  report: {
+    button: 'Report',
+    buttonA11y: 'Report this AI text',
+    sentButton: 'Reported',
+    title: 'Report this AI text',
+    body: 'Tell us what is wrong with it. We will read your report. It includes this text.',
+    reasons: {
+      offensive: 'Offensive or hurtful',
+      harmful: 'Could cause harm',
+      wrong: 'Wrong information',
+      other: 'Something else',
+    },
+    noteLabel: 'Anything to add? (optional)',
+    notePlaceholder: 'What was wrong?',
+    send: 'Send',
+    cancel: 'Cancel',
+    thanks: 'Thanks. We’ll look at this.',
+    done: 'Done',
+    tryAgain: 'Try again',
+    errors: {
+      network: 'We couldn’t send it. Check your internet connection and try again.',
+      busy: 'You’ve sent many reports just now. Wait a little and try again.',
+      unavailable: 'This version of the app can’t send reports.',
+      other: 'Something went wrong. Please try again.',
+    },
+  },
 };
 
 const ar: HealthStrings = {
@@ -397,6 +426,32 @@ const ar: HealthStrings = {
   pickDate: 'اختر تاريخًا',
   clearDate: 'مسح التاريخ',
   done: 'تم',
+  report: {
+    button: 'إبلاغ',
+    buttonA11y: 'الإبلاغ عن هذا النص المُعدّ بالذكاء الاصطناعي',
+    sentButton: 'تم الإبلاغ',
+    title: 'الإبلاغ عن هذا النص',
+    body: 'أخبرنا بما فيه من خطأ. سنقرأ بلاغك، وهو يتضمن هذا النص.',
+    reasons: {
+      offensive: 'مسيء أو جارح',
+      harmful: 'قد يسبب ضررًا',
+      wrong: 'معلومات غير صحيحة',
+      other: 'شيء آخر',
+    },
+    noteLabel: 'هل تريد إضافة شيء؟ (اختياري)',
+    notePlaceholder: 'ما الخطأ فيه؟',
+    send: 'إرسال',
+    cancel: 'إلغاء',
+    thanks: 'شكرًا لك. سنراجع هذا النص.',
+    done: 'تم',
+    tryAgain: 'حاول مرة أخرى',
+    errors: {
+      network: 'تعذّر الإرسال. تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.',
+      busy: 'أرسلت بلاغات كثيرة للتو. انتظر قليلًا ثم حاول مرة أخرى.',
+      unavailable: 'لا يمكن لهذا الإصدار من التطبيق إرسال البلاغات.',
+      other: 'حدث خطأ ما. يرجى المحاولة مرة أخرى.',
+    },
+  },
 };
 
 export const healthStrings: Record<HealthLang, HealthStrings> = { en, ar };

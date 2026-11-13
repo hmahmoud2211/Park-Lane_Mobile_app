@@ -8,6 +8,7 @@ import type { CommandRequest, Device as WireDevice } from '../../../shared/contr
 import type { IntegrationOption } from '../../../shared/contracts/accounts';
 
 export type {
+  AlarmCapability,
   BrightnessCapability,
   Capability,
   CapabilityType,
@@ -19,12 +20,19 @@ export type {
   FanCapability,
   Home,
   HubStatus,
+  HumidifierCapability,
   LockCapability,
   MediaCapability,
+  MowerCapability,
+  NumberCapability,
+  OptionCapability,
   PowerCapability,
   PressCapability,
   Room,
   SensorReading,
+  VacuumCapability,
+  ValveCapability,
+  WaterHeaterCapability,
 } from '../../../shared/contracts/home';
 
 export type {

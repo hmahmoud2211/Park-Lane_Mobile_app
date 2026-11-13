@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>You're invited to Parklane</title>
+<link rel="stylesheet" href="/public/page.css">
+<link rel="stylesheet" href="/public/join.css">
+<script src="/public/join.js" defer></script>
+</head>
+<body>
+<main>
+<h1>You're invited</h1>
+<p>Someone in your family invited you to join their apartment in the <strong>Parklane</strong> app. After you join, you can use your home's devices from your own phone.</p>
+
+<ol class="steps">
+<li>
+<strong>Open the invite in the app</strong>
+<a id="open" class="button" href="parklane://join">Open in the Parklane app</a>
+<span class="meta">Then tap <strong>Join</strong>. If you are not signed in yet, the app asks you first.</span>
+</li>
+<li>
+<strong>Don't have the app yet?</strong>
+<a class="button secondary" href="https://play.google.com/store/apps/details?id=com.emsiot.parklane">Get it on Google Play</a>
+<span class="meta">Install it, sign in or create your account, then come back here and tap <strong>Open in the Parklane app</strong>.</span>
+</li>
+</ol>
+
+<section id="code-box" class="code-box" hidden>
+<p class="meta">Or open the app, go to <strong>Settings → Household</strong>, and enter this code:</p>
+<p id="code" class="code" aria-live="polite"></p>
+<button id="copy" type="button">Copy code</button>
+<p id="copied" class="meta" role="status" aria-live="polite"></p>
+</section>
+
+<p class="meta">The code works once, for 24 hours. If it has expired, ask for a new invite.</p>
+</main>
+</body>
+</html>

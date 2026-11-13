@@ -6,7 +6,7 @@
  */
 
 import type { MyUnit, UnitMember } from '../types';
-import { formatCodeInput, inviteMessage, inviteValidity, isCodeComplete, memberRows } from './unitRules';
+import { codeFromText, formatCodeInput, inviteMessage, inviteValidity, isCodeComplete, memberRows } from './unitRules';
 
 const NOW = 1_767_225_600_000;
 const HOUR = 3_600_000;
@@ -86,8 +86,27 @@ const checks: [string, () => void][] = [
     () =>
       equal(
         inviteMessage({ code: 'K7Q4-9MXD', expiresAt: NOW + 24 * HOUR }, NOW + 400, 'Parklane'),
-        'Join our apartment in the Parklane app: sign in, then enter code K7Q4-9MXD (valid 24 hours)',
+        'Join our apartment in the Parklane app: open Settings → Household and enter code K7Q4-9MXD (valid 24 hours)',
       ),
+  ],
+  [
+    'with a link, the message leads with it and still gives the code',
+    () =>
+      equal(
+        inviteMessage({ code: 'K7Q4-9MXD', expiresAt: NOW + 24 * HOUR, link: 'https://ems.test/join/K7Q4-9MXD' }, NOW, 'Parklane'),
+        'Join our apartment in the Parklane app. Tap this link: https://ems.test/join/K7Q4-9MXD\nOr open Settings → Household and enter code K7Q4-9MXD (valid 24 hours)',
+      ),
+  ],
+  [
+    'pasting the whole message, or the link, leaves just the code',
+    () => {
+      const message = inviteMessage({ code: 'K7Q4-9MXD', expiresAt: NOW + 24 * HOUR, link: 'https://ems.test/join/K7Q4-9MXD' }, NOW, 'Parklane') ?? '';
+      equal(formatCodeInput(message), 'K7Q4-9MXD', 'message');
+      equal(formatCodeInput(inviteMessage({ code: 'K7Q4-9MXD', expiresAt: NOW + HOUR }, NOW, 'Park-Lane') ?? ''), 'K7Q4-9MXD', 'no link, brand with a dash');
+      equal(formatCodeInput('https://ems.test/join/k7q49mxd'), 'K7Q4-9MXD', 'link, loosely typed');
+      equal(codeFromText('parklane://join/K7Q4-9MXD'), 'K7Q4-9MXD', 'app link');
+      equal(codeFromText('Hello from Park-Lane'), null, 'no code');
+    },
   ],
   [
     'later on it says what is left, never more',

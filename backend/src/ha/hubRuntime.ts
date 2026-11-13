@@ -199,8 +199,9 @@ export class HubRuntime {
     const device = this.getDevice(deviceId);
     const { call } = resolveCommand(device, request);
     const action = `${call.domain}.${call.service}`;
-    if (source === 'assistant' && ASSISTANT_REFUSED.has(action)) {
-      throw new ApiError('forbidden', 'For safety, doors can only be unlocked from the app.');
+    const refused = source === 'assistant' ? ASSISTANT_REFUSED.get(action) : undefined;
+    if (refused) {
+      throw new ApiError('forbidden', refused);
     }
     if (this.inFlight.has(call.entityId)) {
       throw new ApiError('conflict', 'This device is still busy with the last command.');

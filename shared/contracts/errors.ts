@@ -20,6 +20,13 @@ export type ApiErrorCode =
   | 'flow_expired'
   // CUBE gateway access through the account: the resident's unit has no gateway yet.
   | 'no_gateway'
+  // The assistant reaching the unit's CUBE gateway through the backend (backend/src/gateway/): it didn't answer,
+  // or it refused the backend.
+  | 'gateway_offline'
+  | 'gateway_rejected'
+  // A family invite code that was real but has run out, or that someone already used (POST /api/unit/join, /check).
+  | 'invite_expired'
+  | 'invite_used'
   // An account with a temporary password must choose its own before anything else.
   | 'password_change_required'
   // Health Passport and the clinic.

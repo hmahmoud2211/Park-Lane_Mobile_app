@@ -23,6 +23,7 @@ import { AppText } from '../../components/common/AppText';
 import { BackButton } from '../../components/common/BackButton';
 import { GlassSurface } from '../../components/common/GlassSurface';
 import { GradientText } from '../../components/common/GradientText';
+import { LoadingState } from '../../components/feedback/LoadingState';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ArrowRightIcon } from '../../components/ui/ArrowRightIcon';
 import { assistantConfig } from '../../config/assistant';
@@ -113,6 +114,8 @@ export function LoginScreen() {
 
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
+  /** Set while a sign-in is being sent, so the keyboard's Go key can't send it twice. */
+  const submitting = useRef(false);
 
   const creating = mode === 'create';
 
@@ -127,6 +130,9 @@ export function LoginScreen() {
   }, [status, passwordChangeRequired, navigation, setResidentId]);
 
   const handleSubmit = useCallback(async () => {
+    if (submitting.current) {
+      return;
+    }
     const nextErrors = creating ? validateNewAccount(name, email, password) : validateLogin(email, password);
     setErrors(nextErrors);
     setFailure(null);
@@ -135,6 +141,7 @@ export function LoginScreen() {
       return;
     }
 
+    submitting.current = true;
     setBusy(true);
     try {
       if (creating) {
@@ -145,6 +152,8 @@ export function LoginScreen() {
     } catch (error) {
       setFailure(emsErrorText(error));
       setBusy(false);
+    } finally {
+      submitting.current = false;
     }
   }, [creating, name, email, password, signIn, createAccount]);
 
@@ -206,7 +215,11 @@ export function LoginScreen() {
             />
           </View>
 
-          {/* Phones show the form on the photo; wider screens set it on a glass card. */}
+          {status === 'loading' ? (
+            // A sign-in kept from last time is still being checked: no form to fill in meanwhile.
+            <LoadingState label={loginCopy.checking} labelVariant="bodySmall" inset="md" announce />
+          ) : (
+          // Phones show the form on the photo; wider screens set it on a glass card.
           <FormCard wide={isWide} style={styles.card}>
             <View style={styles.heading}>
               <AppText variant="heading">{loginCopy.headingLead}</AppText>
@@ -394,6 +407,7 @@ export function LoginScreen() {
               ))}
             </View>
           </FormCard>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenWrapper>

@@ -63,9 +63,5 @@ export function createStyles(theme: AppTheme) {
       flexWrap: 'wrap',
       gap: theme.spacing.sm,
     },
-    action: {
-      flexGrow: 1,
-      paddingHorizontal: theme.spacing.md,
-    },
   });
 }

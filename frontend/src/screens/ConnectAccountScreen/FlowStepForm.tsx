@@ -24,6 +24,10 @@ export interface FlowStepFormProps {
   onCancel: () => void;
   onDone: () => void;
   onRetry: () => void;
+  /** A `progress` step could not be re-read several times in a row: the wait stopped. */
+  stalled?: boolean;
+  /** Asks a stalled `progress` step again. */
+  onRetryPoll?: () => void;
 }
 
 /** Text the resident types: everything a form starts with, as strings, so inputs stay controlled. */
@@ -43,7 +47,7 @@ function initialValues(fields: readonly FlowField[]): Record<string, unknown> {
  * sign-in page, a wait, or the result. Remount it per step (key it) so a new
  * step starts with fresh values.
  */
-export function FlowStepForm({ step, brand, busy, error, onSubmit, onSignIn, onCancel, onDone, onRetry }: FlowStepFormProps) {
+export function FlowStepForm({ step, brand, busy, error, onSubmit, onSignIn, onCancel, onDone, onRetry, stalled = false, onRetryPoll }: FlowStepFormProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [values, setValues] = useState(() => initialValues(step.fields));
@@ -115,7 +119,11 @@ export function FlowStepForm({ step, brand, busy, error, onSubmit, onSignIn, onC
       return (
         <View style={styles.form}>
           {heading}
-          <LoadingState label={step.message ?? copy.working} labelVariant="bodySmall" inset="md" announce />
+          {stalled && onRetryPoll ? (
+            <AppButton title={copy.retry} variant="gradient" height={BUTTON_HEIGHT} onPress={onRetryPoll} />
+          ) : (
+            <LoadingState label={step.message ?? copy.working} labelVariant="bodySmall" inset="md" announce />
+          )}
           {cancel}
         </View>
       );

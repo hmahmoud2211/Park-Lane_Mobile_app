@@ -2,6 +2,7 @@ import { deleteOwnAccount, isDefaultAccount } from '../ems/accountDeletion.ts';
 import { bearerOf, changeOwnPassword, createAssistantToken, createSession, createUser, requireUser, revokeToken, verifyCredentials, type User } from '../ems/auth.ts';
 import { ApiError } from '../errors.ts';
 import { clientIp } from '../ems/rateLimit.ts';
+import { recheckUserConnections } from '../ems/realtime.ts';
 import { readJson } from '../http/body.ts';
 import { throttle } from '../http/rateLimits.ts';
 import { ok } from '../http/respond.ts';
@@ -44,12 +45,16 @@ export const authRoutes: RouteGroup = async ({ req, res, path, method }) => {
     throttle('auth', user.id);
     refuseForDemoAccount(user);
     const body = await readJson(req);
-    ok(res, { user: await changeOwnPassword(user, body.currentPassword, body.newPassword, sha256(bearerOf(req))) });
+    const changed = await changeOwnPassword(user, body.currentPassword, body.newPassword, sha256(bearerOf(req)));
+    recheckUserConnections(user.id);
+    ok(res, { user: changed });
     return true;
   }
   if (path === '/api/auth/logout' && method === 'POST') {
-    requireUser(req, ['session'], { pendingOk: true });
+    const user = requireUser(req, ['session'], { pendingOk: true });
     revokeToken(bearerOf(req));
+    // This phone's live updates stop now, not at the next check.
+    recheckUserConnections(user.id);
     ok(res, { signedOut: true });
     return true;
   }
@@ -62,6 +67,7 @@ export const authRoutes: RouteGroup = async ({ req, res, path, method }) => {
     for (const hash of others) {
       revokeTokenAndChildren(hash, Date.now());
     }
+    recheckUserConnections(user.id);
     ok(res, { revoked: others.length });
     return true;
   }

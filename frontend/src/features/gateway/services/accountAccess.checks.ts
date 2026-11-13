@@ -14,6 +14,7 @@ import {
   passUrl,
   removedOnSignOut,
   shouldConnectOnSignIn,
+  shouldRetryOnForeground,
   shouldRetryRefused,
   type AccountLink,
 } from './accountAccess';
@@ -119,6 +120,18 @@ const checks: [string, () => void][] = [
     },
   ],
   ['only once per sign-in or app start, whatever the outcome', () => equal(shouldConnectOnSignIn({ ...SIGNED_IN, triedThisSession: true }), false)],
+  [
+    'a connection that got no answer is tried again on returning to the app; an answer stands',
+    () => {
+      const failed = (code: string): AccountLink => ({ state: 'error', code, message: 'x' });
+      const retry = (link: AccountLink, extra: { signedIn?: boolean; gatewayCount?: number } = {}) =>
+        shouldRetryOnForeground({ link, signedIn: true, gatewayCount: 0, ...extra });
+      equal([retry(failed('network')), retry(failed('timeout'))], [true, true], 'no answer');
+      equal([retry(failed('forbidden')), retry(failed('unverified_gateway')), retry({ state: 'no_gateway' }), retry({ state: 'idle' })], [false, false, false, false], 'answered');
+      equal(retry(failed('network'), { signedIn: false }), false, 'signed out');
+      equal(retry(failed('network'), { gatewayCount: 1 }), false, 'a gateway on the phone');
+    },
+  ],
   ['a refused account-issued token gets one fresh pass', () => equal(shouldRetryRefused(REFUSED), true)],
   ['and only one: after that the refusal stands', () => equal(shouldRetryRefused({ ...REFUSED, retried: new Set([ID]) }), false)],
   [

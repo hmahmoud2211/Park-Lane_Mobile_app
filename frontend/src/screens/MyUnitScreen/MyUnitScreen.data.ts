@@ -38,7 +38,10 @@ export const myUnitCopy = {
   loadFailed: 'Couldn’t load your unit',
   retry: 'Try again',
   noHomeTitle: 'Not linked to an apartment yet',
-  noHomeBody: 'Ask building management to add your account to your apartment. Your unit’s details then appear here.',
+  noHomeBody: 'Did your family send you an invite? Join with its code. Otherwise, ask building management to add you.',
+  joinWithCode: 'Join with an invite code',
+  /** The header's ••• menu. */
+  household: 'Household: people and invites',
   memberNote: 'Payments and the contract are shown to the apartment’s owner.',
   noDocuments: 'No documents yet. Building management adds them here.',
   notSet: '—',

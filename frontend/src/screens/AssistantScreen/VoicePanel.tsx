@@ -2,6 +2,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
+import { ReportAnswer } from '../../features/aiReports/components/ReportAnswer';
 import { AssistantOrb, moodForPhase } from '../../features/assistant/components/AssistantOrb';
 import { CameraPeek, type CameraPeekHandle } from '../../features/assistant/components/CameraPeek';
 import { FadeSwap } from '../../features/assistant/components/FadeSwap';
@@ -12,7 +13,7 @@ import { VoiceTranscript } from '../../features/assistant/components/VoiceTransc
 import { AppText } from '../../components/common/AppText';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useVoiceSession } from '../../features/assistant/hooks/useVoiceSession';
-import type { VoicePhase } from '../../features/assistant/types';
+import type { VoicePhase, VoiceTurn } from '../../features/assistant/types';
 import { assistantCopy as copy, voiceExamples } from './AssistantScreen.data';
 import { VOICE_ORB_SIZE, VOICE_ORB_SIZE_COMPACT, createStyles } from './AssistantScreen.styles';
 
@@ -76,6 +77,11 @@ export function VoicePanel({ residentId, homeToken, onSignIn, onOpenRoute }: Voi
   }, [phase, session]);
 
   const hint = hintFor(phase, session.duplex, session.error);
+  // Each spoken reply can be reported from its caption (Google Play's AI-Generated Content policy).
+  const reportFooter = useCallback(
+    (turn: VoiceTurn) => <ReportAnswer source="assistant_voice" excerpt={turn.text} />,
+    [],
+  );
 
   return (
     <View style={styles.voice}>
@@ -113,6 +119,7 @@ export function VoicePanel({ residentId, homeToken, onSignIn, onOpenRoute }: Voi
           turns={session.turns}
           onOpenRoute={onOpenRoute}
           onSignIn={onSignIn}
+          renderAnswerFooter={reportFooter}
           style={styles.voiceTranscript}
         />
       ) : (

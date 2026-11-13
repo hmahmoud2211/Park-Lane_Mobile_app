@@ -288,3 +288,114 @@ def test_the_preset_gateway_id_must_be_a_uuid(settings, monkeypatch):
         load_settings()
     monkeypatch.setenv("CUBE_GATEWAY_ID", "0F8E7C1A-3B2D-4C5E-9F60-718293A4B5C6")
     assert load_settings().gateway_id == "0f8e7c1a-3b2d-4c5e-9f60-718293a4b5c6"
+
+
+# ---- the backend acting for a resident (the Parklane Assistant) ----
+
+
+def make_call(gateway_id: str, method: str, path: str, *, sub: str = "user-owner", key: Ed25519PrivateKey = BACKEND, **changes) -> str:
+    """A device call's bearer token, made exactly as backend/src/ems/gatewayAccess.ts deviceCallToken makes it."""
+    now = int(time.time())
+    claims = {
+        "v": 1, "typ": "device_call", "sub": sub, "gw": gateway_id, "m": method, "p": path, "via": "Parklane Assistant",
+        "iat": now, "exp": now + 60, "jti": str(uuid.uuid4()),
+    }
+    claims.update(changes)
+    body = _b64(json.dumps(claims).encode())
+    return f"emscall.{body}.{_b64(key.sign(body.encode()))}"
+
+
+def _as_backend(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _paired_plug(h: Harness) -> str:
+    h.claim()
+    h.fake.devices["plug1"] = {"name": "Desk plug", "model": "FP-1", "ip": "192.168.50.10", "mac": "AA:BB:CC:00:11:22"}
+    pairing = h.pair(h.scan(adapter_ids=["fake"])["candidate_ids"][0], name="Desk plug")
+    assert pairing["status"] == "paired"
+    return pairing["device_id"]
+
+
+def test_the_backend_reads_and_drives_devices_for_a_resident(linked):
+    with Harness(linked) as h:
+        gid = h.gateway.security.gateway_id
+        device_id = _paired_plug(h)
+        listed = h.client.get("/api/v1/devices", headers=_as_backend(make_call(gid, "GET", "/api/v1/devices")))
+        assert listed.status_code == 200 and [d["id"] for d in listed.json()["data"]] == [device_id]
+        one = h.client.get(f"/api/v1/devices/{device_id}", headers=_as_backend(make_call(gid, "GET", f"/api/v1/devices/{device_id}")))
+        assert one.status_code == 200 and one.json()["data"]["name"] == "Desk plug"
+        path = f"/api/v1/devices/{device_id}/commands"
+        sent = h.client.post(path, json={"command": "turn_off"}, headers=_as_backend(make_call(gid, "POST", path, sub="user-family")))
+        assert sent.status_code == 200, sent.text
+        power = next(c for c in sent.json()["data"]["device"]["capabilities"] if c["type"] == "power")
+        assert power["value"] == "off"
+        # The gateway's audit log names the resident the backend acted for.
+        rows = h.client.portal.call(h.gateway.db.fetchall, "SELECT client_id, target FROM audit_log WHERE action = 'device.command'")
+        assert rows == [{"client_id": "ems:user-family", "target": device_id}]
+        # No phone was added for it.
+        assert len(h.get("/auth/clients").json()["data"]) == 1
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["replayed", "other_path", "other_method", "other_gateway", "forged", "too_long", "expired", "a_sign_in_pass", "garbled"],
+)
+def test_invalid_device_calls_are_refused(linked, case):
+    with Harness(linked) as h:
+        gid = h.gateway.security.gateway_id
+        device_id = _paired_plug(h)
+        path = f"/api/v1/devices/{device_id}/commands"
+        now = int(time.time())
+        token = {
+            "replayed": make_call(gid, "POST", path, jti="same"),
+            "other_path": make_call(gid, "POST", "/api/v1/devices/dev_other/commands"),
+            "other_method": make_call(gid, "GET", path),
+            "other_gateway": make_call("11111111-2222-4333-8444-555555555555", "POST", path),
+            "forged": make_call(gid, "POST", path, key=Ed25519PrivateKey.generate()),
+            "too_long": make_call(gid, "POST", path, exp=now + 600),
+            "expired": make_call(gid, "POST", path, iat=now - 1000, exp=now - 900),
+            "a_sign_in_pass": "emscall." + make_pass(gid),
+            "garbled": "emscall." + "x" * 40 + "." + "y" * 40,
+        }[case]
+        if case == "replayed":
+            assert h.client.post(path, json={"command": "turn_off"}, headers=_as_backend(token)).status_code == 200
+        response = h.client.post(path, json={"command": "turn_on"}, headers=_as_backend(token))
+        assert response.status_code == 401 and response.json()["error"]["code"] == "invalid_call", response.text
+
+
+def test_a_device_call_reaches_only_devices(linked):
+    with Harness(linked) as h:
+        gid = h.gateway.security.gateway_id
+        device_id = _paired_plug(h)
+        for method, path in [
+            ("GET", "/api/v1/rooms"),
+            ("GET", "/api/v1/auth/clients"),
+            ("GET", "/api/v1/discovery/candidates"),
+            ("POST", f"/api/v1/devices/{device_id}/refresh"),
+            ("DELETE", f"/api/v1/devices/{device_id}"),
+        ]:
+            response = h.client.request(method, path, headers=_as_backend(make_call(gid, method, path)))
+            assert response.status_code == 401, (method, path, response.text)
+        # Nor is a device call a sign-in pass: it never becomes a phone.
+        call = make_call(gid, "POST", "/api/v1/auth/account").removeprefix("emscall.")
+        assert _login(h, call).json()["error"]["code"] == "invalid_pass"
+
+
+def test_a_gateway_not_linked_to_ems_takes_no_device_calls(settings):
+    with Harness(settings) as h:
+        response = h.client.get("/api/v1/devices", headers=_as_backend(make_call(h.gateway.security.gateway_id, "GET", "/api/v1/devices")))
+        assert response.status_code == 404 and response.json()["error"]["code"] == "account_login_off"
+
+
+def test_device_calls_arrive_through_the_relay(linked):
+    with Harness(linked) as h:
+        gid = h.gateway.security.gateway_id
+        device_id = _paired_plug(h)
+        relay = RelayClient(h.gateway, "https://relay.example.com", "secret")
+        token = make_call(gid, "GET", "/api/v1/devices")
+        frame = {"t": "req", "id": 1, "method": "GET", "path": "/api/v1/devices", "query": "", "client": "203.0.113.9",
+                 "headers": {"authorization": f"Bearer {token}"}, "body": ""}
+        answered = h.client.portal.call(relay.forward, frame)
+        assert answered["status"] == 200
+        assert json.loads(base64.b64decode(answered["body"]))["data"][0]["id"] == device_id

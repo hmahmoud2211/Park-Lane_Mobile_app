@@ -28,7 +28,7 @@ export function EmsAccountPanel({ intro }: { intro: string }) {
   if (status === 'signedIn') {
     return (
       <NeonPanel style={styles.panel}>
-        <PanelHeading title="EMS account" iconSet="material" iconName="account-circle-outline" divider />
+        <PanelHeading title="Your account" iconSet="material" iconName="account-circle-outline" divider />
         <View style={styles.signedIn}>
           <View style={styles.flex}>
             <AppText variant="statValue">{user?.name ?? 'Signed in'}</AppText>
@@ -46,14 +46,15 @@ export function EmsAccountPanel({ intro }: { intro: string }) {
 
   return (
     <NeonPanel style={styles.panel}>
-      <PanelHeading title="EMS account" iconSet="material" iconName="account-circle-outline" subtitle={intro} divider />
+      <PanelHeading title="Your account" iconSet="material" iconName="account-circle-outline" subtitle={intro} divider />
       {!configured ? (
-        <Notice tone="warning" title="Backend not set up">
-          This build has no EMS backend address (EXPO_PUBLIC_DEVICE_BACKEND_URL).
+        // A developer build without EXPO_PUBLIC_DEVICE_BACKEND_URL; store builds always have it.
+        <Notice tone="warning" title="Sign-in isn’t available">
+          This version of the app can’t sign in. Install the latest version from the store.
         </Notice>
       ) : status === 'loading' ? (
         <AppText variant="bodySmall" color={theme.colors.textSupport}>
-          Checking your session…
+          Checking your sign-in…
         </AppText>
       ) : (
         <View style={styles.form}>

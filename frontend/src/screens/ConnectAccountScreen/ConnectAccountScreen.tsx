@@ -177,6 +177,8 @@ export function ConnectAccountScreen() {
             brand={brand}
             busy={link.busy}
             error={link.error}
+            stalled={link.pollStalled}
+            onRetryPoll={link.retryPoll}
             onSubmit={(data) => void link.submit(data)}
             onSignIn={() => void link.signInWithBrand()}
             onCancel={() => void link.cancel()}

@@ -37,5 +37,5 @@ export const devicesCopy = {
   connectGateway: 'Connect gateway',
   manageGateway: 'Gateway',
   hubTitle: 'Linked through the building',
-  accountIntroHub: 'Devices linked through the building’s smart home hub need your EMS account.',
+  accountIntroHub: 'Devices linked through the building’s system need your Parklane account.',
 } as const;

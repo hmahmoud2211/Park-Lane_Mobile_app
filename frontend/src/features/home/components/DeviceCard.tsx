@@ -1,15 +1,16 @@
 import { useMemo, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAppTheme } from '../../../hooks/useAppTheme';
 import { isOn, kindGlyph, kindLabel, stateLine } from '../services/capabilities';
+import { problemAdvice } from '../services/deviceLabels';
 import type { Device } from '../../../types/home.types';
 import type { AppTheme } from '../../../types/theme.types';
 import { AppIcon } from '../../../components/common/AppIcon';
 import { AppText } from '../../../components/common/AppText';
 import { GlassSurface } from '../../../components/common/GlassSurface';
-import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
 import { StatusChip } from '../../../components/ui/StatusChip';
+import { ControlButton } from './ControlParts';
 
 export interface DeviceCardProps {
   device: Device;
@@ -25,13 +26,17 @@ export interface DeviceCardProps {
   children?: ReactNode;
 }
 
-const BADGE_SIZE = 38;
-const BADGE_ICON_SIZE = 21;
+const BADGE_SIZE = 44;
+const BADGE_ICON_SIZE = 24;
+const STATE_ICON_SIZE = 16;
+/** The On/Off beside the name: wide enough for its word at large text sizes. */
+const POWER_MIN_WIDTH = 92;
 
 /**
- * One device in the resident's home: what it is, where it is, whether it is
- * reachable, and what it is doing. A command in flight shows as pending
- * until the hub answers, whoever sent it (this phone or another one).
+ * One device in a list: what it is, where it is and what it is doing in words ("On",
+ * "Cleaning", "Cool · 21° → 23°", "Not responding"), with one big On/Off when it has
+ * power. Tapping the rest of the card opens the device's own screen. A command in flight
+ * shows on the On/Off until the hub answers, whoever sent it (this phone or another one).
  */
 export function DeviceCard({ device, onToggle, onPress, busy = false, error, children }: DeviceCardProps) {
   const theme = useAppTheme();
@@ -40,33 +45,36 @@ export function DeviceCard({ device, onToggle, onPress, busy = false, error, chi
   const pending = busy || device.pending !== null;
   const glyph = kindGlyph(device.kind);
   const where = [device.room, kindLabel(device.kind)].filter(Boolean).join(' · ');
+  const state = stateLine(device);
   const problem = error ?? device.lastError;
 
-  const header = (
-    <View style={styles.row}>
+  const summary = (
+    <>
       <View style={[styles.badge, !device.online && styles.dim]}>
         <AppIcon set={glyph.iconSet} name={glyph.iconName} size={BADGE_ICON_SIZE} />
       </View>
       <View style={styles.text}>
-        <AppText variant="statValue" numberOfLines={2}>
+        <AppText variant="controlLabel" numberOfLines={2}>
           {device.name}
         </AppText>
-        <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={1}>
-          {where}
-        </AppText>
-      </View>
-      {onToggle && on !== null ? (
-        <View style={styles.control}>
-          {pending ? <ActivityIndicator size="small" color={theme.colors.textAccentSoft} style={styles.spinner} /> : null}
-          <ToggleSwitch
-            value={on}
-            onValueChange={onToggle}
-            disabled={pending || !device.online}
-            accessibilityLabel={`${device.name}${device.room ? `, ${device.room}` : ''}`}
-          />
+        {where ? (
+          <AppText variant="controlCaption" color={theme.colors.textSupport} numberOfLines={2}>
+            {where}
+          </AppText>
+        ) : null}
+        <View style={styles.state}>
+          {!device.online ? <AppIcon set="material" name="wifi-off" size={STATE_ICON_SIZE} color={theme.colors.warning} /> : null}
+          <AppText
+            variant="controlCaption"
+            color={device.online ? theme.colors.textAccentSoft : theme.colors.warning}
+            accessibilityLiveRegion="polite"
+            style={styles.stateText}
+          >
+            {state}
+          </AppText>
         </View>
-      ) : null}
-    </View>
+      </View>
+    </>
   );
 
   return (
@@ -78,34 +86,52 @@ export function DeviceCard({ device, onToggle, onPress, busy = false, error, chi
       fillOpacity={theme.glass.subtleFillOpacity}
       style={styles.surface}
     >
-      {onPress ? (
-        <Pressable
-          onPress={onPress}
-          accessibilityRole="button"
-          accessibilityLabel={`${device.name}, ${stateLine(device)}`}
-          accessibilityHint="Shows the device's controls"
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          {header}
-        </Pressable>
-      ) : (
-        header
-      )}
-
-      <View style={styles.chips}>
-        <StatusChip label={device.online ? 'Online' : 'Offline'} tone={device.online ? 'teal' : 'red'} />
-        {device.source === 'gateway' ? <StatusChip label="Local" tone="indigo" icon="wifi-outline" /> : null}
-        {device.experimental ? <StatusChip label="Experimental" tone="amber" icon="flask-outline" /> : null}
-        {device.assumed && device.online ? <StatusChip label="Not confirmed" tone="slate" icon="help-circle-outline" /> : null}
+      {/* Siblings, not nested: a screen reader reaches the card and its On/Off separately. */}
+      <View style={styles.row}>
+        {onPress ? (
+          <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={[device.name, device.room, state].filter(Boolean).join(', ')}
+            accessibilityHint="Opens its controls"
+            style={({ pressed }) => [styles.summary, pressed && styles.pressed]}
+          >
+            {summary}
+          </Pressable>
+        ) : (
+          <View style={styles.summary}>{summary}</View>
+        )}
+        {onToggle && on !== null ? (
+          <ControlButton
+            label={on ? 'On' : 'Off'}
+            icon="power"
+            size="regular"
+            selected={on}
+            busy={pending}
+            disabled={!device.online}
+            accessibilityLabel={`Turn ${on ? 'off' : 'on'} ${device.name}`}
+            accessibilityValueText={on ? 'On' : 'Off'}
+            onPress={() => onToggle(!on)}
+            style={styles.power}
+          />
+        ) : null}
       </View>
 
-      <AppText variant="tileCaption" color={theme.colors.textAccentSoft} accessibilityLiveRegion="polite">
-        {stateLine(device)}
-      </AppText>
+      {device.source === 'gateway' || device.experimental || (device.assumed && device.online) ? (
+        <View style={styles.chips}>
+          {device.source === 'gateway' ? <StatusChip label="Local" tone="indigo" icon="wifi-outline" /> : null}
+          {device.experimental ? <StatusChip label="Experimental" tone="amber" icon="flask-outline" /> : null}
+          {device.assumed && device.online ? <StatusChip label="Not confirmed" tone="slate" icon="help-circle-outline" /> : null}
+        </View>
+      ) : null}
+
       {problem ? (
-        <AppText variant="tileCaption" color={theme.colors.error} accessibilityRole="alert">
-          {problem}
-        </AppText>
+        <View style={styles.state} accessibilityRole="alert">
+          <AppIcon set="material" name="alert-circle-outline" size={STATE_ICON_SIZE} color={theme.colors.error} />
+          <AppText variant="controlCaption" color={theme.colors.error} style={styles.stateText}>
+            {error ? problemAdvice(error) : problem}
+          </AppText>
+        </View>
       ) : null}
 
       {children}
@@ -120,6 +146,13 @@ function createStyles(theme: AppTheme) {
       gap: theme.spacing.sm,
     },
     row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+    },
+    summary: {
+      flex: 1,
+      minHeight: theme.layout.deviceControl.minTarget,
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing.sm + theme.spacing.xs,
@@ -144,12 +177,16 @@ function createStyles(theme: AppTheme) {
       flex: 1,
       gap: 2,
     },
-    control: {
+    state: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: theme.spacing.xs,
     },
-    spinner: {
-      marginRight: theme.spacing.sm,
+    stateText: {
+      flexShrink: 1,
+    },
+    power: {
+      minWidth: POWER_MIN_WIDTH,
     },
     chips: {
       flexDirection: 'row',

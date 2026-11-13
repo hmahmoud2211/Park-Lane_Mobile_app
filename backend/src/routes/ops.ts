@@ -2,6 +2,7 @@ import { createAccountWithTemporaryPassword, resetToTemporaryPassword } from '..
 import { attachGateway } from '../ems/gatewayAccess.ts';
 import { gatewayContainerOf, gatewayContainersEnabled, provisionGateway, removeGatewayContainer } from '../ems/gatewayProvisioner.ts';
 import { adminRemoveMember } from '../ems/membership.ts';
+import { recheckUserConnections } from '../ems/realtime.ts';
 import { attachHub } from '../ha/admin.ts';
 import { getHubForUnit, listHubs } from '../ha/hubs.ts';
 import { deprovisionUnit, provisionUnit } from '../ha/provisioner.ts';
@@ -64,7 +65,10 @@ export const opsRoutes: RouteGroup = async ({ req, res, path, method }) => {
   }
   const reset = /^\/api\/admin\/users\/([^/]+)\/reset-password$/.exec(path);
   if (reset && method === 'POST') {
-    ok(res, await resetToTemporaryPassword(decodeURIComponent(reset[1])));
+    const userId = decodeURIComponent(reset[1]);
+    const result = await resetToTemporaryPassword(userId);
+    recheckUserConnections(userId);
+    ok(res, result);
     return true;
   }
 

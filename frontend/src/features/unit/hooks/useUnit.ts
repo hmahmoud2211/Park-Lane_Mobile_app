@@ -62,6 +62,15 @@ export function useUnit() {
     setVersion((current) => current + 1);
   }, []);
 
+  // Someone joined or was removed (here or on another phone): read the members again.
+  const { onRealtimeEvent } = ems;
+  useEffect(() => {
+    if (!key) return;
+    return onRealtimeEvent((event) => {
+      if (event.type === 'unit.updated') reload();
+    });
+  }, [key, onRealtimeEvent, reload]);
+
   const settle = useCallback(
     (unit: MyUnit) => {
       if (key) setLoaded({ key, outcome: { status: 'ready', unit } });
@@ -82,6 +91,9 @@ export function useUnit() {
   );
 
   const createInvite = useCallback((role: UnitRole) => api.createInvite(role), []);
+
+  /** Which apartment a code is for, without joining. Throws EmsError like join. */
+  const check = useCallback((code: string) => api.checkInvite(code), []);
 
   const removeMember = useCallback(
     async (userId: string) => {
@@ -104,5 +116,5 @@ export function useUnit() {
     return loaded?.key === key ? loaded.outcome : { status: 'loading' };
   }, [key, loaded]);
 
-  return { state, reload, join, createInvite, removeMember };
+  return { state, reload, join, check, createInvite, removeMember };
 }

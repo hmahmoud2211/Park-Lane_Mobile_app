@@ -1176,6 +1176,42 @@ const MIGRATIONS: readonly string[] = [
     SELECT '*', kind, year, MAX(next) FROM reference_counters WHERE site_id != '*' GROUP BY kind, year
     ON CONFLICT(site_id, kind, year) DO UPDATE SET next = MAX(next, excluded.next);
   `,
+  `
+  -- An owner's unused family invites end when they stop being an owner of that apartment: removed, moved to another
+  -- unit or made a member, by an owner, an admin or account deletion alike. Otherwise their codes would still fill
+  -- the apartment's ten open invites, and work again if they were made an owner once more.
+  CREATE TRIGGER unit_invites_end_on_leave AFTER DELETE ON unit_members
+  BEGIN
+    DELETE FROM unit_invites WHERE created_by = OLD.user_id AND unit_id = OLD.unit_id AND used_at IS NULL;
+  END;
+  CREATE TRIGGER unit_invites_end_on_change AFTER UPDATE OF unit_id, role ON unit_members
+    WHEN OLD.unit_id IS NOT NEW.unit_id OR NEW.role != 'owner'
+  BEGIN
+    DELETE FROM unit_invites WHERE created_by = OLD.user_id AND unit_id = OLD.unit_id AND used_at IS NULL;
+  END;
+  DELETE FROM unit_invites WHERE used_at IS NULL AND NOT EXISTS (
+    SELECT 1 FROM unit_members m WHERE m.user_id = unit_invites.created_by AND m.unit_id = unit_invites.unit_id AND m.role = 'owner'
+  );
+  `,
+  `
+  -- Reports of AI-generated content (aiReports/): an answer someone flagged from the app, signed in or a guest
+  -- (user_id and unit_id NULL). The excerpt (the AI's text, which can be health information) and the note are
+  -- sealed. A report goes with its account when the account is deleted.
+  CREATE TABLE ai_reports (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    unit_id TEXT REFERENCES units(id) ON DELETE SET NULL,
+    source TEXT NOT NULL CHECK (source IN ('assistant', 'assistant_voice', 'health_summary', 'health_review')),
+    reason TEXT NOT NULL CHECK (reason IN ('offensive', 'harmful', 'wrong', 'other')),
+    note TEXT,
+    excerpt TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewed')),
+    created_at TEXT NOT NULL,
+    reviewed_at TEXT
+  );
+  CREATE INDEX ai_reports_status ON ai_reports(status, created_at);
+  CREATE INDEX ai_reports_user ON ai_reports(user_id);
+  `,
 ];
 
 let instance: DatabaseSync | null = null;

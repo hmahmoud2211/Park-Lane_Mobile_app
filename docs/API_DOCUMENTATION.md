@@ -23,14 +23,17 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 |---|---|---|
 | `bad_request` | 400 | The body or a field is wrong (also: a body that is not a JSON object, over 16 KB) |
 | `unauthorized` | 401 | No token, a wrong one, an expired one, or a token of a kind this route does not take |
-| `forbidden` | 403 | Allowed caller, refused action (an assistant token unlocking a door) |
+| `forbidden` | 403 | Allowed caller, refused action (an assistant token unlocking or opening a door, or disarming the alarm) |
 | `not_found` / `no_home` | 404 | No such route, record or device; `no_home`: the account is not in a unit yet |
-| `conflict` / `not_available` | 409 | Already exists, a device still busy, a brand not enabled on this hub |
+| `conflict` / `not_available` | 409 | Already exists, a device still busy, a brand not enabled on this hub, an action the device can't do |
 | `flow_expired` | 410 | A linking flow older than 30 minutes, or someone else's |
 | `rate_limited` | 429 | Too many requests (limits below) |
 | `internal` | 500 | Anything unexpected; details stay in the server log |
 | `hub_auth` / `ha_rejected` | 502 | The unit's Home Assistant refused the backend / a device or its cloud refused a command |
+| `gateway_rejected` | 502 | The unit's CUBE gateway refused the backend's signed request, or a command (assistant tokens only) |
+| `invite_expired` / `invite_used` | 410 | A family invite code that was real has run out (or its owner left), or someone already used it |
 | `provisioning` / `hub_offline` / `not_configured` | 503 | The unit's hub is being set up / unreachable / a server setting is missing |
+| `gateway_offline` | 503 | The unit's CUBE gateway didn't answer through its relay, or has no relay address (assistant tokens only) |
 
 **Routing rules** (pinned by `backend/test/routing.test.ts`):
 - A path with a method it does not take answers **404**, like an unknown path. There is no 405.
@@ -43,10 +46,10 @@ The types named below are in [`shared/contracts`](../shared/contracts), which th
 | Token | From | Accepted by |
 |---|---|---|
 | Session | `POST /api/auth/login` or `/register`; 30 days, 12 hours for doctors and desk staff | every resident route; the clinic's doctor and desk routes also check the role |
-| Assistant | `POST /api/auth/assistant-token`; ≤ 12 hours, never longer than its session | `GET /api/home`, `GET /api/devices`, `GET /api/devices/:id`, `GET /api/rooms`, `POST /api/devices/:id/commands` only; every command audited, `lock.unlock` refused |
+| Assistant | `POST /api/auth/assistant-token`; ≤ 12 hours, never longer than its session | `GET /api/home`, `GET /api/devices`, `GET /api/devices/:id`, `GET /api/rooms`, `POST /api/devices/:id/commands` only; every command audited, `lock.unlock`, `lock.open` and `alarm_control_panel.alarm_disarm` refused |
 | Admin key | `ADMIN_API_KEY` | `/api/health` (open while no key is set) and `/api/admin/*` (off until a key is set) |
 
-**Rate limits** (per IP before sign-in, per user after; one-minute windows, `backend/src/http/rateLimits.ts`): register and login 10, assistant token 20, device commands 60, starting a link flow 20, answering a flow step 60, refreshing accounts 6, creating rooms 20, gateway passes 20, gateway member checks 30 (per gateway), joining a unit 10 (per account and per IP); invites 20 an hour.
+**Rate limits** (per IP before sign-in, per user after; one-minute windows, `backend/src/http/rateLimits.ts`): register and login 10, assistant token 20, device commands 60, starting a link flow 20, answering a flow step 60, refreshing accounts 6, creating rooms 20, gateway passes 20, gateway member checks 30 (per gateway), joining a unit or checking a code 10 (per account and per IP, together); invites 20 an hour. Behind `TRUST_PROXY=1` the IP is Cloudflare's `CF-Connecting-IP`, else the right-most `X-Forwarded-For` entry; IPv6 callers count per /64.
 
 ## Accounts — `routes/auth.ts`
 
@@ -155,6 +158,27 @@ Realtime: `request.updated` to the unit's residents. Management's steps and mess
 
 Realtime: `community.updated` to the compound's residents whenever management changes something.
 
+## Reports of AI answers — `routes/aiReports.ts`
+
+Google Play's AI-Generated Content policy: anyone using the app flags an AI answer without leaving it, from the
+Parklane Assistant (chat and voice) and Health Passport (spoken summaries, the AI's reading of a document). Types in
+`shared/contracts/aiReports.ts`.
+
+| Method & path | Who | Answer |
+|---|---|---|
+| `POST /api/ai-reports { source, reason, note?, excerpt }` | anyone; a session is optional | `AiReportReceipt` `{ id, receivedAt }`. `source` assistant / assistant_voice / health_summary / health_review, `reason` offensive / harmful / wrong / other, `note` up to 500 characters, `excerpt` (the AI's text) 1–4000 characters, both trimmed; `422 invalid` with `field` otherwise. Body up to 32 KB |
+| `GET /api/admin/ai-reports?status=new\|reviewed` | admin | `AdminAiReportView[]`, new first, at most 300; without `status`, both |
+| `POST /api/admin/ai-reports/:id/reviewed` | admin | the report, now `reviewed` (a second call keeps the first time); recorded in the admin log |
+
+- **Signed in or not.** A live session links the report to the account and its apartment. A missing, expired,
+  revoked or made-up token is taken as a guest's report (never `401`): it is then linked to no one, so nobody is
+  named who could not be checked, and a report of harmful content is not lost because a sign-in ran out.
+- **Privacy.** The excerpt can hold health information, so it is sealed at rest with the note, and neither is ever
+  logged (the log says only that a report came in, with its source and reason). Deleting an account deletes the
+  reports it sent; guests' reports name no one and stay.
+- **Limits.** 10 an hour per account (per address for a guest), and 30 an hour per address for everyone together.
+- The admin dashboard lists them under **AI reports** (`admin/pages/ai-reports.js`).
+
 ## Amenities — `routes/amenities.ts`
 
 | Method & path | Who | Answer |
@@ -237,20 +261,87 @@ with real residents without `--yes-i-am-sure` (checked before anything is writte
 | `GET /api/rooms` | — | `Room[]` |
 | `POST /api/rooms` | `{ name }` | the new `Room` (session only) |
 
-Commands, by capability (checked against `backend/src/ha/commands.ts`):
+**The unit's CUBE gateway, for the assistant** (`backend/src/gateway/`). With an assistant token, `GET /api/devices`
+also lists the devices on the unit's CUBE gateway, with ids `gw.<device id>`, `integration: "cube_gateway"`, and each
+capability's `entityId` set to the gateway's capability key. `GET /api/devices/gw.…` and `POST /api/devices/gw.…/commands`
+reach the gateway through its relay address. Every request carries its own token, signed with the backend's gateway key.
+The token names the gateway, the resident, and the exact method and path, lasts a minute and works once
+(`ems/gatewayAccess.ts` `deviceCallToken`). Only these commands are sent, and only when the device lists the matching
+gateway command: power `on`/`off`/`toggle`, brightness `set`, color_temp `set`, color `set`, climate
+`set_temperature`/`set_mode`/`set_fan_mode`, cover `open`/`close`/`stop`/`set_position`, fan `set_percentage`, and
+media `play`/`pause`/`play_pause` (pause when playing, else play)/`next`/`previous`/`set_volume` (0–1)/`volume_up`/
+`volume_down`/`mute`/`select_source`. A gateway device's `can…` flags come from the commands it lists (`canPlay` from
+`media_play`, `canVolumeStep` from `volume_up` and `volume_down`…); what the gateway has no command for (presets,
+swing, tilt, sound modes, shuffle, repeat, stop) is false, null or empty. Each one is audited with `hub_id`
+`gw:<gateway id>`. A gateway that doesn't answer keeps its devices in the list as last seen, with `online: false`. The
+app's own session never sees these devices: the app talks to its gateway directly.
 
-| Capability | Actions (value) |
+**Capabilities** (`shared/contracts/home.ts`, built in `backend/src/ha/mapping.ts` from each entity's
+`supported_features` bits and attributes). A capability lists only what the entity reports it can do: a `can…` flag
+that is false, a null value or an empty list means "not on this device", and the matching command is refused with
+`409 not_available` before Home Assistant hears of it.
+
+| Home Assistant domain | Capabilities |
 |---|---|
-| `power` | `on`, `off`, `toggle` |
+| `light` | `power`; `brightness`, `color_temp`, `color` from its colour modes; `option` (role `effect`, label "Effect") with the EFFECT bit |
+| `switch`, `input_boolean`, `siren` | `power` |
+| `fan` | `power`; `fan` with any of SET_SPEED (`percentage`, `percentageStep`), PRESET_MODE, OSCILLATE (`oscillating`), DIRECTION (`direction`) |
+| `cover` | `cover`: `canPosition`, `canStop`, tilt (`tilt`, `canTilt` = OPEN/CLOSE_TILT, `canSetTilt` = SET_TILT_POSITION) |
+| `climate` | `climate`: `target` (TARGET_TEMPERATURE), `targetLow`/`targetHigh` (TARGET_TEMPERATURE_RANGE), fan modes, presets, swing modes, `targetHumidity` (TARGET_HUMIDITY; `minHumidity`/`maxHumidity` default 30/99), `currentHumidity` |
+| `lock` | `lock`, with `canOpen` (OPEN: unlatch) |
+| `media_player` | `power` (TURN_ON / TURN_OFF); `media`: volume, mute, sources, sound modes, shuffle, repeat, `canPlay`/`canPause`/`canStop`/`canNext`/`canPrevious`, `canVolumeStep` (VOLUME_STEP or VOLUME_SET) |
+| `vacuum` | `vacuum`: `battery` (older integrations' BATTERY bit; current Home Assistant reports it as a sensor), fan speeds, `canPause`/`canStop`/`canReturn`/`canLocate`/`canSpot` |
+| `humidifier` | `power`; `humidifier`: target (min/max default 0/100), modes (MODES) |
+| `water_heater` | `power` (ON_OFF); `water_heater`: target (TARGET_TEMPERATURE), operation modes (OPERATION_MODE), `away` (AWAY_MODE) |
+| `valve` | `valve`: `canPosition`, `canStop` |
+| `alarm_control_panel` | `alarm`: `modes` from the ARM_HOME / ARM_AWAY / ARM_NIGHT / ARM_VACATION / ARM_CUSTOM_BYPASS bits; `codeRequired` when the panel has a `code_format` |
+| `lawn_mower` | `mower`: `canPause`, `canDock` |
+| `remote` | `power`; `option` (role `activity`, label "Activity") with the ACTIVITY bit |
+| `select`, `input_select` | `option` (role `setting`) |
+| `number`, `input_number` | `number`: min, max, step, unit |
+| `button`, `input_button` | `press` |
+
+A device's **settings** (Home Assistant `config` entities: child lock, power-on behaviour, LED brightness…) come after
+its everyday controls with `advanced: true`; the app keeps them under "More settings". They never decide the device's
+`kind`, and a command without `entityId` goes to the everyday control of that type first. Diagnostic, hidden and
+disabled controls are left out. Kinds, most specific first: `alarm`, `climate`, `water_heater`, `humidifier`,
+`vacuum`, `mower`, `lock`, `valve`, `cover`, `media`, `fan`, `light`, `switch`/`plug`; else `sensor` or `other`.
+
+Commands, by capability (checked against `backend/src/ha/commands.ts`; each becomes exactly one Home Assistant service
+with fixed data keys, numbers clamped, choices checked against the entity's own list):
+
+| Capability | Actions (value) → service |
+|---|---|
+| `power` | `on`, `off`, `toggle` → `turn_on` / `turn_off` / `toggle` (a water heater's toggle is `turn_on` or `turn_off`: it has no toggle service) |
 | `brightness` | `set` (0–100; 0 turns off) |
 | `color_temp` | `set` (kelvin, clamped to the light's range) |
 | `color` | `set` (`{ h: 0–360, s: 0–100 }`) |
-| `climate` | `set_temperature` (clamped), `set_mode`, `set_fan_mode` |
-| `cover` | `open`, `close`, `stop`, `set_position` (0–100) |
-| `lock` | `lock`, `unlock` (audited; refused for assistant tokens) |
-| `fan` | `set_percentage` (0–100), `set_preset` |
-| `media` | `play`, `pause`, `next`, `previous`, `set_volume` (0–1), `mute` (boolean), `select_source` |
+| `climate` | `set_temperature` (clamped), `set_temperature_range` (`{ low, high }`, clamped, low ≤ high → `set_temperature` with `target_temp_low`/`high`), `set_mode`, `set_fan_mode`, `set_preset` → `set_preset_mode`, `set_swing_mode`, `set_humidity` (whole %, clamped) |
+| `cover` | `open`, `close`, `stop`, `set_position` (0–100), `open_tilt`, `close_tilt`, `stop_tilt` (needs `canTilt` and `canStop`), `set_tilt` (0–100) → `set_cover_tilt_position` |
+| `lock` | `lock`, `unlock`, `open` (unlatch; needs `canOpen`). `unlock` and `open` are audited and refused for assistant tokens |
+| `fan` | `set_percentage` (0–100), `set_preset`, `set_oscillating` (boolean) → `oscillate`, `set_direction` (`forward` / `reverse`) |
+| `media` | `play`, `pause`, `play_pause` (needs both), `stop`, `next`, `previous`, `set_volume` (0–1), `volume_up`, `volume_down`, `mute` (boolean), `select_source`, `select_sound_mode`, `set_shuffle` (boolean) → `shuffle_set`, `set_repeat` (`off` / `one` / `all`) → `repeat_set` |
 | `press` | `press` |
+| `option` | `select` (one of `options`) → `select.select_option` / `input_select.select_option`, a light's `turn_on { effect }`, a remote's `turn_on { activity }` |
+| `number` | `set` → `set_value`, clamped and rounded to the step |
+| `vacuum` | `start`, `pause`, `stop`, `return_to_base`, `locate`, `clean_spot`, `set_fan_speed` (one of `fanSpeeds`) |
+| `humidifier` | `set_humidity` (whole %, clamped), `set_mode` |
+| `water_heater` | `set_temperature` (clamped), `set_mode` → `set_operation_mode`, `set_away` (boolean) → `set_away_mode` |
+| `valve` | `open` → `open_valve`, `close` → `close_valve`, `stop` → `stop_valve`, `set_position` (0–100) → `set_valve_position` |
+| `alarm` | `arm` (`{ mode, code? }`, mode one of `modes`) → `alarm_arm_<mode>`; `disarm` (`{ code? }`) → `alarm_disarm`. Both audited; `disarm` refused for assistant tokens |
+| `mower` | `start` → `start_mowing`, `pause`, `dock` |
+
+**Safety.** Audited for every caller: `lock.unlock`, `lock.open`, `alarm_control_panel.alarm_disarm` and every
+`alarm_control_panel.alarm_arm_*`; every assistant command is audited too. Refused (`403 forbidden`) to assistant
+tokens: `lock.unlock`, `lock.open` and `alarm_control_panel.alarm_disarm`: a door opens and the alarm goes off only
+with the resident's own tap. An alarm code is text of 1–32 characters. It goes to Home Assistant only and is never
+stored, logged or audited. A panel with `codeRequired` refuses `disarm` without one (`400`). Arming passes the code when
+given; panels that want it only to disarm (Home Assistant's `code_arm_required: false`) arm without it, and Home
+Assistant answers a wrong or missing code with `502 ha_rejected`.
+
+The contract has no flag for a few actions, so these are sent and Home Assistant decides: `vacuum start`, `mower
+start`, `valve open`/`close`, `cover open`/`close`. With TARGET_TEMPERATURE_RANGE, `targetLow`/`targetHigh` can be
+null outside `heat_cool`; the range is then refused until the device reports one.
 
 A command is pushed as `pending` to every open app, then the device's reported state follows. Reads keep serving the last known state while the hub is offline.
 
@@ -313,9 +404,20 @@ at once and the gateway at its next member check.
 | Method & path | Body | Answer |
 |---|---|---|
 | `GET /api/unit` | — | `MyUnit`: `{ unit, role, members }`; members' emails only for owners; 404 `no_home` without a unit |
-| `POST /api/unit/invites` | `{ role? }` | `UnitInvite`: `{ code, role, expiresAt }`; owners only; single use, 24 hours, at most 10 open per unit |
-| `POST /api/unit/join` | `{ code }` | `MyUnit`; 422 `invalid` (wrong, used, expired), 409 `conflict` (already in another unit); a code for your own unit isn't used up |
+| `POST /api/unit/invites` | `{ role? }` | `UnitInvite`: `{ id, code, link, role, expiresAt }`; owners only; single use, 24 hours, at most 10 open per unit. `link` is `${PUBLIC_URL}/join#<code>` (null without `PUBLIC_URL`) |
+| `GET /api/unit/invites` | — | `OpenUnitInvite[]` (`{ id, role, invitedBy, createdAt, expiresAt }`, newest first): invites nobody has used yet; owners only. Codes are never shown again |
+| `DELETE /api/unit/invites/:id` | — | `OpenUnitInvite[]` still open; owners only; 404 if already used or cancelled. The code stops working at once |
+| `POST /api/unit/invites/check` | `{ code }` | `UnitInvitePreview`: `{ unit: { name, building }, invitedBy, role, expiresAt, alreadyMember }`, without joining. Refused like join |
+| `POST /api/unit/join` | `{ code }` | `MyUnit`; 422 `invalid` (no such code), 410 `invite_expired` / `invite_used`, 409 `conflict` (already in another unit). A code for your own unit answers with it and isn't used up. Owners get an `account` notification |
 | `DELETE /api/unit/members/:userId` | — | `MyUnit`; owners only, not themselves |
+
+`code` may be typed loosely (any case, spaces) or be a whole pasted invite message or link. An invite works only while
+the owner who made it is still an owner of that unit: a trigger deletes an owner's unused invites when they leave, move
+or become a member. Codes are stored as a keyed hash (`sign()`), and an invite's `id` is its row number, unrelated to
+the code. Changes to the unit (join, removal, invites) send the realtime event `unit.updated` to its members, and to a
+removed member. `GET /join#<code>` (and `/join/<code>`) is a static public page with an "Open in the Parklane app"
+button (`parklane://join/<code>`), the store link and the code; it looks nothing up, and `/join/…` paths are logged
+without the code.
 
 ## CUBE gateway access — `routes/gateway.ts`
 

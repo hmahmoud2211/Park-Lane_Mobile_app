@@ -30,6 +30,10 @@ export const RATE_LIMITS = {
   'request-photo': { max: 40, windowMs: 3_600_000 },
   'request-comment': { max: 60, windowMs: 3_600_000 },
   feedback: { max: 10, windowMs: 3_600_000 },
+  /** Reports of AI answers: per account when signed in, per address for a guest. */
+  'ai-report': { max: 10, windowMs: 3_600_000 },
+  /** And per address for everyone, so new accounts or guests on one address cannot flood the queue. */
+  'ai-report-ip': { max: 30, windowMs: 3_600_000 },
   'amenity-booking': { max: 30, windowMs: 3_600_000 },
   'parking-booking': { max: 30, windowMs: 3_600_000 },
   'parking-pass': { max: 60, windowMs: 60_000 },

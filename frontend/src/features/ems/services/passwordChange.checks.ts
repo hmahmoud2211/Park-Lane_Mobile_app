@@ -53,10 +53,11 @@ const checks: [string, () => void][] = [
   [
     'refusals: wrong temporary password, the backend’s rules, too many tries, anything else as it came',
     () =>
-      equal(['unauthorized', 'bad_request', 'rate_limited', 'network', 'internal', null].map(passwordChangeFailure), [
+      equal(['unauthorized', 'bad_request', 'rate_limited', 'network', 'internal', 'session_ended', null].map(passwordChangeFailure), [
         'wrong_current',
         'rules',
         'rate_limited',
+        'other',
         'other',
         'other',
         'other',

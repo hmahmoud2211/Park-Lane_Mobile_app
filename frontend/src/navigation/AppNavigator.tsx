@@ -6,13 +6,15 @@ import {
   type Theme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { AppShell } from '../components/layout/AppShell';
 import { flags } from '../config/flags';
 import { useEms } from '../features/ems/hooks/useEms';
 import { HealthNotifier } from '../features/health/components/HealthNotifier';
+import { useInviteLinks } from '../features/unit/hooks/useInviteLinks';
+import { takePendingInvite } from '../features/unit/services/pendingInvite';
 import type { HealthNotice } from '../features/health/services/healthStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AddDeviceMethodScreen } from '../screens/AddDeviceMethodScreen';
@@ -34,6 +36,7 @@ import { DeviceSetupScreen } from '../screens/DeviceSetupScreen';
 import { EmsDevicesScreen } from '../screens/EmsDevicesScreen';
 import { FirstScreen } from '../screens/FirstScreen';
 import { GatewaySetupScreen } from '../screens/GatewaySetupScreen';
+import { HouseholdScreen } from '../screens/HouseholdScreen';
 import { HealthConsultationScreen } from '../screens/HealthConsultationScreen';
 import { HealthDocumentScreen } from '../screens/HealthDocumentScreen';
 import { HealthItemFormScreen } from '../screens/HealthItemFormScreen';
@@ -95,7 +98,7 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 /** Every registered route; the visual-regression addresses below are made from it. */
 const ROUTE_NAMES = [
   'FirstScreen', 'Login', 'ChangePassword', 'Home', 'Profile', 'MyUnit', 'VisitorAccess', 'Maintenance', 'Parking',
-  'Community', 'SmartHome', 'Bms', 'EmsDevices', 'DeviceDetail', 'ConnectAccount', 'GatewaySetup',
+  'Community', 'SmartHome', 'Bms', 'EmsDevices', 'DeviceDetail', 'ConnectAccount', 'GatewaySetup', 'Household',
   'AddDevice', 'AddDeviceMethod', 'DeviceDiscovery', 'DeviceProvisioning', 'DeviceSetup',
   'LgPairing', 'AcControl', 'AmenitiesBooking', 'Services', 'Settings', 'Assistant',
   'UnderDevelopment', 'ReserveParking', 'ReservationDetails', 'ReservationHistory', 'GuestPass',
@@ -154,6 +157,8 @@ const linking: LinkingOptions<RootStackParamList> = {
       // The demo's own tools get addresses only while the build includes them (config/flags.ts).
       ...(flags.demoTools ? { SecurityConsole: 'parking/security', DemoControls: 'parking/demo' } : {}),
       HealthPassport: 'health',
+      // Family invites; on phones the invite page's parklane://join/<code> link opens it (useInviteLinks).
+      Household: 'household/:code?',
       Clinic: 'clinic',
     },
   },
@@ -168,7 +173,47 @@ const OPEN_WHILE_PASSWORD_PENDING = new Set<keyof RootStackParamList>(['FirstScr
 export function AppNavigator() {
   const theme = useAppTheme();
   const [current, setCurrent] = useState<CurrentRoute>();
-  const { passwordChangeRequired } = useEms();
+  const { passwordChangeRequired, status, sessionNotice } = useEms();
+
+  // A family invite link (parklane://join/<code>): straight to it, or as soon as the navigator is ready.
+  const waitingInvite = useRef<string | null>(null);
+  const openInvite = useCallback((code: string) => {
+    if (navigationRef.isReady()) {
+      navigationRef.navigate('Household', { code });
+    } else {
+      waitingInvite.current = code;
+    }
+  }, []);
+  useInviteLinks(openInvite);
+
+  // An invite opened before signing in waited (features/unit/services/pendingInvite): back to it
+  // once signed in, on top of Home, which Login has just put in its own place.
+  useEffect(() => {
+    if (status !== 'signedIn' || passwordChangeRequired || !navigationRef.isReady()) {
+      return;
+    }
+    const code = takePendingInvite();
+    if (code) {
+      navigationRef.navigate('Household', { code });
+    }
+  }, [status, passwordChangeRequired]);
+
+  // The session ended while in use (it expired, or was signed out elsewhere): to the sign-in
+  // screen, which says why, rather than leaving every screen quietly signed out. Logging out
+  // on purpose leaves no notice and navigates by itself.
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    if (status === 'signedIn') {
+      wasSignedIn.current = true;
+      return;
+    }
+    if (status === 'signedOut' && wasSignedIn.current) {
+      wasSignedIn.current = false;
+      if (sessionNotice && navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }
+    }
+  }, [status, sessionNotice]);
 
   // A temporary password comes before anything else, also when a call says so mid-session
   // (an admin reset it): from anywhere else, straight to the step, with nothing to go back to.
@@ -255,7 +300,14 @@ export function AppNavigator() {
       ref={navigationRef}
       theme={navigationTheme}
       linking={linking}
-      onReady={trackRoute}
+      onReady={() => {
+        trackRoute();
+        const code = waitingInvite.current;
+        waitingInvite.current = null;
+        if (code) {
+          navigationRef.navigate('Household', { code });
+        }
+      }}
       onStateChange={trackRoute}
     >
       <AppShell current={current} onNavigate={navigateTab}>
@@ -281,6 +333,7 @@ export function AppNavigator() {
           <Stack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
           <Stack.Screen name="ConnectAccount" component={ConnectAccountScreen} />
           <Stack.Screen name="GatewaySetup" component={GatewaySetupScreen} />
+          <Stack.Screen name="Household" component={HouseholdScreen} />
           <Stack.Screen name="AddDevice" component={AddDeviceScreen} />
           <Stack.Screen name="AddDeviceMethod" component={AddDeviceMethodScreen} />
           <Stack.Screen name="DeviceDiscovery" component={DeviceDiscoveryScreen} />

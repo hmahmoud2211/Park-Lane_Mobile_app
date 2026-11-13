@@ -197,10 +197,22 @@ const EMS_ROUTES = [
   { name: 'EmsDevices', path: '/visual/EmsDevices' },
   { name: 'DeviceDetail', path: '/visual/DeviceDetail?deviceId={device}' },
   { name: 'DeviceSetup', path: '/visual/DeviceSetup?deviceId={device}' },
+  // Each kind's main control, from the stand-in hub's demo home (backend/test/fakeHa.ts).
+  { name: 'DeviceTv', path: '/visual/DeviceDetail?deviceId={media}' },
+  { name: 'DeviceClimate', path: '/visual/DeviceDetail?deviceId={climate}' },
+  { name: 'DeviceVacuum', path: '/visual/DeviceDetail?deviceId={vacuum}' },
+  { name: 'DeviceAlarm', path: '/visual/DeviceDetail?deviceId={alarm}' },
+  { name: 'DeviceLight', path: '/visual/DeviceDetail?deviceId={light}' },
+  // A TV on the unit's CUBE gateway (needs --allow with the gateway's address); missing without one.
+  { name: 'DeviceGatewayTv', path: '/visual/DeviceDetail?deviceId={gatewayTv}' },
   { name: 'ConnectAccount', path: '/visual/ConnectAccount' },
   { name: 'AddDevice', path: '/visual/AddDevice' },
   { name: 'AddDeviceMethod', path: '/visual/AddDeviceMethod?brandId=switchbot' },
   { name: 'Assistant', path: '/visual/Assistant' },
+  { name: 'GatewaySetup', path: '/visual/GatewaySetup' },
+  // Household has a product address (household/:code?), which wins over visual/<Route>.
+  { name: 'Household', path: '/household' },
+  { name: 'HouseholdWrongCode', path: '/household/ZZZZ-ZZZZ' },
 ];
 
 /**
@@ -492,10 +504,20 @@ async function emsSetup(backend) {
   };
   const login = await call('POST', '/api/auth/login', { email: 'demo@parklane.test', password: 'correct horse battery' });
   const token = login.token;
-  const devices = await call('GET', '/api/devices', undefined, token);
+  // An account with no apartment has no devices; its screens (e.g. Household's join step) still capture.
+  const devices = await call('GET', '/api/devices', undefined, token).catch(() => []);
   const list = Array.isArray(devices) ? devices : devices.devices;
   const sorted = [...list].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-  return { token, ids: { device: sorted[0]?.id ?? 'missing' } };
+  const ids = { device: sorted[0]?.id ?? 'missing' };
+  for (const kind of ['media', 'climate', 'vacuum', 'alarm', 'light']) {
+    ids[kind] = sorted.find((entry) => entry.kind === kind)?.id ?? 'missing';
+  }
+  // The assistant's view includes the unit's gateway devices (gw.<id>); the app names them gw:<id>.
+  const assistant = await call('POST', '/api/auth/assistant-token', undefined, token).catch(() => null);
+  const everything = assistant ? await call('GET', '/api/devices', undefined, assistant.token).catch(() => []) : [];
+  const gatewayTv = everything.find((entry) => entry.id.startsWith('gw.') && entry.kind === 'media');
+  ids.gatewayTv = gatewayTv ? `gw:${gatewayTv.id.slice(3)}` : 'missing';
+  return { token, ids };
 }
 
 async function capture() {
@@ -517,6 +539,8 @@ async function capture() {
     routes = EMS_ROUTES;
     allow.push(backend);
   }
+  // Extra addresses the page may reach, e.g. a local CUBE gateway: --allow http://127.0.0.1:8686
+  allow.push(...(option('allow')?.split(',') ?? []));
   if (profileName === 'interactions') routes = INTERACTION_ROUTES;
   if (profileName === 'health') routes = HEALTH_ROUTES;
   if (only) routes = routes.filter((route) => only.includes(route.name));

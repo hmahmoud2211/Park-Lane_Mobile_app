@@ -16,7 +16,8 @@ type ControlEvent = { type: 'ready' } | { type: 'error'; code: string };
  * authenticates with its first message (`{ type: 'auth', token }`), goes live on `ready`,
  * and stops for good on `{ type: 'error', code: 'unauthorized' }`. A dropped connection
  * reconnects with exponential back-off and jitter (half to all of min * 2^n, capped);
- * `wake()` reconnects at once, e.g. when the app returns to the foreground.
+ * `wake()` reconnects at once, e.g. when the app returns to the foreground, and `restart()`
+ * replaces a connection that may have died unnoticed.
  */
 export abstract class ReconnectingSocket<E extends { type: string }> {
   private socket: WebSocket | null = null;
@@ -59,6 +60,14 @@ export abstract class ReconnectingSocket<E extends { type: string }> {
       this.attempt = 0;
       this.open();
     }
+  }
+
+  /**
+   * Drops the connection even if it looks open and connects again at once: after a long time in
+   * the background a socket can be dead without ever reporting it closed, and wake() trusts it.
+   */
+  restart() {
+    this.reconnect();
   }
 
   /** Drops the current connection and, unless stopped, connects again at once (to a new url()). */

@@ -203,7 +203,8 @@ export async function setPassword(userId: string, passwordInput: unknown): Promi
     throw new ApiError('bad_request', 'Clinic passwords must be 10 to 128 characters.');
   }
   updatePasswordHash(userId, await hashPassword(password));
-  revokeTokens(userId, ['session']);
+  // Assistant tokens too: they are issued from a session and must not outlive the old password either.
+  revokeTokens(userId, ['session', 'assistant']);
 }
 
 export function getUser(id: string): User | null {

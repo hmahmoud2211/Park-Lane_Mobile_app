@@ -15,6 +15,8 @@
   just ask for a new pass.
 - **Installers.** Setup codes still work, for whoever installs the gateway; phones paired that way aren't touched by
   the sync.
+- **The assistant.** The Parklane Assistant runs on a server, so the backend reads and drives a resident's devices
+  for it through the relay, one signed request at a time (`device_call`): device list, one device, device commands.
 """
 
 from __future__ import annotations
@@ -40,6 +42,10 @@ SYNC_EVERY = 300.0
 #: Allowed difference between the backend's clock and the gateway's.
 CLOCK_SKEW = 120
 ROLES = {"owner", "member"}
+#: How a device call's bearer token starts (`Bearer emscall.<body>.<signature>`); phones' tokens never do.
+DEVICE_CALL_PREFIX = "emscall."
+#: The longest a device call may be valid for, in seconds.
+DEVICE_CALL_TTL = 120
 
 
 def _b64d(value: str) -> bytes:
@@ -80,10 +86,8 @@ class AccountAccess:
 
     # ---- signing in with a pass ----
 
-    async def verify(self, token: str, now: float | None = None) -> dict[str, Any]:
-        """The pass's claims if it is genuine, for this gateway, current and unused; else AuthError (401)."""
-        now = time.time() if now is None else now
-        invalid = AuthError("invalid_pass", "That sign-in pass isn't valid any more. Try connecting again.", 401)
+    async def _open(self, token: str, now: float, invalid: AuthError) -> dict[str, Any]:
+        """Claims signed by the backend's key, for this gateway, current, with a subject and an id; else `invalid`."""
         body, _, signature = str(token or "").partition(".")
         if not body or not signature or len(token) > 4096:
             raise invalid
@@ -94,18 +98,58 @@ class AccountAccess:
             raise invalid from error
         if not isinstance(claims, dict) or claims.get("v") != 1 or str(claims.get("gw", "")).lower() != self.gateway.security.gateway_id:
             raise invalid
-        if not claims.get("sub") or claims.get("role") not in ROLES or not claims.get("jti"):
+        if not claims.get("sub") or not claims.get("jti"):
             raise invalid
-        if not (float(claims.get("iat", 0)) <= now + CLOCK_SKEW and float(claims.get("exp", 0)) > now - CLOCK_SKEW):
+        try:
+            current = float(claims.get("iat", 0)) <= now + CLOCK_SKEW and float(claims.get("exp", 0)) > now - CLOCK_SKEW
+        except (TypeError, ValueError) as error:
+            raise invalid from error
+        if not current:
             raise invalid
+        return claims
+
+    async def _use_once(self, claims: dict[str, Any], now: float, invalid: AuthError) -> None:
         db = self.gateway.db
         await db.execute("DELETE FROM used_passes WHERE expires_at < ?", (now - CLOCK_SKEW,))
         if await db.fetchone("SELECT 1 FROM used_passes WHERE jti = ?", (str(claims["jti"]),)):
-            raise invalid  # each pass works once
-        if claims.get("sid") and await db.fetchone("SELECT 1 FROM ended_sessions WHERE session_id = ?", (str(claims["sid"]),)):
-            raise invalid  # a phone removed here: its session may not get back in
+            raise invalid
         await db.execute("INSERT INTO used_passes (jti, expires_at) VALUES (?, ?)", (str(claims["jti"]), float(claims["exp"])))
+
+    async def verify(self, token: str, now: float | None = None) -> dict[str, Any]:
+        """The pass's claims if it is genuine, for this gateway, current and unused; else AuthError (401)."""
+        now = time.time() if now is None else now
+        invalid = AuthError("invalid_pass", "That sign-in pass isn't valid any more. Try connecting again.", 401)
+        claims = await self._open(token, now, invalid)
+        if claims.get("typ") is not None or claims.get("role") not in ROLES:
+            raise invalid  # a device call (below) is never a sign-in pass
+        if claims.get("sid") and await self.gateway.db.fetchone("SELECT 1 FROM ended_sessions WHERE session_id = ?", (str(claims["sid"]),)):
+            raise invalid  # a phone removed here: its session may not get back in
+        await self._use_once(claims, now, invalid)  # each pass works once
         return claims
+
+    # ---- the backend acting for a resident ----
+
+    async def device_call(self, token: str, method: str, path: str, now: float | None = None) -> Client:
+        """One request the EMS backend makes for a resident: the Parklane Assistant reads or drives their devices.
+
+        The assistant runs on a server and can't reach this gateway the way a phone does, so the backend asks for it
+        through the relay. Each request carries a token signed with the backend's key that names this gateway, the
+        resident, and the exact method and path; it lasts at most DEVICE_CALL_TTL seconds and works once. The API
+        accepts it only for the device list, one device and device commands (api.py), as a member: never pairing,
+        rooms, phones or settings. The resident's membership is the backend's check: it signs only for a resident of
+        the apartment this gateway is linked to.
+        """
+        now = time.time() if now is None else now
+        invalid = AuthError("invalid_call", "That request from EMS isn't valid.", 401)
+        claims = await self._open(token, now, invalid)
+        if claims.get("typ") != "device_call" or claims.get("m") != method.upper() or claims.get("p") != path:
+            raise invalid
+        if float(claims["exp"]) - float(claims["iat"]) > DEVICE_CALL_TTL:
+            raise invalid
+        await self._use_once(claims, now, invalid)
+        account = str(claims["sub"])
+        via = str(claims.get("via") or "EMS")[:64]
+        return Client(f"ems:{account}"[:80], via, "member", float(claims["iat"]), now, False, account, None)
 
     async def login(self, token: str, client_name: str) -> tuple[Client, str, str]:
         claims = await self.verify(token)

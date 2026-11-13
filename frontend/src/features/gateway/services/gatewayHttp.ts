@@ -103,13 +103,13 @@ export async function gatewayCall<T>(target: GatewayTarget, path: string, init: 
         return new GatewayError('cancelled', 'Stopped.');
       }
       return timedOut
-        ? new GatewayError('timeout', 'The gateway took too long to answer.', 'Check that it is running and that your phone is on the same network.')
-        : new GatewayError('network', 'Could not reach the gateway.', 'Check that it is running and that your phone is on the same network, or use its remote address.');
+        ? new GatewayError('timeout', 'Your gateway took too long to answer.', 'Check that it is switched on and your phone has internet, then try again.')
+        : new GatewayError('network', 'Could not reach your gateway.', 'Check that it is switched on and your phone has internet, then try again.');
     },
     read: async (response) => {
       const body = await readEnvelope<T, GatewayErrorBody>(response);
       if (!body) {
-        throw new GatewayError('internal', `The gateway answered ${response.status}.`, null, response.status);
+        throw new GatewayError('internal', 'Your gateway gave an answer the app didn’t understand.', 'Try again in a moment.', response.status);
       }
       if (!body.ok) {
         if (body.error.code === 'unauthorized' && target.token) {

@@ -52,7 +52,7 @@ export function useGatewayDevices() {
         }
         const gatewayId = toGatewayDeviceId(device.id);
         const accepted = raw.find((entry) => entry.id === gatewayId)?.commands ?? [];
-        const gatewayCommand = toGatewayCommand(next, accepted);
+        const gatewayCommand = toGatewayCommand(next, accepted, device);
         if (!gatewayCommand) {
           throw new GatewayError('unsupported_command', 'This device does not offer that control.');
         }

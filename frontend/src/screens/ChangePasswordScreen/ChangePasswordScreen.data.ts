@@ -52,11 +52,11 @@ export function problemText(problems: PasswordProblems, voluntary = false): { cu
   };
 }
 
-/** A refused change: the backend's own words for its rules, ours for the rest. */
-export function failureText(failure: PasswordChangeFailure, message: string): string {
+/** A refused change: the backend's own words for its rules (and a session that ended), ours for the rest. */
+export function failureText(failure: PasswordChangeFailure, message: string, voluntary = false): string {
   switch (failure) {
     case 'wrong_current':
-      return 'The temporary password isn’t right.';
+      return voluntary ? 'Your current password isn’t right.' : 'The temporary password isn’t right.';
     case 'rate_limited':
       return 'Too many tries. Wait a few minutes, then try again.';
     case 'rules':

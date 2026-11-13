@@ -88,6 +88,16 @@ export function shouldConnectOnSignIn(input: { signedIn: boolean; storeLoaded: b
 }
 
 /**
+ * A connection that failed only because nothing answered (signed in without signal, say) is tried
+ * again when the app returns to the foreground, while the phone still has no gateway. An answer
+ * the backend or the gateway gave (no gateway yet, refused) stands until the resident asks again.
+ */
+export function shouldRetryOnForeground(input: { link: AccountLink; signedIn: boolean; gatewayCount: number }): boolean {
+  const { link } = input;
+  return input.signedIn && input.gatewayCount === 0 && link.state === 'error' && (link.code === 'network' || link.code === 'timeout');
+}
+
+/**
  * A refused account-issued token gets one fresh pass and exchange per gateway and sign-in
  * (the phone was removed, or the resident's role changed and was re-issued); after that the
  * refusal stands. Pairing-issued gateways are never re-issued this way.

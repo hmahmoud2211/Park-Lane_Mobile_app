@@ -39,7 +39,7 @@ export async function loginWithAccount(clientName: string, gateways: readonly St
   if (!gateway) {
     // Not the gateway the backend named, so its address can't skip the identity check; the token it issued is dropped.
     void revokeOwnAccess({ lastUrl: step.url, token: result.token });
-    throw new GatewayError('unverified_gateway', 'A different gateway answered at your apartment gateway’s address.', 'Try again later, or ask building management.');
+    throw new GatewayError('unverified_gateway', 'The app couldn’t confirm this is your apartment’s gateway.', 'Try again later, or ask building management.');
   }
   return { kind: 'connected', gateway };
 }

@@ -9,6 +9,7 @@ import {
   isAccountIssued,
   removedOnSignOut,
   shouldConnectOnSignIn,
+  shouldRetryOnForeground,
   shouldRetryRefused,
   type AccountLink,
 } from '../services/accountAccess';
@@ -84,6 +85,9 @@ export const GatewayContext = createContext<GatewayContextValue | undefined>(und
 
 const CLIENT_NAME = `${brand.appName} on ${Platform.OS === 'ios' ? 'iPhone' : Platform.OS === 'android' ? 'Android' : 'the web'}`;
 
+/** Failed event-channel tries in a row before the gateway's address is looked up again. */
+const CHANNEL_FAILURES_BEFORE_LOOKUP = 2;
+
 function sortDevices(devices: GatewayDevice[]): GatewayDevice[] {
   return [...devices].sort((a, b) => (a.room ?? '￿').localeCompare(b.room ?? '￿') || a.name.localeCompare(b.name));
 }
@@ -124,7 +128,10 @@ export function GatewayProvider({ children }: PropsWithChildren) {
   const [problem, setProblem] = useState<string | null>(null);
   const listeners = useRef(new Set<(event: GatewayEvent) => void>());
   const channel = useRef<GatewayRealtime | null>(null);
-  const resolving = useRef<Promise<void> | null>(null);
+  /** The channel's last state, for the foreground check. */
+  const realtimeRef = useRef<RealtimeState>('offline');
+  /** The lookup in flight, for one gateway and token (`id:token`). */
+  const resolving = useRef<{ key: string; run: Promise<void> } | null>(null);
   const ems = useEms();
   // A session that must still choose its own password can't ask for a pass (403): account access waits for it.
   const signedIn = ems.status === 'signedIn' && !ems.passwordChangeRequired;
@@ -189,27 +196,49 @@ export function GatewayProvider({ children }: PropsWithChildren) {
     setDevices((current) => current.filter((entry) => entry.id !== id));
   }, []);
 
-  const load = useCallback(async (next: GatewayTarget) => {
+  /** Reads devices and rooms; shows them only if `isCurrent` still holds when they arrive. */
+  const load = useCallback(async (next: GatewayTarget, isCurrent: () => boolean = () => true) => {
     const [list, roomList] = await Promise.all([api.listDevices(next), api.listRooms(next)]);
+    if (!isCurrent()) {
+      return false;
+    }
     setDevices(sortDevices(list));
     setRooms(roomList);
     setDevicesLoaded(true);
+    return true;
   }, []);
+
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+
+  const gatewaysRef = useRef(gateways);
+  useEffect(() => {
+    gatewaysRef.current = gateways;
+  }, [gateways]);
 
   /** Finds a working, verified address for the active gateway and reads its devices. */
   const resolve = useCallback(
     async (gateway: StoredGateway, scan: boolean) => {
+      // Forgotten, replaced or given a new token meanwhile: a late answer must not touch the gateway shown now.
+      const stillActive = () => {
+        const current = activeRef.current;
+        return current !== null && current.id === gateway.id && current.token === gateway.token;
+      };
       setStatus((current) => (current === 'online' ? current : 'connecting'));
+      setProblem(null);
       const endpoint = await resolveEndpoint(gateway, { scan });
+      if (!stillActive()) {
+        return;
+      }
       if (!endpoint) {
         setStatus('offline');
         setBaseUrl(null);
         setProblem(
           gateway.endpoints.lan
-            ? 'Your gateway did not answer at its home or remote address.'
-            : isAccountIssued(gateway)
-              ? 'Your gateway did not answer through CUBE’s relay. Check your internet connection and try again.'
-              : 'Your gateway on CUBE’s server did not answer. Check your internet connection and try again.',
+            ? 'Your gateway isn’t answering. Check that it is switched on and your phone has internet, then try again.'
+            : 'Your gateway isn’t answering. Check your internet connection, then try again.',
         );
         setDevicesLoaded(true);
         return;
@@ -226,15 +255,25 @@ export function GatewayProvider({ children }: PropsWithChildren) {
         verifiedUrls: endpoint.newlyVerified ? [...gateway.verifiedUrls, endpoint.url].slice(-8) : gateway.verifiedUrls,
         endpoints,
       };
-      if (updated.lastUrl !== gateway.lastUrl || endpoint.newlyVerified || endpoint.lanChanged || tlsChanged) {
+      const changed = updated.lastUrl !== gateway.lastUrl || endpoint.newlyVerified || endpoint.lanChanged || tlsChanged;
+      // Saved only while the phone still keeps this gateway: a forgotten one must not come back.
+      if (changed && gatewaysRef.current.some((entry) => entry.id === gateway.id)) {
         await persist(updated);
+        if (!stillActive()) {
+          return;
+        }
       }
       try {
-        await load({ baseUrl: endpoint.url, token: gateway.token });
+        if (!(await load({ baseUrl: endpoint.url, token: gateway.token }, stillActive))) {
+          return;
+        }
         setBaseUrl(endpoint.url);
         setStatus('online');
         setProblem(null);
       } catch (error) {
+        if (!stillActive()) {
+          return;
+        }
         if (error instanceof GatewayError && error.code === 'unauthorized') {
           setStatus('unauthorized');
           setProblem(refusedProblem(gateway));
@@ -254,20 +293,24 @@ export function GatewayProvider({ children }: PropsWithChildren) {
     resolveRef.current = resolve;
   }, [resolve]);
 
-  const activeRef = useRef(active);
-  useEffect(() => {
-    activeRef.current = active;
-  }, [active]);
-
+  // One lookup at a time per gateway and token: a lookup for another gateway (or an old token) is not shared.
   const reconnect = useCallback(async () => {
     const gateway = activeRef.current;
     if (!gateway) {
       return;
     }
-    resolving.current ??= resolveRef.current(gateway, true).finally(() => {
-      resolving.current = null;
-    });
-    await resolving.current;
+    const key = `${gateway.id}:${gateway.token}`;
+    let current = resolving.current;
+    if (!current || current.key !== key) {
+      const run: Promise<void> = resolveRef.current(gateway, true).finally(() => {
+        if (resolving.current?.run === run) {
+          resolving.current = null;
+        }
+      });
+      current = { key, run };
+      resolving.current = current;
+    }
+    await current.run;
   }, []);
 
   // Resolve whenever the active gateway changes (activate() has cleared the previous one's state).
@@ -293,7 +336,7 @@ export function GatewayProvider({ children }: PropsWithChildren) {
   const refresh = useCallback(async () => {
     if (target) {
       try {
-        await load(target);
+        await load(target, () => activeRef.current?.token === target.token);
         return;
       } catch {
         // Fall through to a fresh resolve: the address may have changed.
@@ -322,9 +365,27 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       channel.current.retarget(baseUrl);
       return;
     }
+    let failures = 0;
     const next = new GatewayRealtime(baseUrl, token, {
       onEvent,
-      onState: setRealtime,
+      onState: (state) => {
+        setRealtime(state);
+        realtimeRef.current = state;
+        if (channel.current !== next) {
+          // Stopped on purpose (offline, another gateway): nothing to look for.
+          return;
+        }
+        if (state === 'live') {
+          failures = 0;
+        } else if (state === 'offline') {
+          failures += 1;
+          // The address that worked may be gone (the phone left home Wi-Fi): look the gateway up
+          // again instead of retrying that address forever, so the status says what is true.
+          if (failures % CHANNEL_FAILURES_BEFORE_LOOKUP === 0) {
+            void reconnect();
+          }
+        }
+      },
       onRefused: () => {
         setStatus('unauthorized');
         setProblem(refusedProblem(activeRef.current));
@@ -333,30 +394,38 @@ export function GatewayProvider({ children }: PropsWithChildren) {
     channel.current = next;
     next.start();
     return undefined;
-  }, [status, baseUrl, token, upsertDevice, dropDevice]);
+  }, [status, baseUrl, token, upsertDevice, dropDevice, reconnect]);
 
-  // Stop the channel when going offline, switching gateway or unmounting.
+  // Stop the channel when going offline, switching gateway or unmounting. It is let go before
+  // it stops, so its last "offline" is not taken for a lost connection.
   useEffect(() => {
     if (status === 'online') {
       return;
     }
-    channel.current?.stop();
+    const stopping = channel.current;
     channel.current = null;
+    stopping?.stop();
   }, [status]);
   useEffect(
     () => () => {
-      channel.current?.stop();
+      const stopping = channel.current;
       channel.current = null;
+      stopping?.stop();
     },
     [activeId],
   );
 
-  // Back in the foreground: wake the channel, or try again if the gateway was unreachable.
+  // Back in the foreground: wake the channel (and look the gateway up again if it is not live:
+  // the phone may be on another network now), or try again if the gateway was unreachable.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
       if (channel.current) {
+        const wasLive = realtimeRef.current === 'live';
         channel.current.wake();
+        if (!wasLive) {
+          void reconnect();
+        }
       } else if (activeRef.current && status === 'offline') {
         void reconnect();
       }
@@ -387,11 +456,6 @@ export function GatewayProvider({ children }: PropsWithChildren) {
     },
     [persist, activate],
   );
-
-  const gatewaysRef = useRef(gateways);
-  useEffect(() => {
-    gatewaysRef.current = gateways;
-  }, [gateways]);
 
   // One at a time per session: the automatic connection, a refused token's retry and the screen's
   // button share it, but a new session never waits on (or inherits) the last one's attempt.
@@ -449,6 +513,20 @@ export function GatewayProvider({ children }: PropsWithChildren) {
       void connectAccount();
     }
   }, [signedIn, status, gateways.length, connectAccount]);
+
+  // The automatic connection failed for want of network (signed in offline, say): try it again
+  // when the app comes back to the foreground.
+  useEffect(() => {
+    if (!shouldRetryOnForeground({ link: accountLink, signedIn, gatewayCount: gateways.length })) {
+      return;
+    }
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void connectAccount();
+      }
+    });
+    return () => subscription.remove();
+  }, [accountLink, signedIn, gateways.length, connectAccount]);
 
   // Each time the session becomes usable (signed in, or its password just set) is a fresh start.
   useEffect(() => {

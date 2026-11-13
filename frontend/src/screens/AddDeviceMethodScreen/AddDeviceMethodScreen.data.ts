@@ -14,17 +14,16 @@ export const addDeviceMethodCopy = {
   back: 'Back to brands',
   notes: 'Good to know',
   cloudTitle: 'Manufacturer account (cloud)',
-  cloudBody: 'Links your account with the maker through the building’s smart home hub. Control then goes through the maker’s cloud, not your Wi-Fi.',
+  cloudBody: 'Links your account with the maker through the building’s system. Control then goes through the maker’s cloud, not your Wi-Fi.',
   cloudAction: (name: string) => `Link ${name} account`,
   cloudNotEnabled: (name: string) => `${name}: not available yet`,
   cloudSignIn: 'Sign in to link your account',
-  cloudSignInBody: 'Linking uses your EMS account, so the devices stay with your unit.',
-  cloudNoHub: 'Your EMS account needs a unit with a ready smart home hub first. My Devices shows where it is.',
-  cloudLoadFailed: 'The brands the building offers could not be loaded. Try again in a moment.',
+  cloudSignInBody: 'Linking uses your Parklane account, so the devices stay with your unit.',
+  cloudNoHub: 'This works once your apartment is set up in the building’s system. My Devices shows how far it is.',
+  cloudLoadFailed: 'The brands the building offers could not be loaded.',
   unavailable: 'Not available',
   loadFailed: 'The brand could not be loaded.',
   retry: 'Try again',
-  offline: 'Your gateway is not reachable right now.',
 } as const;
 
 export const groupCopy: Record<MethodGroup, { title: string; intro: string; icon: string }> = {

@@ -26,6 +26,7 @@ import { SelectableCard } from '../../components/ui/SelectableCard';
 import { ErrorNotice } from '../../components/feedback/ErrorNotice';
 import { LoadingState } from '../../components/feedback/LoadingState';
 import { readyHome } from '../../features/ems/services/readyHome';
+import { GatewayProblem } from '../../features/gateway/components/GatewayProblem';
 
 const GROUPS: readonly MethodGroup[] = ['existing', 'new', 'advanced'];
 const CHEVRON_SIZE = 18;
@@ -54,6 +55,8 @@ export function AddDeviceMethodScreen() {
   const brand = brands?.find((entry) => entry.id === params.brandId) ?? null;
   const [integrations, setIntegrations] = useState<Integration[] | null>(null);
   const [cloudFailed, setCloudFailed] = useState(false);
+  /** Bumped by Try again, so the building's brands are read once more. */
+  const [cloudAttempt, setCloudAttempt] = useState(0);
   const [route, setRoute] = useState<Route | null>(null);
   const hasHub = readyHome(ems.status, ems.home) !== null;
   const hubIds = useMemo(() => brand?.hub_integrations ?? [], [brand]);
@@ -75,7 +78,13 @@ export function AddDeviceMethodScreen() {
     return () => {
       cancelled = true;
     };
-  }, [wantsIntegrations]);
+  }, [wantsIntegrations, cloudAttempt]);
+
+  const retryCloud = () => {
+    setCloudFailed(false);
+    setIntegrations(null);
+    setCloudAttempt((attempt) => attempt + 1);
+  };
 
   const open = (method: ConnectionMethod) => {
     if (!brand || !method.available) {
@@ -138,7 +147,7 @@ export function AddDeviceMethodScreen() {
 
   const renderCloudActions = () => {
     if (ems.status === 'loading') {
-      return <LoadingState accessibilityLabel="Checking your EMS account" />;
+      return <LoadingState accessibilityLabel="Checking your account" />;
     }
     if (ems.status !== 'signedIn') {
       return (
@@ -163,7 +172,11 @@ export function AddDeviceMethodScreen() {
       );
     }
     if (cloudFailed) {
-      return <Notice tone="warning">{copy.cloudLoadFailed}</Notice>;
+      return (
+        <Notice tone="warning" actions={<AppButton title={copy.retry} variant="secondary" height={BUTTON_HEIGHT} onPress={retryCloud} />}>
+          {copy.cloudLoadFailed}
+        </Notice>
+      );
     }
     if (!integrations) {
       return <LoadingState accessibilityLabel="Loading" />;
@@ -184,7 +197,7 @@ export function AddDeviceMethodScreen() {
 
   const renderBody = () => {
     if (gateway.status !== 'online') {
-      return <Notice tone="warning">{gateway.problem ?? copy.offline}</Notice>;
+      return <GatewayProblem />;
     }
     if (error && !brands) {
       return (

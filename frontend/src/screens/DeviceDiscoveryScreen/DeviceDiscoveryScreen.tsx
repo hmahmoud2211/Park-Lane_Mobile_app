@@ -28,6 +28,7 @@ import { BUTTON_HEIGHT, FIELD_HEIGHT, PROGRESS_HEIGHT, SMALL_BUTTON_HEIGHT, crea
 import { InnerScreenFrame } from '../../components/layout/InnerScreenFrame';
 import { SelectableCard } from '../../components/ui/SelectableCard';
 import { LoadingState } from '../../components/feedback/LoadingState';
+import { GatewayProblem } from '../../features/gateway/components/GatewayProblem';
 
 const SCAN_TIMEOUT_S = 15;
 
@@ -120,7 +121,13 @@ export function DeviceDiscoveryScreen() {
     if (!scanning || !target || !jobId.current) return;
     const id = jobId.current;
     const timer = setInterval(() => {
-      api.getDiscovery(target, id).then((next) => setJob(next), () => undefined);
+      // A late answer about an earlier scan must not overwrite the one running now.
+      api.getDiscovery(target, id).then(
+        (next) => {
+          if (jobId.current === id) setJob(next);
+        },
+        () => undefined,
+      );
       api.listCandidates(target, { job_id: id }).then(add, () => undefined);
     }, gatewayConfig.pollMs);
     return () => clearInterval(timer);
@@ -143,12 +150,15 @@ export function DeviceDiscoveryScreen() {
     [target],
   );
 
-  // Paired: on to naming and testing it.
+  // Paired: on to naming and testing it, once the device list has it (or Device Setup says "not found").
+  const leaving = useRef(false);
   useEffect(() => {
-    if (pairing.pairing?.status === 'paired' && pairing.pairing.device_id) {
-      void refresh();
-      navigation.replace('DeviceSetup', { deviceId: pairing.pairing.device_id });
-    }
+    const deviceId = pairing.pairing?.status === 'paired' ? pairing.pairing.device_id : null;
+    if (!deviceId || leaving.current) return;
+    leaving.current = true;
+    void refresh()
+      .catch(() => undefined)
+      .then(() => navigation.replace('DeviceSetup', { deviceId }));
   }, [pairing.pairing, navigation, refresh]);
 
   const probe = async () => {
@@ -172,8 +182,14 @@ export function DeviceDiscoveryScreen() {
   };
 
   const toggleScan = () => {
-    if (job?.status === 'running' && target && jobId.current) {
-      void api.cancelDiscovery(target, jobId.current).then(setJob, () => undefined);
+    const id = jobId.current;
+    if (job?.status === 'running' && target && id) {
+      void api.cancelDiscovery(target, id).then(
+        (next) => {
+          if (jobId.current === id) setJob(next);
+        },
+        () => undefined,
+      );
     } else {
       void startScan();
     }
@@ -204,7 +220,8 @@ export function DeviceDiscoveryScreen() {
   };
 
   const renderCandidate = (candidate: Candidate) => {
-    const detail = [candidate.model, candidate.ip, candidate.protocol].filter(Boolean).join(' · ');
+    // The model, unless it is already the title; network details mean nothing to most residents.
+    const detail = candidate.name ? candidate.model : null;
     const isSelected = candidate.id === selectedId;
     return (
       <SelectableCard
@@ -224,12 +241,9 @@ export function DeviceDiscoveryScreen() {
             <AppText variant="statValue" numberOfLines={2}>
               {candidate.name ?? candidate.model ?? 'Unnamed device'}
             </AppText>
-            <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={2}>
-              {detail || candidate.unique_id}
-            </AppText>
-            {candidate.sources.length ? (
-              <AppText variant="tileCaption" color={theme.colors.textSupport}>
-                {`Found by ${candidate.sources.join(', ')}`}
+            {detail ? (
+              <AppText variant="tileCaption" color={theme.colors.textSupport} numberOfLines={2}>
+                {detail}
               </AppText>
             ) : null}
           </View>
@@ -361,7 +375,7 @@ export function DeviceDiscoveryScreen() {
     <InnerScreenFrame contentStyle={styles.content}>
       <PageHeader title={mode === 'manual' ? copy.manualTitle : copy.title} subtitle={brand?.name} style={styles.header} />
       {!target ? (
-        <Notice tone="warning">{copy.offline}</Notice>
+        <GatewayProblem />
       ) : (
         <>
           {mode === 'manual' ? renderManual() : renderScan()}

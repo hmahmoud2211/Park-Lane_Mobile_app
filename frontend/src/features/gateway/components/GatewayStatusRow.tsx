@@ -9,12 +9,13 @@ import { AppText } from '../../../components/common/AppText';
 import { StatusChip, type StatusTone } from '../../../components/ui/StatusChip';
 
 const LOOK: Record<GatewayStatus, { label: string; tone: StatusTone }> = {
-  loading: { label: 'Gateway', tone: 'slate' },
-  none: { label: 'No gateway', tone: 'slate' },
+  // "Home hub" is the CUBE Gateway's everyday name in the app (the box in the apartment).
+  loading: { label: 'Home hub', tone: 'slate' },
+  none: { label: 'No home hub', tone: 'slate' },
   connecting: { label: 'Connecting', tone: 'slate' },
-  online: { label: 'Gateway online', tone: 'teal' },
-  offline: { label: 'Gateway offline', tone: 'amber' },
-  unauthorized: { label: 'Gateway access ended', tone: 'red' },
+  online: { label: 'Connected', tone: 'teal' },
+  offline: { label: 'Not answering', tone: 'amber' },
+  unauthorized: { label: 'Needs to reconnect', tone: 'red' },
 };
 
 const BUTTON_HEIGHT = 36;

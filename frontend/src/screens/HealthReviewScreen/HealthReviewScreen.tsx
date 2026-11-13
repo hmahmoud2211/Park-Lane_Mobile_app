@@ -34,7 +34,8 @@ import {
   type DuplicateChoice,
   type ReviewEntry,
 } from '../../features/health/services/review';
-import { describeItem } from '../../features/health/services/selectors';
+import { aiReadingText, describeItem } from '../../features/health/services/selectors';
+import { ReportAnswer } from '../../features/aiReports/components/ReportAnswer';
 import type { RootStackScreenProps } from '../../types/navigation.types';
 import { reviewCopy } from './HealthReviewScreen.data';
 import { createStyles } from './HealthReviewScreen.styles';
@@ -125,6 +126,8 @@ function ReviewBody({ doc, onSaved }: { doc: HealthDocument; onSaved: (saved: Sa
   const [saving, setSaving] = useState<'finish' | 'later' | null>(null);
   const [error, setError] = useState<HealthError | null>(null);
 
+  // The AI's own reading, as it suggested it, for a report of it.
+  const reading = useMemo(() => aiReadingText(doc, lang), [doc, lang]);
   const decided = entries.filter((e) => e.state !== 'pending').length;
   const everythingDecided = allDecided(entries);
   const gateOpen = canConfirmAll(entries);
@@ -361,7 +364,12 @@ function ReviewBody({ doc, onSaved }: { doc: HealthDocument; onSaved: (saved: Sa
       }
       columnWeights={[3, 2]}
     >
-      <Notice tone="warning" title={copy.warningTitle}>
+      <Notice
+        tone="warning"
+        title={copy.warningTitle}
+        // The items below were read by AI: the reading can be reported (Google Play's AI-Generated Content policy).
+        actions={<ReportAnswer source="health_review" excerpt={reading} copy={t.report} direction={lang === 'ar' ? 'rtl' : 'ltr'} />}
+      >
         {copy.warningBody}
       </Notice>
       {sideBySide ? null : originalPanel}

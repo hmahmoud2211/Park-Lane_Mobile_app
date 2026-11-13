@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { BidiText } from '../../features/health/components/BidiText';
+import { ReportAnswer } from '../../features/aiReports/components/ReportAnswer';
 import { ConfirmSheet } from '../../features/health/components/ConfirmSheet';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
 import { ItemRow } from '../../features/health/components/ItemRow';
@@ -150,6 +151,8 @@ function DocumentDetail({ doc }: { doc: HealthDocument }) {
                   void copyText(doc.extracted_text ?? '').then((ok) => setCopied(ok));
                 }}
               />
+              {/* Read by AI: the reading can be reported (Google Play's AI-Generated Content policy). */}
+              <ReportAnswer source="health_review" excerpt={doc.extracted_text} copy={t.report} direction={lang === 'ar' ? 'rtl' : 'ltr'} />
             </Panel>
           ) : null}
           {doc.status === 'confirmed' || saved.length > 0 ? (

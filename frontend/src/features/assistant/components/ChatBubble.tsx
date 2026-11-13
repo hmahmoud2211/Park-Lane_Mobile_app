@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { ChatMessage } from '../types';
@@ -21,6 +21,11 @@ export interface ChatBubbleProps {
   onRetry?: (messageId: string) => void;
   onSignIn?: () => void;
   onOpenRoute?: (route: NonNullable<IntentMeta['route']>) => void;
+  /**
+   * Drawn under an assistant answer once it has typed out (never under the resident's own message or a failed
+   * reply), e.g. the "Report" button. Keep it stable (useCallback) so the bubbles stay memoised.
+   */
+  renderAnswerFooter?: (message: ChatMessage) => ReactNode;
 }
 
 const NATIVE = Platform.OS !== 'web';
@@ -61,7 +66,7 @@ function useTypewriter(text: string, enabled: boolean) {
   return { visible: done ? text : words.slice(0, count).join(''), done };
 }
 
-function ChatBubbleView({ message, animateIn, reduceMotion, onRetry, onSignIn, onOpenRoute }: ChatBubbleProps) {
+function ChatBubbleView({ message, animateIn, reduceMotion, onRetry, onSignIn, onOpenRoute, renderAnswerFooter }: ChatBubbleProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isUser = message.role === 'user';
@@ -177,6 +182,9 @@ function ChatBubbleView({ message, animateIn, reduceMotion, onRetry, onSignIn, o
           </Animated.View>
         ) : null}
       </View>
+      {!failed && done && renderAnswerFooter ? (
+        <Animated.View style={{ opacity: footer }}>{renderAnswerFooter(message)}</Animated.View>
+      ) : null}
     </Animated.View>
   );
 }

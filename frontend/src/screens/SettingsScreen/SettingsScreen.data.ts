@@ -12,7 +12,7 @@ export const settingsCopy = {
 } as const;
 
 /** The screens a row can open; kept to these few so navigate() checks each one. */
-export type SettingsRoute = 'Profile' | 'EmsDevices' | 'AccountSecurity' | 'HelpSupport' | 'Notifications';
+export type SettingsRoute = 'Profile' | 'Household' | 'EmsDevices' | 'AccountSecurity' | 'HelpSupport' | 'Notifications';
 
 export interface SettingsItem {
   id: string;
@@ -36,6 +36,15 @@ const allSettingsItems: readonly SettingsItem[] = [
     iconSet: 'ionicons',
     iconName: 'person-outline',
     route: 'Profile',
+  },
+  {
+    // Not in the Figma reference: the one place to invite family or join their home with a code.
+    id: 'household',
+    title: 'Household',
+    description: 'See who shares your home. Invite family, or join with a code.',
+    iconSet: 'ionicons',
+    iconName: 'people-outline',
+    route: 'Household',
   },
   {
     id: 'devices',

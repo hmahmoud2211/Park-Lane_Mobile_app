@@ -6,6 +6,7 @@ import type {
   GatewayCommand,
   GatewayCommandName,
   GatewayDevice,
+  GatewayReading,
   GatewayRoom,
 } from '../../../types/gateway.types';
 import type { ControlPower, ControlSetting, DeviceControls } from '../../../types/controls.types';
@@ -55,8 +56,15 @@ function powerValue(value: unknown): 'on' | 'off' | 'unknown' {
   return value === 'on' || value === true ? 'on' : value === 'off' || value === false ? 'off' : 'unknown';
 }
 
-function mapCapability(capability: GatewayCapability, commands: readonly string[]): Capability | null {
+/**
+ * One gateway capability in the app's model. What the device can do comes from the
+ * commands it accepts (models.COMMANDS), so a control the app shows always has a gateway
+ * command behind it: a list is empty, a `can…` flag false and a level null when the
+ * gateway has no command for it (it has none for presets on an AC, swing, tilt, shuffle…).
+ */
+function mapCapability(capability: GatewayCapability, commands: readonly string[], readings: readonly GatewayReading[]): Capability | null {
   const base = { entityId: capability.key, label: capability.label };
+  const has = (command: GatewayCommandName) => commands.includes(command);
   switch (capability.type) {
     case 'power':
       return { ...base, type: 'power', value: powerValue(capability.value) };
@@ -70,44 +78,86 @@ function mapCapability(capability: GatewayCapability, commands: readonly string[
       const s = num(value?.s);
       return { ...base, type: 'color', value: h !== null && s !== null ? { h, s } : null };
     }
-    case 'climate':
+    case 'climate': {
+      const humidity = num(readings.find((reading) => reading.key === 'current_humidity')?.value);
       return {
         ...base,
         type: 'climate',
         current: capability.current,
         target: capability.target,
+        targetLow: null,
+        targetHigh: null,
         min: capability.min ?? 16,
         max: capability.max ?? 30,
         step: capability.step ?? 1,
         unit: capability.unit ?? '°C',
         mode: capability.mode ?? 'off',
-        modes: capability.modes,
+        modes: has('set_hvac_mode') ? capability.modes : [],
         fanMode: capability.fan_mode,
-        fanModes: capability.fan_modes,
+        fanModes: has('set_fan_mode') ? capability.fan_modes : [],
+        // Shown when reported; the gateway has no command to change an AC's preset or swing
+        // here (an LG AC's swing is a setting on the AC Controls screen).
+        presetMode: capability.preset,
+        presetModes: [],
+        swingMode: null,
+        swingModes: [],
+        currentHumidity: humidity,
+        targetHumidity: null,
+        minHumidity: 0,
+        maxHumidity: 100,
       };
+    }
     case 'cover':
       return {
         ...base,
         type: 'cover',
         position: capability.position,
         state: capability.state ?? 'unknown',
-        canPosition: commands.includes('set_position'),
-        canStop: commands.includes('cover_stop'),
+        canPosition: has('set_position'),
+        canStop: has('cover_stop'),
+        tilt: null,
+        canTilt: false,
+        canSetTilt: false,
       };
     case 'fan':
-      return { ...base, type: 'fan', percentage: capability.percentage, presetMode: capability.preset, presetModes: capability.presets };
-    case 'media':
+      return {
+        ...base,
+        type: 'fan',
+        percentage: has('set_fan_speed') ? (capability.percentage ?? 0) : null,
+        percentageStep: capability.step ?? 1,
+        presetMode: capability.preset,
+        // A fan's preset goes as set_fan_mode (the ESPHome adapter's fan modes are its presets).
+        presetModes: has('set_fan_mode') ? capability.presets : [],
+        oscillating: null,
+        direction: null,
+      };
+    case 'media': {
+      // The gateway reports 0-100; the app's media control works in 0-1.
+      const volume = has('set_volume') && capability.volume !== null ? Math.min(1, Math.max(0, capability.volume / 100)) : null;
       return {
         ...base,
         type: 'media',
         state: capability.state ?? 'unknown',
-        // The gateway reports 0-100; the app's media control works in 0-1.
-        volume: capability.volume !== null ? capability.volume / 100 : null,
-        muted: capability.muted,
+        volume,
+        // A TV that gives no feedback reports no mute state; it can still be muted.
+        muted: has('mute') ? (capability.muted ?? false) : null,
         title: null,
+        artist: null,
         source: capability.source,
-        sources: capability.sources,
+        sources: has('set_source') ? capability.sources : [],
+        soundMode: null,
+        soundModes: [],
+        shuffle: null,
+        repeat: null,
+        canPlay: has('media_play'),
+        canPause: has('media_pause'),
+        canStop: false,
+        canNext: has('media_next'),
+        canPrevious: has('media_previous'),
+        // Volume − / + go as volume_up/down, or as set_volume ± 5% (toGatewayCommand).
+        canVolumeStep: (has('volume_up') && has('volume_down')) || volume !== null,
       };
+    }
     default:
       return null;
   }
@@ -137,6 +187,7 @@ const PENDING_CAPABILITY: Partial<Record<GatewayCommandName, CapabilityType>> = 
   cover_close: 'cover',
   cover_stop: 'cover',
   set_position: 'cover',
+  press: 'press',
 };
 
 function formatReading(value: unknown): string {
@@ -151,8 +202,16 @@ function formatReading(value: unknown): string {
 
 export function toAppDevice(device: GatewayDevice, brandName?: string): Device {
   const capabilities = device.capabilities
-    .map((capability) => mapCapability(capability, device.commands))
+    .map((capability) => mapCapability(capability, device.commands, device.readings))
     .filter((capability): capability is Capability => capability !== null);
+  // The device's buttons (a TV's remote keys: up, ok, back, channel_up…) go back as `press`.
+  if (device.commands.includes('press')) {
+    for (const setting of device.settings) {
+      if (setting.kind === 'button' && setting.available !== false) {
+        capabilities.push({ entityId: setting.key, label: setting.name, type: 'press', ...(setting.diagnostic ? { advanced: true } : {}) });
+      }
+    }
+  }
   const sensors: SensorReading[] = device.readings.map((reading) => ({
     entityId: reading.key,
     label: reading.label,
@@ -188,19 +247,41 @@ export function toAppDevice(device: GatewayDevice, brandName?: string): Device {
 
 export const toAppRoom = (room: GatewayRoom): Room => ({ id: room.id, name: room.name, icon: null, deviceCount: room.device_count });
 
+/** The device's capability a command is for: the one it names, else the first of its type. */
+function targetOf<T extends CapabilityType>(device: Device | undefined, type: T, entityId: string | undefined) {
+  return device?.capabilities.find((capability) => capability.type === type && (!entityId || capability.entityId === entityId)) as
+    | Extract<Capability, { type: T }>
+    | undefined;
+}
+
 /**
  * The gateway command for one of the app's controls, or null when the
  * gateway has no equivalent or this device does not accept it.
+ *
+ * Actions the gateway has no command of its own for fall back on one it
+ * accepts, using `device` (the app's view of it) for the state they need:
+ * toggle becomes turn_on / turn_off, play_pause play or pause, stop pause,
+ * and volume_up / volume_down the set level ± 5%.
  */
-export function toGatewayCommand(command: Command, accepted: readonly string[]): GatewayCommand | null {
+export function toGatewayCommand(command: Command, accepted: readonly string[], device?: Device): GatewayCommand | null {
   const key = command.entityId ? { key: command.entityId } : {};
+  const has = (name: GatewayCommandName) => accepted.includes(name);
   let next: GatewayCommand | null = null;
   switch (command.capability) {
-    case 'power':
-      next = { command: command.action === 'on' ? 'turn_on' : command.action === 'off' ? 'turn_off' : 'toggle', params: key };
+    case 'power': {
+      const power = targetOf(device, 'power', command.entityId);
+      const fallback = power && power.value !== 'unknown' ? (power.value === 'on' ? 'turn_off' : 'turn_on') : 'toggle';
+      next = {
+        command: command.action === 'on' ? 'turn_on' : command.action === 'off' ? 'turn_off' : has('toggle') ? 'toggle' : fallback,
+        params: key,
+      };
       break;
+    }
     case 'brightness':
-      next = { command: 'set_brightness', params: { ...key, brightness: command.value } };
+      next =
+        command.value === 0 && has('turn_off')
+          ? { command: 'turn_off', params: key }
+          : { command: 'set_brightness', params: { ...key, brightness: command.value } };
       break;
     case 'color_temp':
       next = { command: 'set_color_temp', params: { ...key, kelvin: command.value } };
@@ -223,21 +304,36 @@ export function toGatewayCommand(command: Command, accepted: readonly string[]):
       break;
     case 'fan':
       if (command.action === 'set_percentage') next = { command: 'set_fan_speed', params: { ...key, percentage: command.value } };
+      else if (command.action === 'set_preset') next = { command: 'set_fan_mode', params: { ...key, fan_mode: command.value } };
       break;
-    case 'media':
+    case 'media': {
+      const media = targetOf(device, 'media', command.entityId);
+      const step = (direction: 1 | -1): GatewayCommand | null => {
+        if (has(direction > 0 ? 'volume_up' : 'volume_down')) return { command: direction > 0 ? 'volume_up' : 'volume_down', params: key };
+        if (media?.volume === null || media?.volume === undefined) return null;
+        const volume = Math.round(Math.min(1, Math.max(0, media.volume + direction * 0.05)) * 100);
+        return { command: 'set_volume', params: { ...key, volume } };
+      };
       if (command.action === 'play') next = { command: 'media_play', params: key };
-      else if (command.action === 'pause') next = { command: 'media_pause', params: key };
+      else if (command.action === 'pause' || command.action === 'stop') next = { command: 'media_pause', params: key };
+      else if (command.action === 'play_pause') next = { command: media?.state === 'playing' ? 'media_pause' : 'media_play', params: key };
       else if (command.action === 'next') next = { command: 'media_next', params: key };
       else if (command.action === 'previous') next = { command: 'media_previous', params: key };
+      else if (command.action === 'volume_up') next = step(1);
+      else if (command.action === 'volume_down') next = step(-1);
       else if (command.action === 'set_volume' && typeof command.value === 'number')
         next = { command: 'set_volume', params: { ...key, volume: Math.round(command.value * 100) } };
       else if (command.action === 'mute') next = { command: 'mute', params: { ...key, muted: Boolean(command.value) } };
       else if (command.action === 'select_source') next = { command: 'set_source', params: { ...key, source: command.value } };
       break;
+    }
+    case 'press':
+      next = command.entityId ? { command: 'press', params: { key: command.entityId } } : null;
+      break;
     default:
       next = null;
   }
-  return next && accepted.includes(next.command) ? next : null;
+  return next && has(next.command) ? next : null;
 }
 
 /**

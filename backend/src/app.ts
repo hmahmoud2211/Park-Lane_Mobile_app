@@ -13,6 +13,7 @@ import { sendError } from './http/errorHandler.ts';
 import { redirect } from './http/respond.ts';
 import { dispatch, type RouteGroup } from './http/router.ts';
 import { accountRoutes } from './routes/accounts.ts';
+import { aiReportRoutes } from './routes/aiReports.ts';
 import { authRoutes } from './routes/auth.ts';
 import { clinicRoutes } from './routes/clinic.ts';
 import { gatewayRoutes } from './routes/gateway.ts';
@@ -60,6 +61,7 @@ const API_ROUTES: readonly RouteGroup[] = [
   amenityRoutes,
   parkingRoutes,
   seriesRoutes,
+  aiReportRoutes,
   opsRoutes,
 ];
 

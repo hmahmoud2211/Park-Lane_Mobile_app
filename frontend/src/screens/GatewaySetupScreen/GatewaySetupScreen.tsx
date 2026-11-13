@@ -20,7 +20,6 @@ import { StatusChip } from '../../components/ui/StatusChip';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { EmsAccountPanel } from '../../features/ems/components/EmsAccountPanel';
 import { useEms } from '../../features/ems/hooks/useEms';
-import { EmsError } from '../../features/ems/services/emsHttp';
 import { useGateway } from '../../features/gateway/hooks/useGateway';
 import { useGatewayPhones } from '../../features/gateway/hooks/useGatewayPhones';
 import * as api from '../../features/gateway/services/gatewayApi';
@@ -28,9 +27,6 @@ import { scanLan, type FoundGateway } from '../../features/gateway/services/gate
 import { errorMessage } from '../../features/gateway/services/gatewayHttp';
 import type { PhoneRow } from '../../features/gateway/services/gatewayPhones';
 import { useUnit } from '../../features/unit/hooks/useUnit';
-import { formatCodeInput, inviteMessage, isCodeComplete, memberRows, type MemberRow } from '../../features/unit/services/unitRules';
-import type { MyUnit, UnitInvite, UnitRole } from '../../features/unit/types';
-import { shareOutcomeMessage, shareText } from '../../utils/share';
 import type { StoredGateway } from '../../features/gateway/services/gatewayStore';
 import { isRemoteGatewayUrl, parsePairPayload } from '../../features/gateway/services/pairCode';
 import type { RemoteStatus } from '../../types/gateway.types';
@@ -84,23 +80,8 @@ export function GatewaySetupScreen() {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<{ id: string; message: string } | null>(null);
-  const [confirmOthers, setConfirmOthers] = useState(false);
-  const [othersBusy, setOthersBusy] = useState(false);
-  const [othersResult, setOthersResult] = useState<number | null>(null);
-  const [othersError, setOthersError] = useState<string | null>(null);
+  // Membership is what opens the apartment's gateway to an account; the people and invites live on Household.
   const unit = useUnit();
-  const [joinCode, setJoinCode] = useState('');
-  const [joinBusy, setJoinBusy] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
-  const [joinedName, setJoinedName] = useState<string | null>(null);
-  const [confirmMember, setConfirmMember] = useState<string | null>(null);
-  const [removingMember, setRemovingMember] = useState<string | null>(null);
-  const [memberError, setMemberError] = useState<{ id: string; message: string } | null>(null);
-  const [familyRole, setFamilyRole] = useState<UnitRole>('member');
-  const [familyInvite, setFamilyInvite] = useState<UnitInvite | null>(null);
-  const [familyBusy, setFamilyBusy] = useState(false);
-  const [familyError, setFamilyError] = useState<string | null>(null);
-  const [shareNote, setShareNote] = useState<string | null>(null);
   const [remoteDraft, setRemoteDraft] = useState<string | null>(null);
   const [remoteSaved, setRemoteSaved] = useState(false);
   const [remote, setRemote] = useState<RemoteStatus | null>(null);
@@ -208,68 +189,6 @@ export function GatewaySetupScreen() {
       setRemoveError({ id: row.id, message: errorMessage(error, copy.removeFailed) });
     } finally {
       setRemoving(null);
-    }
-  };
-
-  const joinApartment = async () => {
-    setJoinBusy(true);
-    setJoinError(null);
-    try {
-      const joined = await unit.join(joinCode);
-      setJoinCode('');
-      setJoinedName(joined.unit.name);
-    } catch (error) {
-      setJoinError(error instanceof EmsError ? copy.joinError(error.code, error.message) : copy.joinFailed);
-    } finally {
-      setJoinBusy(false);
-    }
-  };
-
-  const removeUnitMember = async (row: MemberRow) => {
-    setRemovingMember(row.userId);
-    setMemberError(null);
-    try {
-      await unit.removeMember(row.userId);
-      setConfirmMember(null);
-    } catch (error) {
-      setMemberError({ id: row.userId, message: error instanceof EmsError ? error.message : copy.removeMemberFailed });
-    } finally {
-      setRemovingMember(null);
-    }
-  };
-
-  const createFamilyInvite = async () => {
-    setFamilyBusy(true);
-    setFamilyError(null);
-    setShareNote(null);
-    try {
-      setFamilyInvite(await unit.createInvite(familyRole));
-    } catch (error) {
-      setFamilyError(error instanceof EmsError ? error.message : copy.familyFailed);
-    } finally {
-      setFamilyBusy(false);
-    }
-  };
-
-  const shareFamilyInvite = async (invite: UnitInvite) => {
-    const message = inviteMessage(invite);
-    if (!message) {
-      setShareNote(copy.shareExpired);
-      return;
-    }
-    setShareNote(shareOutcomeMessage(await shareText(copy.shareTitle, message), copy.shareWhat));
-  };
-
-  const signOutOthers = async () => {
-    setOthersBusy(true);
-    setOthersError(null);
-    try {
-      setOthersResult(await ems.signOutOthers());
-      setConfirmOthers(false);
-    } catch (error) {
-      setOthersError(error instanceof EmsError ? error.message : copy.othersFailed);
-    } finally {
-      setOthersBusy(false);
     }
   };
 
@@ -584,204 +503,30 @@ export function GatewaySetupScreen() {
             <AppButton title={copy.accountConnect} variant="gradient" height={BUTTON_HEIGHT} onPress={connectAccount} />
           </>
         )}
-
-        <View style={styles.divider} />
-        <AppText variant="statValue">{copy.othersTitle}</AppText>
-        <AppText variant="tileCaption" color={theme.colors.textSupport}>
-          {copy.othersIntro}
-        </AppText>
-        {othersResult !== null ? <Notice tone="success">{copy.othersDone(othersResult)}</Notice> : null}
-        {othersError ? <Notice tone="error">{othersError}</Notice> : null}
-        {confirmOthers ? (
-          <Notice
-            tone="warning"
-            title={copy.othersConfirmTitle}
-            actions={
-              <>
-                <AppButton title={copy.othersConfirm} variant="secondary" height={SMALL_BUTTON_HEIGHT} loading={othersBusy} onPress={() => void signOutOthers()} />
-                <AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} disabled={othersBusy} onPress={() => setConfirmOthers(false)} />
-              </>
-            }
-          >
-            {copy.othersWarning}
-          </Notice>
-        ) : (
-          <AppButton
-            title={copy.othersAction}
-            variant="secondary"
-            height={SMALL_BUTTON_HEIGHT}
-            onPress={() => {
-              setConfirmOthers(true);
-              setOthersResult(null);
-              setOthersError(null);
-            }}
-          />
-        )}
+        {/* Signing out a lost phone lives in Settings → Account & security, with the password. */}
       </NeonPanel>
     );
   };
 
-  const renderMember = (row: MemberRow) => (
-    <GlassSurface
-      key={row.userId}
-      radius={theme.borderRadius.sm}
-      blurred={false}
-      strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-      fillOpacity={theme.glass.subtleFillOpacity}
-      style={styles.item}
-    >
-      <View style={styles.itemRow}>
-        <View style={styles.text}>
-          <AppText variant="statValue">{row.name}</AppText>
-          {row.email ? (
-            <AppText variant="tileCaption" color={theme.colors.textSupport} selectable>
-              {row.email}
-            </AppText>
-          ) : null}
-        </View>
-        {row.you ? <StatusChip label={copy.you} tone="teal" icon="person-outline" /> : null}
-        <StatusChip label={copy.roleLabel(row.role)} tone="slate" />
-      </View>
-      {row.removable && confirmMember === row.userId ? (
-        <Notice
-          tone="warning"
-          actions={
-            <>
-              <AppButton
-                title={copy.removeMemberConfirm}
-                variant="secondary"
-                height={SMALL_BUTTON_HEIGHT}
-                loading={removingMember === row.userId}
-                onPress={() => void removeUnitMember(row)}
-              />
-              <AppButton title={copy.cancel} variant="secondary" height={SMALL_BUTTON_HEIGHT} disabled={removingMember === row.userId} onPress={() => setConfirmMember(null)} />
-            </>
-          }
-        >
-          {copy.removeMemberWarning(row.name)}
-        </Notice>
-      ) : row.removable ? (
-        <View style={styles.row}>
-          <AppButton
-            title={copy.removeMember}
-            variant="secondary"
-            height={SMALL_BUTTON_HEIGHT}
-            onPress={() => {
-              setConfirmMember(row.userId);
-              setMemberError(null);
-            }}
-            accessibilityHint={copy.removeMemberWarning(row.name)}
-            style={styles.action}
-          />
-        </View>
-      ) : null}
-      {memberError?.id === row.userId ? <Notice tone="error">{memberError.message}</Notice> : null}
-    </GlassSurface>
-  );
-
-  const renderFamilyInvite = () => (
-    <>
-      <View style={styles.divider} />
-      <AppText variant="statValue">{copy.familyTitle}</AppText>
-      <AppText variant="tileCaption" color={theme.colors.textSupport}>
-        {copy.familyIntro}
-      </AppText>
-      <View style={styles.chips} accessibilityRole="radiogroup">
-        <FilterChip role="radio" label={copy.familyAsMember} iconSet="ionicons" iconName="person-outline" selected={familyRole === 'member'} onPress={() => setFamilyRole('member')} />
-        <FilterChip role="radio" label={copy.familyAsOwner} iconSet="ionicons" iconName="key-outline" selected={familyRole === 'owner'} onPress={() => setFamilyRole('owner')} />
-      </View>
-      <AppText variant="tileCaption" color={theme.colors.textSupport}>
-        {familyRole === 'owner' ? copy.familyOwnerHint : copy.familyMemberHint}
-      </AppText>
-      {familyInvite ? (
-        <GlassSurface
-          radius={theme.borderRadius.sm}
-          blurred={false}
-          glow
-          strokeColors={[theme.colors.cardStrokeFrom, theme.colors.featureStrokeTo]}
-          fillOpacity={theme.glass.subtleFillOpacity}
-          style={styles.item}
-        >
-          <AppText variant="figure" align="center" selectable accessibilityLabel={copy.familyCode(familyInvite.code)} accessibilityLiveRegion="polite">
-            {familyInvite.code}
-          </AppText>
-          <AppText variant="tileCaption" color={theme.colors.textSupport} align="center">
-            {copy.familyExpires(familyInvite)}
-          </AppText>
-          <AppButton title={copy.share} variant="secondary" height={SMALL_BUTTON_HEIGHT} onPress={() => void shareFamilyInvite(familyInvite)} />
-          {shareNote ? (
-            <AppText variant="tileCaption" color={theme.colors.textSupport} align="center">
-              {shareNote}
-            </AppText>
-          ) : null}
-        </GlassSurface>
-      ) : null}
-      {familyError ? <Notice tone="error">{familyError}</Notice> : null}
-      <AppButton
-        title={familyInvite ? copy.familyAnother : copy.familyCreate}
-        variant={familyInvite ? 'secondary' : 'gradient'}
-        height={BUTTON_HEIGHT}
-        loading={familyBusy}
-        onPress={() => void createFamilyInvite()}
-      />
-    </>
-  );
-
-  const renderMembers = (mine: MyUnit) => (
-    <>
-      <View style={styles.unitName}>
-        <AppText variant="statValue">{mine.unit.name}</AppText>
-        {mine.unit.building ? (
-          <AppText variant="tileCaption" color={theme.colors.textSupport}>
-            {mine.unit.building}
-          </AppText>
-        ) : null}
-      </View>
-      {joinedName ? <Notice tone="success">{copy.joined(joinedName)}</Notice> : null}
-      {memberRows(mine).map(renderMember)}
-      {mine.role === 'owner' ? renderFamilyInvite() : null}
-    </>
-  );
-
-  const renderJoin = () => (
-    <>
-      <AppText variant="bodySmall" color={theme.colors.textSupport}>
-        {copy.joinIntro}
-      </AppText>
-      <AppInput
-        variant="field"
-        label={copy.joinCode}
-        value={joinCode}
-        onChangeText={(text) => {
-          setJoinCode(formatCodeInput(text));
-          setJoinError(null);
-        }}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        autoComplete="off"
-        height={FIELD_HEIGHT}
-      />
-      {joinError ? <Notice tone="error">{joinError}</Notice> : null}
-      <AppButton title={copy.join} variant="gradient" height={BUTTON_HEIGHT} loading={joinBusy} disabled={!isCodeComplete(joinCode)} onPress={() => void joinApartment()} />
-    </>
-  );
-
-  // Membership is what opens the apartment's gateway (and its devices) to an account, so it sits
-  // right under the account route: joining here is how a resident with no apartment gets one.
-  const renderUnit = () => {
+  // Membership is what opens the apartment's gateway to an account: one row here, and the people,
+  // invites and joining with a code on the Household screen.
+  const renderHousehold = () => {
     const { state } = unit;
-    if (state.status === 'hidden') return null;
+    if (state.status !== 'none' && state.status !== 'ready') return null;
     return (
       <NeonPanel style={styles.panel}>
-        <PanelHeading title={state.status === 'none' ? copy.joinTitle : copy.membersTitle} iconSet="ionicons" iconName="people-outline" divider />
-        {state.status === 'loading' ? <LoadingState label={copy.unitLoading} /> : null}
-        {state.status === 'error' ? (
-          <ErrorNotice title={copy.unitError} retryLabel={copy.accountRetry} onRetry={unit.reload} buttonHeight={SMALL_BUTTON_HEIGHT} tone="warning">
-            {state.message}
-          </ErrorNotice>
-        ) : null}
-        {state.status === 'none' ? renderJoin() : null}
-        {state.status === 'ready' ? renderMembers(state.unit) : null}
+        <PanelHeading
+          title={copy.householdTitle}
+          subtitle={state.status === 'ready' ? copy.householdSummary(state.unit.unit.name, state.unit.members.length) : undefined}
+          iconSet="ionicons"
+          iconName="people-outline"
+        />
+        <AppButton
+          title={state.status === 'none' ? copy.householdJoin : copy.householdOpen}
+          variant={state.status === 'none' ? 'gradient' : 'secondary'}
+          height={state.status === 'none' ? BUTTON_HEIGHT : SMALL_BUTTON_HEIGHT}
+          onPress={() => navigation.navigate('Household')}
+        />
       </NeonPanel>
     );
   };
@@ -955,6 +700,7 @@ export function GatewaySetupScreen() {
   // secondary panel; without a session they are the way in and stay as their own panels.
   const renderManual = () =>
     resident ? (
+      <>
       <NeonPanel style={styles.panel}>
         <PanelHeading
           title={copy.installerTitle}
@@ -984,6 +730,15 @@ export function GatewaySetupScreen() {
           </>
         ) : null}
       </NeonPanel>
+      {/* The rest is for installers too: it opens with Advanced setup. */}
+      {installerOpen ? (
+        <>
+          {renderRemote()}
+          {renderPhones()}
+          {renderInvite()}
+        </>
+      ) : null}
+      </>
     ) : (
       <>
         {findContent ? (
@@ -1023,7 +778,7 @@ export function GatewaySetupScreen() {
       ) : null}
 
       {resident ? renderAccount() : ems.configured && ems.status === 'signedOut' ? <EmsAccountPanel intro={copy.signInHint} /> : null}
-      {resident ? renderUnit() : null}
+      {resident ? renderHousehold() : null}
 
       {gateway.gateways.length > 0 ? (
         <NeonPanel style={styles.panel}>
@@ -1034,9 +789,13 @@ export function GatewaySetupScreen() {
 
       {renderManual()}
 
-      {renderRemote()}
-      {renderPhones()}
-      {renderInvite()}
+      {resident ? null : (
+        <>
+          {renderRemote()}
+          {renderPhones()}
+          {renderInvite()}
+        </>
+      )}
     </InnerScreenFrame>
   );
 }

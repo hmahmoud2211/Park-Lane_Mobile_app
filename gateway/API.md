@@ -11,6 +11,12 @@ Every JSON answer is an envelope:
 ```
 
 Authentication: `Authorization: Bearer <client token>` on every route except those marked **public**.
+`GET /devices`, `GET /devices/{id}` and `POST /devices/{id}/commands` also take a **device call** from the EMS backend
+(`Authorization: Bearer emscall.<body>.<signature>`), on a gateway linked to EMS. The backend sends these for the
+Parklane Assistant, which can't reach the gateway itself. A device call is signed with the backend's pinned key and
+names this gateway, the resident (`sub`), and the exact method and path (`m`, `p`). It is valid for at most two minutes
+and works once. It acts as a member, and the audit log names it `ems:<account>`. Every other route refuses it
+(`cube_gateway/accounts.py` `device_call`). A gateway not linked to EMS answers `404 account_login_off`.
 Roles: `owner` (everything) and `member` (view and control devices; cannot pair, remove, rename or manage
 access). Data models are in `cube_gateway/models.py` (mirrored in the app's `frontend/src/types/gateway.types.ts`).
 

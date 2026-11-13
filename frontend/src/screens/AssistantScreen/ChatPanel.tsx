@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 
+import { ReportAnswer } from '../../features/aiReports/components/ReportAnswer';
 import { AssistantOrb } from '../../features/assistant/components/AssistantOrb';
 import { ChatBubble } from '../../features/assistant/components/ChatBubble';
 import { ChatComposer } from '../../features/assistant/components/ChatComposer';
@@ -49,6 +50,11 @@ export function ChatPanel({
   // Messages already present when the panel opens are history: no entrance.
   const [history] = useState(() => new Set(messages.map((message) => message.id)));
   const empty = messages.length === 0 && !pending;
+  // Every answer can be reported, signed in or as a guest (Google Play's AI-Generated Content policy).
+  const reportFooter = useCallback(
+    (message: ChatMessage) => <ReportAnswer source="assistant" excerpt={message.text} />,
+    [],
+  );
 
   return (
     // As on Login: iOS pads for the keyboard, Android resizes the window itself.
@@ -100,6 +106,7 @@ export function ChatPanel({
               onRetry={onRetry}
               onSignIn={onSignIn}
               onOpenRoute={onOpenRoute}
+              renderAnswerFooter={reportFooter}
             />
           ))
         )}

@@ -32,4 +32,6 @@ export type RealtimeEvent =
   | { type: 'bms.reading'; at: string }
   /** A new quarter-hour reading of the apartment's energy is current. */
   | { type: 'energy.reading'; at: string }
+  /** Someone joined or left the resident's apartment, or an invite was made or cancelled: refetch GET /api/unit. */
+  | { type: 'unit.updated' }
   | { type: 'error'; code: string };

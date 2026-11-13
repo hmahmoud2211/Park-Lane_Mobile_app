@@ -37,6 +37,11 @@ export type RootStackParamList = {
   ConnectAccount: { integration?: string; flowId?: string } | undefined;
   /** Pairing this phone with a CUBE Gateway; `host` pre-fills a found or scanned address. */
   GatewaySetup: { host?: string; code?: string } | undefined;
+  /**
+   * Who shares the home, and family invites: inviting (owners) and joining. `code` comes from an
+   * invite link (parklane://join/<code>) and is checked straight away.
+   */
+  Household: { code?: string } | undefined;
   /** The one way to add a device: choose the manufacturer (Screen 1). */
   AddDevice: undefined;
   /** How to connect a device of that brand (Screen 2). */
@@ -136,6 +141,7 @@ type FlowOnlyRoute =
   | 'HealthProfile'
   | 'HealthSettings'
   | 'ChangePassword'
+  | 'Household'
   | 'AccountSecurity'
   | 'DeleteAccount'
   | 'Notifications'

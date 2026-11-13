@@ -94,32 +94,36 @@ export interface CallInit {
 
 export async function call<T>(path: string, init: CallInit = {}): Promise<T> {
   if (!isEmsConfigured()) {
-    throw new EmsError('not_configured', 'The EMS backend is not set up in this build (EXPO_PUBLIC_DEVICE_BACKEND_URL).');
+    // The build was made without the account service's address (EXPO_PUBLIC_DEVICE_BACKEND_URL).
+    throw new EmsError('not_configured', 'This version of the app can’t connect to your account.');
   }
   const useAuth = init.auth ?? true;
   if (useAuth && !sessionToken) {
-    throw new EmsError('unauthorized', 'Sign in to your EMS account first.');
+    throw new EmsError('unauthorized', 'Please sign in first.');
   }
   const method = init.method ?? 'GET';
+  // The session this call is made for: a refusal speaks for it, never for one started since.
+  const token = useAuth ? sessionToken : null;
+  const stillCurrent = () => sessionToken === token;
 
   const once = () =>
     timedFetch(`${emsConfig.url}${path}`, {
-      init: jsonRequest(method, init.body, useAuth ? sessionToken : null),
+      init: jsonRequest(method, init.body, token),
       timeoutMs: init.timeoutMs ?? emsConfig.requestTimeoutMs,
       noAnswer: ({ timedOut }) =>
         timedOut
-          ? new EmsError('timeout', 'The EMS backend took too long to answer.')
-          : new EmsError('network', 'Could not reach the EMS backend. Check your internet connection.'),
+          ? new EmsError('timeout', 'This is taking too long. Check your internet connection and try again.')
+          : new EmsError('network', 'Couldn’t connect. Check your internet connection and try again.'),
       read: async (response) => {
         const body = await readEnvelope<T>(response);
         if (!body) {
-          throw new EmsError('internal', `The EMS backend answered ${response.status}.`, response.status);
+          throw new EmsError('internal', 'Something went wrong on our side. Try again in a moment.', response.status);
         }
         if (!body.ok) {
-          if (body.error.code === 'unauthorized' && useAuth && (init.sessionCheck ?? true)) {
+          if (body.error.code === 'unauthorized' && useAuth && (init.sessionCheck ?? true) && stillCurrent()) {
             expiredListeners.forEach((listener) => listener());
           }
-          if (body.error.code === 'password_change_required' && useAuth) {
+          if (body.error.code === 'password_change_required' && useAuth && stillCurrent()) {
             reportPasswordChangeRequired();
           }
           throw new EmsError(body.error.code, body.error.message, response.status, body.error.field);

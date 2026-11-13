@@ -4,7 +4,7 @@ import type { LinkMethod } from '../../types/home.types';
 export const connectCopy = {
   title: 'Connect Devices',
   subtitle: 'Link the app your devices already use.',
-  accountIntro: 'Sign in to your EMS account to connect your devices.',
+  accountIntro: 'Sign in to your Parklane account to connect your devices.',
   brandsTitle: 'Choose a brand',
   brandsIntro:
     'Your devices keep working with their own app. Linking the account brings them into Parklane, ready to control from anywhere.',

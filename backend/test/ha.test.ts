@@ -135,7 +135,7 @@ interface DeviceShape {
   online: boolean;
   pending: unknown;
   lastError: string | null;
-  capabilities: { type: string; value?: unknown; target?: number }[];
+  capabilities: { type: string; entityId?: string; value?: unknown; target?: number; state?: string; soundMode?: string; advanced?: boolean }[];
 }
 
 const capability = (device: DeviceShape, type: string) => device.capabilities.find((entry) => entry.type === type);
@@ -201,7 +201,7 @@ describe('residents', () => {
     const home = await api<{ unit: { name: string }; rooms: { name: string }[]; deviceCount: number }>('GET', '/api/home', { token: a.token });
     assert.equal(home.data.unit.name, 'Tower A · 1203');
     assert.deepEqual(home.data.rooms.map((room) => room.name), ['Bedroom', 'Living Room']);
-    assert.equal(home.data.deviceCount, 6);
+    assert.equal(home.data.deviceCount, 10);
     const devices = await api<DeviceShape[]>('GET', '/api/devices', { token: a.token });
     assert.ok(devices.data.some((device) => device.id === 'dev-light'));
     assert.ok(!devices.data.some((device) => device.id.startsWith('b_')));
@@ -298,6 +298,56 @@ describe('residents', () => {
     assert.deepEqual({ ...row }, { user_id: a.user.id, action: 'lock.unlock', target: 'lock.front' });
   });
 
+  test('opening the door and the alarm are audited; the alarm takes its code, which is never stored', async () => {
+    const { db } = await import('../src/ems/db.ts');
+    const last = () => ({ ...(db().prepare('SELECT action, target FROM audit_log ORDER BY id DESC LIMIT 1').get() as Record<string, string>) });
+    const alarm = (value: unknown, action = 'disarm') =>
+      api<DeviceShape>('POST', '/api/devices/dev-alarm/commands', { token: a.token, body: { capability: 'alarm', action, value } });
+
+    const opened = await api('POST', '/api/devices/dev-lock/commands', { token: a.token, body: { capability: 'lock', action: 'open' } });
+    assert.equal(opened.status, 200, JSON.stringify(opened.error));
+    assert.deepEqual(last(), { action: 'lock.open', target: 'lock.front' });
+
+    const armed = await alarm({ mode: 'away' }, 'arm');
+    assert.equal(armed.status, 200, JSON.stringify(armed.error));
+    assert.equal(capability(armed.data, 'alarm')?.state, 'armed_away');
+    assert.deepEqual(last(), { action: 'alarm_control_panel.alarm_arm_away', target: 'alarm_control_panel.home' });
+
+    assert.equal((await alarm(undefined)).status, 400, 'this panel needs its code to disarm');
+    const wrong = await alarm({ code: '0000' });
+    assert.equal(wrong.status, 502);
+    assert.equal(wrong.error?.code, 'ha_rejected');
+    const disarmed = await alarm({ code: '1234' });
+    assert.equal(disarmed.status, 200, JSON.stringify(disarmed.error));
+    assert.equal(capability(disarmed.data, 'alarm')?.state, 'disarmed');
+    assert.deepEqual(last(), { action: 'alarm_control_panel.alarm_disarm', target: 'alarm_control_panel.home' });
+    assert.deepEqual(homeA.calls.at(-1)?.data, { code: '1234' });
+    assert.ok(!JSON.stringify(db().prepare('SELECT * FROM audit_log').all()).includes('1234'), 'no code in the audit log');
+  });
+
+  test('a TV, a vacuum and a device setting go through the same allowlist', async () => {
+    const tv = await api<DeviceShape>('POST', '/api/devices/dev-tv/commands', {
+      token: a.token,
+      body: { capability: 'media', action: 'select_sound_mode', value: 'Music' },
+    });
+    assert.equal(tv.status, 200, JSON.stringify(tv.error));
+    assert.deepEqual(homeA.calls.at(-1), { domain: 'media_player', service: 'select_sound_mode', entityId: 'media_player.tv', data: { sound_mode: 'Music' } });
+    assert.equal(capability(tv.data, 'media')?.soundMode, 'Music');
+
+    const vacuum = await api<DeviceShape>('POST', '/api/devices/dev-vacuum/commands', { token: a.token, body: { capability: 'vacuum', action: 'start' } });
+    assert.equal(vacuum.status, 200, JSON.stringify(vacuum.error));
+    assert.equal(capability(vacuum.data, 'vacuum')?.state, 'cleaning');
+
+    const setting = await api<DeviceShape>('POST', '/api/devices/dev-light/commands', {
+      token: a.token,
+      body: { capability: 'number', action: 'set', value: 2.7, entityId: 'number.ceiling_transition' },
+    });
+    assert.equal(setting.status, 200, JSON.stringify(setting.error));
+    assert.deepEqual(homeA.calls.at(-1)?.data, { value: 2.5 });
+    const transition = setting.data.capabilities.find((entry) => entry.entityId === 'number.ceiling_transition');
+    assert.deepEqual([transition?.value, transition?.advanced], [2.5, true]);
+  });
+
   test('a hub that goes down: hub_status pushed, reads keep the last state, commands refused', async () => {
     const session = await listen(b.token);
     homeB.dropAll(true);
@@ -363,6 +413,28 @@ describe('assistant tokens', () => {
 
     const lock = await api('POST', '/api/devices/dev-lock/commands', { token, body: { capability: 'lock', action: 'lock' } });
     assert.equal(lock.status, 200, JSON.stringify(lock.error));
+  });
+
+  test('it cannot open the door or disarm the alarm either, but may arm it', async () => {
+    const { token } = await assistantToken(a.token);
+    const before = homeA.calls.length;
+    const refused: [string, Record<string, unknown>, RegExp][] = [
+      ['dev-lock', { capability: 'lock', action: 'open' }, /opened from the app/],
+      ['dev-alarm', { capability: 'alarm', action: 'disarm', value: { code: '1234' } }, /disarmed from the app/],
+    ];
+    for (const [id, body, reason] of refused) {
+      const result = await api(`POST`, `/api/devices/${id}/commands`, { token, body });
+      assert.equal(result.status, 403, JSON.stringify(body));
+      assert.equal(result.error?.code, 'forbidden');
+      assert.match(result.error?.message ?? '', reason);
+    }
+    assert.equal(homeA.calls.length, before, 'Home Assistant never heard of them');
+
+    const armed = await api<DeviceShape>('POST', '/api/devices/dev-alarm/commands', { token, body: { capability: 'alarm', action: 'arm', value: { mode: 'home' } } });
+    assert.equal(armed.status, 200, JSON.stringify(armed.error));
+    const { db } = await import('../src/ems/db.ts');
+    const row = db().prepare('SELECT action, via FROM audit_log ORDER BY id DESC LIMIT 1').get() as Record<string, string>;
+    assert.deepEqual({ ...row }, { action: 'alarm_control_panel.alarm_arm_home', via: 'assistant' });
   });
 
   test('only reaches its own unit', async () => {

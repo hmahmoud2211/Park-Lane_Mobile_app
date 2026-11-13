@@ -103,11 +103,13 @@ screen ──► feature hook ──► feature service ──► lib/http (fetc
 | Building Management System (BMS) | `BmsScreen` | sample readings in `BmsScreen.data.ts`, until a building systems feed exists |
 | Parking demo | `ParkingScreen`, `ReserveParkingScreen`, `ReservationDetailsScreen`, `ReservationHistoryScreen`, `ParkingMapScreen`, `ChargingSessionScreen`, `GuestPassScreen`, `SecurityConsoleScreen`, `DemoControlsScreen` | `features/parking` (see [PARKING_DEMO.md](PARKING_DEMO.md)) |
 | Smart home (EMS backend) | `SmartHomeScreen`, `EmsDevicesScreen`, `DeviceDetailScreen`, `ConnectAccountScreen` | `features/ems`, `features/home`; backend `routes/home.ts`, `routes/accounts.ts`, `ha/` |
-| Smart home (CUBE gateway) | `GatewaySetupScreen`, `AddDeviceScreen`, `AddDeviceMethodScreen`, `DeviceDiscoveryScreen`, `DeviceProvisioningScreen`, `DeviceSetupScreen`, `AcControlScreen` | `features/gateway`, `features/provisioning`; `gateway/` |
+| Household (who shares the apartment, family invites, joining with a code or link) | `HouseholdScreen` | `features/unit` (`useUnit`, `useUnitInvites`, `useInviteLinks`, `pendingInvite`); backend `routes/unit.ts`, `ems/membership.ts`, the public invite page `public/join.*` |
+| Smart home (CUBE gateway) | `GatewaySetupScreen`, `AddDeviceScreen`, `AddDeviceMethodScreen`, `DeviceDiscoveryScreen`, `DeviceProvisioningScreen`, `DeviceSetupScreen`, `AcControlScreen` | `features/gateway`, `features/provisioning`; `gateway/`; backend `gateway/` (the assistant's path to the unit's gateway) |
 | LG pairing | `LgPairingScreen` | `features/lg` |
 | Health Passport | `HealthPassportScreen`, `HealthOnboardingScreen`, `HealthProfileScreen`, `HealthRecordsScreen`, `HealthDocumentScreen`, `HealthUploadScreen`, `HealthReviewScreen`, `HealthItemFormScreen`, `HealthSummaryScreen`, `HealthSettingsScreen`, `HealthConsultationScreen` | `features/health`; backend `routes/health.ts`, `health/` (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)) |
 | Clinical Appointment | `ClinicScreen`, `ClinicDoctorScreen`, `ClinicBookingScreen`, `ClinicAppointmentScreen` | `features/clinic`, built on Health Passport's frame and language; backend `routes/clinic.ts`, `clinic/` (see [CLINIC.md](CLINIC.md)) |
 | Assistant | `AssistantScreen` | `features/assistant` |
+| Reporting AI answers (Google Play's AI-Generated Content policy; signed in or as a guest) | no screen of its own: a "Report" button under each answer in `AssistantScreen` (chat and voice), `HealthSummaryScreen`, `HealthReviewScreen` and `HealthDocumentScreen` | `features/aiReports` (`ReportAnswer`, `useAiReport`, `aiReportsApi`); backend `routes/aiReports.ts`, `aiReports/`, `repositories/aiReports.ts`, the dashboard's `admin/pages/ai-reports.js` |
 
 ## Configuration
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { AppText } from '../../components/common/AppText';
 import { GlassSurface } from '../../components/common/GlassSurface';
+import { ReportAnswer } from '../../features/aiReports/components/ReportAnswer';
 import { BidiText } from '../../features/health/components/BidiText';
 import { HealthFrame } from '../../features/health/components/HealthFrame';
 import { HealthErrorNotice, LoadingPanel } from '../../features/health/components/LoadState';
@@ -508,7 +509,7 @@ function SummaryResult({
 }: SummaryResultProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { lang, store } = useHealth();
+  const { lang, t, store } = useHealth();
   const copy = summaryCopy[lang];
   const key = summaryJobKey(profileId, summary.lang, summary.specialty);
   // Seen here, so no banner about it afterwards.
@@ -555,6 +556,14 @@ function SummaryResult({
               </BidiText>
             ))}
           </View>
+          {/* The summary is written by AI: it can be reported from here (Google Play's AI-Generated Content policy). */}
+          <ReportAnswer
+            key={summary.audio_url}
+            source="health_summary"
+            excerpt={summary.transcript}
+            copy={t.report}
+            direction={lang === 'ar' ? 'rtl' : 'ltr'}
+          />
         </Panel>
       }
     >

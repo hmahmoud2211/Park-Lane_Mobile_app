@@ -82,6 +82,35 @@ export function passFor(user: User, sessionHash: string, now = Date.now()): Gate
   return { gateway: { id: gateway.id, url: gateway.url }, pass: `${body}.${signature}`, expiresAt, role };
 }
 
+/** How a device call's bearer token starts; the gateway tells it from a phone's token by this. */
+export const DEVICE_CALL_PREFIX = 'emscall.';
+/** A device call lasts this long; the gateway refuses any that claims more than two minutes. */
+export const DEVICE_CALL_TTL_MS = 60_000;
+
+/**
+ * The token for one request the backend makes to a unit's gateway for a resident (src/gateway/devices.ts): the
+ * Parklane Assistant reading or driving their devices, which it can't reach itself. It names the gateway, the
+ * resident and the exact method and path, is signed like a pass, lasts a minute and works once. The gateway accepts
+ * it only for its device list, one device and device commands (gateway/cube_gateway/accounts.py `device_call`).
+ * The caller has already checked the resident lives in the unit this gateway serves.
+ */
+export function deviceCallToken(userId: string, gatewayId: string, method: string, path: string, now = Date.now()): string {
+  const payload = {
+    v: 1,
+    typ: 'device_call',
+    sub: userId,
+    gw: gatewayId,
+    m: method.toUpperCase(),
+    p: path,
+    via: 'Parklane Assistant',
+    iat: Math.floor(now / 1000),
+    exp: Math.floor((now + DEVICE_CALL_TTL_MS) / 1000),
+    jti: randomUUID(),
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${DEVICE_CALL_PREFIX}${body}.${sign(null, Buffer.from(body), signingKey().privateKey).toString('base64url')}`;
+}
+
 /** Admin: attaches a gateway to a unit with its sync secret (the installer gives the same secret to the gateway). */
 export function attachGateway(unitId: string, idInput: unknown, secretInput: unknown, urlInput: unknown) {
   const id = typeof idInput === 'string' ? idInput.trim().toLowerCase() : '';

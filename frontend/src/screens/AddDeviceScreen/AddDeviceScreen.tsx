@@ -27,7 +27,7 @@ import { SelectableCard } from '../../components/ui/SelectableCard';
 import { ErrorNotice } from '../../components/feedback/ErrorNotice';
 import { LoadingState } from '../../components/feedback/LoadingState';
 import { readyHome } from '../../features/ems/services/readyHome';
-import { NoGatewayNotice } from '../../features/gateway/components/NoGatewayNotice';
+import { GatewayProblem } from '../../features/gateway/components/GatewayProblem';
 
 const SEARCH_ICON_SIZE = 16;
 
@@ -82,34 +82,11 @@ export function AddDeviceScreen() {
     </SelectableCard>
   );
 
-  const renderGatewayProblem = () => {
-    if (gateway.status === 'loading' || gateway.status === 'connecting') {
-      return <LoadingState accessibilityLabel="Connecting to your gateway" />;
-    }
-    if (gateway.status === 'none') {
-      return (
-        <NoGatewayNotice title={copy.noGatewayTitle} body={copy.noGatewayBody} actionLabel={copy.connectGateway} />
-      );
-    }
-    return (
-      <Notice
-        tone={gateway.status === 'unauthorized' ? 'error' : 'warning'}
-        title={gateway.status === 'unauthorized' ? copy.unauthorizedTitle : copy.offlineTitle}
-        actions={
-          <View style={styles.actions}>
-            {gateway.status === 'offline' ? (
-              <AppButton title={copy.reconnect} variant="secondary" height={BUTTON_HEIGHT} onPress={() => void gateway.reconnect()} style={styles.action} />
-            ) : null}
-            <AppButton title={copy.manageGateway} variant="secondary" height={BUTTON_HEIGHT} onPress={() => navigation.navigate('GatewaySetup')} style={styles.action} />
-          </View>
-        }
-      >
-        {gateway.problem}
-      </Notice>
-    );
-  };
-
   const renderBrands = () => {
+    // Finding and pairing devices is for the gateway's owners; members only use what is there.
+    if (gateway.role !== 'owner') {
+      return <Notice tone="info">{copy.ownerOnly}</Notice>;
+    }
     if (error && !brands) {
       return (
         <ErrorNotice title={copy.loadFailed} retryLabel={copy.retry} onRetry={() => void reload()}>
@@ -168,7 +145,7 @@ export function AddDeviceScreen() {
         <AppText variant="bodySmall" color={theme.colors.textSupport}>
           {copy.brandsIntro}
         </AppText>
-        {gateway.status === 'online' ? renderBrands() : renderGatewayProblem()}
+        {gateway.status === 'online' ? renderBrands() : <GatewayProblem />}
       </NeonPanel>
 
       {hasHub ? (

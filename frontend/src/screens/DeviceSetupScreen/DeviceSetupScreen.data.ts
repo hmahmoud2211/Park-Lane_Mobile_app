@@ -25,7 +25,6 @@ export const deviceSetupCopy = {
   testOffline: 'The gateway could not reach the device.',
   done: 'Done',
   experimental: 'This device uses an experimental integration. Some controls may not work on every model.',
-  offline: 'Your gateway is not reachable right now.',
 } as const;
 
 export const capabilityLabels: Record<string, string> = {

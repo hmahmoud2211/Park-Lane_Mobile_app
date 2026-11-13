@@ -186,6 +186,19 @@ export function rangeText(lab: Pick<LabResult, 'ref_low' | 'ref_high' | 'unit'>,
   return `${t.fields.normalRange}: ${span}`;
 }
 
+/**
+ * What the AI read from a document, as plain text: each item it suggested (as it suggested it, before any
+ * correction), then the full text it read. Sent with a report of that reading.
+ */
+export function aiReadingText(doc: Pick<HealthDocument, 'extracted_items' | 'extracted_text'>, lang: HealthLang): string {
+  const t = healthStrings[lang];
+  const items = (doc.extracted_items ?? []).map((item) => {
+    const summary = describeItem(item.section, item.data as never, lang);
+    return [`${t.sections[item.section].one}: ${summary.title}`, summary.emphasis, ...summary.lines].filter(Boolean).join(' · ');
+  });
+  return [...items, doc.extracted_text ?? ''].filter((part) => part.trim()).join('\n');
+}
+
 /* -------------------------------------------------------------- Dates */
 
 export function todayIso(now = Date.now()): string {

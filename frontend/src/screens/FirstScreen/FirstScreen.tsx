@@ -1,7 +1,10 @@
  import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { View } from 'react-native';
+
+import { assistantConfig } from '../../config/assistant';
+import { useEms } from '../../features/ems/hooks/useEms';
 
 import { AppText } from '../../components/common/AppText';
 import { SlideButton } from '../../components/common/SlideButton';
@@ -41,6 +44,19 @@ export function FirstScreen() {
     () => createStyles(theme, { isCompact, isWide, headlineFontSize, headlineLineHeight, arcSize }),
     [theme, isCompact, isWide, headlineFontSize, headlineLineHeight, arcSize],
   );
+
+  // Someone already signed in (a session kept from last time) goes straight to Home, as Login
+  // would send them, instead of passing the welcome and sign-in screens on every launch.
+  const { status, passwordChangeRequired } = useEms();
+  const { setResidentId } = useAppContext();
+  useEffect(() => {
+    if (status !== 'signedIn') {
+      return;
+    }
+    completeOnboarding();
+    setResidentId(assistantConfig.defaultResidentId);
+    navigation.replace(passwordChangeRequired ? 'ChangePassword' : 'Home');
+  }, [status, passwordChangeRequired, navigation, completeOnboarding, setResidentId]);
 
   const handleGetStarted = useCallback(() => {
     completeOnboarding();

@@ -39,11 +39,21 @@ const FILES: Record<string, { type: string; body: Buffer }> = {
   '/public/page.css': { type: 'text/css; charset=utf-8', body: Buffer.from(read('page.css')) },
   '/public/pass.js': { type: 'text/javascript; charset=utf-8', body: Buffer.from(read('pass.js')) },
   '/public/pass.css': { type: 'text/css; charset=utf-8', body: Buffer.from(read('pass.css')) },
+  '/public/join.js': { type: 'text/javascript; charset=utf-8', body: Buffer.from(read('join.js')) },
+  '/public/join.css': { type: 'text/css; charset=utf-8', body: Buffer.from(read('join.css')) },
 };
 
 /** A visitor's parking pass: one page for every link; its script reads the token from the address. */
 const PASS_PAGE = { type: 'text/html; charset=utf-8', body: Buffer.from(read('pass.html')) };
 const PASS_PATH = /^\/parking\/pass\/inv_[A-Za-z0-9_-]{20,40}$/;
+
+/**
+ * A family invite's link (ems/membership.ts inviteLink, /join#<code>): one static page whose script reads the code
+ * from the address and offers to open the app on it. The page looks nothing up, so it says nothing about the code.
+ * /join/<code> is accepted as well, for codes typed into an address bar.
+ */
+const JOIN_PAGE = { type: 'text/html; charset=utf-8', body: Buffer.from(read('join.html')) };
+const JOIN_PATH = /^\/join(\/[0-9A-Za-z]{4}-?[0-9A-Za-z]{4})?\/?$/;
 
 const HEADERS = {
   'Cache-Control': 'no-cache',
@@ -56,12 +66,12 @@ const HEADERS = {
 
 /** Answers a request for one of the public pages; false for any other path. */
 export function servePublic(path: string, method: string | undefined, res: ServerResponse): boolean {
-  const passPage = PASS_PATH.test(path);
-  const file = passPage ? PASS_PAGE : FILES[path.length > 1 ? path.replace(/\/+$/, '') : path];
+  // Both pages' addresses carry a key (a pass token, an invite code): never cached or kept by a proxy.
+  const passPage = PASS_PATH.test(path) || JOIN_PATH.test(path);
+  const file = PASS_PATH.test(path) ? PASS_PAGE : JOIN_PATH.test(path) ? JOIN_PAGE : FILES[path.length > 1 ? path.replace(/\/+$/, '') : path];
   if (!file || (method !== 'GET' && method !== 'HEAD')) {
     return false;
   }
-  // The pass page's address is its key: never cached or kept by a proxy.
   res.writeHead(200, { ...HEADERS, ...(passPage ? { 'Cache-Control': 'no-store' } : {}), 'Content-Type': file.type, 'Content-Length': file.body.length });
   res.end(method === 'HEAD' ? undefined : file.body);
   return true;
