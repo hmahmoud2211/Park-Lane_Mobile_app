@@ -276,14 +276,14 @@ wheels = [
 
 [[package]]
 name = "aiowebostv"
-version = "1.0.0"
+version = "1.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/63/1884109cd8771c459e38a8ce0a805abdc45a7dd415a068f3de3e676f1093/aiowebostv-1.0.0.tar.gz", hash = "sha256:3f51a03ed00d9f0a1acfc82ee254484fe33d29f01dd4ea05662cdc249f5f1ac3", size = 27101, upload-time = "2026-11-03T20:41:55.083Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/bd/9e161fea6d5984620101f911dde40fa83bc0bde96612cecf717d983d3c48/aiowebostv-1.0.2.tar.gz", hash = "sha256:6e6b1a91fba5d53a208b4d3a48845586b06549c9b374ae2c55b1cabbea52760e", size = 29582, upload-time = "2026-11-11T11:23:10.262Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/23/5568487ed736e5f1c7c208d829d6c97ae2963fe3f14e042aaac43bcb48ad/aiowebostv-1.0.0-py3-none-any.whl", hash = "sha256:cf092a223ea018a8dde639a96f7e14fde1555a4a41d643c7edeaaebb396574e5", size = 19620, upload-time = "2026-11-03T20:41:53.765Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/36/5c1570cf636ff12b1be2446b8f9b833e4cbf8a27c4b10c52972a1c847865/aiowebostv-1.0.2-py3-none-any.whl", hash = "sha256:fb93a76c2aae90503a85f703e2e94f87fec981ba2a9b76d06d0c999d16ce64aa", size = 20824, upload-time = "2026-11-11T11:23:08.991Z" },
 ]
 
 [[package]]
@@ -814,19 +814,20 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.162.2"
+version = "0.162.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
+    { name = "anyio" },
     { name = "opentelemetry-api" },
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/53/f6fed628a0c3d6a284125a93f9145b02ecc2c394735a878b5ad9938c8e17/fastapi-0.162.2.tar.gz", hash = "sha256:9ebd2a69b579141315b2447d8e3f518e6fd909abd6c01cac5cc6b06d5c8841f4", size = 530366, upload-time = "2026-11-07T15:41:39.838Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/39/7435269dcabb3c1b4ce1b9b03b40dae919415c258e1caa27160c22f55b9a/fastapi-0.162.4.tar.gz", hash = "sha256:4abdb1ef367090678d8bc664631df432ae7a1bfe7709c37547d3606e667650e3", size = 529374, upload-time = "2026-11-10T17:51:17.96Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/fb/0dc0f819163bc6b7f9e6802d7d0b1ac180fbbe4e75dbd10655c6a4d77796/fastapi-0.162.2-py3-none-any.whl", hash = "sha256:d0584f9662317e01140df94c64f4bed1d8b059fe35496e30c9c92f70e6e5ff15", size = 151671, upload-time = "2026-11-07T15:41:38.509Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/6b/0537ac682ac728dbe91f75c16683a985d11812f9930f21a35b756d6df629/fastapi-0.162.4-py3-none-any.whl", hash = "sha256:f093bc306d3958278d30ffd14f3834ca3d9b144fbb898ab5c9b652cf6e75f869", size = 151685, upload-time = "2026-11-10T17:51:16.562Z" },
 ]
 
 [[package]]
@@ -996,15 +997,15 @@ wheels = [
 
 [[package]]
 name = "msmart-ng"
-version = "2026.9.0"
+version = "2026.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pycryptodome" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/9b/6844500baaecd5eee57687332978349e6dd372950b5950e038ac20bd9683/msmart_ng-2026.9.0.tar.gz", hash = "sha256:423c14805ae6c17d14adce9e281493550769e2588e352ad0daa2faa1d9cc7bb8", size = 70368089, upload-time = "2026-09-14T00:32:44.25Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/20/a49dc941c0f49f8496cc3c60b18372cbe270bb2e0aa21491dda29cbf4ff2/msmart_ng-2026.11.0.tar.gz", hash = "sha256:243e4add4b456dd9154a327545a2962927613d8ffa79a87363cebc4611e5658f", size = 70369738, upload-time = "2026-11-10T01:47:13.801Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/1a/6e7df705c11be968c26d4a6388f616be5498bdbbca00302e608c611216fb/msmart_ng-2026.9.0-py3-none-any.whl", hash = "sha256:6a4a098629b7e5e29a15b9cd29d2e246c59b0a6e2790226bd3cc4c1b37a567cd", size = 86711, upload-time = "2026-09-14T00:32:42.095Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/08/fd656d802bc719f7f22b53f7702a5878e5650de5713313a435ff315246d7/msmart_ng-2026.11.0-py3-none-any.whl", hash = "sha256:7aa7ebbbab91819b163de61bf5debaf6d6b7aa599ce40ae8f4aa62bd2bb02ddb", size = 87916, upload-time = "2026-11-10T01:47:10.514Z" },
 ]
 
 [[package]]
