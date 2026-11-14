@@ -88,7 +88,7 @@ jobs:
             type=match,pattern=gateway-v(\d+\.\d+)\.\d+,group=1
             type=sha,prefix=sha-
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
