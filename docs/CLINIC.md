@@ -49,6 +49,7 @@ Added, all on that same backend:
 | ElevenLabs TTS and Scribe STT | `backend/src/integrations/elevenlabs.ts` |
 | Audit trail | `backend/src/clinic/audit.ts` |
 | Admin CLI | `backend/scripts/clinic.ts` (`npm run clinic -- …`) |
+| Admin dashboard: Clinic tab (specialties, doctors, weekly hours) | `backend/src/clinic/admin.ts`, `backend/src/admin/pages/clinic.js` |
 | App: Clinical Appointment (directory, doctor, booking, appointment) | `frontend/src/screens/Clinic*`, `frontend/src/features/clinic/` |
 | App: clinic visits in Health Passport | `frontend/src/screens/HealthConsultationScreen`, Passport home and Records |
 
@@ -80,7 +81,8 @@ provider.
   account there, or use the ready-made `ems` account, and Clinical Appointment
   uses that session: it has no sign-in of its own, and sends a guest to the
   login screen. `/api/auth/register` only
-  ever makes residents; doctor and desk accounts come from the CLI.
+  ever makes residents. Doctors are added in the admin dashboard's Clinic tab
+  or with the CLI; desk accounts come from the CLI.
 - Doctors and desk staff sign in to the clinic web app with the same
   `/api/auth/login`. Their sessions last 12 hours (`CLINIC_STAFF_SESSION_HOURS`),
   the web app also signs out after 30 idle minutes (not while dictating), and
@@ -398,6 +400,18 @@ Demo sign-ins (`demo-seed`): doctor `demo.cardiology@parklane.test` /
 login screen; Services → Clinical Appointment then opens the directory.
 
 ### Setting up real doctors
+
+The easy way is the admin dashboard (`/admin` on the backend), **Clinic** tab:
+
+1. Add the specialty (English name, Arabic name).
+2. **Add doctor**: sign-in email, name, specialty, visit length, fee, languages, a short "About",
+   and the weekly hours (one row per block; "+ Add hours" copies the last row to the next day).
+3. The dashboard shows a temporary password once. Give it to the doctor with their email. At the
+   first sign-in to the clinic web app they choose their own password.
+
+The same tab edits a doctor (new hours do not move booked appointments) and turns one off or on.
+A forgotten password: **Accounts → Reset password**. Photos, time off and front-desk accounts are
+still CLI only, on the server:
 
 ```bash
 npm run clinic -- specialty add cardiology --en Cardiology --ar "أمراض القلب"

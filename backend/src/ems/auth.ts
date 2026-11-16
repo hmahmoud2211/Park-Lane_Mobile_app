@@ -68,7 +68,7 @@ export async function ensureDefaultAccount(): Promise<void> {
   insertUser(user, await hashPassword(password), new Date().toISOString());
 }
 
-/** `role` is only ever set by the clinic CLI; the register route always makes a resident. */
+/** `role` is only ever set by the clinic CLI; the register route always makes a resident. (The dashboard's doctors: prepareTemporaryAccount.) */
 export async function createUser(emailInput: unknown, passwordInput: unknown, nameInput: unknown, role: Role = 'resident'): Promise<User> {
   const email = normalizeEmail(emailInput);
   const password = typeof passwordInput === 'string' ? passwordInput : '';
@@ -107,24 +107,43 @@ const TEMPORARY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz2345
 /** A password to hand over once: 14 characters, never stored as issued. */
 export const temporaryPassword = () => Array.from({ length: 14 }, () => TEMPORARY_ALPHABET[randomInt(TEMPORARY_ALPHABET.length)]).join('');
 
-/**
- * An account building management creates for a resident (or another admin), with a temporary password the
- * person must replace at first sign-in. Returns the password once; only its hash is kept.
- */
-export async function createAccountWithTemporaryPassword(emailInput: unknown, nameInput: unknown, roleInput: unknown) {
+/** A new account with a temporary password, ready to save. Hashing is slow, so it is done before any transaction. */
+export interface TemporaryAccount {
+  user: User;
+  passwordHash: string;
+  temporaryPassword: string;
+}
+
+/** Builds (does not save) an account of `role` whose owner must choose their own password at first sign-in. */
+export async function prepareTemporaryAccount(emailInput: unknown, nameInput: unknown, role: Role, nameMax = 64): Promise<TemporaryAccount> {
   const email = normalizeEmail(emailInput);
-  const role: Role = roleInput === 'admin' ? 'admin' : roleInput === 'security' ? 'security' : 'resident';
   const password = temporaryPassword();
-  const user: User = { id: randomUUID(), email, name: trimmedText(nameInput) || email.split('@')[0], role };
+  const user: User = { id: randomUUID(), email, name: trimmedText(nameInput, nameMax) || email.split('@')[0], role };
+  return { user, passwordHash: await hashPassword(password), temporaryPassword: password };
+}
+
+/** Saves a prepared account; can run inside a transaction with whatever else the account comes with. */
+export function saveTemporaryAccount(account: TemporaryAccount): void {
   try {
-    insertUser(user, await hashPassword(password), new Date().toISOString(), true);
+    insertUser(account.user, account.passwordHash, new Date().toISOString(), true);
   } catch (error) {
     if (/UNIQUE/.test((error as Error).message)) {
       throw new ApiError('conflict', 'An EMS account with this email already exists.');
     }
     throw error;
   }
-  return { user: { ...user, mustChangePassword: true }, temporaryPassword: password };
+}
+
+/**
+ * An account building management creates for a resident (or another admin), with a temporary password the
+ * person must replace at first sign-in. Returns the password once; only its hash is kept. Doctors are made with
+ * their clinic profile instead (clinic/admin.ts), never as a bare account here.
+ */
+export async function createAccountWithTemporaryPassword(emailInput: unknown, nameInput: unknown, roleInput: unknown) {
+  const role: Role = roleInput === 'admin' ? 'admin' : roleInput === 'security' ? 'security' : 'resident';
+  const account = await prepareTemporaryAccount(emailInput, nameInput, role);
+  saveTemporaryAccount(account);
+  return { user: { ...account.user, mustChangePassword: true }, temporaryPassword: account.temporaryPassword };
 }
 
 /** Admin: a new temporary password; every session of the account ends and it must choose its own again. */

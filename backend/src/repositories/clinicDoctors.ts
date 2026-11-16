@@ -79,6 +79,25 @@ export function listActiveDoctors(specialtyId?: string | null): DoctorRow[] {
   ) as unknown as DoctorRow[];
 }
 
+/** A doctor as building management sees them: with their sign-in email and whether it still has a temporary password. */
+export interface AdminDoctorRow extends DoctorRow {
+  email: string;
+  must_change_password: number;
+}
+
+const ADMIN_DOCTOR_SELECT = `
+  SELECT d.*, s.name_en AS specialty_en, s.name_ar AS specialty_ar, u.email, u.must_change_password
+  FROM clinic_doctors d JOIN clinic_specialties s ON s.id = d.specialty_id JOIN users u ON u.id = d.user_id`;
+
+/** Every doctor, active first, then by name: the admin dashboard's list. */
+export function listDoctorsForAdmin(): AdminDoctorRow[] {
+  return db().prepare(`${ADMIN_DOCTOR_SELECT} ORDER BY d.active DESC, d.display_name`).all() as unknown as AdminDoctorRow[];
+}
+
+export function findDoctorForAdmin(id: string): AdminDoctorRow | null {
+  return (db().prepare(`${ADMIN_DOCTOR_SELECT} WHERE d.id = ?`).get(id) as AdminDoctorRow | undefined) ?? null;
+}
+
 /** Every doctor with their sign-in email, active or not, for the clinic CLI. */
 export function listDoctorAccounts(): DoctorAccountRow[] {
   return db()

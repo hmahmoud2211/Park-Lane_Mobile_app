@@ -24,7 +24,7 @@ body {
   background: radial-gradient(1200px 600px at 10% -10%, #24306f 0%, transparent 60%), var(--bg);
   min-height: 100vh;
 }
-button, input, select { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 .muted { color: var(--muted); font-weight: 400; }
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -45,11 +45,13 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 h3 { font-size: 15px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
 p { margin: 0 0 12px; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-input, select {
+input, select, textarea {
   width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
   background: var(--bg); outline: none;
 }
-input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 123, 255, 0.25); }
+textarea { resize: vertical; min-height: 72px; }
+input:disabled { opacity: 0.6; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 123, 255, 0.25); }
 .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 14px; }
 .check input { width: auto; }
 .btn {
@@ -110,6 +112,25 @@ dialog::backdrop { background: rgba(5, 8, 20, 0.7); }
 details { margin-top: 14px; }
 summary { cursor: pointer; font-size: 14px; padding: 4px 0; }
 details[open] summary { margin-bottom: 4px; }
+.nowrap { white-space: nowrap; }
+/* The clinic's weekly hours (pages/clinic.js): one row per block, day · from · to · remove; on a phone, day and
+   remove on one line and the two times sharing the next. */
+.hours-row {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: 10px;
+  align-items: center; margin-bottom: 8px;
+}
+.hours-row > * { min-width: 0; }
+.actions.start { justify-content: flex-start; margin-top: 4px; }
+@media (max-width: 640px) {
+  .hours-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "day remove" "from to"; margin-bottom: 14px;
+  }
+  .hours-row > select { grid-area: day; }
+  .hours-row > .btn { grid-area: remove; justify-self: end; }
+  .hours-row > input:first-of-type { grid-area: from; }
+  .hours-row > input:last-of-type { grid-area: to; }
+  .hours-row > .hours-to { display: none; }
+}
 /* Reported AI answers (pages/ai-reports.js): long text scrolls inside its cell. */
 .report-cell { min-width: 240px; max-width: 520px; }
 .report-cell details { margin-top: 0; }

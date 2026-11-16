@@ -202,3 +202,120 @@ describe('building management', () => {
     assert.equal((await fetch(`${BASE}/admin`, { method: 'POST' })).status, 404);
   });
 });
+
+interface AdminDoctor {
+  id: string;
+  email: string;
+  name: string;
+  title: string | null;
+  yearsExperience: number | null;
+  feeEgp: number | null;
+  active: boolean;
+  mustChangePassword: boolean;
+  schedule: { weekday: number; start: string; end: string }[];
+}
+
+describe('the clinic, from the dashboard', () => {
+  test('an admin adds a doctor, who replaces the temporary password and is in the residents’ directory', async () => {
+    const admin = await adminSession();
+    const nour = { email: 'dr.nour@parklane.test', name: 'Dr. Nour Adel', specialtyId: 'general-medicine' };
+    assert.equal((await api('POST', '/api/admin/clinic/doctors', { token: admin, body: nour })).error?.code, 'invalid', 'the specialty must exist first');
+
+    const specialty = await api<{ id: string; ar: string }>('POST', '/api/admin/clinic/specialties', { token: admin, body: { en: 'General Medicine', ar: 'الطب العام' } });
+    assert.equal(specialty.data.id, 'general-medicine');
+    assert.equal((await api('POST', '/api/admin/clinic/specialties', { token: admin, body: { en: 'general medicine' } })).status, 409);
+    const english = await api<{ ar: string }>('POST', '/api/admin/clinic/specialties', { token: admin, body: { en: 'Cardiology' } });
+    assert.equal(english.data.ar, 'Cardiology', 'without an Arabic name, Arabic readers see the English one');
+    assert.equal((await api('POST', '/api/admin/clinic/specialties', { token: admin, body: { en: '  ' } })).error?.code, 'invalid');
+
+    // The hours are checked before anything is saved, so a refused doctor leaves no account behind.
+    for (const schedule of [
+      [{ weekday: 7, start: '09:00', end: '13:00' }],
+      [{ weekday: 0, start: '13:00', end: '09:00' }],
+      [{ weekday: 0, start: '09:00', end: '09:10' }],
+      [{ weekday: 0, start: '9am', end: '13:00' }],
+      [{ weekday: 0, start: '09:00', end: '13:00' }, { weekday: 0, start: '12:00', end: '14:00' }],
+    ]) {
+      assert.equal((await api('POST', '/api/admin/clinic/doctors', { token: admin, body: { ...nour, schedule } })).error?.code, 'invalid', JSON.stringify(schedule));
+    }
+    assert.equal((await api('POST', '/api/admin/clinic/doctors', { token: admin, body: { ...nour, consultationMinutes: 0 } })).error?.code, 'invalid');
+    assert.equal((await login(nour.email, 'anything-at-all')).status, 401, 'no account was left behind');
+
+    const created = await api<{ doctor: AdminDoctor; temporaryPassword: string }>('POST', '/api/admin/clinic/doctors', {
+      token: admin,
+      body: {
+        ...nour,
+        email: 'Dr.Nour@Parklane.test',
+        nameAr: 'د. نور عادل',
+        title: 'General Practitioner',
+        consultationMinutes: 15,
+        yearsExperience: 8,
+        feeEgp: 500,
+        languages: ['en', 'ar'],
+        schedule: [{ weekday: 1, start: '17:00', end: '21:00' }, { weekday: 0, start: '09:00', end: '13:00' }],
+      },
+    });
+    assert.equal(created.status, 200);
+    const { doctor: added, temporaryPassword } = created.data;
+    assert.equal(added.email, nour.email);
+    assert.equal(added.mustChangePassword, true);
+    assert.equal(added.active, true);
+    assert.deepEqual(added.schedule, [{ weekday: 0, start: '09:00', end: '13:00' }, { weekday: 1, start: '17:00', end: '21:00' }]);
+    assert.match(temporaryPassword, /^[A-HJ-NP-Za-km-np-z2-9]{14}$/);
+    assert.equal((await api('POST', '/api/admin/clinic/doctors', { token: admin, body: { ...nour, name: 'Again' } })).status, 409);
+
+    // The doctor chooses their own password before the clinic workspace opens.
+    const doctor = await login(nour.email, temporaryPassword);
+    assert.equal(doctor.data.user.role, 'doctor');
+    assert.equal((await api('GET', '/api/clinic/doctor/me', { token: doctor.data.token })).error?.code, 'password_change_required');
+    await api('POST', '/api/auth/change-password', { token: doctor.data.token, body: { currentPassword: temporaryPassword, newPassword: 'nour-own-password' } });
+    assert.equal((await api('GET', '/api/clinic/doctor/me', { token: doctor.data.token })).status, 200);
+
+    // Residents see the doctor in the app.
+    const patient = await resident('patient-of-nour@parklane.test');
+    const directory = await api<{ name: { en: string; ar: string }; consultation_minutes: number; languages: string[] }[]>('GET', '/api/clinic/doctors?specialty=general-medicine', {
+      token: patient.token,
+    });
+    assert.deepEqual(
+      directory.data.map((entry) => [entry.name.en, entry.name.ar, entry.consultation_minutes, entry.languages]),
+      [['Dr. Nour Adel', 'د. نور عادل', 15, ['en', 'ar']]],
+    );
+
+    // An edit changes only what it sends; new hours replace the old ones.
+    const edited = await api<AdminDoctor>('PATCH', `/api/admin/clinic/doctors/${added.id}`, {
+      token: admin,
+      body: { feeEgp: 650, title: '', schedule: [{ weekday: 2, start: '10:00', end: '12:00' }] },
+    });
+    assert.equal(edited.status, 200);
+    assert.deepEqual([edited.data.feeEgp, edited.data.title, edited.data.name, edited.data.yearsExperience], [650, null, 'Dr. Nour Adel', 8]);
+    assert.deepEqual(edited.data.schedule, [{ weekday: 2, start: '10:00', end: '12:00' }]);
+    assert.equal(edited.data.mustChangePassword, false);
+    assert.equal((await api('PATCH', `/api/admin/clinic/doctors/${added.id}`, { token: admin, body: {} })).status, 400);
+    assert.equal((await api('PATCH', `/api/admin/clinic/doctors/${added.id}`, { token: admin, body: { name: '' } })).error?.code, 'invalid');
+    assert.equal((await api('PATCH', '/api/admin/clinic/doctors/nobody', { token: admin, body: { feeEgp: 1 } })).status, 404);
+
+    // Turned off: out of the directory and the workspace, until turned on again.
+    const off = await api<AdminDoctor>('POST', `/api/admin/clinic/doctors/${added.id}/active`, { token: admin, body: { active: false } });
+    assert.equal(off.data.active, false);
+    assert.equal((await api<unknown[]>('GET', '/api/clinic/doctors', { token: patient.token })).data.length, 0);
+    assert.equal((await api('GET', '/api/clinic/doctor/me', { token: doctor.data.token })).status, 403);
+    await api('POST', `/api/admin/clinic/doctors/${added.id}/active`, { token: admin, body: { active: true } });
+    assert.equal((await api<unknown[]>('GET', '/api/clinic/doctors', { token: patient.token })).data.length, 1);
+
+    const overview = await api<{ specialties: { id: string; doctors: number }[]; doctors: AdminDoctor[] }>('GET', '/api/admin/clinic', { token: admin });
+    assert.deepEqual(overview.data.specialties.map((entry) => [entry.id, entry.doctors]), [['cardiology', 0], ['general-medicine', 1]]);
+    assert.deepEqual(overview.data.doctors.map((entry) => entry.email), [nour.email]);
+  });
+
+  test('only building management manages the clinic, and Accounts cannot make a doctor without a profile', async () => {
+    const plain = await resident('not-an-admin@parklane.test');
+    assert.equal((await api('GET', '/api/admin/clinic', { token: plain.token })).status, 403);
+    assert.equal((await api('POST', '/api/admin/clinic/specialties', { token: plain.token, body: { en: 'Neurology' } })).status, 403);
+    assert.equal((await api('GET', '/api/admin/clinic')).status, 401);
+    assert.equal((await api('GET', '/api/admin/clinic', { token: ADMIN })).status, 200);
+    const admin = await adminSession();
+    const bare = await api<{ user: { role: string } }>('POST', '/api/admin/users', { token: admin, body: { email: 'bare-doctor@parklane.test', role: 'doctor' } });
+    assert.equal(bare.data.user.role, 'resident');
+    assert.match(await (await fetch(`${BASE}/admin`)).text(), /<script src="\/admin\/pages\/clinic\.js"/);
+  });
+});

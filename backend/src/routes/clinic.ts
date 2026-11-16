@@ -2,13 +2,17 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
+import { auditAdmin } from '../ems/adminAudit.ts';
 import { requireRole, requireUser, type User } from '../ems/auth.ts';
 import { listProfiles, consentGiven, type HealthLang } from '../health/passport.ts';
 import { readBytes, readJson } from '../http/body.ts';
+import { authorizeAdmin } from '../http/guards.ts';
+import { decodeSegment } from '../http/params.ts';
 import { throttle } from '../http/rateLimits.ts';
 import { ok, sendBytes } from '../http/respond.ts';
 import type { RouteGroup } from '../http/router.ts';
 import { aiConfigured } from '../integrations/ai/model.ts';
+import * as clinicAdmin from '../clinic/admin.ts';
 import * as appointments from '../clinic/appointments.ts';
 import { audit } from '../clinic/audit.ts';
 import * as consultations from '../clinic/consultations.ts';
@@ -40,9 +44,17 @@ import * as summaries from '../clinic/summaries.ts';
  *
  *   the front desk         check-in and the day's list, no clinical content
  *     GET  /desk/day?date=     POST /desk/appointments/:id/status { action }
+ *
+ * And building management (an admin account or the ADMIN_API_KEY; the dashboard's Clinic tab), under /api/admin/clinic:
+ *     GET  /api/admin/clinic                      specialties and every doctor, active or not
+ *     POST /api/admin/clinic/specialties { en, ar? }
+ *     POST /api/admin/clinic/doctors { email, name, specialtyId, consultationMinutes?, nameAr?, title?, titleAr?,
+ *          bio?, bioAr?, yearsExperience?, feeEgp?, languages?, schedule? }   → { doctor, temporaryPassword }
+ *     PATCH /api/admin/clinic/doctors/:id { any of those but email }        POST /api/admin/clinic/doctors/:id/active { active }
  */
 
 const PREFIX = '/api/clinic';
+const ADMIN_PREFIX = '/api/admin/clinic';
 
 const langOf = (value: unknown): HealthLang => (value === 'ar' ? 'ar' : 'en');
 
@@ -297,7 +309,48 @@ async function deskRoute(req: IncomingMessage, res: ServerResponse, path: string
   return false;
 }
 
+/** Building management (the admin dashboard's Clinic tab): specialties and doctors. Every change is in the admin audit. */
+async function adminRoute(req: IncomingMessage, res: ServerResponse, path: string): Promise<boolean> {
+  const method = req.method ?? 'GET';
+  const { user } = authorizeAdmin(req);
+  if (path === '' && method === 'GET') {
+    ok(res, clinicAdmin.clinicOverview());
+    return true;
+  }
+  if (path === '/specialties' && method === 'POST') {
+    const created = clinicAdmin.addSpecialty(await readJson(req));
+    auditAdmin(user, 'clinic_specialty.create', { type: 'clinic_specialty', id: created.id });
+    ok(res, created);
+    return true;
+  }
+  if (path === '/doctors' && method === 'POST') {
+    const created = await clinicAdmin.addDoctor(await readJson(req));
+    auditAdmin(user, 'clinic_doctor.create', { type: 'clinic_doctor', id: created.doctor.id }, { email: created.doctor.email });
+    ok(res, created);
+    return true;
+  }
+  const doctor = /^\/doctors\/([^/]+)(\/active)?$/.exec(path);
+  if (doctor) {
+    const id = decodeSegment(doctor[1]);
+    if (!doctor[2] && method === 'PATCH') {
+      const body = await readJson(req);
+      const updated = clinicAdmin.editDoctor(id, body);
+      auditAdmin(user, 'clinic_doctor.edit', { type: 'clinic_doctor', id }, { fields: Object.keys(body) });
+      ok(res, updated);
+      return true;
+    }
+    if (doctor[2] && method === 'POST') {
+      const updated = clinicAdmin.setDoctorActiveState(id, await readJson(req));
+      auditAdmin(user, updated.active ? 'clinic_doctor.activate' : 'clinic_doctor.deactivate', { type: 'clinic_doctor', id });
+      ok(res, updated);
+      return true;
+    }
+  }
+  return false;
+}
+
 export const clinicRoutes: RouteGroup = async ({ req, res, path, url }) => {
+  if (path === ADMIN_PREFIX || path.startsWith(`${ADMIN_PREFIX}/`)) return adminRoute(req, res, path.slice(ADMIN_PREFIX.length));
   if (!path.startsWith(`${PREFIX}/`)) return false;
   const rest = path.slice(PREFIX.length);
   if (rest.startsWith('/doctor/')) return doctorRoute(req, res, rest.slice('/doctor'.length), url);

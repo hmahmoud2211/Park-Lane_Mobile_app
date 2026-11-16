@@ -389,6 +389,11 @@ to three minutes), `running`, `failed` (`lastError` says why) or `removed`.
 | `GET /api/admin/users?q=` | — | accounts matching name or email (newest first, 200 at most), each with `role`, `mustChangePassword` and its `unit` |
 | `POST /api/admin/users` | `{ email, name?, role?, unitId?, unitRole? }` | `{ user, temporaryPassword, unitId }`; `role` is `resident` (default) or `admin`; the temporary password is shown only here |
 | `POST /api/admin/users/:id/reset-password` | — | `{ temporaryPassword }`; signs the account out everywhere; it must choose a new password |
+| `GET /api/admin/clinic` | — | `{ specialties, doctors }`: every specialty (`id, en, ar, doctors`) and every doctor, active or not, with sign-in `email`, `mustChangePassword` and weekly `schedule` (`routes/clinic.ts`, the dashboard's Clinic tab) |
+| `POST /api/admin/clinic/specialties` | `{ en, ar? }` | the specialty; its `id` comes from the English name (`General Medicine` → `general-medicine`); 409 when it exists |
+| `POST /api/admin/clinic/doctors` | `{ email, name, specialtyId, consultationMinutes?, nameAr?, title?, titleAr?, bio?, bioAr?, yearsExperience?, feeEgp?, languages?, schedule? }` | `{ doctor, temporaryPassword }`: a `doctor` account, its profile and its weekly hours (`[{ weekday 0–6, start, end }]`, no overlaps, each long enough for one visit), saved together or not at all. The doctor replaces the password at the first sign-in to the clinic web app |
+| `PATCH /api/admin/clinic/doctors/:id` | any of those fields but `email` | the doctor; only the fields sent change; a new `schedule` replaces the old one and does not move booked appointments |
+| `POST /api/admin/clinic/doctors/:id/active` | `{ active }` | the doctor; inactive doctors leave the residents' directory and cannot use the clinic web app; booked appointments stay |
 | `GET /api/admin/hubs` | — | all hubs |
 | `POST /api/admin/hubs` | `{ unitId, baseUrl, token }` | attaches a separately run Home Assistant (address inside `HA_ALLOWED_NETWORKS`) |
 | `GET /api/admin/gateways` | — | the CUBE gateways attached to units, with `lastSync` |

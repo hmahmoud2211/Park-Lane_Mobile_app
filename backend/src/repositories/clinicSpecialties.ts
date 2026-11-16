@@ -19,6 +19,17 @@ export function listSpecialtiesWithActiveDoctors(): (SpecialtyRow & { doctor_cou
     .all() as unknown as (SpecialtyRow & { doctor_count: number })[];
 }
 
+/** Every specialty, with how many doctors practise it (active or not), for the admin dashboard. */
+export function listSpecialtiesWithDoctorCounts(): (SpecialtyRow & { doctor_count: number })[] {
+  return db()
+    .prepare(
+      `SELECT s.id, s.name_en, s.name_ar, COUNT(d.id) AS doctor_count
+       FROM clinic_specialties s LEFT JOIN clinic_doctors d ON d.specialty_id = s.id
+       GROUP BY s.id ORDER BY s.name_en`,
+    )
+    .all() as unknown as (SpecialtyRow & { doctor_count: number })[];
+}
+
 /** Every specialty, for the clinic CLI. */
 export function listAllSpecialties(): SpecialtyRow[] {
   return db().prepare('SELECT id, name_en, name_ar FROM clinic_specialties ORDER BY id').all() as unknown as SpecialtyRow[];
