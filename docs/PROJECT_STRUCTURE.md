@@ -104,6 +104,7 @@ screen ──► feature hook ──► feature service ──► lib/http (fetc
 | Parking demo | `ParkingScreen`, `ReserveParkingScreen`, `ReservationDetailsScreen`, `ReservationHistoryScreen`, `ParkingMapScreen`, `ChargingSessionScreen`, `GuestPassScreen`, `SecurityConsoleScreen`, `DemoControlsScreen` | `features/parking` (see [PARKING_DEMO.md](PARKING_DEMO.md)) |
 | Smart home (EMS backend) | `SmartHomeScreen`, `EmsDevicesScreen`, `DeviceDetailScreen`, `ConnectAccountScreen` | `features/ems`, `features/home`; backend `routes/home.ts`, `routes/accounts.ts`, `ha/` |
 | Household (who shares the apartment, family invites, joining with a code or link) | `HouseholdScreen` | `features/unit` (`useUnit`, `useUnitInvites`, `useInviteLinks`, `pendingInvite`); backend `routes/unit.ts`, `ems/membership.ts`, the public invite page `public/join.*` |
+| Family Circle (location and battery sharing, like Life360; Circles joined by code, not tied to a unit) | `CircleScreen` (Home's "Family Circle" tile) | `features/circles` (`useCircles`, `useCircleInvites`, `useLocationSharing`, the background task `services/backgroundTask.ts` imported first in `index.ts`, `CircleMap`, `CirclesProvider`); backend `routes/circles.ts`, `circles/` (see [FAMILY_CIRCLE.md](FAMILY_CIRCLE.md)) |
 | Smart home (CUBE gateway) | `GatewaySetupScreen`, `AddDeviceScreen`, `AddDeviceMethodScreen`, `DeviceDiscoveryScreen`, `DeviceProvisioningScreen`, `DeviceSetupScreen`, `AcControlScreen` | `features/gateway`, `features/provisioning`; `gateway/`; backend `gateway/` (the assistant's path to the unit's gateway) |
 | LG pairing | `LgPairingScreen` | `features/lg` |
 | Health Passport | `HealthPassportScreen`, `HealthOnboardingScreen`, `HealthProfileScreen`, `HealthRecordsScreen`, `HealthDocumentScreen`, `HealthUploadScreen`, `HealthReviewScreen`, `HealthItemFormScreen`, `HealthSummaryScreen`, `HealthSettingsScreen`, `HealthConsultationScreen` | `features/health`; backend `routes/health.ts`, `health/` (see [HEALTH_PASSPORT.md](HEALTH_PASSPORT.md)) |
@@ -117,6 +118,7 @@ screen ──► feature hook ──► feature service ──► lib/http (fetc
 |---|---|
 | `frontend/.env.local` (from `.env.example`) | `EXPO_PUBLIC_DEVICE_BACKEND_URL`, `EXPO_PUBLIC_ASSISTANT_URL`, `EXPO_PUBLIC_HEALTH_API`, `EXPO_PUBLIC_HEALTH_API_URL`, `EXPO_PUBLIC_DEMO_TOOLS`, `EXPO_PUBLIC_VISUAL_ROUTES` for development |
 | `frontend/eas.json` | the same variables per build profile |
+| `frontend/app.config.js` | adds the Android Google Maps key (Family Circle's map) from `GOOGLE_MAPS_ANDROID_API_KEY`, an EAS environment variable (or `.env.local`), so it stays out of git; everything else is in `app.json` |
 | `frontend/src/config/` | everything the app reads; `env.ts` is the only file that touches `process.env`, except the two mock checks in `features/health/services` ([why](HEALTH_PASSPORT.md#mock-or-real-backend)) |
 | `backend/.env` (from `.env.example`) | every backend setting; `backend/src/config.ts` reads it |
 | `gateway/` | `CUBE_*` environment variables (gateway/README.md) |

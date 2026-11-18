@@ -424,6 +424,36 @@ removed member. `GET /join#<code>` (and `/join/<code>`) is a static public page 
 button (`parklane://join/<code>`), the store link and the code; it looks nothing up, and `/join/…` paths are logged
 without the code.
 
+## Family Circle — `routes/circles.ts`
+
+Location and battery sharing between accounts, like Life360 (`backend/src/circles/`,
+`docs/plans/FAMILY_CIRCLE_PLAN.md`, types in `shared/contracts/circles.ts`). A Circle is not tied to a unit: its maker
+is its owner and invites anyone with an account. Each member turns their own sharing on or off per Circle (off when
+they join); a member's `location` and `battery` are filled only in Circles where they share. App sessions only, except
+`POST /api/location/report`.
+
+| Method & path | Body | Answer |
+|---|---|---|
+| `GET /api/circles` | — | `Circle[]`: `{ id, name, role, sharing, members }` (my role and sharing); members `{ userId, name, role, you, since, sharing, location, battery }` |
+| `POST /api/circles` | `{ name }` | `Circle`; the maker is its owner. 409 `conflict` when already in 10 Circles |
+| `PATCH /api/circles/:id` | `{ name }` | `Circle`; owners only |
+| `DELETE /api/circles/:id` | — | `{ deleted: true }`; owners only |
+| `PUT /api/circles/:id/sharing` | `{ sharing: boolean }` | `Circle`; my own sharing only. Sharing nowhere deletes my saved position |
+| `POST /api/circles/:id/invites` | — | `CircleInvite`: `{ id, code, expiresAt }`; owners only; single use, 24 hours, at most 10 open, 20 members |
+| `GET /api/circles/:id/invites` | — | `OpenCircleInvite[]` (`{ id, invitedBy, createdAt, expiresAt }`, newest first); owners only |
+| `DELETE /api/circles/:id/invites/:inviteId` | — | `OpenCircleInvite[]` still open; owners only |
+| `POST /api/circles/invites/check` | `{ code }` | `CircleInvitePreview`: `{ circle: { name, members }, invitedBy, expiresAt, alreadyMember }`. Refused like join |
+| `POST /api/circles/join` | `{ code }` | `Circle`; 422 `invalid`, 410 `invite_expired` / `invite_used`, 409 `conflict` (Circle full, or 10 Circles) |
+| `DELETE /api/circles/:id/members/:userId` | — | `Circle[]` (mine); owners remove others, anyone removes themselves (leaving). The last owner leaving makes the longest member owner; the last member leaving deletes the Circle |
+| `POST /api/location/report` | `LocationReport`: `{ points: LocationPoint[] (1–200), battery }` | `LocationReportResult`: `{ accepted, sharing, liveUntil }`. Session or `location` token. `sharing: false` (shares nowhere, nothing saved) tells the phone to stop; `liveUntil` (ms, or null) tells it to send fast updates until then (live view). Points with accuracy worse than 1 km, more than 2 minutes ahead or older than 24 hours are dropped; only the newest point is kept, and only if newer than the saved one. 40 a minute |
+| `POST /api/location/watch` | `{ circleId }` | `LiveWatch`: `{ liveUntil, members }`. The Circle's map is open: its sharing members (not the watcher) go live for 60 seconds; the app repeats it every ~30 s and stops after 10 minutes. A phone not yet live gets the realtime event `location.live` (`{ until }`) at once; every live phone sees `liveUntil` in its report answers. 404 for someone not in the Circle. Kept in memory. 10 a minute |
+| `POST /api/location/token` | — | `LocationToken`: `{ token, expiresAt }`, a token that can only call `/api/location/report`, for the phone's background task. It lasts as long as the session and ends with it |
+
+Positions are sealed at rest (`seal()`). Codes follow the unit invites' rules (any case, keyed hash, an owner's open
+invites end when they stop being an owner). Realtime: `location.updated` (`{ member: MemberPosition }`) goes to
+everyone in a Circle where the reporter shares; `circle.updated` (`{ circleId }`) to a Circle's members (and to a
+removed one) when members, sharing, the name or invites change.
+
 ## CUBE gateway access — `routes/gateway.ts`
 
 Residents reach their apartment's CUBE gateway with their account instead of a setup code
@@ -453,6 +483,9 @@ A phone's gateway token lives as long as the app session that asked for its pass
 | `rooms` | `{ rooms: Room[] }` | rooms changed |
 | `hub_status` | `{ status, haVersion }` | the hub went online, offline or lost its token |
 | `accounts` | — | linked accounts changed; re-read `GET /api/accounts` |
+| `location.updated` | `{ member: MemberPosition }` | someone who shares with the resident in a Family Circle reported a position or battery |
+| `location.live` | `{ until }` | someone opened a Family Circle map with the resident on it: send fast updates until `until` (ms) |
+| `circle.updated` | `{ circleId }` | a Family Circle's members, sharing, name or invites changed; re-read `GET /api/circles` |
 
 The server pings every 25 seconds. Client frames are capped at 4 KB.
 

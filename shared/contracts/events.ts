@@ -1,3 +1,4 @@
+import type { MemberPosition } from './circles.ts';
 import type { ClinicEvent } from './clinic.ts';
 import type { Device, HubStatus, Room } from './home.ts';
 import type { NotificationEvent } from './notifications.ts';
@@ -34,4 +35,10 @@ export type RealtimeEvent =
   | { type: 'energy.reading'; at: string }
   /** Someone joined or left the resident's apartment, or an invite was made or cancelled: refetch GET /api/unit. */
   | { type: 'unit.updated' }
+  /** Someone who shares with the resident in a Circle reported a new position or battery. */
+  | { type: 'location.updated'; member: MemberPosition }
+  /** Someone has the resident's position on their map: send fast updates until `until` (ms), if sharing. */
+  | { type: 'location.live'; until: number }
+  /** A Circle's members, name, sharing or invites changed, or the resident left or was removed: refetch GET /api/circles. */
+  | { type: 'circle.updated'; circleId: string }
   | { type: 'error'; code: string };

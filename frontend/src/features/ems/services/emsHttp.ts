@@ -90,6 +90,11 @@ export interface CallInit {
    * Timeouts and the backend's own errors are never retried.
    */
   retry?: boolean;
+  /**
+   * Send this token instead of the session's: Family Circle's background task, which may run while the app (and its
+   * session) is not loaded, uses its own narrow location token. A refusal then never signs the app out.
+   */
+  bearer?: string;
 }
 
 export async function call<T>(path: string, init: CallInit = {}): Promise<T> {
@@ -97,13 +102,13 @@ export async function call<T>(path: string, init: CallInit = {}): Promise<T> {
     // The build was made without the account service's address (EXPO_PUBLIC_DEVICE_BACKEND_URL).
     throw new EmsError('not_configured', 'This version of the app can’t connect to your account.');
   }
-  const useAuth = init.auth ?? true;
+  const useAuth = init.bearer === undefined && (init.auth ?? true);
   if (useAuth && !sessionToken) {
     throw new EmsError('unauthorized', 'Please sign in first.');
   }
   const method = init.method ?? 'GET';
   // The session this call is made for: a refusal speaks for it, never for one started since.
-  const token = useAuth ? sessionToken : null;
+  const token = init.bearer ?? (useAuth ? sessionToken : null);
   const stillCurrent = () => sessionToken === token;
 
   const once = () =>

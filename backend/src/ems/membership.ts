@@ -27,7 +27,8 @@ export const INVITE_TTL_MS = 24 * 3600_000;
 const MAX_OPEN_INVITES = 10;
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // no 0/O, 1/I
 
-function newCode(): string {
+/** A new invite code, XXXX-XXXX (Family Circle invites use the same form). */
+export function newCode(): string {
   const raw = Array.from({ length: 8 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
   return `${raw.slice(0, 4)}-${raw.slice(4)}`;
 }

@@ -17,3 +17,18 @@ export const secureStorage = {
   setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value, OPTIONS),
   deleteItem: (key: string) => SecureStore.deleteItemAsync(key, OPTIONS),
 };
+
+/**
+ * For the few secrets a background task must read while the phone is locked (Family Circle's location token, which
+ * can only send location reports): readable after the first unlock since the phone started, still never restored
+ * onto another device. Never put the session here.
+ */
+const BACKGROUND_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
+
+export const backgroundSecureStorage = {
+  getItem: (key: string) => SecureStore.getItemAsync(key, BACKGROUND_OPTIONS),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value, BACKGROUND_OPTIONS),
+  deleteItem: (key: string) => SecureStore.deleteItemAsync(key, BACKGROUND_OPTIONS),
+};

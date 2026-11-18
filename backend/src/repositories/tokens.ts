@@ -6,7 +6,8 @@ import { db } from '../ems/db.ts';
  * session revokes it too.
  */
 
-export type TokenKind = 'session' | 'assistant';
+/** location: a session's narrow token for the phone's background task; it can only send location reports. */
+export type TokenKind = 'session' | 'assistant' | 'location';
 
 export interface TokenRow {
   user_id: string;

@@ -22,6 +22,7 @@ import { AddDeviceScreen } from '../screens/AddDeviceScreen';
 import { AcControlScreen } from '../screens/AcControlScreen';
 import { AccountSecurityScreen } from '../screens/AccountSecurityScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
+import { CircleScreen } from '../screens/CircleScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { ClinicAppointmentScreen } from '../screens/ClinicAppointmentScreen';
 import { ClinicBookingScreen } from '../screens/ClinicBookingScreen';
@@ -106,7 +107,7 @@ const ROUTE_NAMES = [
   'HealthOnboarding', 'HealthProfile', 'HealthRecords', 'HealthDocument', 'HealthUpload',
   'HealthReview', 'HealthItemForm', 'HealthSummary', 'HealthSettings', 'HealthShare', 'HealthConsultation',
   'Clinic', 'ClinicDoctor', 'ClinicBooking', 'ClinicAppointment', 'AccountSecurity', 'DeleteAccount', 'HelpSupport', 'Notifications', 'Bills', 'Deliveries',
-  'Housekeeping', 'MovingRequest',
+  'Housekeeping', 'MovingRequest', 'Circle',
 ] as const satisfies readonly (keyof RootStackParamList)[];
 
 /**
@@ -334,6 +335,7 @@ export function AppNavigator() {
           <Stack.Screen name="ConnectAccount" component={ConnectAccountScreen} />
           <Stack.Screen name="GatewaySetup" component={GatewaySetupScreen} />
           <Stack.Screen name="Household" component={HouseholdScreen} />
+          <Stack.Screen name="Circle" component={CircleScreen} />
           <Stack.Screen name="AddDevice" component={AddDeviceScreen} />
           <Stack.Screen name="AddDeviceMethod" component={AddDeviceMethodScreen} />
           <Stack.Screen name="DeviceDiscovery" component={DeviceDiscoveryScreen} />

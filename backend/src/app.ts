@@ -30,6 +30,7 @@ import { seriesRoutes } from './routes/series.ts';
 import { homeRoutes } from './routes/home.ts';
 import { opsRoutes } from './routes/ops.ts';
 import { unitRoutes } from './routes/unit.ts';
+import { circleRoutes } from './routes/circles.ts';
 
 /**
  * The Parklane / EMS device backend: one HTTP server for the REST API and the realtime
@@ -52,6 +53,7 @@ const API_ROUTES: readonly RouteGroup[] = [
   clinicRoutes,
   gatewayRoutes,
   unitRoutes,
+  circleRoutes,
   notificationRoutes,
   siteRoutes,
   unitFinanceRoutes,

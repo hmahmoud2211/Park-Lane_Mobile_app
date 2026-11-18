@@ -154,7 +154,7 @@ export async function resetToTemporaryPassword(userId: string): Promise<{ tempor
   const password = temporaryPassword();
   updatePasswordHash(userId, await hashPassword(password));
   setMustChangePassword(userId, true);
-  revokeTokens(userId, ['session', 'assistant']);
+  revokeTokens(userId, ['session', 'assistant', 'location']);
   return { temporaryPassword: password };
 }
 
@@ -223,7 +223,7 @@ export async function setPassword(userId: string, passwordInput: unknown): Promi
   }
   updatePasswordHash(userId, await hashPassword(password));
   // Assistant tokens too: they are issued from a session and must not outlive the old password either.
-  revokeTokens(userId, ['session', 'assistant']);
+  revokeTokens(userId, ['session', 'assistant', 'location']);
 }
 
 export function getUser(id: string): User | null {
@@ -257,6 +257,19 @@ export function createAssistantToken(sessionToken: string): { token: string; exp
   const expiresAt = Math.min(Date.now() + config.ems.assistantTokenTtlMs, session.expires_at);
   const token = issueToken(session.user_id, 'assistant', expiresAt, { parentHash: sha256(sessionToken) });
   return { token, expiresAt };
+}
+
+/**
+ * A location token for the session behind `sessionToken` (Family Circle's background task): it can only send
+ * location reports, lasts as long as that session, and signing out ends it.
+ */
+export function createLocationToken(sessionToken: string): { token: string; expiresAt: number } {
+  const session = lookupToken(sessionToken, ['session']);
+  if (!session) {
+    throw new ApiError('unauthorized', 'Sign in to your EMS account again.');
+  }
+  const token = issueToken(session.user_id, 'location', session.expires_at, { parentHash: sha256(sessionToken) });
+  return { token, expiresAt: session.expires_at };
 }
 
 /** The token's row when it is live, else null. */

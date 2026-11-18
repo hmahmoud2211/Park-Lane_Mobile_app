@@ -1212,6 +1212,72 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX ai_reports_status ON ai_reports(status, created_at);
   CREATE INDEX ai_reports_user ON ai_reports(user_id);
   `,
+  `
+  -- Family Circle (circles/, docs/plans/FAMILY_CIRCLE_PLAN.md): groups of accounts that share their phone's location
+  -- and battery. Not tied to a unit: an owner invites anyone with an account by code. sharing is each member's own
+  -- choice per Circle (0 until they turn it on). role: owner, member.
+  CREATE TABLE circles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE circle_members (
+    circle_id TEXT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+    sharing INTEGER NOT NULL DEFAULT 0,
+    joined_at TEXT NOT NULL,
+    PRIMARY KEY (circle_id, user_id)
+  );
+  CREATE INDEX circle_members_user ON circle_members(user_id);
+
+  -- Codes an owner makes so another account can join their Circle (stored hashed, single use, a day).
+  CREATE TABLE circle_invites (
+    code_hash TEXT PRIMARY KEY,
+    circle_id TEXT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
+    created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used_by TEXT,
+    used_at INTEGER
+  );
+  CREATE INDEX circle_invites_circle ON circle_invites(circle_id);
+
+  -- Each person's latest position (point: sealed JSON { lat, lng, accuracyM }) and battery. at: when the phone took
+  -- the point, ms. Kept only while they share in at least one Circle.
+  CREATE TABLE member_locations (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    point TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    battery_level REAL,
+    charging INTEGER,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Someone who shares in no Circle any more (they turned it off, left, were removed, or the Circle was deleted)
+  -- keeps no saved position.
+  CREATE TRIGGER member_locations_end_on_leave AFTER DELETE ON circle_members
+    WHEN NOT EXISTS (SELECT 1 FROM circle_members WHERE user_id = OLD.user_id AND sharing = 1)
+  BEGIN
+    DELETE FROM member_locations WHERE user_id = OLD.user_id;
+  END;
+  CREATE TRIGGER member_locations_end_on_unshare AFTER UPDATE OF sharing ON circle_members
+    WHEN NEW.sharing = 0 AND NOT EXISTS (SELECT 1 FROM circle_members WHERE user_id = OLD.user_id AND sharing = 1)
+  BEGIN
+    DELETE FROM member_locations WHERE user_id = OLD.user_id;
+  END;
+
+  -- An owner's unused invites end when they stop being an owner of that Circle.
+  CREATE TRIGGER circle_invites_end_on_leave AFTER DELETE ON circle_members
+  BEGIN
+    DELETE FROM circle_invites WHERE created_by = OLD.user_id AND circle_id = OLD.circle_id AND used_at IS NULL;
+  END;
+  CREATE TRIGGER circle_invites_end_on_demote AFTER UPDATE OF role ON circle_members WHEN NEW.role != 'owner'
+  BEGIN
+    DELETE FROM circle_invites WHERE created_by = OLD.user_id AND circle_id = OLD.circle_id AND used_at IS NULL;
+  END;
+  `,
 ];
 
 let instance: DatabaseSync | null = null;

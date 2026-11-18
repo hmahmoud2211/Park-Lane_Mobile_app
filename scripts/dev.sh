@@ -164,12 +164,12 @@ wait_until_stopped() {
 
 parse_run_options() {
   WEB=0
-  APP=1
+  START_APP=1
   HOST=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --web) WEB=1 ;;
-      --no-app) APP=0 ;;
+      --no-app) START_APP=0 ;;
       --host) HOST="${2:-}"; shift ;;
       *) fail "Unknown option: $1 (see the top of scripts/dev.sh)" ;;
     esac
@@ -198,7 +198,7 @@ mode_fake() {
   info "Sign in as demo@parklane.test / correct horse battery"
   echo
 
-  if [ "$APP" = 1 ]; then start_app "$HOST" "$WEB"; else wait_until_stopped; fi
+  if [ "$START_APP" = 1 ]; then start_app "$HOST" "$WEB"; else wait_until_stopped; fi
 }
 
 mode_local() {
@@ -246,7 +246,7 @@ mode_local() {
   info "  (or run: ./scripts/dev.sh attach --email you@example.com --token <Home Assistant token>)"
   echo
 
-  if [ "$APP" = 1 ]; then start_app "$HOST" "$WEB"; else wait_until_stopped; fi
+  if [ "$START_APP" = 1 ]; then start_app "$HOST" "$WEB"; else wait_until_stopped; fi
 }
 
 mode_check() {
