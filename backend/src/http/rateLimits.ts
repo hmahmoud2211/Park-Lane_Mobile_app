@@ -17,6 +17,14 @@ export const RATE_LIMITS = {
   'gateway-sync': { max: 30, windowMs: 60_000 },
   'unit-invite': { max: 20, windowMs: 3_600_000 },
   'unit-join': { max: 10, windowMs: 60_000 },
+  /** Family Circle: invites per owner, code checks and joins per account and per address. */
+  'circle-invite': { max: 20, windowMs: 3_600_000 },
+  'circle-join': { max: 10, windowMs: 60_000 },
+  /** About once a minute normally, every ~3 seconds while someone watches live (20 a minute), plus room for a backlog. */
+  'location-report': { max: 40, windowMs: 60_000 },
+  /** An open map repeats its watch about every 30 seconds. */
+  'location-watch': { max: 10, windowMs: 60_000 },
+  'location-token': { max: 10, windowMs: 60_000 },
   'health-upload': { max: 20, windowMs: 3_600_000 },
   'health-summary': { max: 30, windowMs: 3_600_000 },
   'clinic-book': { max: 20, windowMs: 60_000 },

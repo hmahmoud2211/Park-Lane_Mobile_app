@@ -42,6 +42,8 @@ export type RootStackParamList = {
    * invite link (parklane://join/<code>) and is checked straight away.
    */
   Household: { code?: string } | undefined;
+  /** Family Circle: where the people in your Circles are, and your own sharing; from Home's tile. */
+  Circle: undefined;
   /** The one way to add a device: choose the manufacturer (Screen 1). */
   AddDevice: undefined;
   /** How to connect a device of that brand (Screen 2). */
@@ -142,6 +144,7 @@ type FlowOnlyRoute =
   | 'HealthSettings'
   | 'ChangePassword'
   | 'Household'
+  | 'LgPairing'
   | 'AccountSecurity'
   | 'DeleteAccount'
   | 'Notifications'

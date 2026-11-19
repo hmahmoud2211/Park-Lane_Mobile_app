@@ -19,6 +19,13 @@ export function deleteAccountData(userId: string): void {
   database.prepare('DELETE FROM unit_members WHERE user_id = ?').run(userId);
   database.prepare('DELETE FROM unit_invites WHERE created_by = ?').run(userId);
   database.prepare('UPDATE unit_invites SET used_by = NULL WHERE used_by = ?').run(userId);
+  // Family Circle: ems/accountDeletion.ts has already left each Circle (handing ownership on); these cover the rest,
+  // including a users row kept for the clinic, which the foreign keys would not clear.
+  database.prepare('DELETE FROM circle_members WHERE user_id = ?').run(userId);
+  database.prepare('DELETE FROM circle_invites WHERE created_by = ?').run(userId);
+  database.prepare('UPDATE circle_invites SET used_by = NULL WHERE used_by = ?').run(userId);
+  database.prepare('UPDATE circles SET created_by = NULL WHERE created_by = ?').run(userId);
+  database.prepare('DELETE FROM member_locations WHERE user_id = ?').run(userId);
   // Brand-account pairings in progress. (The old devices, oauth_codes, alexa_links and link_states
   // tables were dropped by an earlier migration.)
   database.prepare('DELETE FROM pairing_sessions WHERE user_id = ?').run(userId);

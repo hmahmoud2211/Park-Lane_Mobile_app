@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { leaveAllCircles } from '../circles/circles.ts';
 import { transition } from '../clinic/appointments.ts';
 import { config } from '../config.ts';
 import { ApiError } from '../errors.ts';
@@ -67,6 +68,10 @@ export async function deleteOwnAccount(user: User, passwordInput: unknown, nowMs
   // Parking bookings they made that haven't started are cancelled through the parking rules (passes and visitor
   // links stop working); past ones stay as the gate's log without naming them.
   forgetParkingResident(user.id, nowMs);
+
+  // Family Circles are left the way leaving one does (ownership passes on, an empty Circle goes), and the others'
+  // apps are told; the saved position goes with the last shared Circle.
+  leaveAllCircles(user.id);
 
   const clinicRecordsKept = transaction(() => {
     deleteAccountData(user.id);

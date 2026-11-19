@@ -131,13 +131,21 @@ export const serviceTiles: readonly ServiceTileItem[] = [
     iconName: 'calendar-check-outline',
     route: 'AmenitiesBooking',
   },
+  {
+    id: 'family-circle',
+    title: 'Family Circle',
+    subtitle: 'See where family is',
+    iconSet: 'ionicons',
+    iconName: 'location-outline',
+    route: 'Circle',
+  },
 ];
 
 /**
  * The store build's tiles: the parts backed by a real service. BMS stays out while its readings are simulated, and
  * Parking until its real layout is confirmed (flags.parking).
  */
-const STORE_ROUTES: readonly ParamlessRoute[] = ['MyUnit', 'SmartHome', 'VisitorAccess', 'Maintenance', 'Community', 'AmenitiesBooking', ...(flags.parking ? (['Parking'] as const) : [])];
+const STORE_ROUTES: readonly ParamlessRoute[] = ['MyUnit', 'SmartHome', 'VisitorAccess', 'Maintenance', 'Community', 'AmenitiesBooking', 'Circle', ...(flags.parking ? (['Parking'] as const) : [])];
 const storeTiles: readonly ServiceTileItem[] = [
   ...serviceTiles.filter((tile) => tile.route !== undefined && STORE_ROUTES.includes(tile.route)),
   { id: 'health-passport', title: 'Health Passport', subtitle: 'Family records', iconSet: 'ionicons', iconName: 'medkit-outline', route: 'HealthPassport' },

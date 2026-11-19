@@ -10,6 +10,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider } from './src/context/AppContext';
+import { CirclesProvider } from './src/features/circles/context/CirclesProvider';
 import { EmsProvider } from './src/features/ems/context/EmsContext';
 import { GatewayProvider } from './src/features/gateway/context/GatewayContext';
 import { HealthProvider } from './src/features/health/context/HealthContext';
@@ -40,16 +41,19 @@ export default function App() {
         <ThemeProvider>
           <AppProvider>
             <EmsProvider>
-              <GatewayProvider>
-                {/* Parking from the backend; it asks only while a parking screen is open. */}
-                <ParkingProvider>
-                  <HealthProvider>
-                    {/* Every screen is dark, so light status bar content is the default. */}
-                    <StatusBar style="light" />
-                    {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
-                  </HealthProvider>
-                </ParkingProvider>
-              </GatewayProvider>
+              {/* Stops Family Circle's location updates when the resident signs out. */}
+              <CirclesProvider>
+                <GatewayProvider>
+                  {/* Parking from the backend; it asks only while a parking screen is open. */}
+                  <ParkingProvider>
+                    <HealthProvider>
+                      {/* Every screen is dark, so light status bar content is the default. */}
+                      <StatusBar style="light" />
+                      {fontsLoaded ? <AppNavigator /> : <View style={styles.splash} />}
+                    </HealthProvider>
+                  </ParkingProvider>
+                </GatewayProvider>
+              </CirclesProvider>
             </EmsProvider>
           </AppProvider>
         </ThemeProvider>

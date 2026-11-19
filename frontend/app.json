@@ -10,7 +10,7 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Parklane talks to smart devices and your home hub on your local network while you set them up and control them.",
-        "NSLocationWhenInUseUsageDescription": "Parklane reads the name of the Wi-Fi network you are on to check that you joined a device’s setup network. iOS shares network names only with apps allowed to use location.",
+        "NSLocationWhenInUseUsageDescription": "Parklane shares your location with the people in your Family Circle when you turn sharing on, and reads the name of the Wi-Fi network you are on to check that you joined a device’s setup network.",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
@@ -122,7 +122,19 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Parklane shares your location with the people in your Family Circle when you turn sharing on, and reads the name of the Wi-Fi network you are on to check that you joined a device’s setup network.",
+          "locationAlwaysAndWhenInUsePermission": "Parklane shares your location with the people in your Family Circle, also while the app is closed, only when you turn sharing on. You can turn it off at any time.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-task-manager",
+      "expo-maps"
     ],
     "backgroundColor": "#071B44",
     "extra": {
